@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -7,9 +7,8 @@ import { useNavigate } from "react-router-dom";
 import Checkbox from "@/components/ui/Checkbox";
 import Button from "@/components/ui/Button";
 import { Link } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { useLoginMutation } from "@/store/api/auth/authApiSlice";
-import { setUser } from "@/store/api/auth/authSlice";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 import { toast } from "react-toastify";
 
 const schema = yup
@@ -19,66 +18,75 @@ const schema = yup
   })
   .required();
 
+const LOGIN_URL = "https://demo.aentora.com/backend/public/api/login";
+
 const LoginForm = () => {
-  const [login, { isLoading, error }] = useLoginMutation();
-  const dispatch = useDispatch();
-  
+  const [loginError, setLoginError] = useState(null);
+  const [rememberMe, setRememberMe] = useState(false);
+  const navigate = useNavigate();
+
   const {
     register,
-    formState: { errors },
     handleSubmit,
+    formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
-    mode: "all",
+    mode: "onChange",
   });
 
-  const navigate = useNavigate();
-  const [loginError, setLoginError] = useState(null);
+  const { mutate: login, isPending: isLoading } = useMutation({
+    mutationFn: async (formData) => {
+      const apiData = {
+        login: formData.email,
+        password: formData.password,
+      };
 
-  // Display error message if there's an API error
-  useEffect(() => {
-    if (error) {
-      console.error("Login error:", error);
-      setLoginError(error.message || "Login failed. Please check your credentials.");
-    }
-  }, [error]);
-
-  const onSubmit = async (data) => {
-    try {
-      setLoginError(null);
-      const response = await login(data);
+      console.log("Data being sent (axios):", apiData);
       
-      // Check for error in response
-      if (response.error) {
-        throw new Error(response.error.data?.message || "Login failed");
-      }
-      
-      // If successful, extract data
-      const userData = response.data;
-      
-      if (userData && userData.access_token) {
-        // Store token
-        localStorage.setItem("token", userData.access_token);
-        
-        // Store user data
-        localStorage.setItem("user", JSON.stringify(userData.user));
-        
-        // Update Redux state
-        dispatch(setUser(userData.user));
-        
+      const response = await axios.post(LOGIN_URL, apiData, {
+        headers: {
+          "Accept": "application/json",
+        }
+      });
+      return response.data;
+    },
+    onSuccess: (responseData) => {
+      if (responseData && responseData.access_token) {
+        localStorage.setItem("token", responseData.access_token);
+        localStorage.setItem("user", JSON.stringify(responseData.user));
         toast.success("Login Successful");
         navigate("/dashboard");
       } else {
-        throw new Error("Invalid response from server");
+        throw new Error(responseData.message || "Invalid response from server");
       }
-    } catch (error) {
-      const errorMsg = error.message || "Login failed";
+    },
+    onError: (error) => {
+      console.error("Login error details (axios):", error);
+      let errorMsg = "Login failed. Please check your credentials.";
+
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server Error Response (axios):", error.response.data);
+        const serverErrorData = error.response.data;
+        errorMsg = serverErrorData.message || "An unknown server error occurred.";
+        if (serverErrorData.errors && Object.keys(serverErrorData.errors).length > 0) {
+          errorMsg += ": " + Object.values(serverErrorData.errors).map(errArray => errArray.join(', ')).join('; ');
+        }
+      } else if (error.request) {
+        console.error("Network error (axios):", error.request);
+        errorMsg = "Network error. Please check your connection.";
+      } else if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      
       toast.error(errorMsg);
       setLoginError(errorMsg);
     }
-  };
+  });
 
-  const [rememberMe, setRememberMe] = useState(false);
+  const onSubmit = (formData) => {
+    setLoginError(null);
+    login(formData);
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -100,11 +108,9 @@ const LoginForm = () => {
         error={errors.password}
         className="h-[48px]"
       />
-      
       {loginError && (
         <div className="text-red-500 text-sm">{loginError}</div>
       )}
-      
       <div className="flex justify-between">
         <Checkbox
           value={rememberMe}
@@ -118,7 +124,6 @@ const LoginForm = () => {
           Forgot Password?
         </Link>
       </div>
-
       <Button
         type="submit"
         text="Sign in"

@@ -4,35 +4,39 @@ export const menuItems = [
     title: "menu",
   },
 
-  {
+  
+   {
     title: "Dashboard",
     icon: "heroicons-outline:home",
-    link: "dashboard",
-  },
-  {
-    title: "Multi Level",
-    icon: "heroicons:share",
-    link: "#",
+    isOpen: true,
+    isHide: true,
     child: [
       {
-        childtitle: "Level 1.1",
-        childlink: "icons",
+        childtitle: "Analytics Dashboard",
+        childlink: "dashboard",
       },
       {
-        childtitle: "Level 1.2",
-        childlink: "Level-1",
-        multi_menu: [
-          {
-            multiTitle: "Level 2.1",
-            multiLink: "Level-2",
-          },
-          {
-            multiTitle: "Level 2.2",
-            multiLink: "Level-2.3",
-          },
-        ],
+        childtitle: "Ecommerce Dashboard",
+        childlink: "ecommerce",
+      },
+      {
+        childtitle: "Project  Dashbaord",
+        childlink: "project",
+      },
+      {
+        childtitle: " CRM Dashbaord",
+        childlink: "crm",
+      },
+      {
+        childtitle: "Banking Dashboard",
+        childlink: "banking",
       },
     ],
+  },
+  {
+    title: "Layout",
+    icon: "heroicons:presentation-chart-line",
+    link: "#",
   },
 ];
 
