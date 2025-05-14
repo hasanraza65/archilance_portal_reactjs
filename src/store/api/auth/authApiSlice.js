@@ -11,11 +11,12 @@ export const authApi = apiSlice.injectEndpoints({
     }),
     login: builder.mutation({
       query: (data) => ({
-        url: "",
+        url: "login", // Fixed URL to match the correct endpoint
         method: "POST",
         body: data,
       }),
     }),
   }),
 });
+
 export const { useRegisterUserMutation, useLoginMutation } = authApi;

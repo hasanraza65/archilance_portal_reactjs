@@ -4,6 +4,7 @@ import Icon from "@/components/ui/Icon";
 import { MenuItem } from "@headlessui/react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { logOut } from "@/store/api/auth/authSlice";
 
 import UserAvatar from "@/assets/images/all-img/user.png";
 
@@ -45,58 +46,57 @@ const Profile = () => {
     {
       label: "Profile",
       icon: "heroicons-outline:user",
-
       action: () => {
-        console.log("profile");
+        navigate("/profile");
       },
     },
     {
       label: "Chat",
       icon: "heroicons-outline:chat",
       action: () => {
-        console.log("chat");
+        navigate("/chat");
       },
     },
     {
       label: "Email",
       icon: "heroicons-outline:mail",
       action: () => {
-        console.log("email");
+        navigate("/email");
       },
     },
     {
       label: "Todo",
       icon: "heroicons-outline:clipboard-check",
       action: () => {
-        console.log("todo");
+        navigate("/todo");
       },
     },
     {
       label: "Settings",
       icon: "heroicons-outline:cog",
       action: () => {
-        console.log("settings");
+        navigate("/settings");
       },
     },
     {
       label: "Price",
       icon: "heroicons-outline:credit-card",
       action: () => {
-        console.log("price");
+        navigate("/pricing");
       },
     },
     {
       label: "Faq",
       icon: "heroicons-outline:information-circle",
       action: () => {
-        console.log("faq");
+        navigate("/faq");
       },
     },
     {
       label: "Logout",
       icon: "heroicons-outline:login",
       action: () => {
-        console.log("logout");
+        handleLogout(); // Call the function directly here
       },
     },
   ];
