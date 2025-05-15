@@ -1,45 +1,74 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
 import { MenuItem } from "@headlessui/react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logOut } from "@/store/api/auth/authSlice";
+import axios from "axios";
+import Cookies from "js-cookie";
 
 import UserAvatar from "@/assets/images/all-img/user.png";
-
-const profileLabel = () => {
-  return (
-    <div className="flex items-center">
-      <div className="flex-1 ltr:mr-[10px] rtl:ml-[10px]">
-        <div className="lg:h-8 lg:w-8 h-7 w-7 rounded-full">
-          <img
-            src={UserAvatar}
-            alt=""
-            className="block w-full h-full object-cover rounded-full"
-          />
-        </div>
-      </div>
-      <div className="flex-none text-slate-600 dark:text-white text-sm font-normal items-center lg:flex hidden overflow-hidden text-ellipsis whitespace-nowrap">
-        <span className="overflow-hidden text-ellipsis whitespace-nowrap w-[85px] block">
-          Albert Flores
-        </span>
-        <span className="text-base inline-block ltr:ml-[10px] rtl:mr-[10px]">
-          <Icon icon="heroicons-outline:chevron-down"></Icon>
-        </span>
-      </div>
-    </div>
-  );
-};
 
 const Profile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [userData, setUserData] = useState({
+    name: "Loading...",
+  });
+
+  useEffect(() => {
+    // Get user data from cookies on component mount
+    const storedUser = Cookies.get("user");
+    console.log("Cookie user data:", storedUser);
+
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        console.log("Parsed user data:", parsedUser);
+        setUserData(parsedUser);
+      } catch (error) {
+        console.error("Error parsing user data from cookies:", error);
+      }
+    } else {
+      console.log("No user data found in cookies");
+    }
+  }, []);
 
   const handleLogout = () => {
-    // Clear user data from local storage
-    localStorage.removeItem("user");
+    // Clear user data from cookies
+    Cookies.remove("user");
+    Cookies.remove("token");
     dispatch(logOut());
+  };
+
+  const profileLabel = () => {
+    return (
+      <div className="flex items-center">
+        <div className="flex-1 ltr:mr-[10px] rtl:ml-[10px]">
+          <div className="lg:h-8 lg:w-8 h-7 w-7 rounded-full">
+            <img
+              src={UserAvatar}
+              alt=""
+              className="block w-full h-full object-cover rounded-full"
+            />
+          </div>
+        </div>
+        <div className="flex-none text-slate-600 dark:text-white text-sm font-normal items-center lg:flex hidden overflow-hidden text-ellipsis whitespace-nowrap">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap w-[85px] block text-lg font-semibold text-black dark:text-white">
+            {userData && userData.name
+              ? userData.name
+              : userData && userData.login
+              ? userData.login
+              : "User"}
+          </span>
+
+          <span className="text-base inline-block ltr:ml-[10px] rtl:mr-[10px]">
+            <Icon icon="heroicons-outline:chevron-down"></Icon>
+          </span>
+        </div>
+      </div>
+    );
   };
 
   const ProfileMenu = [
@@ -96,7 +125,7 @@ const Profile = () => {
       label: "Logout",
       icon: "heroicons-outline:login",
       action: () => {
-        handleLogout(); // Call the function directly here
+        handleLogout();
       },
     },
   ];
@@ -112,7 +141,7 @@ const Profile = () => {
                 isActive
                   ? "bg-slate-100 text-slate-900 dark:bg-slate-600 dark:text-slate-300 dark:bg-opacity-50"
                   : "text-slate-600 dark:text-slate-300"
-              } block     ${
+              } block ${
                 item.hasDivider
                   ? "border-t border-slate-100 dark:border-slate-700"
                   : ""

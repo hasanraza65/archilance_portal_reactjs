@@ -1,43 +1,98 @@
+// src/App.jsx
 import React, { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
-// home pages  & dashboard
-//import Dashboard from "./pages/dashboard";
+// ✅ Lazy load all page components for performance optimization
+// Dashboard pages (protected)
 const Dashboard = lazy(() => import("./pages/dashboard"));
 const Ecommerce = lazy(() => import("./pages/dashboard/ecommerce"));
 
-
-
+// ✅ Auth pages (public)
 const Login = lazy(() => import("./pages/auth/login"));
+const Register = lazy(() => import("./pages/auth/register")); // ✅ Add Register page
 const ForgotPass = lazy(() => import("./pages/auth/forgot-password"));
+
+// ✅ 404 error page
 const Error = lazy(() => import("./pages/404"));
 
+// ✅ Layouts (these are loaded eagerly, not lazy)
 import Layout from "./layout/Layout";
 import AuthLayout from "./layout/AuthLayout";
 
+// ✅ Components
 import Loading from "@/components/Loading";
+import ProtectedRoute from "./ProtectedRoute";
 
 function App() {
   return (
-    <main className="App  relative">
-      {/* Protected Routes */}
+    <main className="App relative">
       <Routes>
-        <Route path="/" element={<AuthLayout />}>
-          <Route path="/" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPass />} />
+
+        {/* ✅ Public routes login, register, forgot-password */}
+        <Route element={<AuthLayout />}>
+          <Route
+            path="/"
+            element={
+              <Suspense fallback={<Loading />}>
+                <Login />
+              </Suspense>
+            }
+          />
+
+          {/* Redirect /login to root login page */}
+          <Route path="login" element={<Navigate to="/" replace />} />
+          <Route
+            path="register"
+            element={
+              <Suspense fallback={<Loading />}>
+                <Register />
+              </Suspense>
+            }
+          />
+
+          {/* Forgot password route */}
+          <Route
+            path="forgot-password"
+            element={
+              <Suspense fallback={<Loading />}>
+                <ForgotPass />
+              </Suspense>
+            }
+          />
         </Route>
 
-        {/* Public Routes */}
-        <Route path="/*" element={<Layout />}>
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="ecommerce" element={<Ecommerce />} />
+        {/* ✅ Protected routes (after login only) */}
+        <Route element={<ProtectedRoute />}>
 
+          {/* ✅ Common layout for all protected pages */}
+          <Route element={<Layout />}>
 
-          <Route path="*" element={<Navigate to="/404" />} />
+            {/* Dashboard route */}
+            <Route
+              path="dashboard"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <Dashboard />
+                </Suspense>
+              }
+            />
+
+            {/* Ecommerce route */}
+            <Route
+              path="ecommerce"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <Ecommerce />
+                </Suspense>
+              }
+            />
+
+            {/* Catch-all route for unmatched protected paths */}
+            <Route path="*" element={<Navigate to="/404" replace />} />
+          </Route>
         </Route>
 
-
-        {/* Redirect to 404 page */}
+        {/* ✅ 404 error page route */}
         <Route
           path="/404"
           element={
@@ -46,6 +101,9 @@ function App() {
             </Suspense>
           }
         />
+
+        {/* ✅ Catch-all for unmatched public paths */}
+        <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </main>
   );
