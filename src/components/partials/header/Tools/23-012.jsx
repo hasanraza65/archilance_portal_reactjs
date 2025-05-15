@@ -3,9 +3,8 @@ import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
 import { MenuItem } from "@headlessui/react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { logOut } from "@/store/api/auth/authSlice";
-import axios from "axios";
 import Cookies from "js-cookie";
 
 import UserAvatar from "@/assets/images/all-img/user.png";
@@ -37,9 +36,20 @@ const Profile = () => {
 
   const handleLogout = () => {
     // Clear user data from cookies
-    Cookies.remove("user");
-    Cookies.remove("token");
-    dispatch(logOut());
+    try {
+      Cookies.remove("user");
+      Cookies.remove("token");
+      
+      // Dispatch logout action to Redux
+      dispatch(logOut());
+      
+      // Redirect to login page after logout
+      navigate("/login");
+      
+      console.log("Logout successful");
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
 
   const profileLabel = () => {
