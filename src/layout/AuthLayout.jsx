@@ -1,17 +1,37 @@
-import React, { useEffect, Suspense } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import Loading from "@/components/Loading";
-const AuthLayout = () => {
-  const navigate = useNavigate();
 
+import React from 'react';
+import { Outlet, Navigate } 
+from 'react-router-dom';
+import Cookies from 'js-cookie';
+import Loading from '@/components/Loading'; 
+
+const AuthLayout = () => {
+  const [isLoading, setIsLoading] = React.useState(true); 
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+
+  React.useEffect(() => {
+    const token = Cookies.get('token');
+    
+    if (token) {
+      setIsAuthenticated(true);
+    }
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) {
+    return <Loading />; 
+  }
+
+  if (isAuthenticated) {
+    
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  
   return (
-    <>
-      <Suspense fallback={<Loading />}>
-        <ToastContainer />
-        {<Outlet />}
-      </Suspense>
-    </>
+   
+        <Outlet />
+     
   );
 };
 

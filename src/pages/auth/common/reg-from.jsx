@@ -1,16 +1,18 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
-import Textinput from "@/components/ui/Textinput"; // Assuming this path is correct
-import Button from "@/components/ui/Button";       // Assuming this path is correct
+import Textinput from "@/components/ui/Textinput";
+import Button from "@/components/ui/Button";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useNavigate } from "react-router-dom";
-import Checkbox from "@/components/ui/Checkbox";   // Assuming this path is correct
+import Checkbox from "@/components/ui/Checkbox";
 import axios from "axios";
-import { useMutation } from "@tanstack/react-query"; // Correct import for TanStack Query v4/v5
+import { useMutation } from "@tanstack/react-query";
 
 // Updated schema with all required fields
+// !!! IMPORTANT: Check API requirements for password length.
+// If API requires 8 characters, change min(6) to min(8) below.
 const schema = yup
   .object({
     name: yup.string().required("Name is Required"),
@@ -19,12 +21,12 @@ const schema = yup
     phone: yup
       .string()
       .required("Phone is Required")
-      .matches(/^[0-9+()-]*$/, "Phone number can only contain digits, +, (, ), -") // More flexible phone regex
+      .matches(/^[0-9+()-]*$/, "Phone number can only contain digits, +, (, ), -")
       .min(10, "Phone number must be at least 10 characters")
       .max(15, "Phone number must be at most 15 characters"),
     password: yup
       .string()
-      .min(6, "Password must be at least 6 characters") // Your schema said 6, API might require 8
+      .min(6, "Password must be at least 6 characters") //  <-- API MIGHT REQUIRE 8. Check error.response.data.errors for password field.
       .max(20, "Password shouldn't be more than 20 characters")
       .required("Please enter password"),
     password_confirmation: yup
@@ -36,80 +38,106 @@ const schema = yup
 
 // API registration function
 const registerUserFn = async (userData) => {
-  console.log("🚀 ~ registerUserFn ~ userData to be sent to API:", userData); // Log data before API call
+  console.log("🚀 ~ registerUserFn ~ userData to be sent to API:", userData);
   const response = await axios.post(
     "https://demo.aentora.com/backend/public/api/register",
     userData
   );
-  console.log("🚀 ~ registerUserFn ~ API raw response:", response); // Log raw API response
-  return response.data; // Return only response.data
+  console.log("🚀 ~ registerUserFn ~ API raw response:", response);
+  return response.data;
 };
 
 const RegForm = () => {
   const [checked, setChecked] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Initialize useNavigate
 
   const {
     register,
     formState: { errors },
     handleSubmit,
+    setError,
     reset,
   } = useForm({
     resolver: yupResolver(schema),
     mode: "all",
   });
 
-  // Using TanStack Query's useMutation
   const { mutate, isLoading } = useMutation({
     mutationFn: registerUserFn,
     onSuccess: (data) => {
-      console.log("🚀 ~ onSuccess ~ API success data:", data); // Log successful API response data
-      toast.success(data.message || "Registration Successful!"); // Use message from API if available
-      reset();
-      navigate("/"); // Or to a login page: navigate("/login");
+      console.log("🚀 ~ onSuccess ~ API success data:", data);
+      toast.success(data.message || "Registration Successful! Redirecting to login..."); // Updated toast message
+      reset(); // Clear form fields
+
+      // Redirect to login page after a short delay (e.g., 1.5 seconds)
+      // to allow the user to see the success toast.
+      // Adjust the delay or remove setTimeout for immediate redirection.
+      setTimeout(() => {
+        navigate("/login"); // Ensure "/login" is your correct login route
+      }, 1500);
     },
     onError: (error) => {
-      console.error("🚀 ~ onError ~ API error object:", error); // Log the full error object
-      console.error("🚀 ~ onError ~ API error response data:", error.response?.data); // Log specific response data if available
-
-      let displayErrorMessage = "An error occurred. Please try again later.";
+      console.error("🚀 ~ onError ~ API error object:", error);
 
       if (error.response && error.response.data) {
         const responseData = error.response.data;
-        if (responseData.message) {
-          displayErrorMessage = responseData.message; // Use the main message from API
-        }
-        // Check for specific field errors if your API returns them in a nested 'errors' object
-        if (responseData.errors) {
-          const fieldErrors = Object.values(responseData.errors).flat().join(" ");
-          if (fieldErrors) {
-            displayErrorMessage = fieldErrors; // Display concatenated field errors
+        console.error("🚀 ~ onError ~ API error response data:", responseData);
+
+        if (responseData.errors && typeof responseData.errors === 'object') {
+          let specificErrorSet = false;
+          Object.keys(responseData.errors).forEach((fieldKey) => {
+            const messages = responseData.errors[fieldKey];
+            const message = Array.isArray(messages) ? messages.join(" ") : messages;
+
+            if (["name", "email", "username", "phone", "password", "password_confirmation"].includes(fieldKey)) {
+              setError(fieldKey, {
+                type: "server",
+                message: message,
+              });
+              specificErrorSet = true;
+            } else {
+              toast.error(`${fieldKey}: ${message}`);
+            }
+          });
+
+          if (specificErrorSet) {
+            toast.error(responseData.message || "Please correct the errors highlighted in the form.");
+          } else if(responseData.message) {
+            toast.error(responseData.message);
+          } else {
+            toast.error("Validation failed. Please check form details.");
           }
         }
+        else if (responseData.message) {
+          let displayErrorMessage = responseData.message;
+          if (displayErrorMessage.toLowerCase().includes("email has already been taken")) {
+            setError("email", { type: "server", message: "This email is already registered." });
+            toast.error("This email is already registered.");
+          } else if (displayErrorMessage.toLowerCase().includes("username has already been taken")) {
+             setError("username", { type: "server", message: "This username is already taken." });
+            toast.error("This username is already taken.");
+          } else {
+            toast.error(displayErrorMessage);
+          }
+        }
+        else {
+          toast.error("An unknown validation error occurred. Please check your input.");
+        }
       }
-
-      // More specific checks based on common API error messages
-      if (displayErrorMessage.toLowerCase().includes("email has already been taken")) {
-        toast.error("This email is already registered.");
-      } else if (displayErrorMessage.toLowerCase().includes("username has already been taken")) {
-        toast.error("This username is already taken.");
-      } else {
-        toast.error(displayErrorMessage); // Show the processed or generic error message
+      else {
+        toast.error(error.message || "A network error occurred. Please try again.");
       }
     },
   });
 
   const onSubmit = (data) => {
-    console.log("🚀 ~ onSubmit ~ Form data:", data); // Log form data on submit
+    console.log("🚀 ~ onSubmit ~ Form data (after yup validation):", data);
     if (!checked) {
       toast.error("Please accept Terms and Conditions and Privacy Policy.");
       return;
     }
     mutate(data);
   };
-
-  // Log form errors for debugging
-  // console.log("🚀 ~ RegForm ~ Form validation errors:", errors);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -122,7 +150,6 @@ const RegForm = () => {
         error={errors.name}
         className="h-[48px]"
       />
-
       <Textinput
         name="email"
         label="Email Address"
@@ -132,7 +159,6 @@ const RegForm = () => {
         error={errors.email}
         className="h-[48px]"
       />
-
       <Textinput
         name="username"
         label="Username"
@@ -142,27 +168,24 @@ const RegForm = () => {
         error={errors.username}
         className="h-[48px]"
       />
-
       <Textinput
         name="phone"
         label="Phone Number"
-        type="tel" // Use 'tel' for better mobile UX
+        type="tel"
         placeholder="Enter your phone number"
         register={register}
         error={errors.phone}
         className="h-[48px]"
       />
-
       <Textinput
         name="password"
         label="Password"
         type="password"
-        placeholder="Enter your password (min. 6 characters)"
+        placeholder="Enter your password"
         register={register}
         error={errors.password}
         className="h-[48px]"
       />
-
       <Textinput
         name="password_confirmation"
         label="Confirm Password"
@@ -172,19 +195,17 @@ const RegForm = () => {
         error={errors.password_confirmation}
         className="h-[48px]"
       />
-
       <Checkbox
         label="You accept our Terms and Conditions and Privacy Policy"
         value={checked}
         onChange={() => setChecked(!checked)}
       />
-
       <Button
         type="submit"
         text="Create an account"
         className="btn btn-dark block w-full text-center"
         isLoading={isLoading}
-        disabled={isLoading} // Explicitly disable button when loading
+        disabled={isLoading}
       />
     </form>
   );

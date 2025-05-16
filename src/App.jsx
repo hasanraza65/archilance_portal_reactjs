@@ -1,25 +1,18 @@
-// src/App.jsx
 import React, { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
-// ✅ Lazy load all page components for performance optimization
-// Dashboard pages (protected)
 const Dashboard = lazy(() => import("./pages/dashboard"));
 const Ecommerce = lazy(() => import("./pages/dashboard/ecommerce"));
-
-// ✅ Auth pages (public)
 const Login = lazy(() => import("./pages/auth/login"));
-const Register = lazy(() => import("./pages/auth/register")); // ✅ Add Register page
+const Register = lazy(() => import("./pages/auth/register"));
 const ForgotPass = lazy(() => import("./pages/auth/forgot-password"));
-
-// ✅ 404 error page
+const Profile = lazy(() => import("./pages/utility/profile"));
+const EditProfile = lazy(() => import("./pages/utility/edit-profile"));
 const Error = lazy(() => import("./pages/404"));
 
-// ✅ Layouts (these are loaded eagerly, not lazy)
 import Layout from "./layout/Layout";
 import AuthLayout from "./layout/AuthLayout";
 
-// ✅ Components
 import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -27,8 +20,6 @@ function App() {
   return (
     <main className="App relative">
       <Routes>
-
-        {/* ✅ Public routes login, register, forgot-password */}
         <Route element={<AuthLayout />}>
           <Route
             path="/"
@@ -38,8 +29,6 @@ function App() {
               </Suspense>
             }
           />
-
-          {/* Redirect /login to root login page */}
           <Route path="login" element={<Navigate to="/" replace />} />
           <Route
             path="register"
@@ -49,8 +38,6 @@ function App() {
               </Suspense>
             }
           />
-
-          {/* Forgot password route */}
           <Route
             path="forgot-password"
             element={
@@ -61,13 +48,8 @@ function App() {
           />
         </Route>
 
-        {/* ✅ Protected routes (after login only) */}
         <Route element={<ProtectedRoute />}>
-
-          {/* ✅ Common layout for all protected pages */}
           <Route element={<Layout />}>
-
-            {/* Dashboard route */}
             <Route
               path="dashboard"
               element={
@@ -76,8 +58,6 @@ function App() {
                 </Suspense>
               }
             />
-
-            {/* Ecommerce route */}
             <Route
               path="ecommerce"
               element={
@@ -87,12 +67,28 @@ function App() {
               }
             />
 
-            {/* Catch-all route for unmatched protected paths */}
+            <Route
+              path="profile"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <Profile />
+                </Suspense>
+              }
+            />
+            <Route
+              path="profile/edit" // New route for editing profile
+              element={
+                <Suspense fallback={<Loading />}>
+                  <EditProfile />
+                </Suspense>
+              }
+            />
+
+            {/* Error Page Route */}
             <Route path="*" element={<Navigate to="/404" replace />} />
           </Route>
         </Route>
 
-        {/* ✅ 404 error page route */}
         <Route
           path="/404"
           element={
@@ -101,8 +97,6 @@ function App() {
             </Suspense>
           }
         />
-
-        {/* ✅ Catch-all for unmatched public paths */}
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </main>
