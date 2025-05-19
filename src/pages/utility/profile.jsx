@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
 
-const API_DOMAIN_FOR_ASSETS = import.meta.env?.VITE_API_DOMAIN || "https://demo.aentora.com/backend";
+const API_DOMAIN_FOR_ASSETS = import.meta.env?.VITE_API_DOMAIN || "https://demo.aentora.com/backend/public/storage";
 const API_BASE_URL_FOR_API_CALLS = import.meta.env?.VITE_API_URL || window.env?.API_URL || "https://demo.aentora.com/backend/public";
 
 const PROFILE_API_URL = `${API_BASE_URL_FOR_API_CALLS}/api/me`;
