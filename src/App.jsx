@@ -8,6 +8,10 @@ const Register = lazy(() => import("./pages/auth/register"));
 const ForgotPass = lazy(() => import("./pages/auth/forgot-password"));
 const Profile = lazy(() => import("./pages/utility/profile"));
 const EditProfile = lazy(() => import("./pages/utility/edit-profile"));
+const ProjectPostPage = lazy(() => import("./pages/app/projects"));
+
+
+// Error page link
 const Error = lazy(() => import("./pages/404"));
 
 import Layout from "./layout/Layout";
@@ -83,6 +87,7 @@ function App() {
                 </Suspense>
               }
             />
+             <Route path="projects" element={<ProjectPostPage />} />
 
             {/* Error Page Route */}
             <Route path="*" element={<Navigate to="/404" replace />} />

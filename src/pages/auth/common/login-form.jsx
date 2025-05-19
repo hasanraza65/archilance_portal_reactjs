@@ -69,7 +69,7 @@ const LoginForm = () => {
         };
 
         if (rememberMe) {
-          cookieOptions.expires = 7; // 7 days
+          cookieOptions.expires = 7; 
         }
 
         Cookies.set("token", responseData.access_token, cookieOptions);
