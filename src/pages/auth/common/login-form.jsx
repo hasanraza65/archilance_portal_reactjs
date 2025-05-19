@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Textinput from "@/components/ui/Textinput"; 
+import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -18,9 +18,13 @@ const schema = yup
   })
   .required();
 
-// Get API URL from environment variable or use fallback
-const API_URL = import.meta.env?.VITE_API_URL || window.env?.API_URL || "https://demo.aentora.com/backend/public/api";
-const LOGIN_URL = `${API_URL}/login`;
+const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || DEFAULT_BACKEND_URL;
+
+const LOGIN_URL = `${BACKEND_BASE_URL}/api/login`;
+
+
 
 const LoginForm = () => {
   const [loginError, setLoginError] = useState(null);
@@ -31,20 +35,21 @@ const LoginForm = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
-    mode: "onChange",
+    mode: "onChange", 
   });
 
   const { mutate: login, isPending: isLoading } = useMutation({
     mutationFn: async (formData) => {
       const apiData = {
-        login: formData.email,
+        login: formData.email, 
         password: formData.password,
       };
 
       console.log("Data being sent to API:", apiData);
+      console.log("Attempting to login at URL:", LOGIN_URL); 
 
       const response = await axios.post(LOGIN_URL, apiData, {
         headers: {
@@ -56,22 +61,24 @@ const LoginForm = () => {
     },
     onSuccess: (responseData) => {
       if (responseData && responseData.access_token) {
+      
+        const isDevelopment = import.meta.env.DEV;
         const cookieOptions = {
-          secure: process.env.NODE_ENV === 'production', 
+          secure: !isDevelopment, 
           sameSite: 'Lax',
         };
 
         if (rememberMe) {
-          cookieOptions.expires = 7;
+          cookieOptions.expires = 7; // 7 days
         }
-       
+
         Cookies.set("token", responseData.access_token, cookieOptions);
         if (responseData.user) {
           Cookies.set("user", JSON.stringify(responseData.user), cookieOptions);
         }
 
         toast.success("Login Successful");
-        
+
         const from = location.state?.from?.pathname || "/dashboard";
         navigate(from, { replace: true });
       } else {
@@ -105,7 +112,7 @@ const LoginForm = () => {
       } else if (error instanceof Error) {
         errorMsg = error.message;
       }
-      
+
       toast.error(errorMsg);
       setLoginError(errorMsg);
     },
@@ -117,37 +124,36 @@ const LoginForm = () => {
   };
 
   return (
-    <form 
-      onSubmit={handleSubmit(onSubmit)} 
+    <form
+      onSubmit={handleSubmit(onSubmit)}
       className="space-y-4"
-   
     >
       <Textinput
         name="email"
         label="Email"
-        defaultValue="admin@mail.com" 
+        defaultValue="admin@mail.com" // Consider removing if not always needed
         type="email"
         register={register}
         error={errors.email}
-        className="h-[48px]" 
+        className="h-[48px]"
         placeholder="Enter your email"
       />
       <Textinput
         name="password"
         label="Password"
         type="password"
-        defaultValue="" 
+        defaultValue="" // Default value for password should usually be empty
         register={register}
         error={errors.password}
-        className="h-[48px]" 
+        className="h-[48px]"
         placeholder="Enter your password"
       />
       {loginError && (
-        <div className="text-sm text-red-500 dark:text-red-400" role="alert"> 
+        <div className="text-sm text-red-500 dark:text-red-400" role="alert">
           {loginError}
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2"> 
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Checkbox
           value={rememberMe}
           onChange={() => setRememberMe(!rememberMe)}

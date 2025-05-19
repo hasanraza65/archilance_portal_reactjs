@@ -36,21 +36,34 @@ const schema = yup
   })
   .required();
 
-// API registration function
+
+const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || DEFAULT_BACKEND_URL;
+
+
+const API_BASE_URL_FOR_API_CALLS = `${BACKEND_BASE_URL}/api`;
+
+const REGISTER_API_URL = `${API_BASE_URL_FOR_API_CALLS}/register`; 
+
 const registerUserFn = async (userData) => {
-  console.log("🚀 ~ registerUserFn ~ userData to be sent to API:", userData);
+  // console.log("🚀 ~ registerUserFn ~ userData to be sent to API:", userData);
   const response = await axios.post(
-    "https://demo.aentora.com/backend/public/api/register",
-    userData
+    REGISTER_API_URL, 
+    userData,
+    { 
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+    }
   );
-  console.log("🚀 ~ registerUserFn ~ API raw response:", response);
+  // console.log("🚀 ~ registerUserFn ~ API raw response:", response);
   return response.data;
 };
-
 const RegForm = () => {
   const [checked, setChecked] = useState(false);
-  const navigate = useNavigate(); // Initialize useNavigate
-
+  const navigate = useNavigate(); 
   const {
     register,
     formState: { errors },
@@ -65,15 +78,12 @@ const RegForm = () => {
   const { mutate, isLoading } = useMutation({
     mutationFn: registerUserFn,
     onSuccess: (data) => {
-      console.log("🚀 ~ onSuccess ~ API success data:", data);
-      toast.success(data.message || "Registration Successful! Redirecting to login..."); // Updated toast message
-      reset(); // Clear form fields
+      // console.log("🚀 ~ onSuccess ~ API success data:", data);
+      toast.success(data.message || "Registration Successful! Redirecting to login...");
+      reset(); 
 
-      // Redirect to login page after a short delay (e.g., 1.5 seconds)
-      // to allow the user to see the success toast.
-      // Adjust the delay or remove setTimeout for immediate redirection.
       setTimeout(() => {
-        navigate("/login"); // Ensure "/login" is your correct login route
+        navigate("/login"); 
       }, 1500);
     },
     onError: (error) => {
@@ -131,7 +141,7 @@ const RegForm = () => {
   });
 
   const onSubmit = (data) => {
-    console.log("🚀 ~ onSubmit ~ Form data (after yup validation):", data);
+    // console.log("🚀 ~ onSubmit ~ Form data (after yup validation):", data);
     if (!checked) {
       toast.error("Please accept Terms and Conditions and Privacy Policy.");
       return;

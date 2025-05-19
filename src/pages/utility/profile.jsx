@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
-import BasicArea from "../chart/appex-chart/BasicArea";
+import BasicArea from "../chart/appex-chart/BasicArea"; // Ensure this path is correct
 import Loading from "@/components/Loading";
 
 import axios from "axios";
@@ -11,24 +11,32 @@ import { useQuery } from "@tanstack/react-query";
 
 import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
 
-const API_DOMAIN_FOR_ASSETS = import.meta.env?.VITE_API_DOMAIN || "https://demo.aentora.com/backend/public/storage";
-const API_BASE_URL_FOR_API_CALLS = import.meta.env?.VITE_API_URL || window.env?.API_URL || "https://demo.aentora.com/backend/public";
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+const ASSETS_DOMAIN = import.meta.env.VITE_ASSETS_DOMAIN || `${BACKEND_BASE_URL}/storage`;
+const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
+const PROFILE_API_URL = `${API_BASE_URL}/me`;
 
-const PROFILE_API_URL = `${API_BASE_URL_FOR_API_CALLS}/api/me`;
+
+// console.log("Environment Config:", {
+//   BACKEND_BASE_URL,
+//   ASSETS_DOMAIN,
+//   API_BASE_URL,
+//   PROFILE_API_URL
+// });
 
 const fetchProfileData = async () => {
   const token = Cookies.get("token");
   if (!token) {
     throw new Error("No authentication token found.");
   }
-
+  // console.log("Fetching profile data from:", PROFILE_API_URL);
   const response = await axios.get(PROFILE_API_URL, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
   });
-  console.log("Fetched Profile Data:", response.data);
+  // console.log("Fetched Profile Data:", response.data);
   return response.data;
 };
 
@@ -41,27 +49,32 @@ const Profile = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["profileData"], // This query is refetched when invalidated
+    queryKey: ["profileData"],
     queryFn: fetchProfileData,
   });
 
+  
   let profilePicSrc = DefaultProfileImage;
 
-  if (userProfile) { // Check if profile data is available
-    if (userProfile.profile_pic) { // Check if a profile picture path exists
-      const picPath = String(userProfile.profile_pic);
-      if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
-        profilePicSrc = picPath; // Use full URL if provided
-      } else {
-        // Construct full URL from domain and relative path
-        const cleanPicPath = picPath.replace(/^\//, '');
-        profilePicSrc = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`;
-      }
-      console.log("Constructed profilePicSrc:", profilePicSrc);
-    } else {
-      // No profile_pic in API response, DefaultProfileImage (already set) will be used.
-      console.log("profile_pic is null or empty in API response.");
+  if (userProfile && userProfile.profile_pic) {
+    const picPath = String(userProfile.profile_pic);
+    
+    
+    if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
+      profilePicSrc = picPath;
+      console.log("Using full URL from API:", profilePicSrc);
+    } 
+    
+    else {
+      
+      const cleanPicPath = picPath.replace(/^\//, '');
+      
+      
+      profilePicSrc = `${BACKEND_BASE_URL}/storage/${cleanPicPath}`;
+      // console.log("Constructed profile image URL:", profilePicSrc);
     }
+  } else if (userProfile) {
+    console.log("profile_pic is null or empty in API response. Using default image.");
   }
 
   if (isLoading) {
@@ -73,9 +86,10 @@ const Profile = () => {
   }
 
   if (isError) {
+    console.error("Error fetching profile data (React Query):", error);
     return (
-      <div className="flex flex-col justify-center items-center h-screen text-red-500">
-        <p>Error fetching profile data.</p>
+      <div className="flex flex-col justify-center items-center h-screen text-red-500 p-4 text-center">
+        <p className="text-xl font-semibold mb-2">Error Fetching Profile</p>
         <p>{error?.message || "An unknown error occurred."}</p>
         {error?.response?.data?.message && <p>Server: {error.response.data.message}</p>}
       </div>
@@ -83,7 +97,7 @@ const Profile = () => {
   }
 
   const handleEditProfile = () => {
-    navigate("/profile/edit");
+    navigate("/profile/edit"); 
   };
 
   return (
@@ -96,12 +110,11 @@ const Profile = () => {
               <div className="flex-none">
                 <div className="md:h-[186px] md:w-[186px] h-[140px] w-[140px] md:ml-0 md:mr-0 ml-auto mr-auto md:mb-0 mb-4 rounded-full ring-4 ring-slate-100 relative">
                   <img
-                    src={profilePicSrc} // Dynamically uses default or user's image
+                    src={profilePicSrc}
                     alt={userProfile?.name || "Profile"}
                     className="w-full h-full object-cover rounded-full"
                     onError={(e) => {
-                      // Fallback to default if the loaded src (even custom one) fails
-                      console.error("Error loading image:", e.target.src, "Falling back to default.");
+                      console.error("Error loading image in <img> tag:", e.target.src, "Falling back to default.");
                       e.target.onerror = null; // prevent infinite loop
                       e.target.src = DefaultProfileImage;
                     }}
@@ -117,10 +130,10 @@ const Profile = () => {
               </div>
               <div className="flex-1">
                 <div className="text-2xl font-medium text-slate-900 dark:text-slate-200 mb-[3px]">
-                  {userProfile?.name || "N/A"}
+                  {userProfile?.name || "User Name"}
                 </div>
                 <div className="text-sm font-light text-slate-600 dark:text-slate-400">
-                  {userProfile?.username || "User"}
+                  {userProfile?.username || "Username"}
                 </div>
               </div>
             </div>
@@ -129,7 +142,7 @@ const Profile = () => {
           <div className="profile-info-500 md:flex md:text-start text-center flex-1 max-w-[516px] md:space-y-0 space-y-4">
             <div className="flex-1">
               <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                $32,400
+                {userProfile?.totalBalance || "$30.00"}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
                 Total Balance
@@ -137,18 +150,18 @@ const Profile = () => {
             </div>
             <div className="flex-1">
               <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                200
+                {userProfile?.boardCardsCount || 90}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Board Card
+                Board Cards
               </div>
             </div>
             <div className="flex-1">
               <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                3200
+                {userProfile?.calendarEventsCount || 20}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Calender Events
+                Calendar Events
               </div>
             </div>
           </div>
@@ -179,7 +192,7 @@ const Profile = () => {
                     </div>
                     <a
                       href={`mailto:${userProfile?.email || ''}`}
-                      className="text-base text-slate-600 dark:text-slate-50"
+                      className="text-base text-slate-600 dark:text-slate-50 break-all"
                     >
                       {userProfile?.email || "N/A"}
                     </a>
@@ -210,7 +223,7 @@ const Profile = () => {
                       LOCATION
                     </div>
                     <div className="text-base text-slate-600 dark:text-slate-50">
-                      {userProfile?.address || "Home# 320/N, Road# 71/B, Mohakhali, Dhaka-1207, Bangladesh"}
+                      {userProfile?.address || "N/A"}
                     </div>
                   </div>
                 </li>

@@ -13,6 +13,7 @@ import Card from "@/components/ui/Card";
 import Textinput from "@/components/ui/Textinput";
 import Button from "@/components/ui/Button";
 import Loading from "@/components/Loading";
+import Icon from "@/components/ui/Icon";
 import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
 
 const editProfileSchema = yup.object({
@@ -27,30 +28,47 @@ const editProfileSchema = yup.object({
     .mixed()
     .nullable()
     .test("fileSize", "The file is too large (max 2MB)", (value) => {
-      if (!value || !value.length) return true; // Allow no file
-      return value[0].size <= 2000000; // 2MB
+      if (!value || !value.length) return true;
+      return value[0].size <= 2000000;
     })
     .test("fileType", "Unsupported file format (PNG, JPG, GIF only)", (value) => {
-      if (!value || !value.length) return true; // Allow no file
+      if (!value || !value.length) return true;
       return ["image/jpeg", "image/png", "image/gif"].includes(value[0].type);
     }),
 }).required();
 
-const API_DOMAIN_FOR_ASSETS = import.meta.env?.VITE_API_DOMAIN || "https://demo.aentora.com/backend";
-const API_BASE_URL_FOR_API_CALLS = import.meta.env?.VITE_API_URL || window.env?.API_URL || "https://demo.aentora.com/backend/public";
+const VITE_BACKEND_BASE_URL_FROM_ENV = import.meta.env.VITE_BACKEND_BASE_URL;
 
-const PROFILE_API_URL = `${API_BASE_URL_FOR_API_CALLS}/api/me`;
-const UPDATE_PROFILE_DATA_API_URL = `${API_BASE_URL_FOR_API_CALLS}/api/update-profile`;
-const UPDATE_PROFILE_PIC_API_URL = `${API_BASE_URL_FOR_API_CALLS}/api/update-profile-pic`;
+let BACKEND_BASE_URL = "";
+let API_BASE_URL_FOR_API_CALLS = "";
+let PROFILE_API_URL = "";
+let UPDATE_PROFILE_DATA_API_URL = "";
+let UPDATE_PROFILE_PIC_API_URL = "";
+let IS_CONFIG_VALID = true;
 
+if (!VITE_BACKEND_BASE_URL_FROM_ENV) {
+  console.error(
+    "CRITICAL CONFIGURATION ERROR (EditProfile): VITE_BACKEND_BASE_URL is not defined in your .env file. "
+  );
+  IS_CONFIG_VALID = false;
+} else {
+  BACKEND_BASE_URL = VITE_BACKEND_BASE_URL_FROM_ENV;
+  API_BASE_URL_FOR_API_CALLS = `${BACKEND_BASE_URL}/api`;
+
+  PROFILE_API_URL = `${API_BASE_URL_FOR_API_CALLS}/me`;
+  UPDATE_PROFILE_DATA_API_URL = `${API_BASE_URL_FOR_API_CALLS}/update-profile`;
+  UPDATE_PROFILE_PIC_API_URL = `${API_BASE_URL_FOR_API_CALLS}/update-profile-pic`;
+}
 
 const fetchCurrentProfileData = async () => {
+  if (!IS_CONFIG_VALID || !PROFILE_API_URL) {
+    throw new Error("Backend API URL is not configured. Cannot fetch current profile.");
+  }
   const token = Cookies.get("token");
   if (!token) throw new Error("Authentication token not found.");
   const response = await axios.get(PROFILE_API_URL, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
-  console.log("Fetched current profile for edit:", response.data);
   return response.data;
 };
 
@@ -63,6 +81,8 @@ const EditProfile = () => {
   const { data: currentProfile, isLoading: isLoadingProfile, isError: isProfileError, error: profileError } = useQuery({
     queryKey: ["profileData"],
     queryFn: fetchCurrentProfileData,
+    enabled: IS_CONFIG_VALID,
+    retry: 1,
   });
 
   const {
@@ -94,17 +114,20 @@ const EditProfile = () => {
 
       if (currentProfile.profile_pic) {
         const picPath = String(currentProfile.profile_pic);
+        let fullPicUrl = DefaultProfileImage;
         if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
-          setImagePreview(picPath);
-        } else {
+          fullPicUrl = picPath;
+        } else if (BACKEND_BASE_URL) { 
           const cleanPicPath = picPath.replace(/^\//, '');
-          setImagePreview(`${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`);
+          
+          fullPicUrl = `${BACKEND_BASE_URL}/storage/${cleanPicPath}`; 
         }
+        setImagePreview(fullPicUrl);
       } else {
         setImagePreview(DefaultProfileImage);
       }
     }
-  }, [currentProfile, reset]);
+  }, [currentProfile, reset, BACKEND_BASE_URL]); 
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -116,7 +139,14 @@ const EditProfile = () => {
       setSelectedFileObject(null);
       if (currentProfile && currentProfile.profile_pic) {
           const picPath = String(currentProfile.profile_pic);
-          setImagePreview(picPath.startsWith('http') ? picPath : `${API_DOMAIN_FOR_ASSETS}/${picPath.replace(/^\//, '')}`);
+          let fullPicUrl = DefaultProfileImage;
+          if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
+            fullPicUrl = picPath;
+          } else if (BACKEND_BASE_URL) { 
+            const cleanPicPath = picPath.replace(/^\//, '');
+            fullPicUrl = `${BACKEND_BASE_URL}/storage/${cleanPicPath}`; 
+          }
+          setImagePreview(fullPicUrl);
       } else {
           setImagePreview(DefaultProfileImage);
       }
@@ -126,6 +156,10 @@ const EditProfile = () => {
 
   const updateProfileDataMutation = useMutation({
     mutationFn: async (profileData) => {
+
+      if (!IS_CONFIG_VALID || !UPDATE_PROFILE_DATA_API_URL) {
+        throw new Error("Backend API URL for updating data is not configured.");
+      }
       const token = Cookies.get("token");
       if (!token) throw new Error("Authentication token not found.");
 
@@ -133,13 +167,8 @@ const EditProfile = () => {
         name: profileData.name,
         username: profileData.username,
         email: profileData.email,
-       
         phone: profileData.phone || null,
       };
-      
-      console.log("--- Sending text data to:", UPDATE_PROFILE_DATA_API_URL, "---");
-      console.log("Payload for text data:", payload);
-      console.log("-----------------");
 
       const response = await axios.post(UPDATE_PROFILE_DATA_API_URL, payload, {
         headers: {
@@ -150,131 +179,133 @@ const EditProfile = () => {
       });
       return response.data;
     },
-    
   });
-
- 
 
   const updateProfilePicMutation = useMutation({
     mutationFn: async (file) => {
+
+      if (!IS_CONFIG_VALID || !UPDATE_PROFILE_PIC_API_URL) {
+        throw new Error("Backend API URL for updating profile picture is not configured.");
+      }
       const token = Cookies.get("token");
       if (!token) throw new Error("Authentication token not found.");
 
       const formData = new FormData();
       formData.append("profile_pic", file);
 
-      console.log("--- Sending profile picture to:", UPDATE_PROFILE_PIC_API_URL, "---");
-      console.log("File object being sent:", file); 
-      for (let [key, value] of formData.entries()) {
-        console.log(`${key}:`, value instanceof File ? `{File: ${value.name}, Size: ${value.size}, Type: ${value.type}}` : value);
-      }
-      console.log("-----------------");
-
       const response = await axios.post(UPDATE_PROFILE_PIC_API_URL, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          // Remove 'Content-Type' header - let the browser set it automatically
-          // The browser will set it to 'multipart/form-data' with the correct boundary
           Accept: "application/json",
         },
       });
       return response.data;
     },
-});
-
-
+  });
 
   const onSubmitHandler = async (dataFromRHF) => {
-    let latestUserData = null;
+    if (!IS_CONFIG_VALID) {
+        toast.error("Application is not configured correctly. Cannot submit form.");
+        return;
+    }
+    let latestUserData = currentProfile ? { ...currentProfile } : {};
 
     try {
-      console.log("Submitting form with RHF data:", dataFromRHF);
-      const textUpdateResponse = await updateProfileDataMutation.mutateAsync({
+      const textUpdatePayload = {
         name: dataFromRHF.name,
         username: dataFromRHF.username,
         email: dataFromRHF.email,
-        phone: dataFromRHF.phone, 
-      });
+        phone: dataFromRHF.phone,
+      };
+      const textUpdateResponse = await updateProfileDataMutation.mutateAsync(textUpdatePayload);
       toast.success(textUpdateResponse.message || "Profile details updated successfully!");
       if (textUpdateResponse.user) {
-        latestUserData = textUpdateResponse.user;
+        latestUserData = { ...latestUserData, ...textUpdateResponse.user };
       }
 
       if (selectedFileObject) {
-        console.log("Submitting profile picture:", selectedFileObject);
         const picUpdateResponse = await updateProfilePicMutation.mutateAsync(selectedFileObject);
         toast.success(picUpdateResponse.message || "Profile picture updated successfully!");
         if (picUpdateResponse.user) {
-            latestUserData = picUpdateResponse.user;
-        } else if (picUpdateResponse.profile_pic_url && latestUserData) {
+            latestUserData = { ...latestUserData, ...picUpdateResponse.user };
+        } else if (picUpdateResponse.profile_pic_url) {
             latestUserData.profile_pic = picUpdateResponse.profile_pic_url;
-        } else if (picUpdateResponse.profile_pic_url && !latestUserData) {
-            latestUserData = { profile_pic: picUpdateResponse.profile_pic_url };
         }
       }
 
       queryClient.invalidateQueries({ queryKey: ["profileData"] });
+
+      if (latestUserData.profile_pic) {
+          const newPicPath = String(latestUserData.profile_pic);
+          let newFullPicUrl = DefaultProfileImage;
+          if (newPicPath.startsWith('http://') || newPicPath.startsWith('https://')) {
+            newFullPicUrl = newPicPath;
+          } else if (BACKEND_BASE_URL) { 
+            const cleanNewPicPath = newPicPath.replace(/^\//, '');
+          
+            newFullPicUrl = `${BACKEND_BASE_URL}/storage/${cleanNewPicPath}`; 
+          }
+          setImagePreview(newFullPicUrl);
+      } else if (!selectedFileObject) {
+          setImagePreview(DefaultProfileImage);
+      }
+
       setSelectedFileObject(null);
       setValue("profile_pic", null);
 
-
-      if (latestUserData && latestUserData.profile_pic) {
-        const picPath = String(latestUserData.profile_pic);
-        setImagePreview(picPath.startsWith('http') ? picPath : `${API_DOMAIN_FOR_ASSETS}/${picPath.replace(/^\//, '')}`);
-      } else if (latestUserData && !latestUserData.profile_pic && !selectedFileObject) {
-        setImagePreview(DefaultProfileImage);
-      }
-
+      toast.info("Redirecting to profile...", { autoClose: 1500 });
       setTimeout(() => {
         navigate("/profile");
       }, 1500);
 
     } catch (error) {
-      console.error("Profile update error object:", error); 
+      console.error("Profile update error object:", error);
       let errorMsg = "Failed to update profile. Please try again.";
       const apiEndpoint = error.config?.url;
 
-      if (error.response) {
-        
+      if (axios.isAxiosError(error) && error.response) {
         console.error("Error response data:", error.response.data);
-        console.error("Error response status:", error.response.status);
-        
         let specificErrorShown = false;
-
-        if (error.response.data && error.response.data.errors && typeof error.response.data.errors === 'object') {
-          const validationErrors = error.response.data.errors;
-          Object.keys(validationErrors).forEach((key) => {
+        if (error.response.data?.errors && typeof error.response.data.errors === 'object') {
+          Object.entries(error.response.data.errors).forEach(([key, value]) => {
             const fieldName = key.replace('profile_pic', 'profile picture').replace(/_/g, ' ');
-            const messages = Array.isArray(validationErrors[key]) ? validationErrors[key].join(", ") : String(validationErrors[key]);
+            const messages = Array.isArray(value) ? value.join(", ") : String(value);
             toast.error(`${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}: ${messages}`, { autoClose: 7000 });
             specificErrorShown = true;
           });
         }
-
-        
-        if (!specificErrorShown && error.response.data && error.response.data.message && typeof error.response.data.message === 'string') {
-            errorMsg = error.response.data.message;
-        } else if (error.response.status === 404) {
-            errorMsg = `Update endpoint not found: ${apiEndpoint}. Please check the API route.`;
-        } else if (error.response.statusText && !specificErrorShown && !error.response.data?.message) { 
+        if (!specificErrorShown && error.response.data?.message) {
+            errorMsg = String(error.response.data.message);
+        } else if (!specificErrorShown && error.response.status === 404) {
+            errorMsg = `Update endpoint not found: ${apiEndpoint || 'Unknown URL'}. Please check API routes.`;
+        } else if (!specificErrorShown && error.response.statusText) {
             errorMsg = `Server error: ${error.response.status} ${error.response.statusText}`;
         }
-       
-        if (specificErrorShown) return; 
-
+        if (specificErrorShown) return;
       } else if (error.request) {
-        console.error("Error request (no response):", error.request);
-        errorMsg = "No response from server. Please check your network connection.";
-      } else {
-        console.error("Error message (request setup):", error.message);
+        errorMsg = "No response from server. Check your network connection.";
+      } else if (error instanceof Error) {
         errorMsg = error.message;
       }
-      toast.error(errorMsg);
+      toast.error(errorMsg, { autoClose: 7000 });
     }
   };
 
+  if (!IS_CONFIG_VALID) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="flex flex-col justify-center items-center h-screen-minus-header text-red-600 dark:text-red-400 p-4 text-center bg-red-50 dark:bg-red-900 rounded-md shadow-lg">
+          <Icon icon="heroicons-outline:exclamation-triangle" className="w-16 h-16 mb-4 text-red-500 dark:text-red-300" />
+          <p className="text-xl font-semibold mb-2">Application Configuration Error</p>
+          <p className="mb-1">The backend URL (<code>VITE_BACKEND_BASE_URL</code>) is not set in your <code>.env</code> file.</p>
+          <p>Please ensure it is correctly defined in the <code>.env</code> file at the project root and then restart the Vite development server.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoadingProfile) return <div className="flex justify-center items-center h-screen"><Loading /></div>;
-  if (isProfileError) return <div className="text-red-500 p-4">Error loading profile data: {profileError?.message || "Unknown error"}</div>;
+  if (isProfileError && !currentProfile) return <div className="text-red-500 p-4 text-center">Error loading profile data: {profileError?.message || "Unknown error"}. Please try refreshing.</div>;
 
   const isLoadingOverall = isFormSubmitting || updateProfileDataMutation.isPending || updateProfilePicMutation.isPending;
 
@@ -301,7 +332,6 @@ const EditProfile = () => {
                 type="file"
                 className="hidden"
                 accept="image/png, image/jpeg, image/gif"
-                {...register("profile_pic")}
                 onChange={handleFileChange}
               />
             </div>
@@ -318,6 +348,7 @@ const EditProfile = () => {
             error={errors.name}
             placeholder="Enter your full name"
             className="h-[48px]"
+            // defaultValue={currentProfile?.name || ""} // defaultValue is handled by RHF reset
           />
           <Textinput
             name="username"
@@ -327,6 +358,7 @@ const EditProfile = () => {
             error={errors.username}
             placeholder="Enter your username"
             className="h-[48px]"
+            // defaultValue={currentProfile?.username || ""}
           />
           <Textinput
             name="email"
@@ -336,6 +368,8 @@ const EditProfile = () => {
             error={errors.email}
             placeholder="Enter your email"
             className="h-[48px]"
+            // defaultValue={currentProfile?.email || ""}
+            disabled
           />
           <Textinput
             name="phone"
@@ -345,6 +379,7 @@ const EditProfile = () => {
             error={errors.phone}
             placeholder="Enter your phone number"
             className="h-[48px]"
+            // defaultValue={currentProfile?.phone || ""}
           />
 
           <div className="flex justify-end space-x-3 pt-4">
