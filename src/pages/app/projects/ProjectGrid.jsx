@@ -4,190 +4,159 @@ import Dropdown from "@/components/ui/Dropdown";
 import { MenuItem } from "@headlessui/react";
 import Icon from "@/components/ui/Icon";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { removeProject, updateProject } from "./store";
+import { deleteProjectAPI, updateProject } from "./store"; // 'updateProject' is for initiating edit
 
 const ProjectGrid = ({ project }) => {
-  const { id, name, progress, status, members, assignee, des, startDate, endDate } = project;
+  const { id, name, progress = 0, des, startDate, endDate, members } = project;
   const dispatch = useDispatch();
+  const { isDeleting } = useSelector(state => state.project);
+  const navigate = useNavigate();
 
-  const [start, setStart] = useState(new Date(startDate));
-  const [end, setEnd] = useState(new Date(endDate));
-  const [totaldays, setTotaldays] = useState(0);
+  // Local state for dates (can be simplified if not strictly needed for calculations in this component)
+  const [start, setStart] = useState(startDate ? new Date(startDate) : null);
+  const [end, setEnd] = useState(endDate ? new Date(endDate) : null);
+  const [_totaldays, setTotaldays] = useState(0); // Renamed to avoid conflict if API provides totaldays
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (start && end && !isNaN(start.getTime()) && !isNaN(end.getTime())) {
       try {
-        const startDate = new Date(start);
-        const endDate = new Date(end);
-        const diffTime = Math.abs(endDate - startDate);
+        const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         setTotaldays(diffDays);
       } catch (err) {
-        console.error("Error calculating dates:", err);
+        console.error("Error calculating date difference in ProjectGrid:", err);
         setTotaldays(0);
       }
+    } else {
+        setTotaldays(0);
     }
   }, [start, end]);
 
-  const navigate = useNavigate();
+  useEffect(() => { // Sync local date state if project prop changes
+    setStart(startDate ? new Date(startDate) : null);
+    setEnd(endDate ? new Date(endDate) : null);
+  }, [startDate, endDate]);
   
-  // handleClick to view project single page
-  const handleClick = (project) => {
-    navigate(`/projects/${project.id}`);
+  const handleViewClick = (proj) => {
+    navigate(`/projects/${proj.id}`);
   };
 
-  // Format date to be more readable
+  const handleEditClick = (proj) => {
+    dispatch(updateProject(proj)); // Dispatches action to set editItem and open editModal
+  };
+
+  const handleDeleteClick = (projectId, projectName) => {
+    if (window.confirm(`Are you sure you want to delete the project "${projectName || 'this project'}"? This action cannot be undone.`)) {
+      dispatch(deleteProjectAPI(projectId));
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
-    
     try {
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
       return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric"
+        year: "numeric", month: "short", day: "numeric"
       });
     } catch (err) {
-      console.error("Error formatting date:", err);
-      return dateString;
+      // console.error("Error formatting date in ProjectGrid:", err, dateString);
+      return "Invalid Date";
     }
   };
 
   return (
     <Card>
-      {/* header */}
       <header className="flex justify-between items-end">
         <div className="flex space-x-4 items-center rtl:space-x-reverse">
           <div className="flex-none">
             <div className="h-10 w-10 rounded-md text-lg bg-slate-100 text-slate-900 dark:bg-slate-600 dark:text-slate-200 flex flex-col items-center justify-center font-normal capitalize">
-              {name ? (name.charAt(0) + (name.charAt(1) || "")) : "NA"}
+              {name ? (name.charAt(0) + (name.charAt(1) || "")).toUpperCase() : "NA"}
             </div>
           </div>
           <div className="font-medium text-base leading-6">
-            <div className="dark:text-slate-200 text-slate-900 max-w-[160px] truncate">
+            <div className="dark:text-slate-200 text-slate-900 max-w-[160px] truncate" title={name}>
               {name || "Untitled Project"}
             </div>
           </div>
         </div>
         <div>
           <Dropdown
-            classMenuItems=" w-[130px]"
+            classMenuItems="w-[130px]"
             label={
-              <span className="text-lg inline-flex flex-col items-center justify-center h-8 w-8 rounded-full bg-gray-500/15 dark:bg-slate-900 dark:text-slate-400">
+              <span className="text-lg inline-flex flex-col items-center justify-center h-8 w-8 rounded-full bg-gray-500/10 dark:bg-slate-900 dark:text-slate-400">
                 <Icon icon="heroicons-outline:dots-vertical" />
               </span>
             }
           >
-            <div className="divide-y divide-slate-100 dark:divide-slate-700!">
-              <MenuItem onClick={() => handleClick(project)}>
-                <div
-                  className="hover:bg-slate-900 dark:hover:bg-slate-600 dark:hover:bg-opacity-70 hover:text-white
-                   w-full px-4 py-2 text-sm dark:text-slate-300  last:mb-0 cursor-pointer first:rounded-t last:rounded-b flex  space-x-2 items-center
-                     capitalize rtl:space-x-reverse"
-                >
-                  <span className="text-base">
-                    <Icon icon="heroicons:eye" />
-                  </span>
-                  <span>View</span>
-                </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-700">
+              <MenuItem disabled={isDeleting}>
+                {({ active }) => (
+                  <div
+                    onClick={() => handleViewClick(project)}
+                    className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}
+                     ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                     w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
+                  >
+                    <span className="text-base"><Icon icon="heroicons:eye" /></span>
+                    <span>View</span>
+                  </div>
+                )}
               </MenuItem>
-              <MenuItem onClick={() => dispatch(updateProject(project))}>
-                <div
-                  className="hover:bg-slate-900 dark:hover:bg-slate-600 dark:hover:bg-opacity-70 hover:text-white
-                   w-full px-4 py-2 text-sm dark:text-slate-300  last:mb-0 cursor-pointer first:rounded-t last:rounded-b flex  space-x-2 items-center
-                     capitalize rtl:space-x-reverse"
-                >
-                  <span className="text-base">
-                    <Icon icon="heroicons-outline:pencil-alt" />
-                  </span>
-                  <span>Edit</span>
-                </div>
+              <MenuItem disabled={isDeleting}>
+                {({ active }) => (
+                  <div
+                    onClick={() => handleEditClick(project)}
+                    className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}
+                    ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                     w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
+                  >
+                    <span className="text-base"><Icon icon="heroicons-outline:pencil-alt" /></span>
+                    <span>Edit</span>
+                  </div>
+                )}
               </MenuItem>
-              <MenuItem onClick={() => dispatch(removeProject(project.id))}>
-                <div
-                  className="hover:bg-slate-900 dark:hover:bg-slate-600 dark:hover:bg-opacity-70 hover:text-white
-                   w-full px-4 py-2 text-sm dark:text-slate-300  last:mb-0 cursor-pointer first:rounded-t last:rounded-b flex  space-x-2 items-center
-                     capitalize rtl:space-x-reverse"
-                >
-                  <span className="text-base">
-                    <Icon icon="heroicons-outline:trash" />
-                  </span>
-                  <span>Delete</span>
-                </div>
+              <MenuItem disabled={isDeleting}>
+                 {({ active }) => (
+                  <div
+                    onClick={() => handleDeleteClick(project.id, project.name)}
+                    className={`${active ? "bg-red-500 bg-opacity-20 text-red-500" : "text-red-500"}
+                    ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                     w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
+                  >
+                    <span className="text-base"><Icon icon="heroicons-outline:trash" /></span>
+                    <span>Delete</span>
+                  </div>
+                )}
               </MenuItem>
             </div>
           </Dropdown>
         </div>
       </header>
-      {/* description */}
-      <div className="text-slate-600 dark:text-slate-400 text-sm pt-4 pb-8">
-        {des || "No description provided"}
+      <div className="text-slate-600 dark:text-slate-400 text-sm pt-4 pb-6 min-h-[50px] break-words">
+        {des || "No description provided."}
       </div>
-      {/* dates */}
-      <div className="flex space-x-4 rtl:space-x-reverse">
-        {/* start date */}
+      
+     
+
+      <div className="flex space-x-4 rtl:space-x-reverse mt-4">
         <div>
-          <span className="block date-label text-slate-400 dark:text-slate-400 text-sm font-normal mb-1">Start date</span>
+          <span className="block date-label text-slate-400 dark:text-slate-400 text-xs font-normal mb-0.5">Start date</span>
           <span className="block date-text text-slate-600 dark:text-slate-300 font-medium text-sm">
             {formatDate(startDate)}
           </span>
         </div>
-        {/* end date */}
         <div>
-          <span className="block date-label text-slate-400 dark:text-slate-400 text-sm font-normal mb-1">End date</span>
+          <span className="block date-label text-slate-400 dark:text-slate-400 text-xs font-normal mb-0.5">End date</span>
           <span className="block date-text text-slate-600 dark:text-slate-300 font-medium text-sm">
             {formatDate(endDate)}
           </span>
         </div>
       </div>
-      {/* progress bar */}
-      {/* <div className="mt-6">
-        <div className="ltr:text-right rtl:text-left text-xs text-slate-600 dark:text-slate-300 mb-1 font-medium">
-          {progress || 0}%
-        </div>
-        <ProgressBar value={progress || 0} className="bg-primary-500" />
-      </div> */}
-      {/* assignee and total date */}
-      {/* <div className="grid grid-cols-2 gap-4 mt-6">
-      
-        <div>
-          <div className="text-slate-400 dark:text-slate-400 text-sm font-normal mb-3">
-            Assigned to
-          </div>
-          <div className="flex justify-start -space-x-1.5 rtl:space-x-reverse">
-            {assignee && assignee.map((user, userIndex) => (
-              <div
-                className="h-6 w-6 rounded-full ring-1 ring-slate-100"
-                key={userIndex}
-              >
-                <img
-                  src={user.image}
-                  alt={user.label}
-                  className="w-full h-full rounded-full"
-                />
-              </div>
-            ))}
-            {assignee && assignee.length > 0 && (
-              <div className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-300 text-xs ring-2 ring-slate-100 dark:ring-slate-700! rounded-full h-6 w-6 flex flex-col justify-center items-center">
-                +{assignee.length > 2 ? assignee.length - 2 : 0}
-              </div>
-            )}
-          </div>
-        </div>
-
-      
-        <div className="ltr:text-right rtl:text-left">
-          <span className="inline-flex items-center space-x-1 bg-danger-500/15 text-danger-500 text-xs font-normal px-2 py-1 rounded-full rtl:space-x-reverse">
-            <span>
-              <Icon icon="heroicons-outline:clock" />
-            </span>
-            <span>{totaldays}</span>
-            <span>days left</span>
-          </span>
-        </div>
-      </div> */}
+       
+     
     </Card>
   );
 };
