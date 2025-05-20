@@ -60,8 +60,6 @@ const ProjectDetailsPage = () => {
   const [taskFound, setTaskFound] = useState(true); // New state to track if task was found
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
 
-  const API_BASE_URL = "https://demo.aentora.com/backend/public/api/admin/project-task/";
-
   const fetchTaskDetails = async () => { // Made fetchTaskDetails accessible for re-fetching
     if (!id) {
       setError("Task ID is missing from URL.");
@@ -88,7 +86,7 @@ const ProjectDetailsPage = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project/${id}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -96,8 +94,6 @@ const ProjectDetailsPage = () => {
           "Accept": "application/json",
         },
       });
-
-      console.log("API Response Status:", response.status);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -115,39 +111,36 @@ const ProjectDetailsPage = () => {
         setLoading(false);
         return;
       }
-
       const responseData = await response.json();
       console.log("Raw API Response Data:", responseData);
 
       let fetchedTaskData = null;
-      if (responseData && responseData.data && typeof responseData.data === 'object' && Object.keys(responseData.data).length > 0) {
-        fetchedTaskData = responseData.data;
-      } else if (responseData && typeof responseData === 'object' && responseData.task_title) {
+      if (responseData && typeof responseData.tasks === 'object' && Object.keys(responseData.tasks).length > 0) {
+        fetchedTaskData = responseData.tasks;
+      } else if (responseData && typeof responseData === 'object') {
         fetchedTaskData = responseData;
       } else if (responseData && (Object.keys(responseData).length === 0 || responseData.data === null)) {
         console.warn("API returned an empty object or null data for task ID:", id);
         setTaskFound(false);
       }
 
-      if (!fetchedTaskData || !fetchedTaskData.task_title) {
+      if (!fetchedTaskData) {
         if (taskFound) { // Only set to false if it was previously true and data is invalid
             console.warn("Fetched data is not a valid task object or task_title is missing, despite a successful API response.");
             setTaskFound(false);
         }
         setTasks([]);
       } else {
-        console.log("Successfully fetched Task Data:", fetchedTaskData);
         const taskForTable = {
-          ...fetchedTaskData,
+          ...fetchedTaskData[0],
           id: fetchedTaskData.id || fetchedTaskData.task_id || parseInt(id, 10),
           assignee: fetchedTaskData.assignee ? mapApiAssigneeToLocal(fetchedTaskData.assignee) : null,
         };
-        setTasks([taskForTable]);
+        setTasks(fetchedTaskData);
         setTaskFound(true); // Explicitly set task found
       }
 
     } catch (err) {
-      console.error("Error fetching task details:", err);
       setError(err.message || "An unknown error occurred.");
       setTasks([]);
       setTaskFound(false);
@@ -216,14 +209,11 @@ const ProjectDetailsPage = () => {
   return (
     <div className="container mx-auto p-4">
       {/* Project Header */}
-      <div className="bg-white rounded-lg shadow mb-6 p-6">
-        <h1 className="text-2xl font-bold text-gray-800">{projectDetails.project_title}</h1>
-        <p className="mt-2 text-gray-600">{projectDetails.project_description}</p>
-        {tasks.length > 0 && tasks[0].task_description && taskFound && (
-            <p className="mt-2 text-sm text-gray-500">
-                <strong>Task Description:</strong> {tasks[0].task_description}
-            </p>
-        )}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6 p-6">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{projectDetails.project_title}</h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <strong>Project Description:</strong> {projectDetails.project_description || "N/A"}
+        </p>
       </div>
 
       {/* Conditional Rendering: Task Table or "Not Found" Message */}
@@ -256,21 +246,23 @@ const ProjectDetailsPage = () => {
           
           {/* Table Body */}
           <div className="max-h-96 overflow-y-auto">
-            {tasks.map((task) => (
+            {tasks.map((task, index) => {
+              let assignee = mapApiAssigneeToLocal(task.assignees[0]);
+              return (
               <div 
-                key={task.id || task.task_title}
+                key={index}
                 className="grid grid-cols-12 border-b border-gray-200 hover:bg-gray-50 transition-colors"
               >
                 <div className="col-span-4 p-4 flex items-center">
                   <span className="text-gray-900">{task.task_title || "N/A"}</span>
                 </div>
                 <div className="col-span-2 p-4 flex items-center">
-                  {task.assignee ? (
+                  {assignee ? (
                     <div className="flex items-center">
-                      <span className={`w-6 h-6 ${task.assignee.color} text-white rounded-full flex items-center justify-center text-xs font-medium mr-2`}>
-                        {task.assignee.avatar}
+                      <span className={`w-6 h-6 ${assignee.color} text-white rounded-full flex items-center justify-center text-xs font-medium mr-2`}>
+                        {assignee.avatar}
                       </span>
-                      <span className="text-sm text-gray-700">{task.assignee.name}</span>
+                      <span className="text-sm text-gray-700">{assignee.name}</span>
                     </div>
                   ) : ( <span className="text-sm text-gray-500">Unassigned</span> )}
                 </div>
@@ -295,7 +287,8 @@ const ProjectDetailsPage = () => {
                   </button>
                 </div>
               </div>
-            ))}
+              )}
+            )}
           </div>
         </div>
       ) : (
