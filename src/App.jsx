@@ -19,6 +19,7 @@ import AuthLayout from "./layout/AuthLayout";
 
 import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
+import ProjectDetailsPage from "./pages/app/projects/project-details";
 
 function App() {
   return (
@@ -88,6 +89,7 @@ function App() {
               }
             />
              <Route path="projects" element={<ProjectPostPage />} />
+             <Route path="projects/:id" element={<ProjectDetailsPage />} />
 
             {/* Error Page Route */}
             <Route path="*" element={<Navigate to="/404" replace />} />

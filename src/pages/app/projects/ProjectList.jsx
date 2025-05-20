@@ -26,12 +26,21 @@ const ProjectList = ({ projects }) => {
     }
   };
 
+  // Handler for row click navigation
+  const handleRowNavigation = (projectId) => {
+    if (projectId) {
+      navigate(`/projects/${projectId}`);
+    }
+  };
+
   const COLUMNS = useMemo(() => [
     {
       Header: "Name",
       accessor: "name",
       Cell: ({ cell: { value }, row }) => {
-        const initials = value ? (value.charAt(0) + (value.split(" ").pop()?.charAt(0) || value.charAt(1) || "")).toUpperCase() : "NA";
+        // const initials = value ? (value.charAt(0) + (value.split(" ").pop()?.charAt(0) || value.charAt(1) || "")).toUpperCase() : "NA";
+        // Simplified initials to match ProjectGrid logic
+        const initials = value ? (value.charAt(0) + (value.charAt(1) || "")).toUpperCase() : "NA";
         return (
           <div className="flex space-x-3 items-center text-left rtl:space-x-reverse">
             <div className="flex-none">
@@ -66,7 +75,8 @@ const ProjectList = ({ projects }) => {
       Cell: ({ row }) => {
         const projectItem = row.original;
         return (
-          <div className="text-center">
+          // Wrapper div to stop propagation for the entire action cell area
+          <div className="text-center" onClick={(e) => e.stopPropagation()}>
             <Dropdown
               classMenuItems="right-0 w-[140px] top-[110%] "
               label={
@@ -80,7 +90,10 @@ const ProjectList = ({ projects }) => {
                   <MenuItem key={i} disabled={isDeleting && (item.name === 'edit' || item.name === 'delete')}>
                     {({ active }) => (
                         <div
-                        onClick={() => item.doit(projectItem)}
+                        onClick={(e) => { 
+                          e.stopPropagation(); // Stop propagation for menu item click
+                          item.doit(projectItem); 
+                        }}
                         className={`
                             ${active ? (item.name === "delete" ? "bg-red-500 bg-opacity-20 text-red-500" : "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200")
                                     : (item.name === "delete" ? "text-red-500" : "text-slate-600 dark:text-slate-300")}
@@ -100,7 +113,7 @@ const ProjectList = ({ projects }) => {
       },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isDeleting]); // Added isDeleting dependency
+  ], [isDeleting, navigate, dispatch]); // Added navigate and dispatch to dependencies of COLUMNS because 'actions' is used within it.
 
   const actions = useMemo(() => [
     { name: "view", icon: "heroicons-outline:eye", doit: (item) => navigate(`/projects/${item.id}`) },
@@ -115,7 +128,7 @@ const ProjectList = ({ projects }) => {
       },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [dispatch, navigate]); // Added dependencies
+  ], [dispatch, navigate]); // Dependencies are correct
 
   const data = useMemo(() => projects || [], [projects]);
 
@@ -173,8 +186,13 @@ const ProjectList = ({ projects }) => {
                 >
                   {page.map((row) => {
                     prepareRow(row);
+                    const projectItem = row.original;
                     return (
-                      <tr {...row.getRowProps()} className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600">
+                      <tr 
+                        {...row.getRowProps()} 
+                        className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer" // Added cursor-pointer
+                        onClick={() => handleRowNavigation(projectItem.id)} // Added onClick for row navigation
+                      >
                         {row.cells.map((cell) => (
                           <td {...cell.getCellProps()} className="table-td">
                             {cell.render("Cell")}
