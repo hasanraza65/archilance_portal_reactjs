@@ -3,7 +3,8 @@ import Card from "@/components/ui/Card";
 import Dropdown from "@/components/ui/Dropdown";
 import { MenuItem } from "@headlessui/react";
 import Icon from "@/components/ui/Icon";
-import ProgressBar from "@/components/ui/ProgressBar";
+// ProgressBar is imported but not used in the provided JSX. Will keep it if needed later.
+// import ProgressBar from "@/components/ui/ProgressBar"; 
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { deleteProjectAPI, updateProject } from "./store"; // 'updateProject' is for initiating edit
@@ -22,11 +23,11 @@ const ProjectGrid = ({ project }) => {
   useEffect(() => {
     if (start && end && !isNaN(start.getTime()) && !isNaN(end.getTime())) {
       try {
-        const diffTime = Math.abs(end - start);
+        const diffTime = Math.abs(end.getTime() - start.getTime()); // Use getTime() for robust comparison
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         setTotaldays(diffDays);
       } catch (err) {
-        console.error("Error calculating date difference in ProjectGrid:", err);
+        // console.error("Error calculating date difference in ProjectGrid:", err);
         setTotaldays(0);
       }
     } else {
@@ -39,8 +40,18 @@ const ProjectGrid = ({ project }) => {
     setEnd(endDate ? new Date(endDate) : null);
   }, [startDate, endDate]);
   
+  // Navigate to project detail page when card is clicked
+  const handleCardNavigation = () => {
+    if (id) {
+      navigate(`/projects/${id}`);
+    }
+  };
+
+  // Handler for "View" action from dropdown (keeps existing functionality)
   const handleViewClick = (proj) => {
-    navigate(`/projects/${proj.id}`);
+    if (proj && proj.id) {
+      navigate(`/projects/${proj.id}`);
+    }
   };
 
   const handleEditClick = (proj) => {
@@ -68,7 +79,10 @@ const ProjectGrid = ({ project }) => {
   };
 
   return (
-    <Card>
+    <Card 
+      className="cursor-pointer hover:shadow-lg transition-shadow duration-150"
+      onClick={handleCardNavigation} // Make the entire card clickable
+    >
       <header className="flex justify-between items-end">
         <div className="flex space-x-4 items-center rtl:space-x-reverse">
           <div className="flex-none">
@@ -82,7 +96,8 @@ const ProjectGrid = ({ project }) => {
             </div>
           </div>
         </div>
-        <div>
+        {/* Wrapper div for Dropdown to stop event propagation */}
+        <div onClick={(e) => e.stopPropagation()}> 
           <Dropdown
             classMenuItems="w-[130px]"
             label={
@@ -95,7 +110,7 @@ const ProjectGrid = ({ project }) => {
               <MenuItem disabled={isDeleting}>
                 {({ active }) => (
                   <div
-                    onClick={() => handleViewClick(project)}
+                    onClick={(e) => { e.stopPropagation(); handleViewClick(project); }} // Stop propagation for menu item click as well
                     className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}
                      ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                      w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
@@ -108,7 +123,7 @@ const ProjectGrid = ({ project }) => {
               <MenuItem disabled={isDeleting}>
                 {({ active }) => (
                   <div
-                    onClick={() => handleEditClick(project)}
+                    onClick={(e) => { e.stopPropagation(); handleEditClick(project); }} // Stop propagation
                     className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}
                     ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                      w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
@@ -121,7 +136,7 @@ const ProjectGrid = ({ project }) => {
               <MenuItem disabled={isDeleting}>
                  {({ active }) => (
                   <div
-                    onClick={() => handleDeleteClick(project.id, project.name)}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(project.id, project.name); }} // Stop propagation
                     className={`${active ? "bg-red-500 bg-opacity-20 text-red-500" : "text-red-500"}
                     ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                      w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
@@ -139,8 +154,6 @@ const ProjectGrid = ({ project }) => {
         {des || "No description provided."}
       </div>
       
-     
-
       <div className="flex space-x-4 rtl:space-x-reverse mt-4">
         <div>
           <span className="block date-label text-slate-400 dark:text-slate-400 text-xs font-normal mb-0.5">Start date</span>
@@ -155,8 +168,6 @@ const ProjectGrid = ({ project }) => {
           </span>
         </div>
       </div>
-       
-     
     </Card>
   );
 };
