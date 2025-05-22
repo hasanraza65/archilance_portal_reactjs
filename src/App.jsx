@@ -20,6 +20,10 @@ import AuthLayout from "./layout/AuthLayout";
 import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
 import ProjectDetailsPage from "./pages/app/projects/project-details";
+import Allemployees from "./pages/employees/AllEmployees";
+import AddEmployee from "./pages/employees/AddEmployees";
+import AllCustomers from "./pages/customers/AllCustomers";
+import AddCustomers from "./pages/customers/AddCustomers";
 
 function App() {
   return (
@@ -90,6 +94,17 @@ function App() {
             />
              <Route path="projects" element={<ProjectPostPage />} />
              <Route path="projects/:id" element={<ProjectDetailsPage />} />
+
+             {/* Employees Routes */}
+             <Route path="employees" element={<Allemployees />} />
+             <Route path="employees/add" element={<AddEmployee />} />
+
+
+              {/* Customer Route */}
+              <Route path="customers" element={<AllCustomers />} />
+              <Route path="customers/add" element={<AddCustomers />} />
+
+
 
             {/* Error Page Route */}
             <Route path="*" element={<Navigate to="/404" replace />} />
