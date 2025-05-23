@@ -26,6 +26,8 @@ import AllCustomers from "./pages/customers/AllCustomers";
 import AddCustomers from "./pages/customers/AddCustomers";
 import CustomerView from "./pages/customers/ViewCustomer";
 import UpdateCustomer from "./pages/customers/UpdateCustomer";
+import ShowEmployee from "./pages/employees/ShowEmployee";
+import EditEmployee from "./pages/employees/UpdateEmployee";
 
 function App() {
   return (
@@ -99,7 +101,9 @@ function App() {
 
              {/* Employees Routes */}
              <Route path="employees" element={<Allemployees />} />
+             <Route path="/employees/view/:employeeId" element={<ShowEmployee />} />
              <Route path="employees/add" element={<AddEmployee />} />
+             <Route path="/employees/edit/:employeeId" element={<EditEmployee />} />
 
 
               {/* Customer Route */}
