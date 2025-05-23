@@ -28,6 +28,7 @@ import CustomerView from "./pages/customers/ViewCustomer";
 import UpdateCustomer from "./pages/customers/UpdateCustomer";
 import ShowEmployee from "./pages/employees/ShowEmployee";
 import EditEmployee from "./pages/employees/UpdateEmployee";
+import TaskDetailsPage from "./pages/app/projects/Task/TaskDetail";
 
 function App() {
   return (
@@ -98,6 +99,7 @@ function App() {
             />
              <Route path="projects" element={<ProjectPostPage />} />
              <Route path="projects/:id" element={<ProjectDetailsPage />} />
+            <Route path="/task/:taskId" element={<TaskDetailsPage />} />
 
              {/* Employees Routes */}
              <Route path="employees" element={<Allemployees />} />
