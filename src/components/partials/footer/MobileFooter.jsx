@@ -1,9 +1,62 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
+import Cookies from "js-cookie";
+import axios from "axios";
 
 import FooterAvatar from "@/assets/images/users/user-1.jpg";
+
+// API Configuration
+const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || DEFAULT_BACKEND_URL;
+const API_DOMAIN_FOR_ASSETS = import.meta.env.VITE_ASSETS_DOMAIN || `${BACKEND_BASE_URL}/storage`;
+const API_BASE_URL_FOR_API_CALLS = `${BACKEND_BASE_URL}/api`;
+const PROFILE_API_URL = `${API_BASE_URL_FOR_API_CALLS}/me`;
+
 const MobileFooter = () => {
+  // State for profile picture - default to static image
+  const [profilePicSrc, setProfilePicSrc] = useState(FooterAvatar);
+
+  useEffect(() => {
+    const fetchUserPic = async () => {
+      const token = Cookies.get("token");
+      if (!token) {
+        console.warn("MobileFooter: No authentication token found, using default avatar.");
+        return;
+      }
+
+      try {
+        const response = await axios.get(PROFILE_API_URL, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        });
+
+        if (response.data && response.data.profile_pic) {
+          const picPath = String(response.data.profile_pic);
+          let imageUrl;
+
+          if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
+            imageUrl = picPath;
+          } else {
+            const cleanPicPath = picPath.replace(/^\//, '');
+            imageUrl = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`;
+          }
+          
+          console.log("MobileFooter: Setting profile image to:", imageUrl);
+          setProfilePicSrc(imageUrl);
+        } else {
+          console.log("MobileFooter: No profile_pic in API response, using default avatar.");
+        }
+      } catch (error) {
+        console.error("MobileFooter: Error fetching profile picture:", error);
+      }
+    };
+
+    fetchUserPic();
+  }, []);
+
   return (
     <div className="bg-white bg-no-repeat custom-dropshadow footer-bg dark:bg-slate-700 flex justify-around items-center backdrop-filter backdrop-blur-[40px] fixed left-0 w-full z-[9999] bottom-0 py-[12px] px-4">
       <NavLink to="#">
@@ -31,6 +84,7 @@ const MobileFooter = () => {
           </div>
         )}
       </NavLink>
+      
       <NavLink
         to="#"
         className="relative bg-white bg-no-repeat backdrop-filter backdrop-blur-[40px] rounded-full footer-bg dark:bg-slate-700 h-[65px] w-[65px] z-[-1] -mt-[40px] flex justify-center items-center"
@@ -38,19 +92,25 @@ const MobileFooter = () => {
         {({ isActive }) => (
           <div className="h-[50px] w-[50px] rounded-full relative left-[0px] top-[0px] custom-dropshadow">
             <img
-              src={FooterAvatar}
-              alt=""
-              className={` w-full h-full rounded-full
+              src={profilePicSrc}
+              alt="User Profile"
+              className={` w-full h-full rounded-full object-cover
           ${
             isActive
               ? "border-2 border-primary-500"
-              : "border-2 border-slate-100"
+              : "border-2 border-slate-100 dark:border-slate-600"
           }
               `}
+              onError={(e) => {
+                console.warn("MobileFooter: Error loading profile image, falling back to default.");
+                e.target.onerror = null;
+                e.target.src = FooterAvatar;
+              }}
             />
           </div>
         )}
       </NavLink>
+      
       <NavLink to="#">
         {({ isActive }) => (
           <div>
