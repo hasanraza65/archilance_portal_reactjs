@@ -2,10 +2,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import axios from "axios";
 import Cookies from "js-cookie";
-import Card from "@/components/ui/Card"; 
-import Icon from "@/components/ui/Icon"; 
-import Dropdown from "@/components/ui/Dropdown"; 
-import { MenuItem } from "@headlessui/react";
+import Card from "@/components/ui/Card";
+import Icon from "@/components/ui/Icon";
 import {
   useTable,
   useRowSelect,
@@ -13,9 +11,14 @@ import {
   useGlobalFilter,
   usePagination,
 } from "react-table";
-import GlobalFilter from "../table/react-table/GlobalFilter"; 
+import GlobalFilter from "../table/react-table/GlobalFilter";
+import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal"; // Import the modal
+import Alert from "@/components/ui/Alert"; // For success/error messages
 
-const CUSTOMER_API_COLUMNS = [
+const PFP_BASE_URL = "https://demo.aentora.com/backend/public/storage/";
+
+// CUSTOMER_API_COLUMNS_CONFIG needs to be passed the openDeleteModal handler
+const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
   {
     Header: "Id",
     accessor: "id",
@@ -26,8 +29,6 @@ const CUSTOMER_API_COLUMNS = [
     accessor: "name",
     Cell: ({ row }) => {
       const { name, profile_pic } = row.original;
-      const PFP_BASE_URL = "https://demo.aentora.com/backend/public/storage/"; 
-
       return (
         <div>
           <span className="inline-flex items-center">
@@ -38,7 +39,7 @@ const CUSTOMER_API_COLUMNS = [
                   alt={name || 'Profile'}
                   className="object-cover w-full h-full rounded-full"
                   onError={(e) => {
-                    e.target.onerror = null; 
+                    e.target.onerror = null;
                     const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
                     e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
                   }}
@@ -57,16 +58,8 @@ const CUSTOMER_API_COLUMNS = [
       );
     },
   },
-  {
-    Header: "Email",
-    accessor: "email",
-    Cell: ({ cell: { value } }) => <span>{value}</span>,
-  },
-  {
-    Header: "Username",
-    accessor: "username",
-    Cell: ({ cell: { value } }) => <span>{value}</span>,
-  },
+  { Header: "Email", accessor: "email", Cell: ({ cell: { value } }) => <span>{value}</span> },
+  { Header: "Username", accessor: "username", Cell: ({ cell: { value } }) => <span>{value}</span> },
   {
     Header: "Phone",
     accessor: "phone",
@@ -75,159 +68,131 @@ const CUSTOMER_API_COLUMNS = [
       return <span>{cleanedPhone}</span>;
     }
   },
-  {
-    Header: "Role ID",
-    accessor: "user_role", 
-    Cell: ({ cell: { value } }) => {
-      return <span>{value}</span>;
-    },
-  },
+  { Header: "Role ID", accessor: "user_role", Cell: ({ cell: { value } }) => <span>{value}</span> },
   {
     Header: "Action",
-    accessor: "action", 
+    accessor: "action",
     Cell: ({ row }) => {
-      const navigate = useNavigate(); 
-      const handleAction = (actionName, customerId) => {
-        console.log(`Action: ${actionName} on customer ID: ${customerId}`);
+      const handleView = () => {
+        navigate(`/customers/view/${row.original.id}`);
+      };
+
+      const handleEdit = () => {
+        navigate(`/customers/edit/${row.original.id}`);
+      };
+
+      const handleDeleteClick = () => {
+        // Call the handler passed from AllCustomers component
+        openDeleteModalHandler(row.original); // Pass the customer object
       };
 
       return (
-        <div>
-          <Dropdown
-            classMenuItems="right-0 w-[140px] top-[110%] "
-            label={
-              <span className="text-xl text-center block w-full">
-                <Icon icon="heroicons-outline:dots-vertical" />
-              </span>
-            }
+        <div className="flex items-center space-x-2 rtl:space-x-reverse"> {/* Added rtl:space-x-reverse for RTL support */}
+          {/* View Button */}
+          <button
+            onClick={handleView}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors duration-150 group"
+            title="View Customer"
           >
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {customerActions.map((item, i) => ( 
-                <MenuItem key={i}>
-                  {({ active }) => (
-                    <div
-                      onClick={() => handleAction(item.name, row.original.id)}
-                      className={`
-                        ${
-                          item.name === "delete"
-                            ? "text-danger-500 hover:bg-danger-500 hover:text-white"
-                            : active 
-                              ? "bg-slate-900 text-white dark:bg-slate-600/50" 
-                              : "hover:bg-slate-100 dark:hover:bg-slate-700/50"
-                        }
-                        w-full border-b border-b-gray-500/10 px-4 py-2 text-sm last:mb-0 cursor-pointer
-                        first:rounded-t last:rounded-b flex space-x-2 items-center rtl:space-x-reverse
-                      `}
-                    >
-                      <span className="text-base">
-                        <Icon icon={item.icon} />
-                      </span>
-                      <span>{item.name}</span>
-                    </div>
-                  )}
-                </MenuItem>
-              ))}
-            </div>
-          </Dropdown>
+            <Icon 
+              icon="heroicons-outline:eye" 
+              className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-white" 
+            />
+          </button>
+
+          {/* Edit Button */}
+          <button
+            onClick={handleEdit}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors duration-150 group" // Using consistent styling
+            title="Edit Customer"
+          >
+            <Icon 
+              icon="heroicons:pencil-square" 
+              className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300" // Kept blue for edit icon
+            />
+          </button>
+
+          {/* Delete Button */}
+          <button
+            onClick={handleDeleteClick} // Changed to handleDeleteClick
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors duration-150 group" // Using consistent styling
+            title="Delete Customer"
+          >
+            <Icon 
+              icon="heroicons-outline:trash" 
+              className="w-4 h-4 text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300" // Kept red for delete icon
+            />
+          </button>
         </div>
       );
     },
   },
 ];
 
-const customerActions = [
-  {
-    name: "view",
-    icon: "heroicons-outline:eye",
-  },
-  {
-    name: "edit",
-    icon: "heroicons:pencil-square",
-  },
-  {
-    name: "delete",
-    icon: "heroicons-outline:trash",
-  },
-];
-
+// IndeterminateCheckbox remains the same
 const IndeterminateCheckbox = React.forwardRef(
-  ({ indeterminate, ...rest }, ref) => {
-    const defaultRef = React.useRef();
-    const resolvedRef = ref || defaultRef;
+    ({ indeterminate, ...rest }, ref) => {
+      const defaultRef = React.useRef();
+      const resolvedRef = ref || defaultRef;
+  
+      React.useEffect(() => {
+        if (resolvedRef.current) {
+          resolvedRef.current.indeterminate = indeterminate;
+        }
+      }, [resolvedRef, indeterminate]);
+  
+      return (
+        <input
+          type="checkbox"
+          ref={resolvedRef}
+          {...rest}
+          className="table-checkbox"
+        />
+      );
+    }
+  );
+IndeterminateCheckbox.displayName = "IndeterminateCheckbox";
 
-    React.useEffect(() => {
-      if (resolvedRef.current) {
-        resolvedRef.current.indeterminate = indeterminate;
-      }
-    }, [resolvedRef, indeterminate]);
-
-    return (
-      <input
-        type="checkbox"
-        ref={resolvedRef}
-        {...rest}
-        className="table-checkbox"
-      />
-    );
-  }
-);
 
 const AllCustomers = () => {
   const [customerData, setCustomerData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
   const navigate = useNavigate();
+
+  // State for delete functionality
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const [deleteSuccess, setDeleteSuccess] = useState(null);
+
 
   const fetchCustomers = async () => {
     setLoading(true);
-    setError(null);
+    setFetchError(null); // Clear previous fetch errors
+    setDeleteSuccess(null); // Clear delete messages on new fetch
+    setDeleteError(null);   // Clear delete messages on new fetch
     const token = Cookies.get("token");
-
-    console.log("Retrieved token for fetching customers:", token);
-
     if (!token) {
-      setError("Authentication token not found. Please log in.");
+      setFetchError("Authentication token not found. Please log in.");
       setLoading(false);
       return;
     }
-
     try {
-      const response = await axios.get(
-        "https://demo.aentora.com/backend/public/api/admin/customer-user", 
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
-      console.log("Full API Response (Get Customers):", response);
+      const response = await axios.get("https://demo.aentora.com/backend/public/api/admin/customer-user", {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
       if (response.data && Array.isArray(response.data.data)) {
-          setCustomerData(response.data.data);
-          console.log("Fetched Customer Data:", response.data.data);
-      } else if (response.data && Array.isArray(response.data)) { 
-          setCustomerData(response.data);
-          console.log("Fetched Customer Data (direct array):", response.data);
+        setCustomerData(response.data.data);
+      } else if (response.data && Array.isArray(response.data)) {
+        setCustomerData(response.data);
       } else {
-          console.error("API response.data.data (Customers) is not an array or undefined:", response.data);
-          setError("Received unexpected data format from server for customers.");
-          setCustomerData([]);
+        setFetchError("Received unexpected data format from server for customers.");
+        setCustomerData([]);
       }
     } catch (err) {
-      console.error("Error fetching customers:", err);
-      if (err.response) {
-        console.error("Error response data (Get Customers):", err.response.data);
-        console.error("Error response status (Get Customers):", err.response.status);
-        setError(
-          `Failed to fetch customers: ${err.response.data.message || err.response.statusText || 'Server error'}`
-        );
-      } else if (err.request) {
-        console.error("Error request (Get Customers):", err.request);
-        setError("Failed to fetch customers: No response from server.");
-      } else {
-        console.error("Error message (Get Customers):", err.message);
-        setError(`Failed to fetch customers: ${err.message}`);
-      }
+      setFetchError(err.response?.data?.message || err.message || "Failed to fetch customers.");
       setCustomerData([]);
     } finally {
       setLoading(false);
@@ -236,81 +201,80 @@ const AllCustomers = () => {
 
   useEffect(() => {
     fetchCustomers();
-  }, []); 
+  }, []);
 
-  const columns = useMemo(() => CUSTOMER_API_COLUMNS, []);
+  // ---- Delete Functionality Handlers ----
+  const handleOpenDeleteModal = (customer) => {
+    setCustomerToDelete(customer);
+    setIsDeleteModalOpen(true);
+    setDeleteError(null);
+    setDeleteSuccess(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setCustomerToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    setDeleteSuccess(null);
+    const token = Cookies.get("token");
+    if (!token) {
+      setDeleteError("Authentication token not found for deletion.");
+      setDeleteLoading(false);
+      setIsDeleteModalOpen(false);
+      return;
+    }
+    try {
+      await axios.delete(
+        `https://demo.aentora.com/backend/public/api/admin/customer-user/${customerToDelete.id}`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+      );
+      setCustomerData((prevData) => prevData.filter((customer) => customer.id !== customerToDelete.id));
+      setDeleteSuccess(`Customer "${customerToDelete.name}" deleted successfully!`);
+      handleCloseDeleteModal();
+      // Optional: Auto-dismiss success message after a few seconds
+      setTimeout(() => setDeleteSuccess(null), 4000);
+    } catch (err) {
+      console.error("Error deleting customer:", err.response);
+      setDeleteError(err.response?.data?.message || err.message || "Failed to delete customer.");
+      // setTimeout(() => setDeleteError(null), 5000); // Optional: Auto-dismiss error
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+  // ---- End Delete Functionality Handlers ----
+
+  // Pass navigate and handleOpenDeleteModal to the column configuration
+  const columns = useMemo(() => CUSTOMER_API_COLUMNS_CONFIG(navigate, handleOpenDeleteModal), [navigate]); // Added handleOpenDeleteModal dependency
   const data = useMemo(() => customerData, [customerData]);
 
   const tableInstance = useTable(
-    {
-      columns,
-      data,
-      initialState: { pageIndex: 0, pageSize: 10 },
-    },
-    useGlobalFilter,
-    useSortBy,
-    usePagination,
-    useRowSelect, 
-    (hooks) => {   
-      hooks.visibleColumns.push((visibleColumns) => [
-        {
-          id: "selection",
-          Header: ({ getToggleAllRowsSelectedProps }) => (
-            <div>
-              <IndeterminateCheckbox {...getToggleAllRowsSelectedProps()} />
-            </div>
-          ),
-          Cell: ({ row }) => (
-            <div>
-              <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
-            </div>
-          ),
-        },
-        ...visibleColumns,
-      ]);
-    }
+    { columns, data, initialState: { pageIndex: 0, pageSize: 10 } },
+    useGlobalFilter, useSortBy, usePagination, useRowSelect
   );
 
   const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    page,
-    nextPage,
-    previousPage,
-    canNextPage,
-    canPreviousPage,
-    pageOptions,
-    state,
-    gotoPage,
-    pageCount,
-    setPageSize,
-    setGlobalFilter,
-    prepareRow,
+    getTableProps, getTableBodyProps, headerGroups, page, nextPage, previousPage,
+    canNextPage, canPreviousPage, pageOptions, state, gotoPage, pageCount,
+    setPageSize, setGlobalFilter, prepareRow,
   } = tableInstance;
-
   const { globalFilter, pageIndex, pageSize } = state;
 
-  if (loading) {
-    return (
-      <Card>
-        <div className="p-4 text-center">Loading customer data...</div>
-      </Card>
-    );
+  if (loading && !customerData.length) { // Show initial loading state
+    return <Card><div className="p-4 text-center">Loading customer data...</div></Card>;
   }
 
-  if (error) {
+  if (fetchError && !loading && !customerData.length) { // Show fetch error if no data loaded
     return (
       <Card>
         <div className="p-4 text-center text-danger-500">
-          Error: {error}
+          Error: {fetchError}
           <br />
-          <button 
-            onClick={fetchCustomers} 
-            className="mt-2 px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 btn"
-          >
-            Try Again
-          </button>
+          <button onClick={fetchCustomers} className="mt-2 btn btn-primary">Try Again</button>
         </div>
       </Card>
     );
@@ -320,45 +284,36 @@ const AllCustomers = () => {
     <>
       <Card noBorder>
         <div className="md:flex justify-between items-center mb-6">
-          <h4 className="card-title">Customer List</h4> 
-          <div className="flex space-x-3 items-center">
+          <h4 className="card-title">Customer List</h4>
+          <div className="flex flex-wrap space-x-3 items-center">
             <GlobalFilter filter={globalFilter || ""} setFilter={setGlobalFilter} />
-            <button
-              className="btn btn-dark flex items-center" 
-              onClick={() => navigate('/customers/add')} 
-            >
+            <button className="btn btn-dark flex items-center mt-2 md:mt-0" onClick={() => navigate('/customers/add')}>
               <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
               Add Customer
             </button>
           </div>
         </div>
 
-        <div className="md:flex justify-start items-center mb-4">
-          <span className="text-sm text-slate-600 dark:text-slate-300 mr-2">Show</span>
-          <select
-            className="form-select w-auto"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-            }}
-          >
-            {[10, 25, 50, 100].map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-          <span className="text-sm text-slate-600 dark:text-slate-300 ml-2">entries</span>
-        </div>
+        {/* Display Delete Success/Error Messages */}
+        {deleteSuccess && (
+          <Alert className="alert-success light-mode mb-4" toggle={() => setDeleteSuccess(null)}>
+            {deleteSuccess}
+          </Alert>
+        )}
+        {deleteError && (
+          <Alert className="alert-danger light-mode mb-4" toggle={() => setDeleteError(null)}>
+            {deleteError}
+          </Alert>
+        )}
 
         <div className="overflow-x-auto -mx-6">
           <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden">
+            <div className="overflow-hidden shadow-sm dark:shadow-slate-700 rounded-md"> {/* Added shadow and rounded for table container */}
               <table
-                className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700"
+                className="min-w-full divide-y divide-slate-200 dark:divide-slate-700" // Adjusted divide color
                 {...getTableProps()}
               >
-                <thead className="border-t border-slate-100 dark:border-slate-800">
+                <thead className="bg-slate-100 dark:bg-slate-700">
                   {headerGroups.map((headerGroup) => {
                     const { key, ...restHeaderGroupProps } = headerGroup.getHeaderGroupProps();
                     return (
@@ -370,14 +325,14 @@ const AllCustomers = () => {
                               key={colKey}
                               {...restColProps}
                               scope="col"
-                              className="table-th"
+                              className="table-th" // Assumes table-th provides padding and text alignment
                             >
                               {column.render("Header")}
-                              <span>
+                              <span className="ltr:ml-1 rtl:mr-1"> {/* Adjusted margin for RTL */}
                                 {column.isSorted
                                   ? column.isSortedDesc
-                                    ? " 🔽"
-                                    : " 🔼"
+                                    ? <Icon icon="heroicons-outline:chevron-down" className="inline-block w-4 h-4" />
+                                    : <Icon icon="heroicons-outline:chevron-up" className="inline-block w-4 h-4" />
                                   : ""}
                               </span>
                             </th>
@@ -388,7 +343,7 @@ const AllCustomers = () => {
                   })}
                 </thead>
                 <tbody
-                  className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
+                  className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700" // Adjusted divide color
                   {...getTableBodyProps()}
                 >
                   {page.length > 0 ? (
@@ -396,14 +351,14 @@ const AllCustomers = () => {
                       prepareRow(row);
                       const { key, ...restRowProps } = row.getRowProps();
                       return (
-                        <tr key={key} {...restRowProps}>
+                        <tr key={key} {...restRowProps} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
                           {row.cells.map((cell) => {
                             const { key: cellKey, ...restCellProps } = cell.getCellProps();
                             return (
                               <td
                                 key={cellKey}
                                 {...restCellProps}
-                                className="table-td"
+                                className="table-td" // Assumes table-td provides padding
                               >
                                 {cell.render("Cell")}
                               </td>
@@ -414,8 +369,8 @@ const AllCustomers = () => {
                     })
                   ) : (
                     <tr>
-                        <td colSpan={columns.length + 1} className="text-center p-4 table-td">
-                            No customers found. 
+                        <td colSpan={columns.length} className="text-center p-6 text-slate-500 dark:text-slate-400 table-td"> {/* Increased padding for empty state */}
+                            {loading ? "Fetching customers..." : "No customers found."}
                         </td>
                     </tr>
                   )}
@@ -424,79 +379,95 @@ const AllCustomers = () => {
             </div>
           </div>
         </div>
-
+        
         {page.length > 0 && (
-            <div className="md:flex md:space-y-0 space-y-5 justify-between mt-6 items-center">
+             <div className="md:flex md:space-y-0 space-y-5 justify-between mt-6 items-center">
             <div className=" flex items-center space-x-3 rtl:space-x-reverse">
-                <span className=" flex space-x-2  rtl:space-x-reverse items-center">
-                <span className=" text-sm font-medium text-slate-600 dark:text-slate-300">
-                    Go to page:
-                </span>
-                <span>
-                    <input
-                    type="number"
-                    className="form-control py-2"
-                    defaultValue={pageIndex + 1}
-                    onChange={(e) => {
-                        const pageNumber = e.target.value
-                        ? Number(e.target.value) - 1
-                        : 0;
-                        gotoPage(pageNumber);
-                    }}
-                    style={{ width: "60px" }}
-                    min="1"
-                    max={pageOptions.length}
-                    />
-                </span>
-                </span>
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              <select
+                className="form-select py-2" // Added py-2 for consistency
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                style={{ width: '100px'}} // Slightly wider for "Show X"
+              >
+                {[10, 25, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    Show {size}
+                  </option>
+                ))}
+              </select>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                 Page{" "}
-                <span>
+                <span className="font-bold text-slate-900 dark:text-white">
                     {pageIndex + 1} of {pageOptions.length}
                 </span>
-                </span>
+                <span className="hidden sm:inline"> ({data.length} total records)</span>
+              </span>
             </div>
-            <ul className="flex items-center  space-x-3  rtl:space-x-reverse">
-                <li className="text-xl leading-4 text-slate-900 dark:text-white rtl:rotate-180">
+            <ul className="flex items-center space-x-2 rtl:space-x-reverse">
+                <li>
                 <button
-                    className={` ${!canPreviousPage ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`pagination-link ${!canPreviousPage ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() => gotoPage(0)}
                     disabled={!canPreviousPage}
                 >
-                    <Icon icon="heroicons-outline:chevron-double-left" />
+                    <Icon icon="heroicons:chevron-double-left-20-solid" />
                 </button>
                 </li>
-                <li className="text-xl leading-4 text-slate-900 dark:text-white rtl:rotate-180">
+                <li>
                 <button
-                    className={` ${!canPreviousPage ? "opacity-50 cursor-not-allowed" : ""}`}
+                     className={`pagination-link ${!canPreviousPage ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() => previousPage()}
                     disabled={!canPreviousPage}
                 >
                     <Icon icon="heroicons-outline:chevron-left" />
                 </button>
                 </li>
-                <li className="text-xl leading-4 text-slate-900 dark:text-white rtl:rotate-180">
+                 <li className="text-sm text-slate-900 dark:text-white flex items-center">
+                    <input
+                        type="number"
+                        className="form-control py-2 w-[60px] text-center" // py-2 for consistency
+                        value={pageIndex + 1} // Controlled component for page input
+                        onChange={(e) => {
+                            const pageNumber = e.target.value ? Number(e.target.value) - 1 : 0;
+                            if(pageNumber < pageOptions.length && pageNumber >=0){
+                               gotoPage(pageNumber);
+                            }
+                        }}
+                        min="1"
+                        max={pageOptions.length}
+                    />
+                </li>
+                <li>
                 <button
-                    className={` ${!canNextPage ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`pagination-link ${!canNextPage ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() => nextPage()}
                     disabled={!canNextPage}
                 >
                     <Icon icon="heroicons-outline:chevron-right" />
                 </button>
                 </li>
-                <li className="text-xl leading-4 text-slate-900 dark:text-white rtl:rotate-180">
+                <li>
                 <button
-                    className={` ${!canNextPage ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`pagination-link ${!canNextPage ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() => gotoPage(pageCount - 1)}
                     disabled={!canNextPage}
                 >
-                    <Icon icon="heroicons-outline:chevron-double-right" />
+                    <Icon icon="heroicons:chevron-double-right-20-solid" />
                 </button>
                 </li>
             </ul>
             </div>
         )}
       </Card>
+
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        itemName={customerToDelete?.name}
+        isLoading={deleteLoading}
+        message={`Are you sure you want to delete the customer: `}
+      />
     </>
   );
 };
