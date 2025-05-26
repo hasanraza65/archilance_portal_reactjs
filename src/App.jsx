@@ -29,6 +29,7 @@ import UpdateCustomer from "./pages/customers/UpdateCustomer";
 import ShowEmployee from "./pages/employees/ShowEmployee";
 import EditEmployee from "./pages/employees/UpdateEmployee";
 import TaskDetailsPage from "./pages/app/projects/Task/TaskDetailsPage";
+import KanbanBoardPage from "./pages/app/projects/KanbanBoardPage";
 
 function App() {
   return (
@@ -100,6 +101,7 @@ function App() {
              <Route path="projects" element={<ProjectPostPage />} />
              <Route path="projects/:id" element={<ProjectDetailsPage />} />
             <Route path="/task/:taskId" element={<TaskDetailsPage />} />
+             <Route path="/project/:id/kanban" element={<KanbanBoardPage />} /> 
 
              {/* Employees Routes */}
              <Route path="employees" element={<Allemployees />} />
