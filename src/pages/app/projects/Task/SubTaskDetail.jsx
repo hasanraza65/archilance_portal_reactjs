@@ -1,4 +1,4 @@
-// src/components/AddSubTaskModal.jsx (or wherever you keep modals)
+
 import React, { useState } from "react";
 import Cookies from "js-cookie";
 
@@ -7,8 +7,7 @@ const AddSubTaskModal = ({ isOpen, onClose, onSubTaskAdded, parentTaskId, projec
 
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
-  // Add other fields if needed: due_date, priority
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = Cookies.get("token");
@@ -28,14 +27,11 @@ const AddSubTaskModal = ({ isOpen, onClose, onSubTaskAdded, parentTaskId, projec
       parent_task_id: parentTaskId,
       task_title: taskTitle,
       task_description: taskDescription,
-      task_status: "To Do", // Default status, or make it selectable
-      // priority: "Normal", // Default priority, or make it selectable
-      // due_date: "YYYY-MM-DD", // Or make it selectable
+      task_status: "To Do", 
     };
 
     try {
-      // USE THE SAME ENDPOINT as creating a regular task,
-      // the backend should handle parent_task_id
+     
       const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/tasks`, { 
         method: "POST",
         headers: {
@@ -55,8 +51,8 @@ const AddSubTaskModal = ({ isOpen, onClose, onSubTaskAdded, parentTaskId, projec
       onSubTaskAdded(); 
       onClose();
     } catch (error) {
-      console.error("Error adding sub-task:", error);
-      alert(`Error adding sub-task: ${error.message}`);
+      console.error("Error adding task:", error);
+      alert(`Error adding task: ${error.message}`);
     }
   };
 
@@ -65,14 +61,14 @@ const AddSubTaskModal = ({ isOpen, onClose, onSubTaskAdded, parentTaskId, projec
 
       <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
         <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-gray-800">Add New Sub-Task</h3>
+            <h3 className="text-xl font-semibold text-gray-800">Add New Task</h3>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="subTaskTitleModal" className="block text-sm font-medium text-gray-700">Sub-Task Title</label>
+            <label htmlFor="subTaskTitleModal" className="block text-sm font-medium text-gray-700">Task Title</label>
             <input 
               type="text" 
               id="subTaskTitleModal" 
@@ -100,7 +96,7 @@ const AddSubTaskModal = ({ isOpen, onClose, onSubTaskAdded, parentTaskId, projec
               Cancel
             </button>
             <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
-              Add Sub-Task
+              Add Task
             </button>
           </div>
         </form>

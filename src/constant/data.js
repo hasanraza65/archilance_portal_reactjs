@@ -33,21 +33,11 @@ export const menuItems = [
       },
     ],
   },
- {
-    title: "Projects",
-    icon: "heroicons-outline:document",
-    link: "#",
+  {
+     title: "Projects",
     isHide: true,
-    child: [
-      {
-        childtitle: "Projects",
-        childlink: "projects",
-      },
-      {
-        childtitle: "Project Details",
-        childlink: "project-details",
-      },
-    ],
+    icon: "heroicons-outline:document",
+    link: "projects",
   },
   {
     title: "Employees",

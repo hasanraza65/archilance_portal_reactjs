@@ -3,15 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import AddTaskModal from "../projects/Task/SubTaskDetail";
 
-// Helper functions (keep them here or import from a utils.js file)
 const mapApiAssigneeToLocal = (apiAssignee) => {
     if (!apiAssignee || typeof apiAssignee !== 'object') {
         return null;
     }
-    // The API response for project tasks list has assignee.name directly
-    // The API response for a single task (project-task/:id) has assignee.user.name
-    // This function needs to be flexible or you need separate ones.
-    // For ProjectDetailsPage, tasks come from /project/:id, where assignees are direct.
+    
     const name = apiAssignee.name || (apiAssignee.user && apiAssignee.user.name) || "Unknown";
     const avatarChar = name.charAt(0).toUpperCase() || "U";
     let color = "bg-gray-500"; 
@@ -24,7 +20,7 @@ const mapApiAssigneeToLocal = (apiAssignee) => {
 
 const getStatusClass = (status) => {
     if (!status) return "bg-gray-100 text-gray-800 border-gray-200";
-    switch (String(status).toLowerCase()) { // Use toLowerCase for consistency
+    switch (String(status).toLowerCase()) { 
       case "in progress": case "pending": return "bg-blue-100 text-blue-800 border-blue-200";
       case "todo": case "to do": case "open": return "bg-gray-100 text-gray-800 border-gray-200"; 
       case "completed": case "done": return "bg-green-100 text-green-800 border-green-200";
@@ -43,7 +39,7 @@ const getPriorityClass = (priority) => {
 };
 
 const ProjectDetailsPage = () => {
-  const { id } = useParams(); // This `id` is the project_id
+  const { id } = useParams(); 
   const navigate = useNavigate();
 
   const [projectDetails, setProjectDetails] = useState(null);
@@ -220,14 +216,13 @@ const ProjectDetailsPage = () => {
             
             <div className="max-h-96 overflow-y-auto">
               {tasks.map((task, index) => {
-                // For tasks listed under a project, the API example shows `task.assignees` as an array.
-                // Each item in `task.assignees` directly has `name`.
+              
                 const assignee = task.assignees && task.assignees.length > 0 ? mapApiAssigneeToLocal(task.assignees[0]) : null;
                 return (
                 <div 
                   key={task.id || `task-${index}`}
                   className="grid grid-cols-12 border-b border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/task/${task.id}`)} // Navigate to TaskDetailsPage
+                  onClick={() => navigate(`/task/${task.id}`)} 
                 >
                   <div className="col-span-4 p-4 flex items-center">
                     <span className="text-gray-900">{task.task_title || "N/A"}</span>
@@ -258,12 +253,12 @@ const ProjectDetailsPage = () => {
                     </span>
                   </div>
                   <div className="col-span-1 p-4 flex items-center justify-center">
-                    {/* Actions like edit/delete task can go here, stopPropagation if needed */}
+                    
                     <button 
                       onClick={(e) => {
                         e.stopPropagation(); // Prevent row click if an action button is clicked
                         console.log("Task action clicked for:", task.id);
-                        // Implement task action, e.g., open edit modal
+                        
                       }}
                       className="text-gray-400 hover:text-gray-600"
                     >
