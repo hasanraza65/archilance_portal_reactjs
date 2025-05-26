@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import AddTaskModal from "../projects/Task/SubTaskDetail";
+import AddTaskModal from "../projects/Task/PartialTask/AddSubTaskModal";
 
 const mapApiAssigneeToLocal = (apiAssignee) => {
     if (!apiAssignee || typeof apiAssignee !== 'object') {

@@ -28,7 +28,7 @@ import CustomerView from "./pages/customers/ViewCustomer";
 import UpdateCustomer from "./pages/customers/UpdateCustomer";
 import ShowEmployee from "./pages/employees/ShowEmployee";
 import EditEmployee from "./pages/employees/UpdateEmployee";
-import TaskDetailsPage from "./pages/app/projects/Task/TaskDetail";
+import TaskDetailsPage from "./pages/app/projects/Task/TaskDetailsPage";
 
 function App() {
   return (
