@@ -4,16 +4,15 @@ import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
 
 const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAdded }) => {
-  // Diagnostic log for received props
   useEffect(() => {
     if (isOpen) {
       console.log("AddSubTaskModal received props: isOpen=", isOpen, "parentTaskId=", parentTaskId, "projectId=", projectId);
     }
   }, [isOpen, parentTaskId, projectId]);
 
-
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState(''); // <-- New state for due date
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -21,17 +20,17 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
     if (isOpen) {
       setTitle('');
       setDescription('');
+      setDueDate(''); // <-- Reset due date when modal opens
       setAttachments([]);
     }
   }, [isOpen]);
 
   const handleFileSelect = (e) => {
-    // ... (implementation as before)
     const files = Array.from(e.target.files);
     const maxSize = 10 * 1024 * 1024; // 10MB limit
     const allowedTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf', 'application/msword', 
+      'application/pdf', 'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -51,16 +50,14 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
     });
 
     setAttachments(prev => [...prev, ...validFiles]);
-    e.target.value = ''; 
+    e.target.value = '';
   };
 
   const removeAttachment = (index) => {
-    // ... (implementation as before)
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const formatFileSize = (bytes) => {
-    // ... (implementation as before)
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -69,7 +66,6 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
   };
 
   const getFileIcon = (fileType) => {
-    // ... (implementation as before)
     if (fileType.startsWith('image/')) {
       return (
         <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
@@ -98,36 +94,45 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
       return;
     }
 
-    // More robust check for parentTaskId before parsing
-    // This is where your error is correctly being caught:
-    if (typeof parentTaskId !== 'string' || parentTaskId.trim() === '') {
-        toast.error("Parent Task ID is missing or invalid for sub-task creation.");
-        console.error("AddSubTaskModal Error: parentTaskId prop is missing, undefined, or empty. Value:", parentTaskId); // Line 92 (approx)
-        return;
-    }
-    const numericParentTaskId = parseInt(parentTaskId, 10);
-    if (isNaN(numericParentTaskId)) {
-        toast.error("Invalid Parent Task ID format. Could not parse to a number.");
-        console.error("AddSubTaskModal Error: parentTaskId is NaN after parsing. Original prop value:", parentTaskId);
-        return;
-    }
-    
-    if (projectId === undefined || projectId === null || projectId.toString().trim() === '') { 
-      toast.error("Project ID is missing or invalid for sub-task creation.");
+    if (projectId === undefined || projectId === null || projectId.toString().trim() === '') {
+      toast.error("Project ID is missing or invalid for task creation.");
       console.error("AddSubTaskModal Error: Project ID prop is missing, null, or empty. Value:", projectId);
       return;
     }
-    
+    const numericProjectId = parseInt(projectId.toString(), 10);
+    if (isNaN(numericProjectId)) {
+        toast.error("Invalid Project ID format. Could not parse to a number.");
+        console.error("AddSubTaskModal Error: projectId is NaN after parsing. Original prop value:", projectId);
+        return;
+    }
+
+    let numericParentTaskId = null;
+    if (parentTaskId !== undefined && parentTaskId !== null && parentTaskId.toString().trim() !== '') {
+      numericParentTaskId = parseInt(parentTaskId.toString(), 10);
+      if (isNaN(numericParentTaskId)) {
+        toast.error("Invalid Parent Task ID format for sub-task. Could not parse to a number.");
+        console.error("AddSubTaskModal Error: parentTaskId ('"+ parentTaskId +"') is NaN after parsing.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     const token = Cookies.get("token");
-    
+
     try {
       const formData = new FormData();
       formData.append('task_title', title);
       formData.append('task_description', description);
-      formData.append('parent_task_id', numericParentTaskId.toString()); 
-      formData.append('project_id', projectId.toString());
-      
+      formData.append('project_id', numericProjectId.toString());
+
+      if (numericParentTaskId !== null) {
+        formData.append('parent_task_id', numericParentTaskId.toString());
+      }
+
+      if (dueDate) { // <-- Append due_date if it's set
+        formData.append('due_date', dueDate);
+      }
+
       attachments.forEach((file, index) => {
         formData.append(`attachments[${index}]`, file);
       });
@@ -144,24 +149,24 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
       if (!response.ok) {
         const errData = await response.json().catch(() => ({ message: `Server error: ${response.status} ${response.statusText}` }));
         console.error("Backend error response data:", errData);
-        let detailedMessage = errData.message || `Failed to create sub-task (status ${response.status}).`;
+        let detailedMessage = errData.message || `Failed to create task (status ${response.status}).`;
         if (errData.errors) {
           const firstErrorKey = Object.keys(errData.errors)[0];
           if (firstErrorKey && errData.errors[firstErrorKey] && errData.errors[firstErrorKey].length > 0) {
-            detailedMessage = errData.errors[firstErrorKey][0]; 
+            detailedMessage = errData.errors[firstErrorKey][0];
           }
         }
         throw new Error(detailedMessage);
       }
 
-      const responseData = await response.json().catch(() => ({ message: "Sub-task added, but response format was unexpected."}));
-      toast.success(responseData.message || "Sub-task added successfully!");
-      onSubTaskAdded();
+      const responseData = await response.json().catch(() => ({ message: "Task added, but response format was unexpected."}));
+      toast.success(responseData.message || (numericParentTaskId ? "Sub-task added successfully!" : "Task added successfully!"));
+      if(onSubTaskAdded) onSubTaskAdded();
       onClose();
 
     } catch (error) {
-      toast.error(error.message); 
-      console.error("Error during sub-task submission:", error);
+      toast.error(error.message);
+      console.error("Error during task submission:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -170,11 +175,12 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
   if (!isOpen) return null;
 
   return (
-    // ... (rest of JSX as before) ...
     <div className="fixed inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-slate-800">Add New Task</h2>
+          <h2 className="text-xl font-bold text-slate-800">
+            {parentTaskId ? 'Add New Sub-Task' : 'Add New Task'}
+          </h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-700">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -184,12 +190,12 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="subtask-title" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="task-title" className="block text-sm font-medium text-slate-700 mb-1">
               Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              id="subtask-title"
+              id="task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
@@ -199,11 +205,11 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
           </div>
 
           <div className="mb-6">
-            <label htmlFor="subtask-description" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="task-description" className="block text-sm font-medium text-slate-700 mb-1">
               Description (Optional)
             </label>
             <textarea
-              id="subtask-description"
+              id="task-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter task description..."
@@ -213,12 +219,28 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
             />
           </div>
 
+          {/* Due Date Field */}
+          <div className="mb-6">
+            <label htmlFor="task-due-date" className="block text-sm font-medium text-slate-700 mb-1">
+              Due Date (Optional)
+            </label>
+            <input
+              type="date"
+              id="task-due-date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full p-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+              // To prevent selecting past dates, you can add a min attribute:
+              // min={new Date().toISOString().split("T")[0]}
+            />
+          </div>
+
           {/* File Attachment Section */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Attachments (Optional)
             </label>
-            
             <div className="mb-4">
               <label className="flex items-center justify-center w-full px-4 py-6 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
                 <div className="flex flex-col items-center">
@@ -294,7 +316,7 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
                   Adding...
                 </>
               ) : (
-                'Add Task'
+                parentTaskId ? 'Add Sub-Task' : 'Add Task'
               )}
             </button>
           </div>
