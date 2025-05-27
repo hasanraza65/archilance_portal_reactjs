@@ -5,19 +5,16 @@ import Cookies from "js-cookie";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 import TaskHeader from "./PartialTask/TaskHeader";
 import TaskMetadata from "./PartialTask/TaskMetadata";
 import SubTaskList from "./PartialTask/SubTaskList";
 import CommentList from "./PartialTask/CommentList";
 import LoadingState from "./PartialTask/LoadingState";
 import ErrorState from "./PartialTask/ErrorState";
-import AddSubTaskModals from "./PartialTask/AddSubTaskModal";
-// Helper functions are now imported if needed by TaskDetailsPage itself, or passed to children
-// For this refactor, children import them from taskDetailsUtils.js
+import AddSubTaskModals from "./PartialTask/AddSubTaskModal"; 
 
 const TaskDetailsPage = () => {
-  const { taskId } = useParams();
+  const { taskId } = useParams(); // taskId from URL
   const navigate = useNavigate();
 
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
@@ -27,7 +24,7 @@ const TaskDetailsPage = () => {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentError, setCommentError] = useState(null);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Default to true, set to false if taskId is initially missing
   const [error, setError] = useState(null);
   const [fieldUpdateError, setFieldUpdateError] = useState(null);
   const [taskFound, setTaskFound] = useState(true);
@@ -38,9 +35,13 @@ const TaskDetailsPage = () => {
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const statusDropdownRef = useRef(null);
 
+  const toastContainerStyle = { zIndex: 10000 };
+
   const fetchTaskData = async (showLoadingSpinner = true) => {
+    console.log("Attempting to fetch task data for taskId:", taskId);
     if (!taskId) {
-      setError("Task ID is missing from URL.");
+      console.error("fetchTaskData: Task ID is missing. Aborting fetch.");
+      setError("Task ID is missing from URL. Cannot fetch task data.");
       if (showLoadingSpinner) setLoading(false);
       setTaskFound(false);
       return;
@@ -72,7 +73,7 @@ const TaskDetailsPage = () => {
           setTaskFound(false);
           setError(`Task with ID ${taskId} not found.`);
         } else {
-          const eData = await response.json().catch(() => ({}));
+          const eData = await response.json().catch(() => ({ message: `Server error ${response.status}` }));
           setError(`Error ${response.status}: ${eData.message || response.statusText}`);
           setTaskFound(false);
         }
@@ -85,6 +86,7 @@ const TaskDetailsPage = () => {
         setSubTasks(data.sub_tasks || []);
         setComments(data.comments || []);
         setTaskFound(true);
+        console.log("Parent task details fetched successfully:", data);
       } else {
         setError("Invalid task data received from API.");
         setTaskFound(false);
@@ -99,7 +101,15 @@ const TaskDetailsPage = () => {
   };
 
   useEffect(() => {
-    fetchTaskData();
+    console.log("TaskDetailsPage useEffect [taskId, navigate] - current taskId from useParams:", taskId);
+    if (taskId && taskId.trim() !== "") {
+      fetchTaskData();
+    } else {
+      console.warn("Task ID from URL is undefined, null, or empty in useEffect. Not fetching data.");
+      setLoading(false); // Stop loading if taskId is invalid
+      setError("Task ID is missing or invalid in the URL.");
+      setTaskFound(false);
+    }
   }, [taskId, navigate]);
 
   useEffect(() => {
@@ -156,8 +166,7 @@ const TaskDetailsPage = () => {
       } else if (responseData && responseData.message && response.ok) {
         const friendlyFieldName = fieldName.replace(/_/g, " ");
         toast.success(`${friendlyFieldName.charAt(0).toUpperCase() + friendlyFieldName.slice(1)} updated (confirmed by server)!`);
-         // Optionally re-fetch to ensure data consistency if server response is minimal
-        fetchTaskData(false);
+        if (taskId) fetchTaskData(false);
       } else {
         toast.warn("Update may have succeeded, but API response format was unexpected. Local value kept. Refresh if needed.");
       }
@@ -171,19 +180,44 @@ const TaskDetailsPage = () => {
     }
   };
 
-  const handleOpenAddSubTaskModal = () => setIsAddSubTaskModalOpen(true);
+  const handleOpenAddSubTaskModal = () => {
+    console.log("handleOpenAddSubTaskModal called. Current taskId:", taskId, "ParentDetails:", parentTaskDetails);
+    if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
+      console.error("Attempted to open modal, but Task ID from URL is invalid. Value:", taskId);
+      toast.error("Cannot add sub-task: Parent task ID is missing or invalid.");
+      return;
+    }
+    if (!parentTaskDetails || parentTaskDetails.project_id === undefined || parentTaskDetails.project_id === null) {
+      console.error("Attempted to open modal, but parentTaskDetails or project_id is missing/invalid. ParentDetails:", parentTaskDetails);
+      toast.error("Cannot add sub-task: Parent task data or project ID is not fully loaded.");
+      return;
+    }
+    console.log("All checks passed. Opening Add Sub Task Modal with taskId:", taskId, "projectId:", parentTaskDetails.project_id);
+    setIsAddSubTaskModalOpen(true);
+  };
+
   const handleCloseAddSubTaskModal = () => setIsAddSubTaskModalOpen(false);
   const handleSubTaskAdded = () => {
-    fetchTaskData(false); // Refresh data after adding a sub-task
+    if (taskId) fetchTaskData(false);
   };
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
+    if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
+        toast.error("Cannot post comment: Task ID is missing or invalid.");
+        return;
+    }
     setIsSubmittingComment(true);
     setCommentError(null);
     const token = Cookies.get("token");
-    const commentPayload = { task_id: parseInt(taskId), comment_message: newComment };
+    const numericTaskId = parseInt(taskId, 10);
+    if (isNaN(numericTaskId)) {
+        toast.error("Cannot post comment: Invalid Task ID format.");
+        setIsSubmittingComment(false);
+        return;
+    }
+    const commentPayload = { task_id: numericTaskId, comment_message: newComment };
     try {
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/comments`,
@@ -199,7 +233,7 @@ const TaskDetailsPage = () => {
       }
       setNewComment("");
       toast.success("Comment posted!");
-      fetchTaskData(false); // Refresh data to show new comment
+      if (taskId) fetchTaskData(false);
     } catch (err) {
       console.error("Error posting comment:", err);
       setCommentError(err.message);
@@ -208,22 +242,39 @@ const TaskDetailsPage = () => {
       setIsSubmittingComment(false);
     }
   };
+  
+  // Initial loading state check based on presence AND validity of taskId
+  if (loading && taskId && taskId.trim() !== "") return <LoadingState />;
 
-  if (loading) return <LoadingState />;
-  if (error || !taskFound || !parentTaskDetails) {
+  // If taskId is genuinely missing or invalid from URL after initial checks in useEffect
+  if (!taskId || taskId.trim() === "") {
+    console.error("Rendering ErrorState because taskId from useParams is invalid. Value:", taskId);
     return (
       <>
-        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="colored" />
-        <ErrorState title={taskFound ? "Error Loading Task" : "Task Not Found"} message={error} taskId={taskId} />
+        <ToastContainer {...{ position:"top-right", autoClose:3000, style:toastContainerStyle }} />
+        <ErrorState title="Invalid Task URL" message="No Task ID was provided or it is invalid in the URL." />
+      </>
+    );
+  }
+
+  // If error occurred, or task not found, or parentTaskDetails not loaded (even if taskId was present)
+  if (error || !taskFound || !parentTaskDetails) {
+    console.warn("Rendering ErrorState. Error:", error, "TaskFound:", taskFound, "ParentDetails:", parentTaskDetails);
+    return (
+      <>
+        <ToastContainer {...{ position:"top-right", autoClose:3000, style:toastContainerStyle }} />
+        <ErrorState title={taskFound ? "Error Loading Task" : "Task Not Found"} message={error || "Failed to load task details."} taskId={taskId} />
       </>
     );
   }
   
   const parentAssignee = parentTaskDetails.assignees && parentTaskDetails.assignees.length > 0 ? parentTaskDetails.assignees[0].user : null;
 
+  console.log("Rendering main TaskDetailsPage content. taskId:", taskId, "parentTaskDetails.project_id:", parentTaskDetails.project_id);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+      <ToastContainer {...{ position:"top-right", autoClose:3000, style:toastContainerStyle, newestOnTop: false, closeOnClick: true, rtl: false, pauseOnFocusLoss: true, draggable: true, pauseOnHover: true, theme:"colored" }} />
       <div className="container mx-auto px-4 py-6">
         {fieldUpdateError && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-lg text-sm shadow">
@@ -272,13 +323,24 @@ const TaskDetailsPage = () => {
         </div>
       </div>
 
-      {isAddSubTaskModalOpen && (
-        <AddSubTaskModals
-          isOpen={isAddSubTaskModalOpen}
-          onClose={handleCloseAddSubTaskModal}
-          parentTaskId={taskId} // Already a string from useParams
-          onSubTaskAdded={handleSubTaskAdded}
-        />
+      {/* Modal Rendering: ALL conditions must be met */}
+      {isAddSubTaskModalOpen && 
+       taskId && typeof taskId === 'string' && taskId.trim() !== '' && 
+       parentTaskDetails && 
+       (parentTaskDetails.project_id !== undefined && parentTaskDetails.project_id !== null) && 
+       (
+        (() => { 
+          console.log("CONDITIONS MET FOR RENDERING MODAL: isAddSubTaskModalOpen:", isAddSubTaskModalOpen, "passing parentTaskId:", taskId, "passing projectId:", parentTaskDetails.project_id);
+          return (
+            <AddSubTaskModals
+              isOpen={isAddSubTaskModalOpen}
+              onClose={handleCloseAddSubTaskModal}
+              parentTaskId={taskId} 
+              projectId={parentTaskDetails.project_id} 
+              onSubTaskAdded={handleSubTaskAdded}
+            />
+          );
+        })()
       )}
     </div>
   );
