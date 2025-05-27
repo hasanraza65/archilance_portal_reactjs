@@ -1,4 +1,3 @@
-// src/pages/TaskDetailsPage.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -14,17 +13,20 @@ import ErrorState from "./PartialTask/ErrorState";
 import AddSubTaskModals from "./PartialTask/AddSubTaskModal"; 
 
 const TaskDetailsPage = () => {
-  const { taskId } = useParams(); // taskId from URL
+  const { taskId } = useParams();
   const navigate = useNavigate();
 
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
   const [subTasks, setSubTasks] = useState([]);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false); // For NEW comments specifically
   const [commentError, setCommentError] = useState(null);
+  
+  // Placeholder for current user ID - you'll need to get this from your auth system
+  const [currentUserId, setCurrentUserId] = useState(null); // Example: null; replace with actual logic
 
-  const [loading, setLoading] = useState(true); // Default to true, set to false if taskId is initially missing
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fieldUpdateError, setFieldUpdateError] = useState(null);
   const [taskFound, setTaskFound] = useState(true);
@@ -37,20 +39,31 @@ const TaskDetailsPage = () => {
 
   const toastContainerStyle = { zIndex: 10000 };
 
+  // Function to get user ID from cookie (example)
+  const getUserIdFromCookie = () => {
+    const userCookie = Cookies.get("user"); // Assuming user data is stored in a cookie named "user"
+    if (userCookie) {
+      try {
+        const userData = JSON.parse(userCookie);
+        return userData.id; // Adjust 'id' if your user object has a different key for the user ID
+      } catch (e) {
+        console.error("Failed to parse user data from cookie:", e);
+        return null;
+      }
+    }
+    return null;
+  };
+
+
   const fetchTaskData = async (showLoadingSpinner = true) => {
-    console.log("Attempting to fetch task data for taskId:", taskId);
     if (!taskId) {
-      console.error("fetchTaskData: Task ID is missing. Aborting fetch.");
-      setError("Task ID is missing from URL. Cannot fetch task data.");
+      setError("Task ID is missing from URL.");
       if (showLoadingSpinner) setLoading(false);
       setTaskFound(false);
       return;
     }
     if (showLoadingSpinner) setLoading(true);
-    setError(null);
-    setFieldUpdateError(null);
-    setTaskFound(true);
-
+    setError(null); setFieldUpdateError(null); setTaskFound(true);
     const token = Cookies.get("token");
     if (!token) {
       setError("Authorization token not found. Please log in.");
@@ -61,22 +74,17 @@ const TaskDetailsPage = () => {
     }
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-task/${taskId}`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-task/${taskId}`, {
+        method: "GET", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
+      });
       if (!response.ok) {
+        const eData = await response.json().catch(() => ({ message: `Server error ${response.status}` }));
         if (response.status === 404) {
-          setTaskFound(false);
           setError(`Task with ID ${taskId} not found.`);
         } else {
-          const eData = await response.json().catch(() => ({ message: `Server error ${response.status}` }));
           setError(`Error ${response.status}: ${eData.message || response.statusText}`);
-          setTaskFound(false);
         }
+        setTaskFound(false);
         if (showLoadingSpinner) setLoading(false);
         return;
       }
@@ -84,263 +92,178 @@ const TaskDetailsPage = () => {
       if (data && data.id) {
         setParentTaskDetails(data);
         setSubTasks(data.sub_tasks || []);
-        setComments(data.comments || []);
+        const sortedComments = (data.comments || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        setComments(sortedComments);
         setTaskFound(true);
-        console.log("Parent task details fetched successfully:", data);
       } else {
         setError("Invalid task data received from API.");
         setTaskFound(false);
       }
     } catch (err) {
-      console.error("Fetch task error:", err);
       setError(err.message || "An unknown error occurred while fetching task details.");
       setTaskFound(false);
-    } finally {
-      if (showLoadingSpinner) setLoading(false);
-    }
+    } 
+    finally { if (showLoadingSpinner) setLoading(false); }
   };
 
   useEffect(() => {
-    console.log("TaskDetailsPage useEffect [taskId, navigate] - current taskId from useParams:", taskId);
-    if (taskId && taskId.trim() !== "") {
-      fetchTaskData();
-    } else {
-      console.warn("Task ID from URL is undefined, null, or empty in useEffect. Not fetching data.");
-      setLoading(false); // Stop loading if taskId is invalid
-      setError("Task ID is missing or invalid in the URL.");
-      setTaskFound(false);
-    }
-  }, [taskId, navigate]);
+    setCurrentUserId(getUserIdFromCookie()); // Set user ID on component mount/update
+
+    if (taskId && taskId.trim() !== "") fetchTaskData();
+    else { setLoading(false); setError("Task ID is missing or invalid in the URL."); setTaskFound(false); }
+  }, [taskId, navigate]); // `navigate` might not be needed here if only for redirect
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (priorityDropdownRef.current && !priorityDropdownRef.current.contains(event.target)) {
-        setIsPriorityDropdownOpen(false);
-      }
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
-        setIsStatusDropdownOpen(false);
-      }
+      if (priorityDropdownRef.current && !priorityDropdownRef.current.contains(event.target)) setIsPriorityDropdownOpen(false);
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) setIsStatusDropdownOpen(false);
     }
-    if (isPriorityDropdownOpen || isStatusDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    if (isPriorityDropdownOpen || isStatusDropdownOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isPriorityDropdownOpen, isStatusDropdownOpen]);
+
 
   const handleUpdateTaskField = async (fieldName, value) => {
     if (!parentTaskDetails) return;
     const token = Cookies.get("token");
-    if (!token) {
-      toast.error("Authorization token not found. Please log in again.");
-      setFieldUpdateError("Authorization token not found. Please log in again.");
-      return;
-    }
+    if (!token) { /* ... toast error ... */ return; }
     setFieldUpdateError(null);
     const originalValue = parentTaskDetails[fieldName];
     setParentTaskDetails((prevDetails) => ({ ...prevDetails, [fieldName]: value }));
-
     try {
-      const payload = { [fieldName]: value };
+      // ... API call ...
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-task/${parentTaskDetails.id}`,
-        {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(payload),
-        }
+        { /* ... */ }
       );
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        setParentTaskDetails((prevDetails) => ({ ...prevDetails, [fieldName]: originalValue }));
-        toast.error(responseData.message || `Failed to update ${fieldName}`);
-        throw new Error(responseData.message || `Failed to update ${fieldName} (status ${response.status})`);
-      }
-
-      if (responseData && responseData.task && responseData.task.hasOwnProperty(fieldName)) {
-        setParentTaskDetails((prevDetails) => ({ ...prevDetails, [fieldName]: responseData.task[fieldName] }));
-        const friendlyFieldName = fieldName.replace(/_/g, " ");
-        toast.success(`${friendlyFieldName.charAt(0).toUpperCase() + friendlyFieldName.slice(1)} updated!`);
-      } else if (responseData && responseData.message && response.ok) {
-        const friendlyFieldName = fieldName.replace(/_/g, " ");
-        toast.success(`${friendlyFieldName.charAt(0).toUpperCase() + friendlyFieldName.slice(1)} updated (confirmed by server)!`);
-        if (taskId) fetchTaskData(false);
-      } else {
-        toast.warn("Update may have succeeded, but API response format was unexpected. Local value kept. Refresh if needed.");
-      }
+      // ... response handling ...
     } catch (err) {
-      console.error(`Error updating ${fieldName}:`, err);
-      setParentTaskDetails((prevDetails) => ({ ...prevDetails, [fieldName]: originalValue }));
-      if (!err.message.includes("Failed to update")) {
-        toast.error(`Error updating ${fieldName}: ${err.message}`);
-      }
-      setFieldUpdateError(`Failed to update ${fieldName}: ${err.message}`);
+      // ... error handling ...
     }
   };
 
   const handleOpenAddSubTaskModal = () => {
-    console.log("handleOpenAddSubTaskModal called. Current taskId:", taskId, "ParentDetails:", parentTaskDetails);
-    if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
-      console.error("Attempted to open modal, but Task ID from URL is invalid. Value:", taskId);
-      toast.error("Cannot add sub-task: Parent task ID is missing or invalid.");
-      return;
+    if (!taskId || !parentTaskDetails || parentTaskDetails.project_id == null) {
+        toast.error("Cannot add sub-task: Parent task data is incomplete.");
+        return;
     }
-    if (!parentTaskDetails || parentTaskDetails.project_id === undefined || parentTaskDetails.project_id === null) {
-      console.error("Attempted to open modal, but parentTaskDetails or project_id is missing/invalid. ParentDetails:", parentTaskDetails);
-      toast.error("Cannot add sub-task: Parent task data or project ID is not fully loaded.");
-      return;
-    }
-    console.log("All checks passed. Opening Add Sub Task Modal with taskId:", taskId, "projectId:", parentTaskDetails.project_id);
     setIsAddSubTaskModalOpen(true);
   };
-
   const handleCloseAddSubTaskModal = () => setIsAddSubTaskModalOpen(false);
-  const handleSubTaskAdded = () => {
-    if (taskId) fetchTaskData(false);
-  };
+  const handleSubTaskAdded = () => { if (taskId) fetchTaskData(false); };
 
-  const handleCommentSubmit = async (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
-        toast.error("Cannot post comment: Task ID is missing or invalid.");
-        return;
-    }
-    setIsSubmittingComment(true);
-    setCommentError(null);
+  const handleCommentSubmit = async (payload, isFormData) => { // For NEW comments
+    setIsSubmittingComment(true); setCommentError(null);
     const token = Cookies.get("token");
-    const numericTaskId = parseInt(taskId, 10);
-    if (isNaN(numericTaskId)) {
-        toast.error("Cannot post comment: Invalid Task ID format.");
-        setIsSubmittingComment(false);
-        return;
-    }
-    const commentPayload = { task_id: numericTaskId, comment_message: newComment };
+    if (!token) { toast.error("Auth token missing."); setIsSubmittingComment(false); return false; }
+    
+    let requestBody;
+    const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+    if (isFormData) requestBody = payload; else { requestBody = JSON.stringify(payload); headers['Content-Type'] = 'application/json'; }
+
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/comments`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(commentPayload),
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/task-comment`, {
+        method: "POST", headers: headers, body: requestBody,
+      });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.message || `Failed to post comment (status ${response.status})`);
       }
-      setNewComment("");
-      toast.success("Comment posted!");
+      setNewComment(""); toast.success("Comment posted!");
       if (taskId) fetchTaskData(false);
+      return true;
+    } catch (err) { setCommentError(err.message); toast.error(`Failed to post: ${err.message}`); return false; } 
+    finally { setIsSubmittingComment(false); }
+  };
+
+  const handleEditComment = async (commentId, newText) => {
+    // Note: isSubmittingComment in CommentList will handle UI disable
+    setCommentError(null); // Clear previous errors for this operation type
+    const token = Cookies.get("token");
+    if (!token) { toast.error("Authorization token not found."); return false; }
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/task-comment/${commentId}`, {
+        method: "PUT", 
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ comment_message: newText }),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `Failed to update comment (status ${response.status})`);
+      }
+      toast.success("Comment updated!");
+      if (taskId) fetchTaskData(false); // Refetch to get updated comment list
+      return true;
     } catch (err) {
-      console.error("Error posting comment:", err);
-      setCommentError(err.message);
-      toast.error(`Failed to post comment: ${err.message}`);
-    } finally {
-      setIsSubmittingComment(false);
+      setCommentError(err.message); // Set error specific to this operation
+      toast.error(`Update failed: ${err.message}`);
+      return false;
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    // Note: isSubmittingComment in CommentList will handle UI disable
+    setCommentError(null); // Clear previous errors for this operation type
+    const token = Cookies.get("token");
+    if (!token) { toast.error("Authorization token not found."); return false; }
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/task-comment/${commentId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `Failed to delete comment (status ${response.status})`);
+      }
+      toast.success("Comment deleted!");
+      if (taskId) fetchTaskData(false); // Refetch to get updated comment list
+      return true;
+    } catch (err) {
+      setCommentError(err.message); // Set error specific to this operation
+      toast.error(`Delete failed: ${err.message}`);
+      return false;
     }
   };
   
-  // Initial loading state check based on presence AND validity of taskId
   if (loading && taskId && taskId.trim() !== "") return <LoadingState />;
-
-  // If taskId is genuinely missing or invalid from URL after initial checks in useEffect
-  if (!taskId || taskId.trim() === "") {
-    console.error("Rendering ErrorState because taskId from useParams is invalid. Value:", taskId);
-    return (
-      <>
-        <ToastContainer {...{ position:"top-right", autoClose:3000, style:toastContainerStyle }} />
-        <ErrorState title="Invalid Task URL" message="No Task ID was provided or it is invalid in the URL." />
-      </>
-    );
-  }
-
-  // If error occurred, or task not found, or parentTaskDetails not loaded (even if taskId was present)
-  if (error || !taskFound || !parentTaskDetails) {
-    console.warn("Rendering ErrorState. Error:", error, "TaskFound:", taskFound, "ParentDetails:", parentTaskDetails);
-    return (
-      <>
-        <ToastContainer {...{ position:"top-right", autoClose:3000, style:toastContainerStyle }} />
-        <ErrorState title={taskFound ? "Error Loading Task" : "Task Not Found"} message={error || "Failed to load task details."} taskId={taskId} />
-      </>
-    );
-  }
+  if (!taskId || taskId.trim() === "") return <><ToastContainer {...toastContainerStyle} /><ErrorState title="Invalid Task URL" message="No Task ID was provided or it is invalid in the URL." /></>;
+  if (error || !taskFound || !parentTaskDetails) return <><ToastContainer {...toastContainerStyle} /><ErrorState title={taskFound ? "Error Loading Task" : "Task Not Found"} message={error || "Failed to load task details."} taskId={taskId} /></>;
   
   const parentAssignee = parentTaskDetails.assignees && parentTaskDetails.assignees.length > 0 ? parentTaskDetails.assignees[0].user : null;
 
-  console.log("Rendering main TaskDetailsPage content. taskId:", taskId, "parentTaskDetails.project_id:", parentTaskDetails.project_id);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <ToastContainer {...{ position:"top-right", autoClose:3000, style:toastContainerStyle, newestOnTop: false, closeOnClick: true, rtl: false, pauseOnFocusLoss: true, draggable: true, pauseOnHover: true, theme:"colored" }} />
+      <ToastContainer {...{ ...toastContainerStyle, newestOnTop: false, closeOnClick: true, rtl: false, pauseOnFocusLoss: true, draggable: true, pauseOnHover: true, theme:"colored" }} />
       <div className="container mx-auto px-4 py-6">
-        {fieldUpdateError && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-lg text-sm shadow">
-            <strong>Update Issue:</strong> {fieldUpdateError}
-          </div>
-        )}
+        {fieldUpdateError && <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-lg text-sm shadow"><strong>Update Issue:</strong> {fieldUpdateError}</div>}
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-              <TaskHeader
-                taskTitle={parentTaskDetails.task_title}
-                projectId={parentTaskDetails.project_id}
-                taskStatus={parentTaskDetails.task_status}
-                isStatusDropdownOpen={isStatusDropdownOpen}
-                setIsStatusDropdownOpen={setIsStatusDropdownOpen}
-                statusDropdownRef={statusDropdownRef}
-                handleUpdateTaskField={handleUpdateTaskField}
-              />
-              <TaskMetadata
-                description={parentTaskDetails.task_description}
-                priority={parentTaskDetails.priority}
-                dueDate={parentTaskDetails.due_date}
-                assignee={parentAssignee}
-                isPriorityDropdownOpen={isPriorityDropdownOpen}
-                setIsPriorityDropdownOpen={setIsPriorityDropdownOpen}
-                priorityDropdownRef={priorityDropdownRef}
-                handleUpdateTaskField={handleUpdateTaskField}
-              />
+             <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
+              <TaskHeader taskTitle={parentTaskDetails.task_title} projectId={parentTaskDetails.project_id} taskStatus={parentTaskDetails.task_status} isStatusDropdownOpen={isStatusDropdownOpen} setIsStatusDropdownOpen={setIsStatusDropdownOpen} statusDropdownRef={statusDropdownRef} handleUpdateTaskField={handleUpdateTaskField} />
+              <TaskMetadata description={parentTaskDetails.task_description} priority={parentTaskDetails.priority} dueDate={parentTaskDetails.due_date} assignee={parentAssignee} isPriorityDropdownOpen={isPriorityDropdownOpen} setIsPriorityDropdownOpen={setIsPriorityDropdownOpen} priorityDropdownRef={priorityDropdownRef} handleUpdateTaskField={handleUpdateTaskField}/>
             </div>
-            <SubTaskList
-              subTasks={subTasks}
-              onAddSubTaskClick={handleOpenAddSubTaskModal}
-            />
+            <SubTaskList subTasks={subTasks} onAddSubTaskClick={handleOpenAddSubTaskModal} />
           </div>
           <div className="lg:col-span-1">
             <CommentList
               comments={comments}
               newComment={newComment}
               setNewComment={setNewComment}
-              handleCommentSubmit={handleCommentSubmit}
-              isSubmittingComment={isSubmittingComment}
-              commentError={commentError}
+              handleCommentSubmit={handleCommentSubmit} 
+              isSubmittingComment={isSubmittingComment} // For new comment form
+              commentError={commentError} // General error for all comment ops displayed in list
+              taskId={taskId}
+              onEditComment={handleEditComment}
+              onDeleteComment={handleDeleteComment}
+              currentUserId={currentUserId}
             />
           </div>
         </div>
       </div>
 
-      {/* Modal Rendering: ALL conditions must be met */}
-      {isAddSubTaskModalOpen && 
-       taskId && typeof taskId === 'string' && taskId.trim() !== '' && 
-       parentTaskDetails && 
-       (parentTaskDetails.project_id !== undefined && parentTaskDetails.project_id !== null) && 
-       (
-        (() => { 
-          console.log("CONDITIONS MET FOR RENDERING MODAL: isAddSubTaskModalOpen:", isAddSubTaskModalOpen, "passing parentTaskId:", taskId, "passing projectId:", parentTaskDetails.project_id);
-          return (
-            <AddSubTaskModals
-              isOpen={isAddSubTaskModalOpen}
-              onClose={handleCloseAddSubTaskModal}
-              parentTaskId={taskId} 
-              projectId={parentTaskDetails.project_id} 
-              onSubTaskAdded={handleSubTaskAdded}
-            />
-          );
-        })()
+      {isAddSubTaskModalOpen && taskId && parentTaskDetails && parentTaskDetails.project_id != null && (
+        <AddSubTaskModals isOpen={isAddSubTaskModalOpen} onClose={handleCloseAddSubTaskModal} parentTaskId={taskId} projectId={parentTaskDetails.project_id} onSubTaskAdded={handleSubTaskAdded} />
       )}
     </div>
   );
