@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Button from "@/components/ui/Button";
 import Tooltip from "@/components/ui/Tooltip";
 import Icon from "@/components/ui/Icon";
@@ -10,15 +10,31 @@ import {
   toggleColumnModal,
   deleteColumnBoard,
   toggleTaskModal,
-} from "./store";
+  fetchKanbanData,
+} from "./store"; // Or your actual slice path e.g. "./appKanbanSlice"
 import Task from "./Task";
 import AddColumn from "./AddColumn";
 import AddTaskModal from "./AddTaskModal";
 import { ToastContainer } from "react-toastify";
 import EditTaskModal from "./EditTask";
+import { useParams } from "react-router-dom";
+
 const KanbanPage = () => {
-  const { columns, taskModal } = useSelector((state) => state.kanban);
+  const { columns, taskModal, isLoading, error } = useSelector(
+    (state) => state.kanban
+  );
   const dispatch = useDispatch();
+  const { id: projectId } = useParams();
+
+  useEffect(() => {
+    if (projectId) {
+      console.log(
+        "KanbanPage: Dispatching fetchKanbanData for project ID:",
+        projectId
+      );
+      dispatch(fetchKanbanData(projectId));
+    }
+  }, [dispatch, projectId]);
 
   const onDragEnd = (result) => {
     const { destination, source, draggableId, type } = result;
@@ -26,22 +42,39 @@ const KanbanPage = () => {
     if (!destination) {
       return;
     }
-
-    dispatch(sort(result));
+    dispatch(sort({ source, destination, draggableId, type }));
   };
+
+  if (isLoading) {
+    return <div className="text-center p-10">Loading Kanban board...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-10 text-red-500">
+        Error loading Kanban board: {error}
+      </div>
+    );
+  }
+
+  if (!isLoading && columns && columns.length === 0 && projectId) {
+    console.log("KanbanPage: columns array is empty after fetch attempt.");
+    // You could show a "No tasks found for this project" message here
+  }
+
   return (
     <div>
       <ToastContainer />
       <div className="flex flex-wrap justify-between items-center mb-4">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 inline-block ltr:pr-4 rtl:pl-4">
-          kanban
+          Kanban Board
         </h4>
         <div className="flex space-x-4 justify-end items-center rtl:space-x-reverse">
           <Button
             icon="heroicons-outline:plus"
             text="Add Board"
-            className="bg-slate-800 dark:hover:bg-opacity-70   h-min text-sm font-medium text-slate-50 hover:ring-2 hover:ring-opacity-80 ring-slate-900  hover:ring-offset-1  dark:hover:ring-0 dark:hover:ring-offset-0"
-            iconclassName=" text-lg"
+            className="bg-slate-800 dark:hover:bg-opacity-70 h-min text-sm font-medium text-slate-50 hover:ring-2 hover:ring-opacity-80 ring-slate-900 hover:ring-offset-1 dark:hover:ring-0 dark:hover:ring-offset-0"
+            iconclassName="text-lg"
             onClick={() => dispatch(toggleColumnModal(true))}
           />
         </div>
@@ -50,7 +83,7 @@ const KanbanPage = () => {
       <div>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="all-lists" direction="horizontal" type="list">
-            {(provided, snapshot) => (
+            {(provided) => (
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
@@ -59,27 +92,26 @@ const KanbanPage = () => {
                 {columns?.map((column, i) => {
                   return (
                     <Draggable
-                      key={column.id}
-                      draggableId={column.id}
+                      key={String(column.id)}
+                      draggableId={String(column.id)}
                       index={i}
                     >
-                      {(provided, snapshot) => (
+                      {(providedDraggable, snapshotDraggable) => (
                         <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
+                          ref={providedDraggable.innerRef}
+                          {...providedDraggable.draggableProps}
                         >
                           <div
-                            className={`w-[320px] flex-none h-full  rounded transition-all duration-100 ${
-                              snapshot.isDragging
+                            className={`w-[320px] flex-none h-full rounded transition-all duration-100 ${
+                              snapshotDraggable.isDragging
                                 ? "shadow-xl bg-primary-300"
                                 : "shadow-none bg-slate-200 dark:bg-slate-700"
-                            } 
-                       
-                            `}
+                            }`}
                           >
-                            {/* Board Header*/}
-                            <div className="relative flex justify-between items-center bg-white dark:bg-slate-800 rounded shadow-base px-6 py-5">
+                            <div
+                              className="relative flex justify-between items-center bg-white dark:bg-slate-800 rounded shadow-base px-6 py-5"
+                              {...providedDraggable.dragHandleProps}
+                            >
                               <div
                                 className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[2px]"
                                 style={{
@@ -93,10 +125,10 @@ const KanbanPage = () => {
                                 <Tooltip
                                   placement="top"
                                   theme="danger"
-                                  content="Delete"
+                                  content="Delete Board"
                                 >
                                   <button
-                                    className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col  items-center justify-center text-base text-slate-600"
+                                    className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col items-center justify-center text-base text-slate-600"
                                     onClick={() =>
                                       dispatch(deleteColumnBoard(column.id))
                                     }
@@ -105,12 +137,9 @@ const KanbanPage = () => {
                                   </button>
                                 </Tooltip>
 
-                                <Tooltip
-                                  placement="top"
-                                  content="Add Card"
-                                >
+                                <Tooltip placement="top" content="Add Card">
                                   <button
-                                    className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col  items-center justify-center text-base text-slate-600"
+                                    className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col items-center justify-center text-base text-slate-600"
                                     onClick={() =>
                                       dispatch(
                                         toggleTaskModal({
@@ -126,34 +155,41 @@ const KanbanPage = () => {
                               </div>
                             </div>
                             <Droppable
-                              droppableId={column.id}
+                              droppableId={String(column.id)}
                               type="task"
                               direction="vertical"
                             >
-                              {(provided, snapshot) => (
+                              {(providedDroppable, snapshotDroppable) => (
                                 <div
-                                  ref={provided.innerRef}
-                                  {...provided.droppableProps}
-                                  className={`px-2 py-4 h-full space-y-4  ${
-                                    snapshot.isDraggingOver && "bg-primary-400"
+                                  ref={providedDroppable.innerRef}
+                                  {...providedDroppable.droppableProps}
+                                  className={`px-2 py-4 h-full min-h-[100px] space-y-4  ${
+                                    snapshotDroppable.isDraggingOver
+                                      ? "bg-primary-400/50"
+                                      : ""
                                   }`}
                                 >
                                   {column.tasks?.map((task, j) => (
                                     <Draggable
-                                    key={task.id} draggableId={task.id} index={j}
+                                      key={String(task.id)}
+                                      draggableId={String(task.id)}
+                                      index={j}
                                     >
-                                      {(provided) => (
+                                      {(providedTask) => (
                                         <div
-                                          ref={provided.innerRef}
-                                          {...provided.draggableProps}
-                                          {...provided.dragHandleProps}
+                                          ref={providedTask.innerRef}
+                                          {...providedTask.draggableProps}
+                                          {...providedTask.dragHandleProps}
                                         >
-                                          <Task task={task} />
+                                          <Task
+                                            task={task}
+                                            columnId={column.id}
+                                          />
                                         </div>
                                       )}
                                     </Draggable>
                                   ))}
-                                  {provided.placeholder}
+                                  {providedDroppable.placeholder}
                                 </div>
                               )}
                             </Droppable>
@@ -170,7 +206,7 @@ const KanbanPage = () => {
         </DragDropContext>
       </div>
       <AddColumn />
-      <AddTaskModal />
+      {taskModal && <AddTaskModal />}
       <EditTaskModal />
     </div>
   );

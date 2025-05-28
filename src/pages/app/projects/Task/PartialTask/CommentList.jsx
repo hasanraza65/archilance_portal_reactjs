@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
-import "sweetalert2/dist/sweetalert2.min.css"; // Import SweetAlert2 CSS
-import { mapApiUserToLocal, formatCommentTimestamp } from "./taskDetailsUtils";
+import "sweetalert2/dist/sweetalert2.min.css";
+import { mapApiUserToLocal, formatCommentTimestamp } from "./taskDetailsUtils"; // Assuming utils file
 
 // A simple dropdown component
 const DropdownMenu = ({ options, onSelect, onClose }) => {
   const dropdownRef = useRef(null);
-
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target))
         onClose();
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -22,18 +20,14 @@ const DropdownMenu = ({ options, onSelect, onClose }) => {
     <div
       ref={dropdownRef}
       className="absolute z-50 mt-1 w-32 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-      // Removed style from here, it will be on the wrapper div
       role="menu"
-      aria-orientation="vertical"
-      aria-labelledby="menu-button"
     >
       <div className="py-1" role="none">
         {options.map((option) => (
           <button
             key={option.label}
             onClick={() => {
-              onSelect(option.action);
-              // onClose(); // Consider closing dropdown after action is initiated or completed
+              onSelect(option.action); /* onClose(); // Decide when to close */
             }}
             disabled={option.disabled}
             className="text-slate-700 disabled:text-slate-400 block w-full text-left px-4 py-2 text-sm hover:bg-slate-100 hover:text-slate-900 disabled:hover:bg-transparent"
@@ -66,9 +60,8 @@ const CommentList = ({
   const [editedCommentText, setEditedCommentText] = useState("");
   const [isProcessingEditOrDelete, setIsProcessingEditOrDelete] =
     useState(false);
-
   const commentRefs = useRef({});
-
+ console.log(comments, "comments Hello");
   const allowedMimeTypes = [
     "image/jpeg",
     "image/png",
@@ -117,26 +110,54 @@ const CommentList = ({
       );
       return false;
     });
-    setAttachments((prev) => [...prev, ...validFiles]);
+    setAttachments((prev) => [
+      ...prev,
+      ...validFiles.map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      })),
+    ]);
     e.target.value = "";
   };
 
-  const removeAttachment = (index) =>
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  const removeAttachment = (index) => {
+    setAttachments((prev) => {
+      const newAttachments = prev.filter((_, i) => i !== index);
+      if (
+        prev[index] &&
+        prev[index].preview &&
+        prev[index].preview.startsWith("blob:")
+      ) {
+        URL.revokeObjectURL(prev[index].preview);
+      }
+      return newAttachments;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      attachments.forEach((attachment) => {
+        if (attachment.preview && attachment.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(attachment.preview);
+        }
+      });
+    };
+  }, [attachments]);
+
   const formatFileSize = (bytes) => {
-    /* ... (same as before) ... */
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
-  const getFileIcon = (fileType) => {
-    /* ... (same as before) ... */
-    if (fileType?.startsWith("image/"))
+
+  const getFileIcon = (mimeType, isSmall = false) => {
+    const iconSizeClass = isSmall ? "w-4 h-4" : "w-5 h-5";
+    if (mimeType?.startsWith("image/"))
       return (
         <svg
-          className="w-4 h-4 text-green-500"
+          className={`${iconSizeClass} text-green-500`}
           fill="currentColor"
           viewBox="0 0 20 20"
         >
@@ -147,10 +168,10 @@ const CommentList = ({
           />
         </svg>
       );
-    if (fileType === "application/pdf")
+    if (mimeType === "application/pdf")
       return (
         <svg
-          className="w-4 h-4 text-red-500"
+          className={`${iconSizeClass} text-red-500`}
           fill="currentColor"
           viewBox="0 0 20 20"
         >
@@ -163,7 +184,7 @@ const CommentList = ({
       );
     return (
       <svg
-        className="w-4 h-4 text-blue-500"
+        className={`${iconSizeClass} text-blue-500`}
         fill="currentColor"
         viewBox="0 0 20 20"
       >
@@ -199,53 +220,54 @@ const CommentList = ({
       payload = new FormData();
       payload.append("task_id", numericTaskId.toString());
       payload.append("comment_message", newComment);
-      attachments.forEach((file) =>
-        payload.append("attachments[]", file, file.name)
+      attachments.forEach((attachmentObj) =>
+        payload.append(
+          "attachments[]",
+          attachmentObj.file,
+          attachmentObj.file.name
+        )
       );
     } else {
       payload = { task_id: numericTaskId, comment_message: newComment };
     }
     const success = await handleCommentSubmit(payload, isFormData);
-    if (success) setAttachments([]);
+    if (success) {
+      attachments.forEach((attachment) => {
+        if (attachment.preview && attachment.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(attachment.preview);
+        }
+      });
+      setAttachments([]);
+    }
   };
 
   const handleContextMenu = (event, commentId) => {
     event.preventDefault();
-    const menuWidth = 128; // Approximate width of your dropdown in pixels
-    const menuHeight = 80; // Approximate height of your dropdown in pixels (e.g., 2 items * 40px)
-    const buffer = 10; // Small buffer from viewport edges
-
+    const menuWidth = 128;
+    const menuHeight = 80;
+    const buffer = 10;
     let top = event.clientY;
     let left = event.clientX;
-
-    // Adjust if too close to the bottom
-    if (top + menuHeight + buffer > window.innerHeight) {
+    if (top + menuHeight + buffer > window.innerHeight)
       top = window.innerHeight - menuHeight - buffer;
-    }
-    // Adjust if too close to the right
-    if (left + menuWidth + buffer > window.innerWidth) {
+    if (left + menuWidth + buffer > window.innerWidth)
       left = window.innerWidth - menuWidth - buffer;
-    }
-    // Ensure not off-screen top or left (less common for context menus)
     if (top < buffer) top = buffer;
     if (left < buffer) left = buffer;
-
     setDropdownPosition({ top, left });
     setActiveDropdownCommentId(commentId);
     setEditingCommentId(null);
   };
 
   const handleEdit = (comment) => {
-    setActiveDropdownCommentId(null); // Close dropdown first
+    setActiveDropdownCommentId(null);
     setEditingCommentId(comment.id);
     setEditedCommentText(comment.comment_message);
   };
-
   const handleCancelEdit = () => {
     setEditingCommentId(null);
     setEditedCommentText("");
   };
-
   const handleSaveEdit = async (commentId) => {
     if (!editedCommentText.trim()) {
       toast.error("Comment cannot be empty.");
@@ -259,10 +281,8 @@ const CommentList = ({
       setEditedCommentText("");
     }
   };
-
   const handleDelete = async (commentId) => {
-    setActiveDropdownCommentId(null); // Close dropdown first
-
+    setActiveDropdownCommentId(null);
     const result = await Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -272,19 +292,14 @@ const CommentList = ({
       cancelButtonColor: "#d33",
       confirmButtonText: "Yes, delete it!",
     });
-
     if (result.isConfirmed) {
       setIsProcessingEditOrDelete(true);
       const deleteSuccess = await onDeleteComment(commentId);
       setIsProcessingEditOrDelete(false);
-      if (deleteSuccess) {
+      if (deleteSuccess)
         Swal.fire("Deleted!", "Your comment has been deleted.", "success");
-      } else {
-        // Error toast is likely handled in TaskDetailsPage, but you could add a specific Swal error here too
-      }
     }
   };
-
   const dropdownOptions = (comment) => {
     const canModify =
       currentUserId && comment.sender && comment.sender.id === currentUserId;
@@ -356,6 +371,7 @@ const CommentList = ({
                       {sender.avatar}
                     </span>
                   )}
+
                   <div className="flex-1 min-w-0">
                     {isEditingThisComment ? (
                       <div className="bg-slate-50 rounded-xl p-3.5">
@@ -398,53 +414,94 @@ const CommentList = ({
                         <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                           {comment.comment_message}
                         </p>
+
+                        {/* MODIFIED: DISPLAY SAVED ATTACHMENTS HERE */}
                         {comment.attachments &&
                           comment.attachments.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                              {comment.attachments.map((file, index) => (
-                                <div
-                                  key={file.id || `file-${index}`}
-                                  className="flex items-center space-x-2 p-2 bg-white rounded-lg border border-slate-200"
-                                >
-                                  {getFileIcon(file.mime_type || file.type)}
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-900 truncate">
-                                      {file.original_name ||
-                                        file.name ||
-                                        `attachment_${index + 1}`}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {file.size
-                                        ? formatFileSize(file.size)
-                                        : "Unknown size"}
-                                    </p>
+                            <div className="mt-3 pt-3 border-t border-slate-200 space-y-3">
+                              {comment.attachments.map((file, index) => {
+                                const isImage =
+                                  file.mime_type &&
+                                  file.mime_type.startsWith("image/");
+                                const attachmentUrl =
+                                  file.url || file.download_url;
+                                const attachmentName =
+                                  file.original_name ||
+                                  file.name ||
+                                  `Attachment ${index + 1}`;
+
+                                return (
+                                  <div
+                                    key={file.id || `saved-file-${index}`}
+                                    className="p-2.5 bg-white rounded-lg border border-slate-200 hover:shadow-sm transition-shadow"
+                                  >
+                                    {isImage && attachmentUrl ? (
+                                      // IMAGE ATTACHMENT
+                                      <div>
+                                        <a
+                                          href={attachmentUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="block mb-1.5"
+                                          title={`View ${attachmentName}`}
+                                        >
+                                          <img
+                                            src={attachmentUrl}
+                                            alt={attachmentName}
+                                            className="max-w-full h-auto max-h-48 object-contain rounded border border-slate-300 shadow-sm bg-slate-50" // Added bg-slate-50 for placeholder during load
+                                          />
+                                        </a>
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span
+                                            className="text-slate-700 font-medium truncate pr-2"
+                                            title={attachmentName}
+                                          >
+                                            {attachmentName}
+                                          </span>
+                                          <span className="text-slate-500 flex-shrink-0">
+                                            {file.size
+                                              ? formatFileSize(file.size)
+                                              : "Unknown size"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      // NON-IMAGE ATTACHMENT
+                                      <div className="flex items-center space-x-3">
+                                        <div className="flex-shrink-0 p-2 bg-slate-100 rounded-md">
+                                          {getFileIcon(
+                                            file.mime_type || file.type,
+                                            false // Use slightly larger icon
+                                          )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p
+                                            className="text-sm font-medium text-slate-800 truncate"
+                                            title={attachmentName}
+                                          >
+                                            {attachmentName}
+                                          </p>
+                                          <p className="text-xs text-slate-500">
+                                            {file.size
+                                              ? formatFileSize(file.size)
+                                              : "Unknown size"}
+                                          </p>
+                                        </div>
+                                        {attachmentUrl && (
+                                          <a
+                                            href={attachmentUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex-shrink-0 ml-2 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+                                          >
+                                            View Attachment
+                                          </a>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
-                                  {(file.url || file.download_url) && (
-                                    <a
-                                      href={file.url || file.download_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      download={file.original_name || file.name}
-                                      className="text-blue-600 hover:text-blue-700 p-1"
-                                      title="Download"
-                                    >
-                                      <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                        />
-                                      </svg>
-                                    </a>
-                                  )}
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                       </div>
@@ -463,13 +520,11 @@ const CommentList = ({
                       zIndex: 100,
                     }}
                   >
-                    {" "}
-                    {/* Ensure zIndex is high enough */}
                     <DropdownMenu
                       options={dropdownOptions(comment)}
                       onSelect={(action) => {
                         if (action === "edit") handleEdit(comment);
-                        if (action === "delete") handleDelete(comment.id); // handleDelete is now async
+                        if (action === "delete") handleDelete(comment.id);
                       }}
                       onClose={() => setActiveDropdownCommentId(null)}
                     />
@@ -509,13 +564,71 @@ const CommentList = ({
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Add a comment..."
-            className="w-full p-3 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm transition-colors"
+            className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             rows={3}
-            disabled={
-              isSubmittingComment || isProcessingEditOrDelete || !taskId
-            }
-            maxLength={5000}
+            disabled={isSubmittingComment || isProcessingEditOrDelete}
           />
+
+          {attachments.length > 0 && (
+            <div className="space-y-2 p-2 bg-slate-100 rounded-md">
+              <p className="text-xs font-medium text-slate-600">
+                Files to upload:
+              </p>
+              {attachments.map((attachmentObj, index) => (
+                <div
+                  key={`preview-${index}-${attachmentObj.file.name}`}
+                  className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200"
+                >
+                  <div className="flex items-center space-x-2 min-w-0">
+                    {attachmentObj.file.type.startsWith("image/") &&
+                    attachmentObj.preview ? (
+                      <img
+                        src={attachmentObj.preview}
+                        alt={attachmentObj.file.name}
+                        className="w-8 h-8 object-cover rounded border border-slate-200"
+                      />
+                    ) : (
+                      <div className="flex-shrink-0 p-1 bg-slate-100 rounded">
+                        {getFileIcon(attachmentObj.file.type, true)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-xs font-medium text-slate-900 truncate"
+                        title={attachmentObj.file.name}
+                      >
+                        {attachmentObj.file.name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {formatFileSize(attachmentObj.file.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(index)}
+                    className="text-red-500 hover:text-red-700 p-1 flex-shrink-0"
+                    disabled={isSubmittingComment || isProcessingEditOrDelete}
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-3">
             <div className="flex items-center space-x-2">
               <label
@@ -558,49 +671,8 @@ const CommentList = ({
               </label>
               <span className="text-xs text-slate-400">Max 10MB per file</span>
             </div>
-            {attachments.length > 0 && (
-              <div className="space-y-2">
-                {attachments.map((file, index) => (
-                  <div
-                    key={`attach-${index}-${file.name}`}
-                    className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200"
-                  >
-                    <div className="flex items-center space-x-2 min-w-0">
-                      {getFileIcon(file.type)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-slate-900 truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {formatFileSize(file.size)}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(index)}
-                      className="text-red-500 hover:text-red-700 p-1 flex-shrink-0"
-                      disabled={isSubmittingComment || isProcessingEditOrDelete}
-                    >
-                      <svg
-                        className="w-3 h-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
+
           {commentError && (
             <div className="text-red-600 text-xs bg-red-50 p-2 rounded-md">
               {commentError}

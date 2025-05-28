@@ -41,7 +41,6 @@ const getPriorityClass = (priority) => {
 const ProjectDetailsPage = () => {
   const { id } = useParams(); 
   const navigate = useNavigate();
-
   const [projectDetails, setProjectDetails] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);

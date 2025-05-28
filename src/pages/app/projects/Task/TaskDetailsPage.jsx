@@ -10,8 +10,7 @@ import SubTaskList from "./PartialTask/SubTaskList";
 import CommentList from "./PartialTask/CommentList";
 import LoadingState from "./PartialTask/LoadingState";
 import ErrorState from "./PartialTask/ErrorState";
-// Corrected the import name for AddSubTaskModal
-import AddSubTaskModal from "./PartialTask/AddSubTaskModal"; // Make sure this path is correct
+import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
@@ -27,8 +26,8 @@ const TaskDetailsPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fieldUpdateError, setFieldUpdateError] = useState(null); // Specific error for field updates
-  const [isUpdatingField, setIsUpdatingField] = useState(false); // For field update loading state
+  const [fieldUpdateError, setFieldUpdateError] = useState(null);
+  const [isUpdatingField, setIsUpdatingField] = useState(false);
 
   const [taskFound, setTaskFound] = useState(true);
   const [isAddSubTaskModalOpen, setIsAddSubTaskModalOpen] = useState(false);
@@ -62,8 +61,7 @@ const TaskDetailsPage = () => {
       return;
     }
     if (showLoadingSpinner) setLoading(true);
-    setError(null); // Clear general error
-    // setFieldUpdateError(null); // Don't clear field update error here, let it persist until next field update
+    setError(null);
     setTaskFound(true);
     const token = Cookies.get("token");
     if (!token) {
@@ -74,6 +72,7 @@ const TaskDetailsPage = () => {
       return;
     }
 
+    console.log(`Fetching task data for taskId: ${taskId}`);
     try {
       const response = await fetch(
         `${
@@ -103,13 +102,31 @@ const TaskDetailsPage = () => {
         return;
       }
       const data = await response.json();
+      console.log("TaskDetailsPage: Fetched Task Data:", data); // Log the full data
+
       if (data && data.id) {
         setParentTaskDetails(data);
         setSubTasks(data.sub_tasks || []);
+        // Log sub_tasks to check for attachments
+        console.log("TaskDetailsPage: Sub-tasks from fetched data:", data.sub_tasks);
+        if (data.sub_tasks && data.sub_tasks.length > 0) {
+            data.sub_tasks.forEach((sub, index) => {
+                console.log(`TaskDetailsPage: Sub-task ${index} attachments:`, sub.attachments);
+            });
+        }
+
         const sortedComments = (data.comments || []).sort(
-          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+          (a, b) => new Date(a.created_at) - new Date(b.created_at) // Sort ascending for chronological order
         );
         setComments(sortedComments);
+        // Log comments to check for comment_attachments
+        console.log("TaskDetailsPage: Comments from fetched data:", sortedComments);
+         if (sortedComments && sortedComments.length > 0) {
+            sortedComments.forEach((comment, index) => {
+                console.log(`TaskDetailsPage: Comment ${index} comment_attachments:`, comment.comment_attachments);
+            });
+        }
+
         setTaskFound(true);
       } else {
         setError("Invalid task data received from API.");
@@ -133,7 +150,7 @@ const TaskDetailsPage = () => {
       setError("Task ID is missing or invalid in the URL.");
       setTaskFound(false);
     }
-  }, [taskId]); // Removed navigate from dependency array as it's stable
+  }, [taskId]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -154,7 +171,7 @@ const TaskDetailsPage = () => {
   }, [isPriorityDropdownOpen, isStatusDropdownOpen]);
 
   const handleUpdateTaskField = async (fieldName, value) => {
-    if (!parentTaskDetails || isUpdatingField) return; // Prevent multiple updates
+    if (!parentTaskDetails || isUpdatingField) return;
 
     const token = Cookies.get("token");
     if (!token) {
@@ -162,29 +179,32 @@ const TaskDetailsPage = () => {
       return;
     }
 
-    setIsUpdatingField(true); // Set loading state for this specific update
-    setFieldUpdateError(null); // Clear previous field update error
+    setIsUpdatingField(true);
+    setFieldUpdateError(null);
 
     const originalValue = parentTaskDetails[fieldName];
-    // Optimistic UI update
     setParentTaskDetails((prevDetails) => ({
       ...prevDetails,
       [fieldName]: value,
     }));
 
     try {
-      const payload = { [fieldName]: value };
-      // If updating description, the field name might be different, e.g., 'task_description'
-      // For status and priority, it's likely 'task_status' and 'priority'
-      // Adjust if your API expects different field names in the payload
-      if (fieldName === "description") payload["task_description"] = value;
+      const payload = {};
+      // API might expect 'task_description' instead of 'description'
+      if (fieldName === "description") {
+        payload["task_description"] = value;
+      } else {
+        payload[fieldName] = value;
+      }
+      
+      console.log(`TaskDetailsPage: Updating task field '${fieldName}' with payload:`, payload);
 
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-task/${
           parentTaskDetails.id
         }`,
         {
-          method: "PUT", // Or PATCH
+          method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -198,7 +218,6 @@ const TaskDetailsPage = () => {
         const errorData = await response
           .json()
           .catch(() => ({ message: "Failed to update task field." }));
-        // Revert optimistic update
         setParentTaskDetails((prevDetails) => ({
           ...prevDetails,
           [fieldName]: originalValue,
@@ -211,43 +230,51 @@ const TaskDetailsPage = () => {
         throw new Error(errorMessage);
       }
 
-      const updatedTask = await response.json();
-      // Update state with response from server to ensure consistency,
-      // especially if the server transforms data or returns the full updated object.
-      // If the API returns the full updated task object:
-      if (updatedTask && updatedTask.id) {
-        setParentTaskDetails(updatedTask); // More robust to use server response
+      const updatedTaskFromServer = await response.json();
+      console.log("TaskDetailsPage: Task field updated, server response:", updatedTaskFromServer);
+
+      // It's crucial to update the state with the server's response
+      // to ensure consistency, especially if the server modifies data
+      // or if other fields were updated by the backend logic.
+      if (updatedTaskFromServer && updatedTaskFromServer.id) {
+          setParentTaskDetails(updatedTaskFromServer);
+          // If sub_tasks or comments could be affected by this update, refresh them too
+          if (updatedTaskFromServer.sub_tasks) setSubTasks(updatedTaskFromServer.sub_tasks);
+          if (updatedTaskFromServer.comments) {
+              const sortedComments = (updatedTaskFromServer.comments || []).sort(
+                  (a, b) => new Date(a.created_at) - new Date(b.created_at)
+              );
+              setComments(sortedComments);
+          }
       } else {
-        // If API only returns success or minimal data, stick to optimistic or re-fetch
-        // For now, optimistic update is already done.
+          // If API only returns success or minimal data, the optimistic update is fine,
+          // but it's less robust. Consider re-fetching if this happens often.
+          console.warn("TaskDetailsPage: Field update API did not return the full updated task object.");
       }
+
       toast.success(
         `${fieldName
           .replace(/_/g, " ")
           .replace(/\b\w/g, (l) => l.toUpperCase())} updated successfully!`
       );
     } catch (err) {
-      // Error already handled for UI in the try block, just log it here if needed
-      console.error(`Error updating ${fieldName}:`, err);
-      // Revert optimistic update if not already done
-      setParentTaskDetails((prevDetails) => ({
+      console.error(`TaskDetailsPage: Error updating ${fieldName}:`, err);
+      setParentTaskDetails((prevDetails) => ({ // Ensure reversion on any error
         ...prevDetails,
         [fieldName]: originalValue,
       }));
-      // setFieldUpdateError might have already been set if it was an API error
-      if (!fieldUpdateError) {
-        setFieldUpdateError(
-          err.message ||
-            `An unknown error occurred while updating ${fieldName}.`
-        );
+      if (!fieldUpdateError) { // Only set if not already set by API error
+        const generalErrorMessage = err.message || `An unknown error occurred while updating ${fieldName}.`;
+        setFieldUpdateError(generalErrorMessage);
+        // toast.error(generalErrorMessage); // Toast is likely already shown for API error
       }
     } finally {
-      setIsUpdatingField(false); // Reset loading state for this specific update
-      // Optionally close dropdowns
+      setIsUpdatingField(false);
       if (fieldName === "priority") setIsPriorityDropdownOpen(false);
       if (fieldName === "task_status") setIsStatusDropdownOpen(false);
     }
   };
+
 
   const handleOpenAddSubTaskModal = () => {
     if (!taskId || !parentTaskDetails || parentTaskDetails.project_id == null) {
@@ -257,8 +284,10 @@ const TaskDetailsPage = () => {
     setIsAddSubTaskModalOpen(true);
   };
   const handleCloseAddSubTaskModal = () => setIsAddSubTaskModalOpen(false);
+  
   const handleSubTaskAdded = () => {
-    if (taskId) fetchTaskData(false);
+    console.log("TaskDetailsPage: Sub-task added, re-fetching task data.");
+    if (taskId) fetchTaskData(false); // Re-fetch parent task data, which should include new sub-task with attachments
   };
 
   const handleCommentSubmit = async (payload, isFormData) => {
@@ -275,30 +304,60 @@ const TaskDetailsPage = () => {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     };
-    if (isFormData) requestBody = payload;
+    if (isFormData) {
+        requestBody = payload;
+        // For FormData, 'Content-Type' is set automatically by the browser
+    }
     else {
       requestBody = JSON.stringify(payload);
       headers["Content-Type"] = "application/json";
     }
+
+    console.log("TaskDetailsPage: Submitting new comment. Is FormData:", isFormData, "Payload:", payload);
+    // If FormData, you can iterate to log its content:
+    if (isFormData) {
+        for (let [key, value] of payload.entries()) {
+            console.log(`TaskDetailsPage: FormData entry: ${key}:`, value);
+        }
+    }
+
     try {
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/task-comment`,
         { method: "POST", headers, body: requestBody }
       );
+
+      const responseData = await response.json().catch(() => ({})); // Attempt to parse JSON always
+      console.log("TaskDetailsPage: API response for new comment:", responseData);
+
+
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
         throw new Error(
-          errData.message ||
+          responseData.message ||
             `Failed to post comment (status ${response.status})`
         );
       }
-      setNewComment("");
-      toast.success("Comment posted!");
+      
+      // The API should ideally return the newly created comment object with its attachments.
+      // If it does, we could optimistically update:
+      // if (responseData.comment && responseData.comment.id) {
+      //   setComments(prevComments => [...prevComments, responseData.comment].sort( (a, b) => new Date(a.created_at) - new Date(b.created_at)));
+      //   console.log("TaskDetailsPage: Optimistically added new comment:", responseData.comment);
+      // } else {
+      //   // If not, fall back to re-fetching
+      //   console.log("TaskDetailsPage: New comment API response did not include full comment object, re-fetching all task data.");
+      //   if (taskId) fetchTaskData(false);
+      // }
+      // For simplicity and consistency, re-fetching is often safer if unsure about API response structure.
       if (taskId) fetchTaskData(false);
+
+
+      setNewComment(""); // Clear the input field
+      toast.success(responseData.message || "Comment posted!");
       return true;
     } catch (err) {
       setCommentError(err.message);
-      toast.error(`Failed to post: ${err.message}`);
+      toast.error(`Failed to post comment: ${err.message}`);
       return false;
     } finally {
       setIsSubmittingComment(false);
@@ -306,12 +365,14 @@ const TaskDetailsPage = () => {
   };
 
   const handleEditComment = async (commentId, newText) => {
+    // ... (Keep existing logic, but ensure fetchTaskData(false) is called on success)
     setCommentError(null);
     const token = Cookies.get("token");
     if (!token) {
       toast.error("Authorization token not found.");
       return false;
     }
+    console.log(`TaskDetailsPage: Editing comment ID ${commentId} with text: "${newText}"`);
     try {
       const response = await fetch(
         `${
@@ -327,30 +388,34 @@ const TaskDetailsPage = () => {
           body: JSON.stringify({ comment_message: newText }),
         }
       );
+      const responseData = await response.json().catch(() => ({}));
+      console.log("TaskDetailsPage: API response for editing comment:", responseData);
+
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
         throw new Error(
-          errData.message ||
+          responseData.message ||
             `Failed to update comment (status ${response.status})`
         );
       }
-      toast.success("Comment updated!");
-      if (taskId) fetchTaskData(false);
+      toast.success(responseData.message || "Comment updated!");
+      if (taskId) fetchTaskData(false); // Re-fetch to get updated comment list
       return true;
     } catch (err) {
       setCommentError(err.message);
-      toast.error(`Update failed: ${err.message}`);
+      toast.error(`Comment update failed: ${err.message}`);
       return false;
     }
   };
 
   const handleDeleteComment = async (commentId) => {
+    // ... (Keep existing logic, but ensure fetchTaskData(false) is called on success)
     setCommentError(null);
     const token = Cookies.get("token");
     if (!token) {
       toast.error("Authorization token not found.");
       return false;
     }
+    console.log(`TaskDetailsPage: Deleting comment ID ${commentId}`);
     try {
       const response = await fetch(
         `${
@@ -364,23 +429,27 @@ const TaskDetailsPage = () => {
           },
         }
       );
+      const responseData = await response.json().catch(() => ({})); // Try to parse JSON, default if fails
+      console.log("TaskDetailsPage: API response for deleting comment:", responseData);
+
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+         // Check if there's a message in responseData, otherwise use a generic error
         throw new Error(
-          errData.message ||
+          responseData.message ||
             `Failed to delete comment (status ${response.status})`
         );
       }
-      toast.success("Comment deleted!");
-      if (taskId) fetchTaskData(false);
+      toast.success(responseData.message || "Comment deleted!");
+      if (taskId) fetchTaskData(false); // Re-fetch to get updated comment list
       return true;
     } catch (err) {
       setCommentError(err.message);
-      toast.error(`Delete failed: ${err.message}`);
+      toast.error(`Comment delete failed: ${err.message}`);
       return false;
     }
   };
 
+  // ---- Render logic ----
   if (loading && taskId && taskId.trim() !== "") return <LoadingState />;
   if (!taskId || taskId.trim() === "")
     return (
@@ -414,6 +483,9 @@ const TaskDetailsPage = () => {
       <ToastContainer
         {...{
           ...toastContainerStyle,
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
           newestOnTop: false,
           closeOnClick: true,
           rtl: false,
@@ -429,8 +501,8 @@ const TaskDetailsPage = () => {
             <strong>Update Issue:</strong> {fieldUpdateError}
           </div>
         )}
-        {isUpdatingField && ( // Optional: Show a general loading indicator for field updates
-          <div className="mb-4 p-3 bg-blue-100 text-blue-700 border border-blue-300 rounded-lg text-sm shadow">
+        {isUpdatingField && (
+          <div className="mb-4 p-3 bg-blue-100 text-blue-700 border border-blue-300 rounded-lg text-sm shadow animate-pulse">
             Updating task field...
           </div>
         )}
@@ -446,10 +518,10 @@ const TaskDetailsPage = () => {
                 setIsStatusDropdownOpen={setIsStatusDropdownOpen}
                 statusDropdownRef={statusDropdownRef}
                 handleUpdateTaskField={handleUpdateTaskField}
-                isUpdatingField={isUpdatingField} // Pass loading state to disable dropdowns
+                isUpdatingField={isUpdatingField}
               />
               <TaskMetadata
-                description={parentTaskDetails.task_description} // Pass the actual description
+                description={parentTaskDetails.task_description}
                 priority={parentTaskDetails.priority}
                 dueDate={parentTaskDetails.due_date}
                 assignee={parentAssignee}
@@ -458,19 +530,20 @@ const TaskDetailsPage = () => {
                 priorityDropdownRef={priorityDropdownRef}
                 handleUpdateTaskField={handleUpdateTaskField}
                 onDescriptionSave={(newDescription) =>
-                  handleUpdateTaskField("task_description", newDescription)
-                } // Pass description save handler
-                isUpdatingField={isUpdatingField} // Pass loading state
+                  handleUpdateTaskField("description", newDescription) // Ensure 'description' is the field name your handleUpdateTaskField expects or map it there
+                }
+                isUpdatingField={isUpdatingField}
               />
             </div>
             <SubTaskList
-              subTasks={subTasks}
+              subTasks={subTasks} // This will now have sub-tasks with attachments if API provides them
               onAddSubTaskClick={handleOpenAddSubTaskModal}
+              parentTaskId={taskId} // Pass parentTaskId if needed by SubTaskList for operations
             />
           </div>
           <div className="lg:col-span-1">
             <CommentList
-              comments={comments}
+              comments={comments} // This will have comments with attachments if API provides them
               newComment={newComment}
               setNewComment={setNewComment}
               handleCommentSubmit={handleCommentSubmit}
@@ -489,11 +562,11 @@ const TaskDetailsPage = () => {
         taskId &&
         parentTaskDetails &&
         parentTaskDetails.project_id != null && (
-          <AddSubTaskModal // Corrected component name
+          <AddSubTaskModal
             isOpen={isAddSubTaskModalOpen}
             onClose={handleCloseAddSubTaskModal}
-            parentTaskId={taskId}
-            projectId={parentTaskDetails.project_id}
+            parentTaskId={taskId} // This is correct
+            projectId={parentTaskDetails.project_id} // This is correct
             onSubTaskAdded={handleSubTaskAdded}
           />
         )}
