@@ -37,7 +37,7 @@ const AddProject = () => {
   const FormValidationSchema = yup
     .object({
       project_name: yup.string().required("Project name is required"),
-      project_description: yup.string().required("Description is required"), // Yup will validate the string from Quill
+      project_description: yup.string(), // Yup will validate the string from Quill
       start_date: yup.date().required("Start date is required").typeError("Invalid date format"),
       due_date: yup.date().required("End date is required").typeError("Invalid date format")
         .min(yup.ref('start_date'), "End date cannot be before start date"),
