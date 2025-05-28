@@ -44,7 +44,7 @@ const MobileFooter = () => {
             imageUrl = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`;
           }
           
-          console.log("MobileFooter: Setting profile image to:", imageUrl);
+         
           setProfilePicSrc(imageUrl);
         } else {
           console.log("MobileFooter: No profile_pic in API response, using default avatar.");

@@ -1,6 +1,6 @@
-import layout from "./layout"; // Assuming this is another slice
-import projectReducer from "../pages/app/projects/store"; // Path to your appProjectSlice.js
-import kanbanReducer from "../pages/app/projects/kanban/store"; // Path to your kanbanSlice.js
+import layout from "./layout"; 
+import projectReducer from "../pages/app/projects/store"; 
+import kanbanReducer from "../pages/app/projects/kanban/store"; 
 
 const rootReducer = {
   layout,
