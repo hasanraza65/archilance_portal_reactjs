@@ -74,7 +74,7 @@ const Profile = () => {
         imageUrl = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`; 
       }
 
-      console.log("Using profile image:", imageUrl);
+      // console.log("Using profile image:", imageUrl);
       setProfilePicSrc(imageUrl);
     }
   }, [userProfile]);

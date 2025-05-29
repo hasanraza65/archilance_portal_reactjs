@@ -1,8 +1,8 @@
 // src/pages/app/projects/kanban/KanbanPage.jsx
 import React, { useEffect } from "react";
-import Button from "../../../../components/ui/Button"; // Adjust path if needed
-import Tooltip from "../../../../components/ui/Tooltip"; // Adjust path if needed
-import Icon from "../../../../components/ui/Icon"; // Adjust path if needed
+import Button from "../../../../components/ui/Button"; 
+import Tooltip from "../../../../components/ui/Tooltip"; 
+import Icon from "../../../../components/ui/Icon"; 
 
 import { useSelector, useDispatch } from "react-redux";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -140,9 +140,7 @@ const KanbanPage = () => {
           );
 
           if (newStatusKey) {
-            // console.log( // Temporarily comment out
-            //   `KanbanPage (onDragEnd): Task (API ID: ${taskBeingMovedApiData.id}) moved to column '${destColumnDefinition.name}'. New backend status key: '${newStatusKey}'. Dispatching updateTaskStatusInBackend.`
-            // );
+           
             dispatch(
               updateTaskStatusInBackend({
                 taskId: taskBeingMovedApiData.id,
@@ -151,26 +149,24 @@ const KanbanPage = () => {
               })
             );
           } else {
-            // console.warn( // Temporarily comment out
-            //   `KanbanPage (onDragEnd): Could not map destination column name '${destColumnDefinition.name}' to a backend status key. Task API ID: ${taskBeingMovedApiData.id}`
-            // );
+           
           }
         } else {
-          // console.warn( // Temporarily comment out
-          //   `KanbanPage (onDragEnd): Could not find destination column definition for ID '${
-          //     destination.droppableId
-          //   }' or it has no name. Task API ID: ${
-          //     taskBeingMovedApiData.id || "N/A"
-          //   }. Latest columns from store:`, latestColumnsFromStore
-          // );
+          console.warn( 
+            `KanbanPage (onDragEnd): Could not find destination column definition for ID '${
+              destination.droppableId
+            }' or it has no name. Task API ID: ${
+              taskBeingMovedApiData.id || "N/A"
+            }. Latest columns from store:`, latestColumnsFromStore
+          );
         }
       } else {
-        // console.warn( // Temporarily comment out
-        //   `KanbanPage (onDragEnd): Task moved columns, but taskBeingMovedApiData (or its API ID) was not available. Backend update skipped. DraggableId: ${draggableId}`
-        // );
+        console.warn( 
+          `KanbanPage (onDragEnd): Task moved columns, but taskBeingMovedApiData (or its API ID) was not available. Backend update skipped. DraggableId: ${draggableId}`
+        );
       }
     } else if (type === "task") {
-      // console.log("KanbanPage (onDragEnd): Task reordered within the same column. No backend status update needed.");
+      console.log("KanbanPage (onDragEnd): Task reordered within the same column. No backend status update needed.");
     }
   };
 

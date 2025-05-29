@@ -110,7 +110,7 @@ const ProjectGrid = ({ project }) => {
               <MenuItem disabled={isDeleting}>
                 {({ active }) => (
                   <div
-                    onClick={(e) => { e.stopPropagation(); handleViewClick(project); }} // Stop propagation for menu item click as well
+                    onClick={(e) => { e.stopPropagation(); handleViewClick(project); }}
                     className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}
                      ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                      w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}

@@ -10,10 +10,7 @@ import { useDispatch } from "react-redux";
 const Task = ({ task }) => {
   const {
     name,
-    progress,
-    status,
-    members,
-    assignee,
+   
     des,
     startDate,
     endDate,
@@ -102,59 +99,14 @@ const Task = ({ task }) => {
       {/* assignee */}
       <div className="flex space-x-4 rtl:space-x-reverse">
         {/* start date */}
+      
         <div>
-          <span className="block date-label">Start date</span>
-          <span className="block date-text">{startDate}</span>
-        </div>
-        {/* end date */}
-        <div>
-          <span className="block date-label">End date</span>
+          <span className="block date-label">Due date</span>
           <span className="block date-text">{endDate}</span>
         </div>
       </div>
-      {/* progress bar */}
-      <div className="ltr:text-right rtl:text-left text-xs text-slate-600 dark:text-slate-300 mb-1 font-medium">
-        {progress}%
-      </div>
-      <ProgressBar value={progress} className="bg-primary-500" />
-      {/* assignee and total date */}
-      <div className="grid grid-cols-2 gap-4 mt-6">
-        {/* assignee */}
-        <div>
-          <div className="text-slate-400 dark:text-slate-400 text-sm font-normal mb-3">
-            Assigned to
-          </div>
-          <div className="flex justify-start -space-x-1.5 rtl:space-x-reverse">
-            {assignee?.map((user, userIndex) => (
-              <div
-                className="h-6 w-6 rounded-full ring-1 ring-slate-100"
-                key={userIndex}
-              >
-                <img
-                  src={user.image}
-                  alt={user.label}
-                  className="w-full h-full rounded-full"
-                />
-              </div>
-            ))}
-            <div className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-300 text-xs ring-2 ring-slate-100 dark:ring-slate-700 rounded-full h-6 w-6 flex flex-col justify-center items-center">
-              +2
-            </div>
-          </div>
-        </div>
-
-        {/* total date */}
-        <div className="ltr:text-right rtl:text-left">
-          <span className="inline-flex items-center space-x-1 bg-danger-500/[0.16] text-danger-500 text-xs font-normal px-2 py-1 rounded-full rtl:space-x-reverse">
-            <span>
-              {" "}
-              <Icon icon="heroicons-outline:clock" />
-            </span>
-            <span>{totaldays}</span>
-            <span>days left</span>
-          </span>
-        </div>
-      </div>
+    
+     
     </Card>
   );
 };
