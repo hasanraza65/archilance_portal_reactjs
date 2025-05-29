@@ -4,10 +4,23 @@ import Dropdown from "@/components/ui/Dropdown";
 import { MenuItem } from "@headlessui/react";
 import Icon from "@/components/ui/Icon";
 // ProgressBar is imported but not used in the provided JSX. Will keep it if needed later.
-// import ProgressBar from "@/components/ui/ProgressBar"; 
+// import ProgressBar from "@/components/ui/ProgressBar";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { deleteProjectAPI, updateProject } from "./store"; // 'updateProject' is for initiating edit
+
+// Import SweetAlert2
+import Swal from 'sweetalert2';
+// Import SweetAlert2 CSS.
+// It's often better to import this in a global CSS file (e.g., App.css, index.css)
+// or your main application entry point (e.g., main.jsx or App.jsx)
+// to ensure styles are loaded correctly and only once.
+// If you choose to import it here, ensure your bundler handles CSS imports.
+// For example: import 'sweetalert2/dist/sweetalert2.min.css';
+// If you are using Tailwind, you might want to use SweetAlert2's theming capabilities
+// or use a Tailwind-compatible SweetAlert2 plugin if one exists.
+// For now, let's assume the CSS is globally available or you'll add the import.
+
 
 const ProjectGrid = ({ project }) => {
   const { id, name, progress = 0, des, startDate, endDate, members } = project;
@@ -39,7 +52,7 @@ const ProjectGrid = ({ project }) => {
     setStart(startDate ? new Date(startDate) : null);
     setEnd(endDate ? new Date(endDate) : null);
   }, [startDate, endDate]);
-  
+
   // Navigate to project detail page when card is clicked
   const handleCardNavigation = () => {
     if (id) {
@@ -59,9 +72,44 @@ const ProjectGrid = ({ project }) => {
   };
 
   const handleDeleteClick = (projectId, projectName) => {
-    if (window.confirm(`Are you sure you want to delete the project "${projectName || 'this project'}"? This action cannot be undone.`)) {
-      dispatch(deleteProjectAPI(projectId));
-    }
+    Swal.fire({
+      title: 'Are you sure?',
+      text: `You are about to delete the project "${projectName || 'this project'}". This action cannot be undone!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33', // Red color for delete button
+      cancelButtonColor: '#3085d6', // Blue color for cancel button (optional, can be default)
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+      // Custom class for theming if needed, e.g., for dark mode
+      // customClass: {
+      //   popup: 'dark:bg-slate-800 dark:text-slate-200',
+      //   title: 'dark:text-slate-100',
+      //   htmlContainer: 'dark:text-slate-300',
+      //   confirmButton: 'your-confirm-button-tailwind-classes',
+      //   cancelButton: 'your-cancel-button-tailwind-classes',
+      // },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        dispatch(deleteProjectAPI(projectId))
+          .unwrap() // Use unwrap if your thunk is created with createAsyncThunk for better promise handling
+          .then(() => {
+            Swal.fire(
+              'Deleted!',
+              `Project "${projectName || 'this project'}" has been deleted.`,
+              'success'
+            );
+          })
+          .catch((error) => {
+            // console.error("Deletion failed:", error);
+            Swal.fire(
+              'Failed!',
+              `Could not delete project "${projectName || 'this project'}". ${error?.message || 'Please try again.'}`,
+              'error'
+            );
+          });
+      }
+    });
   };
 
   const formatDate = (dateString) => {
@@ -79,7 +127,7 @@ const ProjectGrid = ({ project }) => {
   };
 
   return (
-    <Card 
+    <Card
       className="cursor-pointer hover:shadow-lg transition-shadow duration-150"
       onClick={handleCardNavigation} // Make the entire card clickable
     >
@@ -97,7 +145,7 @@ const ProjectGrid = ({ project }) => {
           </div>
         </div>
         {/* Wrapper div for Dropdown to stop event propagation */}
-        <div onClick={(e) => e.stopPropagation()}> 
+        <div onClick={(e) => e.stopPropagation()}>
           <Dropdown
             classMenuItems="w-[130px]"
             label={
@@ -137,7 +185,7 @@ const ProjectGrid = ({ project }) => {
                  {({ active }) => (
                   <div
                     onClick={(e) => { e.stopPropagation(); handleDeleteClick(project.id, project.name); }} // Stop propagation
-                    className={`${active ? "bg-red-500 bg-opacity-20 text-red-500" : "text-red-500"}
+                    className={`${active ? "bg-red-500 bg-opacity-20 text-white" : "text-red-500"}
                     ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                      w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
                   >
@@ -153,7 +201,7 @@ const ProjectGrid = ({ project }) => {
       <div className="text-slate-600 dark:text-slate-400 text-sm pt-4 pb-6 min-h-[50px] break-words">
         {des || "No description provided."}
       </div>
-      
+
       <div className="flex space-x-4 rtl:space-x-reverse mt-4">
         <div>
           <span className="block date-label text-slate-400 dark:text-slate-400 text-xs font-normal mb-0.5">Start date</span>
