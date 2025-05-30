@@ -1,8 +1,7 @@
-// src/pages/app/projects/kanban/KanbanPage.jsx
 import React, { useEffect } from "react";
-import Button from "../../../../components/ui/Button"; // Adjust path if needed
-import Tooltip from "../../../../components/ui/Tooltip"; // Adjust path if needed
-import Icon from "../../../../components/ui/Icon"; // Adjust path if needed
+import Button from "../../../../components/ui/Button";
+import Tooltip from "../../../../components/ui/Tooltip";
+import Icon from "../../../../components/ui/Icon";
 
 import { useSelector, useDispatch } from "react-redux";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -10,26 +9,34 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   sort,
   toggleColumnModal,
-  deleteColumnBoard,
-  toggleTaskModal, // Kept for AddTaskModal
+  deleteColumnBoard, // This is frontend only delete
+  toggleTaskModal,
   fetchKanbanData,
   updateTaskStatusInBackend,
-  STATUS_TO_COLUMN_MAP,
+  STATUS_TO_COLUMN_MAP, // Make sure this is exported from your store or defined here
 } from "./store";
 
 // ***** VERIFY THIS PATH TO YOUR REDUX STORE *****
-import store from "@/store/index"; // This path was marked for verification
+// This import is for accessing store.getState() directly.
+// It's generally better to get data via selectors after dispatch if possible,
+// but for immediate state after a synchronous Redux update (like sort), this can be used.
+// Ensure this path is correct for your project structure.
+import store from "@/store/index";
 
-import Task from "./Task"; 
-import AddColumn from "./AddColumn";
-import AddTaskModal from "./AddTaskModal"; // For adding new tasks
+import Task from "./Task";
+import AddColumn from "./AddColumn"; // Modal for adding new columns
+import AddTaskModal from "./AddTaskModal"; // Modal for adding/editing tasks
 import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css"; // Ensure CSS is imported for toasts
 import { useParams } from "react-router-dom";
 
 const KanbanPage = () => {
-  const { columns, taskModal, isLoading, error } = useSelector(
-    (state) => state.kanban
-  );
+  const {
+    columns,
+    taskModal, // This state now likely just controls visibility of AddTaskModal
+    isLoading,
+    error,
+  } = useSelector((state) => state.kanban);
   const dispatch = useDispatch();
   const { id: projectId } = useParams();
 
@@ -37,7 +44,7 @@ const KanbanPage = () => {
     if (projectId) {
       dispatch(fetchKanbanData(projectId));
     } else {
-      // console.warn("KanbanPage: No projectId, cannot fetch data."); // Keep for debugging if needed
+      console.warn("KanbanPage: No projectId, cannot fetch data.");
     }
   }, [dispatch, projectId]);
 
@@ -53,28 +60,37 @@ const KanbanPage = () => {
 
     let taskBeingMovedApiData = null;
     if (type === "task") {
-      const sourceCol = columns.find(
+      // Get the task's apiData *before* the sort action mutates the state structure
+      // This requires accessing the state directly or ensuring `sort` doesn't modify too deeply before this.
+      // The current `sort` in the store modifies state directly, so getting it from current `columns` selector should work.
+      const sourceColFromState = columns.find(
         (col) => String(col.id) === String(source.droppableId)
       );
       if (
-        sourceCol &&
-        sourceCol.tasks &&
-        sourceCol.tasks[source.index] &&
-        sourceCol.tasks[source.index].apiData
+        sourceColFromState &&
+        sourceColFromState.tasks &&
+        sourceColFromState.tasks[source.index] &&
+        sourceColFromState.tasks[source.index].apiData
       ) {
-        taskBeingMovedApiData = { ...sourceCol.tasks[source.index].apiData };
+        taskBeingMovedApiData = { ...sourceColFromState.tasks[source.index].apiData };
       } else {
-        // console.warn(`KanbanPage (onDragEnd): Could not find task's apiData prior to sort. DraggableId: ${draggableId}`);
+        console.warn(
+          `KanbanPage (onDragEnd): Could not find task's apiData prior to sort. DraggableId: ${draggableId}`
+        );
       }
     }
 
+    // Dispatch sort first to update UI optimistically
     dispatch(sort({ source, destination, draggableId, type }));
 
+    // If a task moved to a different column, update its status in the backend
     if (
       type === "task" &&
       String(source.droppableId) !== String(destination.droppableId)
     ) {
       if (taskBeingMovedApiData && taskBeingMovedApiData.id) {
+        // Get the latest state *after* the `sort` action has completed
+        // This is important because the `sort` action updates the Redux state synchronously.
         let latestGlobalState;
         try {
           if (!store || typeof store.getState !== "function") {
@@ -101,37 +117,49 @@ const KanbanPage = () => {
         const latestColumnsFromStore = latestGlobalState.kanban?.columns;
         if (!latestColumnsFromStore) {
           console.error(
-            "KanbanPage (onDragEnd): Could not get latest columns from store. Full state:",
+            "KanbanPage (onDragEnd): Could not get latest columns from store after sort. Full state:",
             latestGlobalState
           );
-          toast.error("Error: Could not verify destination column for update.");
+          toast.error(
+            "Error: Could not verify destination column for update after sort."
+          );
           return;
         }
 
         const destColumnDefinition = latestColumnsFromStore.find(
           (col) => String(col.id) === String(destination.droppableId)
         );
+
         if (destColumnDefinition && destColumnDefinition.name) {
+          // Find the status key (e.g., "TODO", "IN_PROGRESS") corresponding to the destination column's name
           const newStatusKey = Object.keys(STATUS_TO_COLUMN_MAP).find(
             (key) =>
               STATUS_TO_COLUMN_MAP[key].name === destColumnDefinition.name
           );
+
           if (newStatusKey) {
             dispatch(
               updateTaskStatusInBackend({
-                taskId: taskBeingMovedApiData.id, // Use the actual backend task ID
-                taskData: taskBeingMovedApiData, // Pass the full task data if your thunk needs it
+                taskId: taskBeingMovedApiData.id, // This must be the backend ID of the task
+                taskData: taskBeingMovedApiData, // Pass the full task data (or relevant parts)
                 newStatus: newStatusKey,
               })
             );
           } else {
-            // console.warn(`KanbanPage: No status key found for column name '${destColumnDefinition.name}'`);
+            console.warn(
+              `KanbanPage (onDragEnd): No status key found in STATUS_TO_COLUMN_MAP for column name '${destColumnDefinition.name}'. Backend update for status skipped.`
+            );
+            toast.warn(`Configuration issue: No status mapping for column '${destColumnDefinition.name}'.`);
           }
         } else {
-          // console.warn(`KanbanPage: Destination column definition not found or has no name. Dest ID: ${destination.droppableId}`);
+          console.warn(
+            `KanbanPage (onDragEnd): Destination column definition not found or has no name after sort. Dest ID: ${destination.droppableId}`
+          );
         }
       } else {
-        // console.warn(`KanbanPage: Task moved columns, but taskBeingMovedApiData (or its API ID) was not available. Backend update skipped. DraggableId: ${draggableId}`);
+        console.warn(
+          `KanbanPage (onDragEnd): Task moved columns, but taskBeingMovedApiData (or its API ID) was not available. Backend update skipped. DraggableId: ${draggableId}`
+        );
       }
     }
   };
@@ -142,7 +170,7 @@ const KanbanPage = () => {
 
   if (error) {
     return (
-      <div className="text-center p-10 text-red-500">
+      <div className="text-center p-10 text-red-500 dark:text-red-400">
         Error loading Kanban board:{" "}
         {typeof error === "string" ? error : JSON.stringify(error)}
         <Button
@@ -166,7 +194,7 @@ const KanbanPage = () => {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="light"
+        theme="light" // Consider using "colored" or "dark" based on your app's theme
       />
       <div className="flex flex-wrap justify-between items-center mb-4">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 dark:text-slate-200 inline-block ltr:pr-4 rtl:pl-4">
@@ -175,19 +203,20 @@ const KanbanPage = () => {
         <div className="flex space-x-4 justify-end items-center rtl:space-x-reverse">
           <Button
             icon="heroicons-outline:plus"
-            text="Add Board" // This likely means "Add Column" in Kanban context
+            text="Add Column"
             className="bg-slate-800 dark:hover:bg-opacity-70 h-min text-sm font-medium text-slate-50 hover:ring-2 hover:ring-opacity-80 ring-slate-900 hover:ring-offset-1 dark:hover:ring-0 dark:hover:ring-offset-0 dark:bg-slate-700 dark:hover:bg-slate-600"
             iconclassName="text-lg"
-            onClick={() => dispatch(toggleColumnModal(true))}
+            onClick={() => dispatch(toggleColumnModal({ open: true }))}
           />
         </div>
       </div>
 
       {(!columns || columns.length === 0) && !isLoading && !error && (
         <div className="text-center p-10 text-slate-500 dark:text-slate-400">
-          No tasks or columns to display for this project. Try adding a
-          board/column or check if tasks have matching statuses defined in
-          `STATUS_TO_COLUMN_MAP`.
+          No columns to display for this project.
+          <br />
+          Try adding a column or ensure `fetchKanbanData` correctly populates
+          columns based on your API and `STATUS_TO_COLUMN_MAP`.
         </div>
       )}
 
@@ -195,9 +224,9 @@ const KanbanPage = () => {
         <div>
           <DragDropContext onDragEnd={onDragEnd}>
             <Droppable
-              droppableId="all-lists" // For dragging columns themselves
+              droppableId="all-lists"
               direction="horizontal"
-              type="list" // Type for columns
+              type="list"
             >
               {(provided) => (
                 <div
@@ -207,21 +236,23 @@ const KanbanPage = () => {
                 >
                   {columns.map((column, i) => {
                     if (!column || column.id === undefined) {
-                      // console.warn("KanbanPage: Invalid column object at index", i, column);
+                      console.warn(
+                        "KanbanPage: Invalid column object at index",
+                        i,
+                        column
+                      );
                       return null;
                     }
                     return (
                       <Draggable
                         key={String(column.id)}
-                        draggableId={String(column.id)} // ID for the column itself
+                        draggableId={String(column.id)}
                         index={i}
                       >
                         {(providedDraggable, snapshotDraggable) => (
                           <div
                             ref={providedDraggable.innerRef}
                             {...providedDraggable.draggableProps}
-                            // Do not spread dragHandleProps here if the whole card is not the handle.
-                            // The handle is applied below.
                           >
                             <div
                               className={`w-[320px] flex-none h-full rounded-md transition-all duration-100 ${
@@ -232,12 +263,12 @@ const KanbanPage = () => {
                             >
                               <div
                                 className="relative flex justify-between items-center bg-white dark:bg-slate-800 rounded-t-md shadow-sm px-6 py-5"
-                                {...providedDraggable.dragHandleProps} // Column drag handle
+                                {...providedDraggable.dragHandleProps}
                               >
                                 <div
                                   className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full"
                                   style={{
-                                    backgroundColor: column.color || "#A0AEC0", // Default color
+                                    backgroundColor: column.color || "#A0AEC0",
                                   }}
                                 ></div>
                                 <div className="text-lg text-slate-900 dark:text-white font-medium capitalize truncate pr-2">
@@ -253,7 +284,8 @@ const KanbanPage = () => {
                                     <button
                                       className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col items-center justify-center text-base text-slate-600 hover:bg-red-100 dark:hover:bg-red-600 dark:hover:text-white"
                                       onClick={(e) => {
-                                        e.stopPropagation(); // Prevent drag
+                                        e.stopPropagation();
+                                        // Consider using SweetAlert for column deletion confirmation too
                                         dispatch(deleteColumnBoard(column.id));
                                       }}
                                     >
@@ -268,11 +300,12 @@ const KanbanPage = () => {
                                     <button
                                       className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col items-center justify-center text-base text-slate-600 hover:bg-blue-100 dark:hover:bg-blue-600 dark:hover:text-white"
                                       onClick={(e) => {
-                                        e.stopPropagation(); // Prevent drag
+                                        e.stopPropagation();
                                         dispatch(
                                           toggleTaskModal({
                                             open: true,
-                                            columnId: column.id, // Pass columnId to pre-select in AddTaskModal
+                                            columnId: column.id,
+                                            mode: "add",
                                           })
                                         );
                                       }}
@@ -283,36 +316,45 @@ const KanbanPage = () => {
                                 </div>
                               </div>
                               <Droppable
-                                droppableId={String(column.id)} // ID for tasks within this column
-                                type="task" // Type for tasks
+                                droppableId={String(column.id)}
+                                type="task"
                                 direction="vertical"
                               >
-                                {(providedDroppable, snapshotDroppable) => (
+                                {(
+                                  providedDroppableTasks,
+                                  snapshotDroppableTasks
+                                ) => (
                                   <div
-                                    ref={providedDroppable.innerRef}
-                                    {...providedDroppable.droppableProps}
+                                    ref={providedDroppableTasks.innerRef}
+                                    {...providedDroppableTasks.droppableProps}
                                     className={`px-2 py-4 h-full min-h-[100px] space-y-4 rounded-b-md ${
-                                      snapshotDroppable.isDraggingOver
+                                      snapshotDroppableTasks.isDraggingOver
                                         ? "bg-slate-300/60 dark:bg-slate-700/60"
                                         : ""
                                     }`}
                                   >
                                     {column.tasks?.map((task, j) => {
                                       if (!task || task.id === undefined) {
-                                        // console.warn("KanbanPage: Invalid task object in column", column.name, "at index", j, task);
+                                        console.warn(
+                                          "KanbanPage: Invalid task object in column",
+                                          column.name,
+                                          "at index",
+                                          j,
+                                          task
+                                        );
                                         return null;
                                       }
                                       return (
                                         <Draggable
                                           key={String(task.id)}
-                                          draggableId={String(task.id)} // ID for the task
+                                          draggableId={String(task.id)}
                                           index={j}
                                         >
                                           {(providedTask) => (
                                             <div
                                               ref={providedTask.innerRef}
                                               {...providedTask.draggableProps}
-                                              {...providedTask.dragHandleProps} // Task drag handle
+                                              {...providedTask.dragHandleProps}
                                             >
                                               <Task task={task} />
                                             </div>
@@ -320,7 +362,7 @@ const KanbanPage = () => {
                                         </Draggable>
                                       );
                                     })}
-                                    {providedDroppable.placeholder}
+                                    {providedDroppableTasks.placeholder}
                                   </div>
                                 )}
                               </Droppable>
@@ -337,9 +379,13 @@ const KanbanPage = () => {
           </DragDropContext>
         </div>
       )}
-      <AddColumn />
+      <AddColumn /> {/* This should use columnModal state from Redux */}
+      {/* 
+        AddTaskModal visibility is controlled by 'taskModal' from Redux state.
+        It might also need context like columnId or taskId for add/edit mode,
+        which can be stored in Redux (e.g., state.kanban.currentTaskAction).
+      */}
       {taskModal && <AddTaskModal projectId={projectId} />}
-     
     </div>
   );
 };

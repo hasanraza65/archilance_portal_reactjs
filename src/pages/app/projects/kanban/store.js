@@ -10,12 +10,16 @@ export const STATUS_TO_COLUMN_MAP = {
   Todo: { name: "To Do", color: "#4669FA", order: 1 },
   "In Progress": { name: "In Progress", color: "#FA916B", order: 2 },
   Completed: { name: "Completed", color: "#50C793", order: 3 },
+  // Add other statuses if your backend uses more, e.g., 'Review', 'Blocked'
+  // Ensure the keys here ('Todo', 'In Progress', 'Completed') EXACTLY match
+  // the `task_status` values returned by your backend API for tasks.
 };
 
+// --- ASYNC THUNKS ---
+
 export const fetchKanbanData = createAsyncThunk(
-  "kanban/fetchKanbanData", // Slice name "kanban"
+  "kanban/fetchKanbanData",
   async (projectId, { rejectWithValue }) => {
-    // console.log(`fetchKanbanData: Thunk started for projectId: ${projectId}`); // Keep for debugging
     const token = Cookies.get("token");
     if (!token) {
       console.error("fetchKanbanData: No token found");
@@ -36,76 +40,83 @@ export const fetchKanbanData = createAsyncThunk(
         const errorData = await response
           .json()
           .catch(() => ({ message: "Network response was not ok" }));
-        console.error("fetchKanbanData: API response not OK.", errorData, "Status:", response.status);
-        throw new Error(errorData.message || `Failed to fetch Kanban data (${response.status})`);
+        console.error(
+          "fetchKanbanData: API response not OK.",
+          errorData,
+          "Status:",
+          response.status
+        );
+        throw new Error(
+          errorData.message || `Failed to fetch Kanban data (${response.status})`
+        );
       }
       const apiResponse = await response.json();
-      // console.log("fetchKanbanData: Raw API Response:", JSON.stringify(apiResponse, null, 2));
-     
-      const columnsMap = {};
-      Object.keys(STATUS_TO_COLUMN_MAP).forEach((statusKey) => {
-        columnsMap[statusKey] = {
-          id: uuidv4(), 
-          name: STATUS_TO_COLUMN_MAP[statusKey].name,
-          color: STATUS_TO_COLUMN_MAP[statusKey].color,
-          order: STATUS_TO_COLUMN_MAP[statusKey].order,
-          tasks: [],
-        };
-      });
 
-      const tasksToProcess = Array.isArray(apiResponse) 
-        ? apiResponse 
-        : (apiResponse && Array.isArray(apiResponse.data)) 
-            ? apiResponse.data 
-            : [];
-      // console.log("fetchKanbanData: tasksToProcess (derived from API response):", JSON.stringify(tasksToProcess, null, 2));
+      const columnsMap = {};
+      // Initialize columns based on STATUS_TO_COLUMN_MAP ensuring correct order
+      Object.keys(STATUS_TO_COLUMN_MAP)
+        .sort((a, b) => STATUS_TO_COLUMN_MAP[a].order - STATUS_TO_COLUMN_MAP[b].order)
+        .forEach((statusKey) => {
+          columnsMap[statusKey] = {
+            id: uuidv4(), // Frontend unique ID for the column
+            name: STATUS_TO_COLUMN_MAP[statusKey].name,
+            color: STATUS_TO_COLUMN_MAP[statusKey].color,
+            order: STATUS_TO_COLUMN_MAP[statusKey].order,
+            tasks: [],
+          };
+        });
+
+      const tasksToProcess = Array.isArray(apiResponse)
+        ? apiResponse
+        : apiResponse && Array.isArray(apiResponse.data)
+        ? apiResponse.data
+        : [];
 
       if (Array.isArray(tasksToProcess) && tasksToProcess.length > 0) {
-        tasksToProcess.forEach((task) => { 
-          const status = task.task_status; 
-          if (columnsMap[status]) { 
+        tasksToProcess.forEach((task) => {
+          const status = task.task_status; // This is the key like "Todo", "In Progress"
+          if (columnsMap[status]) {
             columnsMap[status].tasks.push({
-              id: String(task.id) || uuidv4(), 
+              id: String(task.id), // Frontend ID for dnd, using backend ID
               name: task.task_title,
               des: task.task_description,
               startDate:
                 task.created_at || new Date().toISOString().split("T")[0],
               endDate: task.due_date,
               progress: task.progress || 0,
-              assignee: task.assignees || [], 
-              category: task.categories || [], 
-              apiData: task, 
+              assignee: task.assignees || [],
+              category: task.categories || [],
+              apiData: task, // Store the full backend task object
             });
           } else {
-            // console.warn( // Keep for debugging if tasks are not appearing
-            //   `fetchKanbanData: Status '${status}' for task ID: ${task.id}, Title: '${task.task_title}' DOES NOT MAP to any column. Expected keys in STATUS_TO_COLUMN_MAP: ${Object.keys(STATUS_TO_COLUMN_MAP).join(', ')}.`
-            // );
+            console.warn(
+              `fetchKanbanData: Status '${status}' for task ID: ${task.id}, Title: '${task.task_title}' DOES NOT MAP to any column. Expected keys in STATUS_TO_COLUMN_MAP: ${Object.keys(STATUS_TO_COLUMN_MAP).join(', ')}.`
+            );
           }
         });
-      } else if (Array.isArray(tasksToProcess) && tasksToProcess.length === 0) {
-        // console.log("fetchKanbanData: tasksToProcess is an empty array."); // Keep for debugging
-      } else {
-        // console.error("fetchKanbanData: tasksToProcess is not an array or is undefined."); // Keep for debugging
       }
 
       const sortedColumns = Object.values(columnsMap).sort(
         (a, b) => a.order - b.order
       );
-      // console.log("fetchKanbanData: Sorted columns being returned from thunk:", JSON.stringify(sortedColumns, null, 2));
-    
+
       return sortedColumns;
     } catch (error) {
-      console.error("fetchKanbanData: Error in thunk execution:", error.message, error);
-      return rejectWithValue(error.message || "Unknown error in fetchKanbanData thunk");
+      console.error(
+        "fetchKanbanData: Error in thunk execution:",
+        error.message,
+        error
+      );
+      return rejectWithValue(
+        error.message || "Unknown error in fetchKanbanData thunk"
+      );
     }
   }
 );
 
 export const updateTaskStatusInBackend = createAsyncThunk(
-  "kanban/updateTaskStatusInBackend", // Slice name "kanban"
-  async ({ taskId, taskData, newStatus }, { rejectWithValue }) => {
-    // console.log(`updateTaskStatusInBackend: Thunk started for Task API ID: ${taskId}, New Status: ${newStatus}`); // Keep for debugging
-
+  "kanban/updateTaskStatusInBackend",
+  async ({ taskId, taskData, newStatus }, { rejectWithValue, getState }) => { // Added getState
     const token = Cookies.get("token");
     if (!token) {
       toast.error("Authentication error. Please log in again.");
@@ -113,28 +124,58 @@ export const updateTaskStatusInBackend = createAsyncThunk(
       return rejectWithValue("No token found");
     }
 
+    // Ensure taskData has the most recent full structure, especially project_id
+    // It might be safer to fetch the full taskData from state if only partial data is passed initially
+    let fullTaskData = { ...taskData };
+    if (!fullTaskData.project_id && taskId) {
+        const state = getState();
+        const projectColumns = state.kanban.columns; // Accessing columns from the current slice
+        let foundTask = null;
+        for (const column of projectColumns) {
+            foundTask = column.tasks.find(t => t.apiData && String(t.apiData.id) === String(taskId));
+            if (foundTask) break;
+        }
+        if (foundTask && foundTask.apiData && foundTask.apiData.project_id) {
+            fullTaskData = { ...foundTask.apiData, ...taskData }; // Merge, prioritizing passed taskData for fields like title, desc
+        } else {
+            console.error("updateTaskStatusInBackend: Could not find task in state or project_id missing for task:", taskId);
+            // toast.error("Critical data missing for task update. Cannot proceed.");
+            // return rejectWithValue("Critical data (project_id) missing for task update.");
+        }
+    }
+
+
     const mapToIds = (items) => {
       if (!Array.isArray(items)) return [];
-      return items.map(item => 
-        (typeof item === 'object' && item !== null && item.id !== undefined) ? item.id : item
-      ).filter(id => id !== null && id !== undefined);
+      return items
+        .map((item) =>
+          typeof item === "object" && item !== null && item.id !== undefined
+            ? item.id
+            : item
+        )
+        .filter((id) => id !== null && id !== undefined);
     };
 
     const putPayload = {
-      task_title: taskData.task_title,
-      task_description: taskData.task_description,
-      due_date: taskData.due_date,
-      task_status: newStatus, 
-      project_id: taskData.project_id,
-      assignees: mapToIds(taskData.assignees),
-      categories: mapToIds(taskData.categories),
+      task_title: fullTaskData.task_title,
+      task_description: fullTaskData.task_description,
+      due_date: fullTaskData.due_date,
+      task_status: newStatus, // This is the crucial update
+      project_id: fullTaskData.project_id,
+      assignees: mapToIds(fullTaskData.assignees),
+      categories: mapToIds(fullTaskData.categories),
+      // Add progress if your API supports it:
+      // progress: fullTaskData.progress,
     };
-    
+
     if (putPayload.project_id === undefined || putPayload.project_id === null) {
-        const errorMsg = "CRITICAL: project_id is missing in PUT payload for task update.";
-        console.error(errorMsg, "TaskData received for update:", taskData);
-        toast.error("Error: Project ID missing for task update.", { autoClose: 3000 });
-        return rejectWithValue(errorMsg);
+      const errorMsg =
+        "CRITICAL: project_id is missing in PUT payload for task update.";
+      console.error(errorMsg, "Full TaskData used for update:", fullTaskData);
+      toast.error("Error: Project ID missing for task update.", {
+        autoClose: 3000,
+      });
+      return rejectWithValue(errorMsg);
     }
 
     try {
@@ -151,49 +192,142 @@ export const updateTaskStatusInBackend = createAsyncThunk(
         }
       );
 
-      const responseBodyText = await response.text(); 
+      const responseBodyText = await response.text();
 
       if (!response.ok) {
         let errorData;
         try {
-            errorData = responseBodyText ? JSON.parse(responseBodyText) : { message: `HTTP error ${response.status}: ${response.statusText}` };
+          errorData = responseBodyText
+            ? JSON.parse(responseBodyText)
+            : { message: `HTTP error ${response.status}: ${response.statusText}` };
         } catch (e) {
-            errorData = { message: `HTTP error ${response.status}: ${response.statusText}. Non-JSON response: ${responseBodyText}` };
+          errorData = {
+            message: `HTTP error ${response.status}: ${response.statusText}. Non-JSON response: ${responseBodyText}`,
+          };
         }
-        console.error("updateTaskStatusInBackend: API Error Data on task update:", errorData, "Status Code:", response.status);
-        const displayError = errorData.message || (errorData.errors && Object.values(errorData.errors).flat().join(', ')) || `Server error ${response.status}`;
+        console.error(
+          "updateTaskStatusInBackend: API Error Data on task update:",
+          errorData,
+          "Status Code:",
+          response.status
+        );
+        const displayError =
+          errorData.message ||
+          (errorData.errors && Object.values(errorData.errors).flat().join(", ")) ||
+          `Server error ${response.status}`;
         toast.error(`Failed to update task: ${displayError}`);
         return rejectWithValue(displayError);
       }
 
-      const updatedTaskFromApi = responseBodyText ? JSON.parse(responseBodyText) : null;
-      // console.log("updateTaskStatusInBackend: Parsed successful API response:", JSON.stringify(updatedTaskFromApi, null, 2)); // Keep for debugging
+      const updatedTaskFromApi = responseBodyText
+        ? JSON.parse(responseBodyText)
+        : null;
 
-      if (!updatedTaskFromApi || !updatedTaskFromApi.task || typeof updatedTaskFromApi.task !== 'object') {
-        console.error("updateTaskStatusInBackend: Successful API response, but 'task' field is missing, null, or not an object.", updatedTaskFromApi);
+      if (
+        !updatedTaskFromApi ||
+        !updatedTaskFromApi.task ||
+        typeof updatedTaskFromApi.task !== "object"
+      ) {
+        console.error(
+          "updateTaskStatusInBackend: Successful API response, but 'task' field is missing, null, or not an object.",
+          updatedTaskFromApi
+        );
         toast.error("Task update response from server was incomplete or malformed.");
-        return rejectWithValue("Incomplete or malformed data from server after task update.");
+        return rejectWithValue(
+          "Incomplete or malformed data from server after task update."
+        );
       }
 
       toast.success(updatedTaskFromApi.message || "Task updated successfully!");
-      return { taskId, newStatus, updatedTaskData: updatedTaskFromApi.task };
+      // Return taskId (backendId), newStatus, and the fully updated task data from the API
+      return { backendTaskId: taskId, newStatus, updatedTaskDataFromApi: updatedTaskFromApi.task };
     } catch (error) {
-      console.error("updateTaskStatusInBackend: Error during fetch/PUT operation:", error.message, error);
+      console.error(
+        "updateTaskStatusInBackend: Error during fetch/PUT operation:",
+        error.message,
+        error
+      );
       toast.error(`Error updating task: ${error.message}`);
       return rejectWithValue(error.message);
     }
   }
 );
 
+// NEW THUNK FOR DELETING TASK FROM BACKEND
+export const deleteTaskFromBackend = createAsyncThunk(
+  "kanban/deleteTaskFromBackend",
+  async ({ backendTaskId, frontendTaskId }, { rejectWithValue }) => {
+    // frontendTaskId is the 'id' used in the Redux state (e.g., task.id)
+    // backendTaskId is the 'id' the API expects (e.g., task.apiData.id)
+    // In your case, they seem to be the same (String(task.id))
+    const token = Cookies.get("token");
+    if (!token) {
+      toast.error("Authentication error. Please log in again.");
+      console.error("deleteTaskFromBackend: No token found");
+      return rejectWithValue("No token found");
+    }
+
+    try {
+      const response = await fetch(
+        `https://demo.aentora.com/backend/public/api/admin/project-task/${backendTaskId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json", // Optional for DELETE if no body
+            Accept: "application/json",
+          },
+        }
+      );
+      
+      const responseBodyText = await response.text();
+
+      if (!response.ok) {
+        let errorData;
+        try {
+            errorData = responseBodyText ? JSON.parse(responseBodyText) : { message: `HTTP error ${response.status}` };
+        } catch (e) {
+            errorData = { message: `HTTP error ${response.status}. Non-JSON response: ${responseBodyText}` };
+        }
+        console.error("deleteTaskFromBackend: API Error:", errorData, "Status:", response.status);
+        const displayError = errorData.message || (errorData.errors && Object.values(errorData.errors).flat().join(', ')) || `Failed to delete task (Server error ${response.status})`;
+        toast.error(displayError);
+        return rejectWithValue(displayError);
+      }
+      
+      // Even if successful, check if there's a message in the body
+      let successMessage = "Task deleted successfully!";
+      if (responseBodyText) {
+        try {
+            const parsedBody = JSON.parse(responseBodyText);
+            if (parsedBody && parsedBody.message) {
+                successMessage = parsedBody.message;
+            }
+        } catch (e) {
+            // Not JSON, or no message field, use default
+        }
+      }
+
+      toast.success(successMessage);
+      return { frontendTaskId }; // Pass the frontend ID for reducer
+    } catch (error) {
+      console.error("deleteTaskFromBackend: Network/Request Error:", error);
+      toast.error(error.message || "An unexpected error occurred while deleting the task.");
+      return rejectWithValue(error.message || "Network error");
+    }
+  }
+);
+
+
 export const appKanbanSlice = createSlice({
-  name: "kanban", // IMPORTANT: This should match the key in your rootReducer
+  name: "kanban",
   initialState: {
-    columModal: false,
+    columModal: false, // Note: typo in original, should be columnModal
     taskModal: false,
-    isLoading: true, 
-    openTaskId: null, 
-    editModal: false,
-    editItem: {}, 
+    isLoading: true,
+    openTaskId: null, // Stores columnId when adding task
+    editModal: false, // For task edit modal
+    editItem: {}, // Task data for editing
     columns: [],
     error: null,
   },
@@ -202,7 +336,7 @@ export const appKanbanSlice = createSlice({
       const { source, destination, draggableId, type } = action.payload;
       if (!destination) return;
 
-      if (type === "list") {
+      if (type === "list") { // Column dragging
         const items = Array.from(state.columns);
         const [reorderedItem] = items.splice(source.index, 1);
         items.splice(destination.index, 0, reorderedItem);
@@ -210,7 +344,7 @@ export const appKanbanSlice = createSlice({
         return;
       }
 
-      if (type === "task") {
+      if (type === "task") { // Task dragging
         const sourceColumn = state.columns.find(
           (column) => String(column.id) === String(source.droppableId)
         );
@@ -226,56 +360,66 @@ export const appKanbanSlice = createSlice({
         const sourceItems = [...sourceColumn.tasks];
         const destItems =
           source.droppableId === destination.droppableId
-            ? sourceItems
+            ? sourceItems // Modifying the same list
             : [...destColumn.tasks];
 
         const [removedTask] = sourceItems.splice(source.index, 1);
         if (!removedTask) {
-            console.error("Sort Reducer: Could not remove task from source column.");
-            return;
+          console.error("Sort Reducer: Could not remove task from source column.");
+          return;
         }
         destItems.splice(destination.index, 0, removedTask);
 
-        state.columns = state.columns.map(col => {
+        state.columns = state.columns.map((col) => {
           if (String(col.id) === String(source.droppableId)) {
             return { ...col, tasks: sourceItems };
           }
-          if (String(col.id) === String(destination.droppableId) && String(source.droppableId) !== String(destination.droppableId)) {
+          if (
+            String(col.id) === String(destination.droppableId) &&
+            String(source.droppableId) !== String(destination.droppableId)
+          ) {
             return { ...col, tasks: destItems };
           }
-          if (String(col.id) === String(destination.droppableId) && String(source.droppableId) === String(destination.droppableId)) {
-             return { ...col, tasks: destItems };
+          // If moving within the same column, sourceItems already has the updated list
+          if (
+            String(col.id) === String(destination.droppableId) &&
+            String(source.droppableId) === String(destination.droppableId)
+          ) {
+             return { ...col, tasks: destItems }; // or sourceItems
           }
           return col;
         });
 
-        if (String(source.droppableId) !== String(destination.droppableId) && removedTask.apiData) {
+        // Optimistically update task_status in apiData if task moved columns
+        if (
+          String(source.droppableId) !== String(destination.droppableId) &&
+          removedTask.apiData
+        ) {
           const newStatusKey = Object.keys(STATUS_TO_COLUMN_MAP).find(
             (key) => STATUS_TO_COLUMN_MAP[key].name === destColumn.name
           );
           if (newStatusKey) {
+            // Find the task in its new column and update its apiData.task_status
             const targetColIndex = state.columns.findIndex(c => String(c.id) === String(destination.droppableId));
-            if(targetColIndex !== -1) {
+            if (targetColIndex !== -1) {
                 const taskInNewColIndex = state.columns[targetColIndex].tasks.findIndex(t => String(t.id) === String(removedTask.id));
-                if(taskInNewColIndex !== -1 && state.columns[targetColIndex].tasks[taskInNewColIndex].apiData) { 
+                if (taskInNewColIndex !== -1 && state.columns[targetColIndex].tasks[taskInNewColIndex].apiData) {
                     state.columns[targetColIndex].tasks[taskInNewColIndex].apiData = {
                         ...state.columns[targetColIndex].tasks[taskInNewColIndex].apiData,
-                        task_status: newStatusKey,
+                        task_status: newStatusKey, // Optimistic update
                     };
-                } else {
-                     // console.warn(`Sort Reducer: Could not find task for optimistic update.`); // Keep for debugging
                 }
             }
-          } else {
-            // console.warn(`Sort Reducer: Could not map column to status key.`); // Keep for debugging
           }
         }
       }
     },
     toggleColumnModal: (state, action) => {
-      state.columModal = action.payload;
+      state.columModal = action.payload; // Keep original 'columModal' if used elsewhere, or fix to 'columnModal'
     },
     addColumnBoard: (state, action) => {
+      // ... (your existing logic, seems okay for frontend only)
+      // Consider a thunk for backend persistence if needed.
       const newColumnName = action.payload.title;
       const predefinedStatusKey = Object.keys(STATUS_TO_COLUMN_MAP).find(
         (key) =>
@@ -306,25 +450,44 @@ export const appKanbanSlice = createSlice({
       toast.success("Board Added Successfully", { autoClose: 1500 });
     },
     deleteColumnBoard: (state, action) => {
+      // ... (your existing logic, frontend only)
       state.columns = state.columns.filter(
         (column) => String(column.id) !== String(action.payload)
       );
-      toast.warn("Board Deleted Successfully", { autoClose: 1500 });
+      toast.warn("Board Deleted Successfully (Frontend Only)", { autoClose: 1500 });
     },
     toggleTaskModal: (state, action) => {
-      const { columnId, open } = action.payload;
-      state.taskModal = open;
-      state.openTaskId = open ? columnId : null;
+      // Updated to handle more complex payload if needed for edit/add modes
+      if (typeof action.payload === 'object' && action.payload !== null) {
+          state.taskModal = action.payload.open;
+          state.openTaskId = action.payload.open ? action.payload.columnId : null; // Store columnId for adding
+          if (action.payload.taskData && action.payload.mode === 'edit') {
+              state.editModal = action.payload.open;
+              state.editItem = action.payload.open ? action.payload.taskData : {};
+          } else if (!action.payload.open) {
+              state.editModal = false;
+              state.editItem = {};
+          }
+      } else if (typeof action.payload === 'boolean') { // Original simple toggle
+          state.taskModal = action.payload;
+          state.openTaskId = action.payload ? state.openTaskId : null; // Clear columnId if closing
+          if (!action.payload) {
+              state.editModal = false;
+              state.editItem = {};
+          }
+      }
     },
     addTask: (state, action) => {
+      // ... (your existing logic, frontend only)
+      // Consider a thunk for backend persistence.
       const column = state.columns.find((col) => String(col.id) === String(state.openTaskId));
       if (column) {
         const taskStatusKey =
           Object.keys(STATUS_TO_COLUMN_MAP).find(
             (key) => STATUS_TO_COLUMN_MAP[key].name === column.name
-          ) || "Todo"; 
+          ) || "Todo";
 
-        const currentProjectId = action.payload.projectId; 
+        const currentProjectId = action.payload.projectId;
         if (!currentProjectId) {
             toast.error("Project ID is missing. Cannot add task.");
             console.error("addTask Reducer: projectId is missing in payload", action.payload);
@@ -334,7 +497,7 @@ export const appKanbanSlice = createSlice({
         }
 
         const newTask = {
-          id: uuidv4(), 
+          id: uuidv4(), // Temporary frontend ID for new tasks
           name: action.payload.name,
           des: action.payload.des,
           startDate: action.payload.startDate || new Date().toISOString().split("T")[0],
@@ -342,14 +505,15 @@ export const appKanbanSlice = createSlice({
           progress: action.payload.progress || 0,
           assignee: action.payload.assignee || [],
           category: action.payload.category || [],
-          apiData: { 
+          apiData: { // This structure is for a *potential* backend save
             task_title: action.payload.name,
             task_description: action.payload.des,
             due_date: action.payload.endDate,
             task_status: taskStatusKey,
-            project_id: currentProjectId, 
-            assignees: (action.payload.assignee || []).map(a => typeof a === 'object' && a.id !== undefined ? a.id : a), 
+            project_id: currentProjectId,
+            assignees: (action.payload.assignee || []).map(a => typeof a === 'object' && a.id !== undefined ? a.id : a),
             categories: (action.payload.category || []).map(c => typeof c === 'object' && c.id !== undefined ? c.id : c),
+            // Note: A newly added task won't have a backend ID in apiData.id yet
           },
         };
         column.tasks.push(newTask);
@@ -358,37 +522,28 @@ export const appKanbanSlice = createSlice({
       state.taskModal = false;
       state.openTaskId = null;
     },
-    deleteTask: (state, action) => {
-      const taskIdToDelete = action.payload; 
-      let taskDeleted = false;
-      state.columns = state.columns.map((column) => {
-        const initialTaskCount = column.tasks.length;
-        // const taskToRemove = column.tasks.find(task => String(task.id) === String(taskIdToDelete)); // Not used currently
-        column.tasks = column.tasks.filter(
-          (task) => String(task.id) !== String(taskIdToDelete)
-        );
-        if (column.tasks.length < initialTaskCount) {
-          taskDeleted = true;
-        }
-        return column;
-      });
-
-      if (taskDeleted) {
-        toast.warn("Task Deleted (Frontend Only - Implement Backend Delete)", { autoClose: 1500 });
-      }
-    },
+    // deleteTask: (state, action) => { // OLD - This is frontend only. Call deleteTaskFromBackend thunk instead.
+    //   const taskIdToDelete = action.payload;
+    //   // ... (rest of your old logic)
+    //   toast.warn("Task Deleted (Frontend Only - Call Backend Thunk for Persistent Delete)", { autoClose: 1500 });
+    // },
     toggleEditModal: (state, action) => {
-      const { task, editModal } = action.payload; 
+      // Payload: { task?: object, editModal: boolean }
+      // `task` is the full task object from the card (including id, apiData etc.)
+      const { task, editModal } = action.payload;
       state.editModal = editModal;
-      state.editItem = editModal ? task : {};
+      state.editItem = editModal && task ? task : {};
     },
     updateTask: (state, action) => {
-      const updatedTaskPayload = action.payload; 
+      // ... (your existing logic, frontend only)
+      // Consider a thunk for backend persistence. This overlaps with updateTaskStatusInBackend if only status changes.
+      const updatedTaskPayload = action.payload;
       let taskFoundAndUpdated = false;
 
       state.columns = state.columns.map((column) => {
         const taskIndex = column.tasks.findIndex(
-          (task) => String(task.id) === String(updatedTaskPayload.id)
+          // If task.id is from backend, use that. If it's a new temp UUID, it might differ from payload ID.
+          (task) => String(task.id) === String(updatedTaskPayload.id) || (task.apiData && String(task.apiData.id) === String(updatedTaskPayload.id))
         );
         if (taskIndex !== -1) {
           const existingTask = column.tasks[taskIndex];
@@ -409,13 +564,15 @@ export const appKanbanSlice = createSlice({
             assignee: updatedTaskPayload.assignee !== undefined ? updatedTaskPayload.assignee : existingTask.assignee,
             category: updatedTaskPayload.category !== undefined ? updatedTaskPayload.category : existingTask.category,
             apiData: {
-              ...(existingTask.apiData || {}), 
+              ...(existingTask.apiData || {}),
+              id: existingTask.apiData?.id || updatedTaskPayload.id, // Preserve backend ID if it exists
               task_title: newName,
               task_description: newDes,
               due_date: newEndDate,
-              assignees: (updatedTaskPayload.assignee !== undefined ? updatedTaskPayload.assignee : existingTask.assignee).map(a => typeof a === 'object' && a.id !== undefined ? a.id : a),
-              categories: (updatedTaskPayload.category !== undefined ? updatedTaskPayload.category : existingTask.category).map(c => typeof c === 'object' && c.id !== undefined ? c.id : c),
+              assignees: (updatedTaskPayload.assignee !== undefined ? updatedTaskPayload.assignee : (existingTask.assignee || [])).map(a => typeof a === 'object' && a.id !== undefined ? a.id : a),
+              categories: (updatedTaskPayload.category !== undefined ? updatedTaskPayload.category : (existingTask.category || [])).map(c => typeof c === 'object' && c.id !== undefined ? c.id : c),
               progress: updatedTaskPayload.progress !== undefined ? updatedTaskPayload.progress : existingTask.progress,
+              // task_status would be updated by updateTaskStatusInBackend if changed via drag-drop
             },
           };
           taskFoundAndUpdated = true;
@@ -437,52 +594,61 @@ export const appKanbanSlice = createSlice({
       })
       .addCase(fetchKanbanData.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.columns = action.payload; 
+        state.columns = action.payload; // Payload is the array of columns
         state.error = null;
       })
       .addCase(fetchKanbanData.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || action.error?.message || "Failed to fetch Kanban data";
-        toast.error(`Error fetching board: ${state.error}`, { autoClose: 3000 });
+        state.error =
+          action.payload || action.error?.message || "Failed to fetch Kanban data";
+        toast.error(`Error fetching board: ${state.error}`, {
+          autoClose: 3000,
+        });
       })
       .addCase(updateTaskStatusInBackend.pending, (state) => {
         // Optionally add task-specific loading indicator
+        // For example: find the task and set a loading flag on it
       })
       .addCase(updateTaskStatusInBackend.fulfilled, (state, action) => {
-        const { taskId, updatedTaskData } = action.payload; 
-        // console.log(`extraReducers: updateTaskStatusInBackend.fulfilled (slice: kanban) for API ID: ${taskId}. Received updatedTaskData:`, JSON.stringify(updatedTaskData, null, 2)); // Keep for debugging
+        const { backendTaskId, updatedTaskDataFromApi } = action.payload;
         
-        if (!updatedTaskData || !updatedTaskData.id) {
-            console.warn("extraReducers: updateTaskStatusInBackend.fulfilled (slice: kanban) - updatedTaskData is invalid or missing 'id'.");
-            toast.error("Failed to sync task update from server (data structure issue).", {autoClose: 3000});
+        if (!updatedTaskDataFromApi || !updatedTaskDataFromApi.id) {
+            console.warn("extraReducers: updateTaskStatusInBackend.fulfilled - updatedTaskDataFromApi is invalid or missing 'id'.");
+            // Toast is already handled in thunk if error
             return;
         }
         
         let taskFoundAndUpdatedInRedux = false;
         state.columns = state.columns.map(column => {
+            // Check if the task is in this column based on its apiData.id
             const taskIndex = column.tasks.findIndex(
-                task => task.apiData && String(task.apiData.id) === String(taskId) 
+                task => task.apiData && String(task.apiData.id) === String(backendTaskId) 
             );
 
             if (taskIndex !== -1) {
                 const oldTask = column.tasks[taskIndex];
                 let tasksCopy = [...column.tasks];
+
+                // Update the task with data from the API response
                 tasksCopy[taskIndex] = {
                     ...oldTask, 
-                    id: String(updatedTaskData.id) || oldTask.id, 
-                    name: updatedTaskData.task_title,
-                    des: updatedTaskData.task_description,
-                    startDate: updatedTaskData.created_at || oldTask.startDate, 
-                    endDate: updatedTaskData.due_date,
-                    progress: updatedTaskData.progress !== undefined ? updatedTaskData.progress : oldTask.progress,
-                    assignee: updatedTaskData.assignees !== undefined ? updatedTaskData.assignees : oldTask.assignee,
-                    category: updatedTaskData.categories !== undefined ? updatedTaskData.categories : oldTask.category, 
-                    apiData: { ...oldTask.apiData, ...updatedTaskData }, 
+                    id: String(updatedTaskDataFromApi.id) || oldTask.id, // Keep frontend ID consistent if different
+                    name: updatedTaskDataFromApi.task_title,
+                    des: updatedTaskDataFromApi.task_description,
+                    startDate: updatedTaskDataFromApi.created_at || oldTask.startDate, 
+                    endDate: updatedTaskDataFromApi.due_date,
+                    progress: updatedTaskDataFromApi.progress !== undefined ? updatedTaskDataFromApi.progress : oldTask.progress,
+                    assignee: updatedTaskDataFromApi.assignees !== undefined ? updatedTaskDataFromApi.assignees : oldTask.assignee,
+                    category: updatedTaskDataFromApi.categories !== undefined ? updatedTaskDataFromApi.categories : oldTask.category, 
+                    apiData: { ...oldTask.apiData, ...updatedTaskDataFromApi }, // Crucially merge with full API response
                 };
                 
-                if (tasksCopy[taskIndex].apiData.task_status !== updatedTaskData.task_status) {
-                    // console.warn(`extraReducers: Task ${taskId} (slice: kanban) status discrepancy. Optimistic: ${tasksCopy[taskIndex].apiData.task_status}, API: ${updatedTaskData.task_status}.`); // Keep for debugging
-                }
+                // Verify that the status in Redux (after optimistic update) matches the final server status.
+                // If not, the server's status is the source of truth.
+                // The `sort` reducer should have optimistically set `apiData.task_status`.
+                // If `updatedTaskDataFromApi.task_status` differs, the optimistic update was correct or server changed it again.
+                // The merge `...oldTask.apiData, ...updatedTaskDataFromApi` handles this.
+                
                 taskFoundAndUpdatedInRedux = true;
                 return { ...column, tasks: tasksCopy };
             }
@@ -490,11 +656,47 @@ export const appKanbanSlice = createSlice({
         });
 
         if (!taskFoundAndUpdatedInRedux) {
-            // console.warn(`extraReducers: Task ${taskId} (API ID) updated in backend, but NOT FOUND in Redux store (slice: kanban).`); // Keep for debugging
+            console.warn(`extraReducers: Task ${backendTaskId} (API ID) updated in backend, but NOT FOUND in Redux store for final sync.`);
         }
       })
       .addCase(updateTaskStatusInBackend.rejected, (state, action) => {
-        console.error("extraReducers: updateTaskStatusInBackend.rejected (slice: kanban) - Payload:", action.payload, "Error:", action.error, `For Task API ID: ${action.meta.arg.taskId}`);
+        console.error(
+          "extraReducers: updateTaskStatusInBackend.rejected - Payload:",
+          action.payload,
+          "Error:",
+          action.error,
+          `For Task API ID: ${action.meta.arg.taskId}`
+        );
+        // Toast is handled in the thunk.
+        // You might want to revert the optimistic update here if it's causing issues.
+        // This would involve finding the task and moving it back to its original column/status.
+        // For now, logging is sufficient.
+      })
+
+      // EXTRA REDUCERS FOR deleteTaskFromBackend
+      .addCase(deleteTaskFromBackend.pending, (state) => {
+        // Optionally set a loading state for the task being deleted
+      })
+      .addCase(deleteTaskFromBackend.fulfilled, (state, action) => {
+        const { frontendTaskId } = action.payload; // This is task.id from the component
+        let taskActuallyDeleted = false;
+        state.columns = state.columns.map((column) => {
+          const initialTaskCount = column.tasks.length;
+          const updatedTasks = column.tasks.filter(
+            (task) => String(task.id) !== String(frontendTaskId)
+          );
+          if (updatedTasks.length < initialTaskCount) {
+            taskActuallyDeleted = true;
+          }
+          return { ...column, tasks: updatedTasks };
+        });
+        if (!taskActuallyDeleted) {
+          console.warn(`deleteTaskFromBackend.fulfilled: Task with frontendId ${frontendTaskId} was not found in any column for removal.`);
+        }
+      })
+      .addCase(deleteTaskFromBackend.rejected, (state, action) => {
+        // Error already toasted in thunk.
+        console.error("deleteTaskFromBackend.rejected in extraReducers:", action.payload, `Frontend ID: ${action.meta.arg.frontendTaskId}`);
       });
   },
 });
@@ -506,7 +708,7 @@ export const {
   deleteColumnBoard,
   addTask,
   toggleTaskModal,
-  deleteTask,
+  // deleteTask, // Keep this commented out or remove. Use deleteTaskFromBackend thunk.
   toggleEditModal,
   updateTask,
 } = appKanbanSlice.actions;
