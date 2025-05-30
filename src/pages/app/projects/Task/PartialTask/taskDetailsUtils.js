@@ -1,37 +1,70 @@
 // src/components/TaskDetails/taskDetailsUtils.js
-export const mapApiUserToLocal = (apiUser, type = "assignee") => {
-  if (!apiUser || typeof apiUser !== "object") {
+
+export const mapApiUserToLocal = (apiUser) => {
+  if (!apiUser || typeof apiUser !== 'object') {
+    console.warn("mapApiUserToLocal received invalid apiUser:", apiUser);
     return {
+      id: null,
       name: "Unknown",
       avatar: "U",
       color: "bg-gray-500",
       profilePic: null,
+      email: null, // Added email here for completeness
     };
   }
-  const name = apiUser.name || "Unknown";
-  const avatarChar = name.charAt(0).toUpperCase() || "U";
-  let color = "bg-gray-500";
-  if (name !== "Unknown") {
+
+  const id = apiUser.id || null;
+  const name = apiUser.name || "Unknown User";
+  const email = apiUser.email || null; // Capture email
+  
+  // Avatar: Multiple initials if name has spaces, otherwise first char.
+  const avatarChar = (name && name !== "Unknown User" && name.length > 0) 
+    ? name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
+    : "U";
+
+  let defaultColor = "bg-gray-500";
+  if (name !== "Unknown User" && name.length > 0) {
     const colors = [
-      "bg-red-500",
-      "bg-blue-500",
-      "bg-green-500",
-      "bg-yellow-500",
-      "bg-purple-500",
-      "bg-pink-500",
+      "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500", "bg-lime-500",
+      "bg-green-500", "bg-emerald-500", "bg-teal-500", "bg-cyan-500", "bg-sky-500",
+      "bg-blue-500", "bg-indigo-500", "bg-violet-500", "bg-purple-500", "bg-fuchsia-500",
+      "bg-pink-500", "bg-rose-500",
     ];
-    color = colors[name.length % colors.length];
+    const colorIndex = id ? ( (typeof id === 'string' ? id.charCodeAt(0) : id) % colors.length) : (name.length % colors.length);
+    defaultColor = colors[colorIndex];
   }
-  const profilePic = apiUser.profile_pic
-    ? `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${apiUser.profile_pic}`
-    : null;
+  const color = apiUser.color || defaultColor;
+
+  let profilePic = null;
+  if (apiUser.profile_picture_url) {
+    profilePic = apiUser.profile_picture_url;
+  } else if (apiUser.profile_pic) {
+    if (apiUser.profile_pic.startsWith('http://') || apiUser.profile_pic.startsWith('https://')) {
+      profilePic = apiUser.profile_pic;
+    } else {
+      const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+      if (backendBaseUrl) {
+        const cleanBaseUrl = backendBaseUrl.replace(/\/$/, '');
+        const cleanProfilePicPath = apiUser.profile_pic.replace(/^\//, '');
+        profilePic = `${cleanBaseUrl}/storage/${cleanProfilePicPath}`;
+      } else {
+        console.warn("VITE_BACKEND_BASE_URL is not set. Profile picture URL for relative paths might be incorrect.");
+        profilePic = `/storage/${apiUser.profile_pic.replace(/^\//, '')}`;
+      }
+    }
+  }
+
   return {
+    id,
     name,
     avatar: avatarChar,
-    color: apiUser.color || color,
+    color,
     profilePic,
+    email, // Return email
   };
 };
+
+// --- Other existing utility functions remain unchanged ---
 
 export const getStatusClass = (status) => {
   if (
@@ -94,7 +127,7 @@ export const statusUpdateOptions = [
 
 export const getCurrentStatusDisplayLabel = (statusApiValue) => {
   if (!statusApiValue) return "To-Do";
-  const option = statusUpdateOptions.find(opt => opt.apiValue === statusApiValue);
+  const option = statusUpdateOptions.find(opt => opt.apiValue.toLowerCase() === String(statusApiValue).toLowerCase());
   return option ? option.displayLabel : String(statusApiValue);
 };
 

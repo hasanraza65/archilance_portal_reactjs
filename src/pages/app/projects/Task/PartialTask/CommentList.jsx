@@ -311,7 +311,7 @@ const CommentList = ({
       setNewComment("");
     }
   };
-
+  console.log( "CLIENT: New comment payload:", editedCommentText)
   const handleSaveEdit = async (commentId) => {
     setIsProcessingEditOrDelete(true);
 

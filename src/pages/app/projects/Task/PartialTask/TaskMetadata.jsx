@@ -4,28 +4,34 @@ import {
   priorityUpdateOptions,
   getCurrentPriorityDetails,
   mapApiUserToLocal,
-} from "./taskDetailsUtils";
+} from "./taskDetailsUtils"; // Adjusted path
 
 const TaskMetadata = ({
   description,
   priority,
   dueDate,
-  assignee,
+  currentAssignees, 
+  onOpenAssigneeModal, 
   isPriorityDropdownOpen,
   setIsPriorityDropdownOpen,
   priorityDropdownRef,
   handleUpdateTaskField,
 }) => {
   const currentPriorityDisplay = getCurrentPriorityDetails(priority);
-  const mappedAssignee = assignee ? mapApiUserToLocal(assignee) : null;
+  
+  const mappedAssignees = (currentAssignees || [])
+    .map(assigneeLink => assigneeLink.user ? mapApiUserToLocal(assigneeLink.user) : null)
+    .filter(Boolean);
+
+  const MAX_DISPLAY_ASSIGNEES = 3;
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h3 className="text-sm font-semibold text-slate-700 mb-2">Description</h3>
-        <p className="text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-4">
-          {description || "No description provided"}
-        </p>
+        <div className="text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-4 break-words min-h-[60px]">
+          {description || <span className="italic text-slate-400">No description provided</span>}
+        </div>
       </div>
       <div className="grid md:grid-cols-3 gap-6">
         <div className="bg-slate-50 rounded-xl p-4">
@@ -75,6 +81,7 @@ const TaskMetadata = ({
             )}
           </div>
         </div>
+        
         <div className="bg-slate-50 rounded-xl p-4">
           <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Due Date</h4>
           <div className="flex items-center space-x-2">
@@ -83,20 +90,66 @@ const TaskMetadata = ({
             {!dueDate && (<span className="text-slate-500 text-sm italic whitespace-nowrap">No due date</span>)}
           </div>
         </div>
+
         <div className="bg-slate-50 rounded-xl p-4">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Assignee</h4>
-          {mappedAssignee ? (
-            <div className="flex items-center space-x-3">
-              {mappedAssignee.profilePic ? (<img src={mappedAssignee.profilePic} alt={mappedAssignee.name} className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200" />
-              ) : (<span className={`w-8 h-8 ${mappedAssignee.color} text-white rounded-full flex items-center justify-center text-sm font-semibold ring-1 ring-slate-200`}>{mappedAssignee.avatar}</span>)}
-              <span className="text-slate-700 font-medium truncate">{mappedAssignee.name}</span>
-            </div>
-          ) : (
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div>
-              <span className="text-slate-500">Unassigned</span>
-            </div>
-          )}
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Assignees</h4>
+          <button
+            type="button"
+            onClick={onOpenAssigneeModal}
+            className="w-full flex items-center p-2 rounded-md hover:bg-slate-200/60 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors space-x-3 text-left"
+            aria-label="Manage assignees"
+          >
+            {mappedAssignees.length > 0 ? (
+              <>
+                <div className="flex -space-x-2 overflow-hidden flex-shrink-0">
+                  {mappedAssignees.slice(0, MAX_DISPLAY_ASSIGNEES).map((assignee) =>
+                    assignee.profilePic ? (
+                      <img
+                        key={assignee.id}
+                        src={assignee.profilePic}
+                        alt={assignee.name}
+                        title={assignee.name}
+                        className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-50 border-white"
+                      />
+                    ) : (
+                      <span
+                        key={assignee.id}
+                        title={assignee.name}
+                        className={`w-8 h-8 ${assignee.color} text-white rounded-full flex items-center justify-center text-sm font-semibold ring-2 ring-slate-50 border-white`}
+                      >
+                        {assignee.avatar}
+                      </span>
+                    )
+                  )}
+                </div>
+                {mappedAssignees.length > MAX_DISPLAY_ASSIGNEES && (
+                  <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 bg-slate-200 text-slate-600 text-xs font-semibold rounded-full ring-2 ring-slate-50 border-white">
+                    +{mappedAssignees.length - MAX_DISPLAY_ASSIGNEES}
+                  </span>
+                )}
+                <div className="flex flex-col min-w-0"> 
+                    <span className="text-slate-700 font-medium text-sm leading-tight truncate">
+                        {mappedAssignees.length === 1 
+                            ? mappedAssignees[0].name 
+                            : `${mappedAssignees.length} Assignees`}
+                    </span>
+                    <span className="text-xs text-slate-500 leading-tight">Click to manage</span>
+                </div>
+              </>
+            ) : (
+              <> 
+                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                 <div className="flex flex-col">
+                    <span className="text-slate-500 font-medium text-sm leading-tight">Unassigned</span>
+                    <span className="text-xs text-slate-400 leading-tight">Click to assign</span>
+                </div>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
