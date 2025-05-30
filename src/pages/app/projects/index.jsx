@@ -10,7 +10,7 @@ import GridLoading from "@/components/skeleton/Grid";
 import TableLoading from "@/components/skeleton/Table";
 import { toggleAddModal, setProjectsStore, setProjectsLoading } from "./store";
 import AddProject from "./AddProject"; // Ensure this component exists and handles adding projects
-import EditProject from "./EditProject"; // Ensure this component exists and handles editing
+import EditProject from "./EditProject"; 
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css"; // Import Toastify CSS
 
