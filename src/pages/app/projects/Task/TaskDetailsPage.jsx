@@ -398,26 +398,25 @@ const TaskDetailsPage = () => {
     }
   };
 
-  const handleEditComment = async (commentId, newText) => {
+  const handleEditComment = async (commentId, formData) => {
     setCommentError(null);
     const token = Cookies.get("token");
     if (!token) {
       toast.error("Authorization token not found.");
       return false;
     }
+
     try {
       const response = await fetch(
         `${
           import.meta.env.VITE_BACKEND_BASE_URL
         }/api/admin/task-comment/${commentId}`,
         {
-          method: "PUT",
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
           },
-          body: JSON.stringify({ comment_message: newText }),
+          body: formData,
         }
       );
       const responseData = await response.json().catch(() => ({}));

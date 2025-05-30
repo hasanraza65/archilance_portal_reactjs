@@ -311,7 +311,7 @@ const CommentList = ({
       setNewComment("");
     }
   };
-  console.log( "CLIENT: New comment payload:", editedCommentText)
+  // console.log( "CLIENT: New comment payload:", editedCommentText)
   const handleSaveEdit = async (commentId) => {
     setIsProcessingEditOrDelete(true);
 
@@ -330,43 +330,33 @@ const CommentList = ({
     }
 
     const formData = new FormData();
-    formData.append("_method", "PUT");
+    formData.append('_method', 'PUT');
 
     let messageToAppend = "";
     if (typeof editedCommentText === "string") {
       messageToAppend = editedCommentText;
     }
-    // This console.log is crucial for debugging the "must be a string" error
-    console.log(
-      "CLIENT: Appending to FormData for edit - comment_message:",
-      JSON.stringify(messageToAppend),
-      "(Type:",
-      typeof messageToAppend,
-      ")"
-    );
-    formData.append("comment_message", messageToAppend);
+    formData.append("comment_message", messageToAppend.trim());
 
     if (attachmentIdsToDeleteInEdit.length > 0) {
+      let attachmentsToDelete = []
       attachmentIdsToDeleteInEdit.forEach((id) =>
-        formData.append("delete_attachments[]", id.toString())
+        attachmentsToDelete.push(id)
+      );
+      attachmentsToDelete.forEach((id) =>
+        formData.append("delete_attachments[]", id)
+      );
+    }
+    if (newAttachmentsForEdit.length > 0) {
+      let newAttachments = [];
+      newAttachmentsForEdit.forEach((attachmentObj) => {
+        newAttachments.push(attachmentObj.file);
+      });
+      newAttachments.forEach((attachmentObj) =>
+        formData.append("attachments[]", attachmentObj)
       );
     }
 
-    if (newAttachmentsForEdit.length > 0) {
-      newAttachmentsForEdit.forEach((attachmentObj) => {
-        formData.append(
-          "new_attachments[]",
-          attachmentObj.file,
-          attachmentObj.file.name
-        );
-      });
-    }
-
-    // For debugging: Log all FormData entries
-    // console.log("CLIENT: FormData entries before sending:");
-    // for (let pair of formData.entries()) {
-    //    console.log(pair[0]+ ': '+ (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
-    // }
 
     const success = await onEditComment(commentId, formData);
 
@@ -562,11 +552,10 @@ const CommentList = ({
                                   <div
                                     key={`existing-${att.id}`}
                                     className={`relative p-1 border rounded-md group transition-all duration-150 ease-in-out
-                                                ${
-                                                  isMarkedForDelete
-                                                    ? "border-red-400 bg-red-50 opacity-60"
-                                                    : "border-slate-300 bg-white"
-                                                }`}
+                                                ${isMarkedForDelete
+                                        ? "border-red-400 bg-red-50 opacity-60"
+                                        : "border-slate-300 bg-white"
+                                      }`}
                                   >
                                     {isImage && displayUrl ? (
                                       <img
@@ -593,11 +582,10 @@ const CommentList = ({
                                         )
                                       }
                                       className={`absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs shadow-md
-                                                  ${
-                                                    isMarkedForDelete
-                                                      ? "bg-green-500 hover:bg-green-600"
-                                                      : "bg-red-500 hover:bg-red-600"
-                                                  } 
+                                                  ${isMarkedForDelete
+                                          ? "bg-green-500 hover:bg-green-600"
+                                          : "bg-red-500 hover:bg-red-600"
+                                        } 
                                                   opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity`}
                                       title={
                                         isMarkedForDelete
@@ -627,7 +615,7 @@ const CommentList = ({
                                   className="relative p-1 border border-blue-300 bg-blue-50 rounded-md group"
                                 >
                                   {attObj.file.type.startsWith("image/") &&
-                                  attObj.preview ? (
+                                    attObj.preview ? (
                                     <img
                                       src={attObj.preview}
                                       alt={attObj.file.name}
@@ -663,11 +651,10 @@ const CommentList = ({
 
                         <div className="mb-4">
                           <label
-                            className={`inline-flex items-center px-3 py-1.5 border border-dashed border-slate-400 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-colors text-sm text-slate-600 ${
-                              isProcessingEditOrDelete
+                            className={`inline-flex items-center px-3 py-1.5 border border-dashed border-slate-400 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-colors text-sm text-slate-600 ${isProcessingEditOrDelete
                                 ? "opacity-50 cursor-not-allowed"
                                 : ""
-                            }`}
+                              }`}
                           >
                             <svg
                               className="w-4 h-4 mr-2"
@@ -729,8 +716,8 @@ const CommentList = ({
                           {sender.name}
                         </p>
                         {comment.comment_message ||
-                        (comment.comment_attachments &&
-                          comment.comment_attachments.length > 0) ? (
+                          (comment.comment_attachments &&
+                            comment.comment_attachments.length > 0) ? (
                           <>
                             {comment.comment_message && (
                               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap mb-2">
@@ -740,11 +727,10 @@ const CommentList = ({
                             {comment.comment_attachments &&
                               comment.comment_attachments.length > 0 && (
                                 <div
-                                  className={`pt-2 ${
-                                    comment.comment_message
+                                  className={`pt-2 ${comment.comment_message
                                       ? "border-t border-slate-200"
                                       : ""
-                                  } flex flex-wrap gap-2`}
+                                    } flex flex-wrap gap-2`}
                                 >
                                   {comment.comment_attachments.map(
                                     (file, index) => {
@@ -782,11 +768,10 @@ const CommentList = ({
                                       return (
                                         <div
                                           key={`display-${file.id || index}`}
-                                          className={`${
-                                            isImage
+                                          className={`${isImage
                                               ? "inline-block align-top"
                                               : "block w-full p-2.5 bg-white rounded-lg border"
-                                          } border-slate-200 hover:shadow-sm transition-shadow`}
+                                            } border-slate-200 hover:shadow-sm transition-shadow`}
                                         >
                                           {isImage && attachmentUrl ? (
                                             <a
@@ -820,8 +805,8 @@ const CommentList = ({
                                                 <p className="text-xs text-slate-500">
                                                   {file.file_size
                                                     ? formatFileSize(
-                                                        file.file_size
-                                                      )
+                                                      file.file_size
+                                                    )
                                                     : "Unknown size"}
                                                 </p>
                                               </div>
@@ -932,7 +917,7 @@ const CommentList = ({
                   <div className="flex items-center space-x-2 min-w-0">
                     {" "}
                     {attachmentObj.file.type.startsWith("image/") &&
-                    attachmentObj.preview ? (
+                      attachmentObj.preview ? (
                       <img
                         src={attachmentObj.preview}
                         alt={attachmentObj.file.name}
@@ -985,11 +970,10 @@ const CommentList = ({
             <div className="flex items-center space-x-2">
               {" "}
               <label
-                className={`flex items-center justify-center px-3 py-2 border border-slate-300 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-colors text-sm ${
-                  !taskId || isSubmittingComment || isProcessingEditOrDelete
+                className={`flex items-center justify-center px-3 py-2 border border-slate-300 rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-colors text-sm ${!taskId || isSubmittingComment || isProcessingEditOrDelete
                     ? "opacity-50 cursor-not-allowed"
                     : ""
-                }`}
+                  }`}
               >
                 {" "}
                 <svg
