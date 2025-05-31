@@ -1,54 +1,100 @@
-// src/components/TaskDetails/AddSubTaskModal.jsx
+// src/components/TaskDetails/PartialTask/AddSubTaskModal.jsx
 import React, { useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
 
-const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAdded }) => {
-  useEffect(() => {
-    if (isOpen) {
-      console.log("AddSubTaskModal received props: isOpen=", isOpen, "parentTaskId=", parentTaskId, "projectId=", projectId);
-    }
-  }, [isOpen, parentTaskId, projectId]);
+import Modal from "@/components/ui/Modal";
+import Textinput from "@/components/ui/Textinput";
+import FormGroup from "@/components/ui/FormGroup";
+import Flatpickr from "react-flatpickr"; // For Due Date
+import Button from "@/components/ui/Button";
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [dueDate, setDueDate] = useState(''); // <-- New state for due date
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
+// Helper functions (getFileIcon, formatFileSize) - keep them as they are
+const getFileIcon = (fileType) => { /* ... your existing function ... */
+    if (fileType.startsWith('image/')) {
+      return ( /* ... image svg ... */ <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>);
+    } else if (fileType === 'application/pdf') {
+      return ( /* ... pdf svg ... */ <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>);
+    } else {
+      return ( /* ... default file svg ... */ <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" /></svg>);
+    }
+};
+const formatFileSize = (bytes) => { /* ... your existing function ... */
+    if (bytes === 0) return '0 Bytes'; const k = 1024; const sizes = ['Bytes', 'KB', 'MB', 'GB']; const i = Math.floor(Math.log(bytes) / Math.log(k)); return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAdded }) => {
+  const [quillDescription, setQuillDescription] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // --- React Hook Form Setup ---
+  const FormValidationSchema = yup.object({
+    task_title: yup.string().required("Title is required"),
+    task_description: yup.string().nullable(), // Quill content, can be empty
+    due_date: yup.date().nullable().typeError("Invalid date format"),
+    // Add other fields like priority if needed for sub-tasks
+  }).required();
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(FormValidationSchema),
+    mode: "onChange",
+    defaultValues: {
+      task_title: '',
+      task_description: '',
+      due_date: null,
+    }
+  });
+
+  // Sync Quill with React Hook Form
+  useEffect(() => {
+    setValue("task_description", quillDescription, { shouldValidate: true, shouldDirty: true });
+  }, [quillDescription, setValue]);
+
+  // Reset form and Quill when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setTitle('');
-      setDescription('');
-      setDueDate(''); // <-- Reset due date when modal opens
-      setAttachments([]);
+      reset(); // Reset RHF to default values
+      setQuillDescription(''); // Clear Quill editor
+      setAttachments([]);      // Clear attachments
     }
-  }, [isOpen]);
+  }, [isOpen, reset]);
+
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
-    const maxSize = 10 * 1024 * 1024; // 10MB limit
-    const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf', 'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain', 'text/csv'
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = [ /* ... your allowed types ... */
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain', 'text/csv'
     ];
-
     const validFiles = files.filter(file => {
       if (file.size > maxSize) {
-        toast.error(`File ${file.name} is too large. Maximum size is 10MB.`);
-        return false;
+        toast.error(`File ${file.name} is too large (max 10MB).`); return false;
       }
       if (!allowedTypes.includes(file.type)) {
-        toast.error(`File type ${file.type} is not allowed for ${file.name}.`);
-        return false;
+        toast.error(`File type for ${file.name} is not allowed.`); return false;
       }
       return true;
     });
-
     setAttachments(prev => [...prev, ...validFiles]);
     e.target.value = '';
   };
@@ -57,272 +103,195 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getFileIcon = (fileType) => {
-    if (fileType.startsWith('image/')) {
-      return (
-        <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-        </svg>
-      );
-    } else if (fileType === 'application/pdf') {
-      return (
-        <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-        </svg>
-      );
-    } else {
-      return (
-        <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-        </svg>
-      );
+  const onSubmitRHF = async (data) => { // Renamed to avoid conflict
+    // Validation for projectId and parentTaskId (if applicable)
+    if (projectId === undefined || projectId === null || String(projectId).trim() === '') {
+      toast.error("Project ID is missing or invalid."); return;
     }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      toast.error("Title is required.");
-      return;
-    }
-
-    if (projectId === undefined || projectId === null || projectId.toString().trim() === '') {
-      toast.error("Project ID is missing or invalid for task creation.");
-      console.error("AddSubTaskModal Error: Project ID prop is missing, null, or empty. Value:", projectId);
-      return;
-    }
-    const numericProjectId = parseInt(projectId.toString(), 10);
+    const numericProjectId = parseInt(String(projectId), 10);
     if (isNaN(numericProjectId)) {
-        toast.error("Invalid Project ID format. Could not parse to a number.");
-        console.error("AddSubTaskModal Error: projectId is NaN after parsing. Original prop value:", projectId);
-        return;
+      toast.error("Invalid Project ID format."); return;
     }
-
     let numericParentTaskId = null;
-    if (parentTaskId !== undefined && parentTaskId !== null && parentTaskId.toString().trim() !== '') {
-      numericParentTaskId = parseInt(parentTaskId.toString(), 10);
+    if (parentTaskId !== undefined && parentTaskId !== null && String(parentTaskId).trim() !== '') {
+      numericParentTaskId = parseInt(String(parentTaskId), 10);
       if (isNaN(numericParentTaskId)) {
-        toast.error("Invalid Parent Task ID format for sub-task. Could not parse to a number.");
-        console.error("AddSubTaskModal Error: parentTaskId ('"+ parentTaskId +"') is NaN after parsing.");
-        return;
+        toast.error("Invalid Parent Task ID format."); return;
       }
     }
 
     setIsSubmitting(true);
     const token = Cookies.get("token");
+    if (!token) {
+        toast.error("Authentication required.");
+        setIsSubmitting(false);
+        return;
+    }
 
     try {
-      const formData = new FormData();
-      formData.append('task_title', title);
-      formData.append('task_description', description);
-      formData.append('project_id', numericProjectId.toString());
+      const formDataPayload = new FormData();
+      formDataPayload.append('task_title', data.task_title);
+      formDataPayload.append('task_description', data.task_description); // From RHF (synced with Quill)
+      formDataPayload.append('project_id', numericProjectId.toString());
 
       if (numericParentTaskId !== null) {
-        formData.append('parent_task_id', numericParentTaskId.toString());
+        formDataPayload.append('parent_task_id', numericParentTaskId.toString());
       }
-
-      if (dueDate) { // <-- Append due_date if it's set
-        formData.append('due_date', dueDate);
+      if (data.due_date) {
+        formDataPayload.append('due_date', new Date(data.due_date).toISOString().split('T')[0]);
       }
+      // Append other fields like priority if you add them to the form
 
       attachments.forEach((file, index) => {
-        formData.append(`attachments[${index}]`, file);
+        formDataPayload.append(`attachments[${index}]`, file);
       });
 
       const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-task`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        body: formData,
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        body: formDataPayload,
       });
 
+      const responseData = await response.json().catch(() => ({})); // Graceful JSON parsing
+
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({ message: `Server error: ${response.status} ${response.statusText}` }));
-        console.error("Backend error response data:", errData);
-        let detailedMessage = errData.message || `Failed to create task (status ${response.status}).`;
-        if (errData.errors) {
-          const firstErrorKey = Object.keys(errData.errors)[0];
-          if (firstErrorKey && errData.errors[firstErrorKey] && errData.errors[firstErrorKey].length > 0) {
-            detailedMessage = errData.errors[firstErrorKey][0];
+        let detailedMessage = responseData.message || `Failed to create task (status ${response.status}).`;
+        if (responseData.errors) {
+          const firstErrorKey = Object.keys(responseData.errors)[0];
+          if (firstErrorKey && responseData.errors[firstErrorKey]?.length > 0) {
+            detailedMessage = responseData.errors[firstErrorKey][0];
           }
         }
         throw new Error(detailedMessage);
       }
 
-      const responseData = await response.json().catch(() => ({ message: "Task added, but response format was unexpected."}));
-      toast.success(responseData.message || (numericParentTaskId ? "Sub-task added successfully!" : "Task added successfully!"));
+      toast.success(responseData.message || (numericParentTaskId ? "Sub-task added!" : "Task added!"));
       if(onSubTaskAdded) onSubTaskAdded();
-      onClose();
+      onClose(); // This will trigger the useEffect to reset the form
 
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "An unexpected error occurred.");
       console.error("Error during task submission:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+
+  // ReactQuill modules and formats
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, false] }], // Simplified header options
+      ['bold', 'italic', 'underline'],
+      [{'list': 'ordered'}, {'list': 'bullet'}],
+      ['link', 'clean'] // Clean formatting button
+    ],
+  };
+  const quillFormats = ['header', 'bold', 'italic', 'underline', 'list', 'bullet', 'link'];
+
 
   return (
-    <div className="fixed inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-slate-800">
-            {parentTaskId ? 'Add New Sub-Task' : 'Add New Task'}
-          </h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-700">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal
+      title={parentTaskId ? 'Add New Sub-Task' : 'Add New Task'}
+      activeModal={isOpen}
+      onClose={onClose}
+      unmountOnClose={true} // Resets RHF state and Quill on close
+    >
+      <form onSubmit={handleSubmit(onSubmitRHF)} className="space-y-4">
+        <Textinput
+          name="task_title"
+          label="Title"
+          type="text"
+          register={register}
+          error={errors.task_title}
+          placeholder="Enter task title"
+          className="h-[48px]" // Consistent height
+          disabled={isSubmitting}
+        />
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="task-title" className="block text-sm font-medium text-slate-700 mb-1">
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="task-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={isSubmitting}
-            />
-          </div>
+        <FormGroup label="Description (Optional)" error={errors.task_description}>
+          <input type="hidden" {...register("task_description")} />
+          <ReactQuill
+            theme="snow"
+            value={quillDescription}
+            onChange={setQuillDescription}
+            modules={quillModules}
+            formats={quillFormats}
+            placeholder="Enter task description..."
+            className={`h-32 ${errors.task_description ? 'ql-error border-danger-500' : 'dark:border-slate-600'}`}
+            readOnly={isSubmitting}
+          />
+          {/* RHF error message will be displayed by FormGroup if configured, or add manually */}
+        </FormGroup>
 
-          <div className="mb-6">
-            <label htmlFor="task-description" className="block text-sm font-medium text-slate-700 mb-1">
-              Description (Optional)
-            </label>
-            <textarea
-              id="task-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter task description..."
-              className="w-full p-3 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500 resize-vertical min-h-[120px]"
-              disabled={isSubmitting}
-              rows={6}
-            />
-          </div>
-
-          {/* Due Date Field */}
-          <div className="mb-6">
-            <label htmlFor="task-due-date" className="block text-sm font-medium text-slate-700 mb-1">
-              Due Date (Optional)
-            </label>
-            <input
-              type="date"
-              id="task-due-date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full p-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              disabled={isSubmitting}
-              // To prevent selecting past dates, you can add a min attribute:
-              // min={new Date().toISOString().split("T")[0]}
-            />
-          </div>
-
-          {/* File Attachment Section */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Attachments (Optional)
-            </label>
-            <div className="mb-4">
-              <label className="flex items-center justify-center w-full px-4 py-6 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
-                <div className="flex flex-col items-center">
-                  <svg className="w-8 h-8 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span className="text-sm text-slate-600">Click to upload files</span>
-                  <span className="text-xs text-slate-400 mt-1">Max 10MB per file</span>
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
+        <FormGroup label="Due Date (Optional)" error={errors.due_date}>
+            <Controller
+              name="due_date"
+              control={control}
+              render={({ field }) => (
+                <Flatpickr
+                  {...field}
+                  className="form-control h-[48px] dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300"
+                  placeholder="YYYY-MM-DD"
+                  options={{ altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d" }}
+                  value={field.value}
+                  onChange={(date) => field.onChange(date[0] || null)}
                   disabled={isSubmitting}
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
                 />
+              )}
+            />
+        </FormGroup>
+
+        {/* File Attachment Section - Themed */}
+        <FormGroup label="Attachments (Optional)">
+            <div className="mb-2">
+              <label className="flex items-center justify-center w-full px-3 py-4 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-md cursor-pointer bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
+                <div className="text-center">
+                    <svg className="w-6 h-6 text-slate-400 dark:text-slate-500 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Click to upload</span>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Max 10MB per file</p>
+                </div>
+                <input type="file" multiple onChange={handleFileSelect} className="hidden" disabled={isSubmitting} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"/>
               </label>
             </div>
 
             {attachments.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-slate-700">Selected Files:</p>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Selected files:</p>
                 {attachments.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="flex items-center space-x-3">
+                  <div key={index} className="flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-700/50 rounded text-xs">
+                    <div className="flex items-center space-x-2 truncate">
                       {getFileIcon(file.type)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {formatFileSize(file.size)}
-                        </p>
-                      </div>
+                      <span className="text-slate-700 dark:text-slate-300 truncate" title={file.name}>{file.name}</span>
+                      <span className="text-slate-500 dark:text-slate-400">({formatFileSize(file.size)})</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(index)}
-                      className="text-red-500 hover:text-red-700 p-1"
-                      disabled={isSubmitting}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                    <button type="button" onClick={() => removeAttachment(index)} className="text-danger-500 hover:text-danger-700 p-0.5" disabled={isSubmitting}>
+                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+        </FormGroup>
 
-          <div className="flex justify-end space-x-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center"
-              disabled={isSubmitting || !title.trim()}
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Adding...
-                </>
-              ) : (
-                parentTaskId ? 'Add Sub-Task' : 'Add Task'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="ltr:text-right rtl:text-left pt-2 space-x-2">
+            <Button
+                text="Cancel"
+                type="button"
+                className="btn-outline-secondary" // Assuming this class exists for styling
+                onClick={onClose}
+                disabled={isSubmitting}
+            />
+            <Button
+                text={isSubmitting ? "Adding..." : (parentTaskId ? 'Add Sub-Task' : 'Add Task')}
+                type="submit"
+                className="btn-dark"
+                isLoading={isSubmitting}
+                disabled={isSubmitting || !control._formValues.task_title?.trim()} // Disable if title is empty
+            />
+        </div>
+      </form>
+    </Modal>
   );
 };
 

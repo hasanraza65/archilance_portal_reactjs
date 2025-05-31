@@ -1,432 +1,277 @@
 import React, { useState, useEffect } from "react";
-import Select from "react-select";
+import Select, { components } from "react-select";
 import Modal from "@/components/ui/Modal";
 import { useSelector, useDispatch } from "react-redux";
-import { toggleAddModal } from "./store";
-import Textinput from "@/components/ui/Textinput";
-// Textarea will be replaced by ReactQuill
+import { addProjectAPI, toggleAddModal } from "./store";
+// Removed Textarea, will use ReactQuill
 import Flatpickr from "react-flatpickr";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import { toast } from "react-toastify";
 import FormGroup from "@/components/ui/FormGroup";
+import Textinput from "@/components/ui/Textinput";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { toast } from "react-toastify";
-import ReactQuill from 'react-quill'; // Import ReactQuill
-import 'react-quill/dist/quill.snow.css'; // Import Quill snow theme styles
-// Assuming navigate and location might be needed from your previous context
-// If not, you can remove them.
-import { useNavigate, useLocation } from "react-router-dom";
+
+// Import ReactQuill and its styles
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css'; // Snow theme is common
+
+// Styles and OptionComponent can be reused or adapted from EditProject.jsx
+const selectStyles = {
+    control: (base) => ({...base, borderColor: '#e2e8f0', borderRadius: '0.375rem', minHeight: '38px', '&:hover': {borderColor: '#cbd5e1',}, boxShadow: 'none', }),
+    valueContainer: (base) => ({...base, padding: '2px 8px',}), input: (base) => ({...base, margin: '0px', padding: '0px',}),
+    indicatorSeparator: () => ({display: 'none',}), indicatorsContainer: (base) => ({...base, height: '38px',}),
+    option: (provided, state) => ({...provided, fontSize: "14px", backgroundColor: state.isSelected ? '#0f172a' : state.isFocused ? '#f1f5f9' : null, color: state.isSelected ? 'white' : '#0f172a', ':active': {backgroundColor: '#e2e8f0',},}),
+};
+const OptionComponent = ({ data, ...props }) => {
+    return (<components.Option {...props}><span className="flex items-center space-x-4">{data.image && (<div className="flex-none"><div className="h-7 w-7 rounded-full"><img src={data.image} alt="" className="w-full h-full rounded-full"/></div></div>)}<span className="flex-1">{data.label}</span></span></components.Option>);
+};
 
 
-const AddProject = () => {
-  const { openProjectModal } = useSelector((state) => state.project);
+const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
+  const { openProjectModal, isAdding } = useSelector((state) => state.project);
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // Included as it was in your useEffect
-  const location = useLocation(); // Included as it was in your useEffect
 
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(false);
+  const [localIsLoading, setLocalIsLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
-  const [quillDescription, setQuillDescription] = useState(""); // State for ReactQuill content
+  const [quillDescription, setQuillDescription] = useState(""); // State for ReactQuill
 
-  // Form validation schema
-  const FormValidationSchema = yup
-    .object({
+  const FormValidationSchema = yup.object({
       project_name: yup.string().required("Project name is required"),
-      project_description: yup.string(), // Yup will validate the string from Quill
+      project_description: yup.string()
+        .required("Description is required.")
+        .test(
+          'has-content', // Custom test name
+          'Description cannot be empty or just spaces.', // Error message
+          (value) => {
+            // Check if value exists and, after stripping HTML tags, if it has non-whitespace characters
+            if (!value) return false;
+            const textContent = value.replace(/<[^>]*>/g, '').trim(); // Strip HTML and trim
+            return textContent.length > 0;
+          }
+        ),
       start_date: yup.date().required("Start date is required").typeError("Invalid date format"),
-      due_date: yup.date().required("End date is required").typeError("Invalid date format")
-        .min(yup.ref('start_date'), "End date cannot be before start date"),
-      customer_id: yup.object().shape({ // Assuming react-select returns an object
-        value: yup.string().required(),
-        label: yup.string().required(),
-      }).required("Customer is required").nullable(),
-    })
-    .required();
+      due_date: yup.date().required("Due date is required").typeError("Invalid date format")
+                 .min(yup.ref('start_date'), "Due date can't be before start date"),
+      customer_id: yup.object().shape({
+          label: yup.string().required(),
+          value: yup.string().required(),
+        }).nullable().required("Customer is required"),
+    }).required();
 
   const {
     register,
     control,
     reset,
-    setValue, // <-- Destructure setValue from useForm
-    formState: { errors },
     handleSubmit,
-    watch, // To watch start_date for due_date minDate
+    setValue, // <-- Need setValue from useForm
+    formState: { errors },
   } = useForm({
     resolver: yupResolver(FormValidationSchema),
-    mode: "all", // Or "onChange"
-    defaultValues: { // Set default values for controlled components
-        project_name: "",
-        project_description: "", // Will be updated by Quill
-        start_date: new Date(),
-        due_date: new Date(),
-        customer_id: null,
+    mode: "all", // Or "onChange" for better performance on complex forms
+    defaultValues: {
+      project_name: "",
+      project_description: "", // Will be handled by ReactQuill state
+      start_date: new Date(),
+      due_date: null, // Or new Date() if you prefer a default
+      customer_id: null,
     }
   });
 
-  // Effect to update react-hook-form when Quill's description changes
+  // Effect to sync ReactQuill state with React Hook Form for validation
   useEffect(() => {
-    // Set the value for 'project_description' in react-hook-form
-    // This allows yup to validate it.
-    setValue("project_description", quillDescription, { 
-      shouldValidate: true, // Validate after setting value
-      shouldDirty: true    // Mark field as dirty
+    setValue("project_description", quillDescription, {
+      shouldValidate: true, // Validate after setting the value
+      shouldDirty: true,    // Mark the field as dirty
     });
   }, [quillDescription, setValue]);
 
-  // Effect to reset Quill editor when modal is closed or form is reset
-  // This hook should run when `openProjectModal` changes, to clear on close.
+
   useEffect(() => {
-    if (!openProjectModal) {
-      // Reset Quill editor's content
-      setQuillDescription("");
-      // Reset other form fields (react-hook-form's reset handles its own fields)
-      // The main `reset()` call is in `onClose` and `onSubmit` success.
-    }
+    const fetchCustomers = async () => {
+        setLoadingCustomers(true); try { const token = Cookies.get("token"); if (!token) { toast.error("Auth required."); setLoadingCustomers(false); return; }
+        // Ensure your environment variable and endpoint are correct
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_BASE_URL || 'https://demo.Aentora.com/backend/public'}/api/admin/customer-user`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+        setCustomers(res.data.map((c) => ({ value: c.id.toString(), label: c.name, /* image: c.profile_image_url if available */ }))); } catch (e) { console.error("Error fetching customers:", e); toast.error(e.response?.data?.message || "Failed to load customers"); } finally { setLoadingCustomers(false); }
+    };
+    if (openProjectModal) { fetchCustomers(); }
   }, [openProjectModal]);
 
-
-  const selectStyles = {
-    control: (base, state) => ({ // Added state for dynamic styling
-      ...base,
-      borderColor: state.isFocused ? '#4f46e5' : (errors.customer_id ? '#f87171' : '#e2e8f0'),
-      borderRadius: '0.375rem',
-      padding: '0.2rem',
-      boxShadow: state.isFocused ? '0 0 0 1px #4f46e5' : 'none',
-      '&:hover': {
-        borderColor: state.isFocused ? '#4f46e5' : (errors.customer_id ? '#f87171' : '#cbd5e1'),
-      }
-    }),
-    option: (provided, state) => ({
-      ...provided,
-      fontSize: "14px",
-      backgroundColor: state.isSelected ? '#4f46e5' : state.isFocused ? '#e0e7ff' : null,
-      color: state.isSelected ? 'white' : 'black',
-    }),
-    menu: base => ({
-        ...base,
-        zIndex: 9999
-    })
-  };
-
- useEffect(() => {
-  const fetchCustomers = async () => {
-    setLoadingCustomers(true);
-    try {
-      const token = Cookies.get("token");
-      
-      if (!token) {
-        toast.error("Authentication required. Please log in.");
-        // navigate('/login', { state: { from: location } });
-        setLoadingCustomers(false);
-        return;
-      }
-
-      const response = await axios.get(
-        `${import.meta.env.VITE_BACKEND_BASE_URL || 'https://demo.Aentora.com/backend/public'}/api/admin/customer-user`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          }
+  const onSubmit = async (data) => {
+    console.log("DEBUG: AddProject onSubmit: Form data (from RHF):", data);
+    setLocalIsLoading(true);
+    const payload = {
+      project_name: data.project_name,
+      project_description: data.project_description, // This now comes from RHF, updated by ReactQuill
+      start_date: new Date(data.start_date).toISOString().split("T")[0],
+      due_date: new Date(data.due_date).toISOString().split("T")[0],
+      customer_id: data.customer_id.value,
+    };
+    console.log("DEBUG: AddProject onSubmit: Dispatching addProjectAPI with payload:", payload);
+    dispatch(addProjectAPI(payload))
+      .unwrap()
+      .then(() => {
+        console.log("DEBUG: AddProject addProjectAPI fulfilled in component.");
+        reset(); // Reset RHF form
+        setQuillDescription(""); // Reset Quill editor's content
+        // Modal close is handled by the thunk/reducer (toggleAddModal(false) should be dispatched there)
+        if (onProjectAdded) { // Call the callback from parent
+          onProjectAdded();
         }
-      );
-      if (response.data && Array.isArray(response.data)) {
-        const customerOptions = response.data.map(customer => ({
-          value: customer.id.toString(),
-          label: customer.name
-        }));
-        setCustomers(customerOptions);
-      } else {
-        toast.error("Invalid customer data format from server.");
-        setCustomers([]);
-      }
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      const errorMessage = error.response?.data?.message || "Failed to load customers";
-      toast.error(errorMessage);
-      
-      if (error.response?.status === 401) {
-        // navigate('/login', { state: { from: location } });
-        toast.info("Session expired or unauthorized. Please log in again.");
-      }
-    } finally {
-      setLoadingCustomers(false);
-    }
+      })
+      .catch((error) => {
+        console.error("DEBUG: AddProject addProjectAPI rejected in component:", error);
+        // Toast for error is likely handled in the thunk or caught globally
+      })
+      .finally(() => {
+        setLocalIsLoading(false);
+      });
   };
 
-  // Fetch customers only when the modal is open to avoid unnecessary calls
-  if (openProjectModal) {
-    fetchCustomers();
-  }
-// }, [openProjectModal, navigate, location]); // Removed navigate, location if not strictly needed for this specific fetch logic
-}, [openProjectModal]); // Simpler dependency array if navigate/location are for other side effects
-
-  const onSubmitHandler = async (data) => { // Renamed to avoid conflict
-    setIsLoading(true);
-
-    // Ensure Quill description (HTML) is what's submitted.
-    // data.project_description should already be updated by the useEffect hook.
-    // Add a check for empty Quill content (ignoring HTML tags)
-    const plainTextDescription = quillDescription.replace(/<(.|\n)*?>/g, '').trim();
-    if (!plainTextDescription) {
-        toast.error("Description cannot be empty.");
-        // Manually trigger error display for react-hook-form if needed,
-        // though yup schema should catch it if setValue correctly makes it an empty string.
-        // For example: setError("project_description", { type: "manual", message: "Description cannot be empty." });
-        setIsLoading(false);
-        return;
-    }
-    
-    try {
-      const token = Cookies.get("token");
-      
-      if (!token) {
-        toast.error("You are not logged in. Please log in to create projects.");
-        dispatch(toggleAddModal(false));
-        setIsLoading(false);
-        return;
-      }
-      
-      const formattedData = {
-        project_name: data.project_name,
-        project_description: data.project_description, // This comes from RHF, updated by Quill
-        start_date: new Date(data.start_date).toISOString().split("T")[0],
-        due_date: new Date(data.due_date).toISOString().split("T")[0],
-        customer_id: data.customer_id.value, // react-select value
-      };
-
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_BASE_URL || 'https://demo.Aentora.com/backend/public'}/api/admin/project`,
-        formattedData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          }
-        }
-      );
-
-      if (response.status === 201 || response.status === 200) {
-        toast.success(response.data.message || "Project created successfully");
-        dispatch(toggleAddModal(false));
-        reset(); // Resets react-hook-form fields to defaultValues
-        setQuillDescription(""); // Explicitly reset Quill state
-      } else {
-        toast.error(response.data.message || "Failed to create project: Unexpected server response");
-      }
-    } catch (error) {
-      console.error("Error creating project:", error);
-      const errorMessage = error.response?.data?.message || 
-                        (error.message || "Failed to create project. Please try again.");
-      toast.error(errorMessage);
-      if (error.response?.status === 401) {
-         toast.info("Session expired or unauthorized. Please log in again.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  const handleCloseModal = () => {
+    console.log("DEBUG: AddProject handleCloseModal: Dispatching toggleAddModal(false)");
+    dispatch(toggleAddModal(false));
+    reset(); // Reset RHF form
+    setQuillDescription(""); // Reset Quill editor's content
   };
 
-  // Quill editor configuration
+  // Reset form and Quill when modal closes or opens
+  useEffect(() => {
+    if (openProjectModal) {
+        reset({ // Reset to default values when modal opens
+            project_name: "",
+            project_description: "",
+            start_date: new Date(),
+            due_date: null,
+            customer_id: null,
+        });
+        setQuillDescription(""); // Clear Quill editor
+    }
+  }, [openProjectModal, reset]);
+
+  // ReactQuill modules and formats
   const quillModules = {
     toolbar: [
-      [{ 'header': [1, 2, false] }], // Simplified header options
-      ['bold', 'italic', 'underline'],
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
       [{'list': 'ordered'}, {'list': 'bullet'}],
-      ['link', 'clean'] // Clean formatting button
+      ['link', /*'image'*/], // Image upload needs server-side handling
+      ['clean']
     ],
   };
 
-  const quillFormats = [ // Must match toolbar options
-    'header', 'bold', 'italic', 'underline',
-    'list', 'bullet', 'link'
+  const quillFormats = [
+    'header', 'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'link', /*'image'*/
   ];
-  
-  const watchedStartDate = watch("start_date"); // For minDate in due_date Flatpickr
 
   return (
-    <div>
-      <Modal
-        title="Create Project"
-        labelclassName="btn-outline-dark" // May not be used if modal is controlled by Redux
-        activeModal={openProjectModal}
-        onClose={() => {
-            dispatch(toggleAddModal(false));
-            reset(); // Reset RHF form
-            setQuillDescription(""); // Reset Quill editor state
-        }}
-        // className="max-w-2xl" // Optional: Adjust modal width for more space
-      >
-        <form onSubmit={handleSubmit(onSubmitHandler)} className="space-y-4">
-          <Textinput
-            name="project_name"
-            label="Project Name"
-            placeholder="Enter project name"
-            register={register}
-            error={errors.project_name}
-            disabled={isLoading}
-          />
-          
-          <div className="grid lg:grid-cols-2 gap-4 grid-cols-1">
-            <FormGroup
-              label="Start Date"
-              id="start-date-picker"
-              error={errors.start_date}
-            >
-              <Controller
-                name="start_date"
-                control={control}
-                render={({ field }) => (
-                  <Flatpickr
-                    // {...field} // Spread field for value and onChange
-                    className={`form-control py-2 ${errors.start_date ? 'border-danger-500 focus:border-danger-500' : ''}`}
-                    id="start-date-picker"
-                    placeholder="YYYY-MM-DD"
-                    value={field.value} // Controlled by RHF
-                    onChange={(date) => {
-                      setStartDate(date[0]); // Keep your local state if other logic depends on it
-                      field.onChange(date[0]); // Update RHF field
-                    }}
-                    options={{
-                      altInput: true,
-                      altFormat: "F j, Y",
-                      dateFormat: "Y-m-d",
-                    }}
-                    disabled={isLoading}
-                  />
-                )}
-              />
-               {errors.start_date && (
-                <div className="mt-2 text-danger-500 block text-sm">
-                    {errors.start_date?.message}
-                </div>
-                )}
-            </FormGroup>
-            
-            <FormGroup
-              label="Due Date"
-              id="due-date-picker"
-              error={errors.due_date}
-            >
-              <Controller
-                name="due_date"
-                control={control}
-                render={({ field }) => (
-                  <Flatpickr
-                    // {...field}
-                    className={`form-control py-2 ${errors.due_date ? 'border-danger-500 focus:border-danger-500' : ''}`}
-                    id="due-date-picker"
-                    placeholder="YYYY-MM-DD"
-                    value={field.value} // Controlled by RHF
-                    onChange={(date) => {
-                      setEndDate(date[0]); // Keep your local state
-                      field.onChange(date[0]); // Update RHF
-                    }}
-                    options={{
-                      altInput: true,
-                      altFormat: "F j, Y",
-                      dateFormat: "Y-m-d",
-                      minDate: watchedStartDate || "today" // Use watched start_date
-                    }}
-                    disabled={isLoading}
-                  />
-                )}
-              />
-              {errors.due_date && (
-                <div className="mt-2 text-danger-500 block text-sm">
-                    {errors.due_date?.message}
-                </div>
-                )}
-            </FormGroup>
-          </div>
-          
-          <div className={errors.customer_id ? "has-error" : ""}>
-            <label className="form-label" htmlFor="customer_select">
-              Customer <span className="text-danger-500">*</span>
-            </label>
+    <Modal title="Add New Project" activeModal={openProjectModal} onClose={handleCloseModal}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Textinput name="project_name" label="Project Name" register={register} error={errors.project_name} className="h-[48px]" />
+        <div className="grid lg:grid-cols-2 gap-4 grid-cols-1">
+          <FormGroup label="Start Date" id="add-start-date-picker" error={errors.start_date}>
             <Controller
-              name="customer_id"
+              name="start_date"
               control={control}
               render={({ field }) => (
-                <Select
+                <Flatpickr
                   {...field}
-                  options={customers}
-                  isLoading={loadingCustomers}
-                  styles={selectStyles}
-                  className="react-select"
-                  classNamePrefix="select"
-                  id="customer_select"
-                  placeholder={loadingCustomers ? "Loading customers..." : "Select customer"}
-                  isDisabled={loadingCustomers || isLoading}
-                  isClearable
+                  value={field.value || new Date()} // Ensure a value is always passed
+                  className="form-control h-[48px]"
+                  onChange={(date) => field.onChange(date[0])}
+                  options={{altInput:true, altFormat:"F j, Y", dateFormat:"Y-m-d"}}
                 />
               )}
             />
-            {errors.customer_id && (
-              <div className="mt-2 text-danger-500 block text-sm">
-                {errors.customer_id?.message || errors.customer_id?.value?.message}
-              </div>
-            )}
-          </div>
-
-          {/* Project Description with ReactQuill */}
-          <FormGroup 
-            label="Description" 
-            // Error display is now below ReactQuill
-          >
-            {/* Hidden input for RHF to 'see' the field, though setValue is the primary mechanism */}
-            <input type="hidden" {...register("project_description")} />
-            <ReactQuill
-              theme="snow"
-              value={quillDescription}
-              onChange={setQuillDescription} // Updates local state, which updates RHF via useEffect
-              modules={quillModules}
-              formats={quillFormats}
-              placeholder="Enter project description..."
-              // Add a class for error styling on the Quill editor itself
-              className={`h-40 mb-12 ${errors.project_description ? 'ql-error' : ''}`} 
-              readOnly={isLoading}
-            />
-            {errors.project_description && (
-              <div className="mt-2 text-danger-500 block text-sm clear-both pt-1"> {/* clear-both for toolbar */}
-                {errors.project_description?.message}
-              </div>
-            )}
+            {errors.start_date && <div className="mt-1 text-danger-500 text-xs">{errors.start_date.message}</div>}
           </FormGroup>
-           {/*
+          <FormGroup label="Due Date" id="add-due-date-picker" error={errors.due_date}>
+            <Controller
+              name="due_date"
+              control={control}
+              render={({ field }) => (
+                <Flatpickr
+                  {...field}
+                  value={field.value} // Can be null initially
+                  className="form-control h-[48px]"
+                  onChange={(date) => field.onChange(date[0])}
+                  options={{
+                    altInput:true,
+                    altFormat:"F j, Y",
+                    dateFormat:"Y-m-d",
+                    minDate: control._formValues.start_date ? new Date(new Date(control._formValues.start_date).getTime() + 24 * 60 * 60 * 1000).toISOString().split("T")[0] : new Date().fp_incr(1) // Ensure minDate is next day
+                  }}
+                />
+              )}
+            />
+             {errors.due_date && <div className="mt-1 text-danger-500 text-xs">{errors.due_date.message}</div>}
+          </FormGroup>
+        </div>
+        <FormGroup label="Customer" error={errors.customer_id} id="add_customer_id_fg">
+          <Controller
+            name="customer_id"
+            control={control}
+            render={({ field }) => (
+              <Select
+                {...field}
+                options={customers}
+                isLoading={loadingCustomers}
+                styles={selectStyles}
+                className="react-select"
+                classNamePrefix="select"
+                id="add_customer_select"
+                placeholder={loadingCustomers ? "Loading..." : "Select customer"}
+                isDisabled={loadingCustomers || isAdding || localIsLoading}
+                components={{ Option: OptionComponent }}
+                isClearable
+              />
+            )}
+          />
+          {errors.customer_id && <div className="mt-1 text-danger-500 text-xs">{errors.customer_id.message || errors.customer_id.value?.message}</div>}
+        </FormGroup>
+
+        {/* ReactQuill for Description */}
+        <FormGroup label="Description" id="add_project_description_quill_fg">
+          {/* Hidden input for RHF to register the field, setValue updates it */}
+          <input type="hidden" {...register("project_description")} />
+          <ReactQuill
+            theme="snow"
+            value={quillDescription}
+            onChange={setQuillDescription} // Updates local state, which updates RHF via useEffect
+            modules={quillModules}
+            formats={quillFormats}
+            placeholder="Enter project description..."
+            // Add a class for error styling on the Quill editor itself if needed
+            // And adjust height, mb-12 might be too much if error message is below
+            className={`h-32 ${errors.project_description ? 'ql-error border-danger-500' : ''}`}
+            readOnly={isAdding || localIsLoading}
+          />
+          {errors.project_description && (
+            <div className="mt-1 text-danger-500 text-xs clear-both pt-1"> {/* Adjusted margin and clear for toolbar */}
+              {errors.project_description.message}
+            </div>
+          )}
+        </FormGroup>
+        {/*
             You might need to add CSS for .ql-error to style the border of Quill:
             .ql-error .ql-toolbar, .ql-error .ql-container {
-                border-color: #f87171 !important; // Your error color
+                border-color: #your_error_color !important;
             }
-           */}
+            Or use Tailwind's ring utilities on the parent if you prefer.
+        */}
 
-          <div className="ltr:text-right rtl:text-left pt-4">
-            <button 
-              type="submit" 
-              className="btn btn-dark text-center" 
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                 <>
-                  <svg className="animate-spin inline-block -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating...
-                </>
-              ) : "Create Project"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-    </div>
+        <div className="ltr:text-right rtl:text-left pt-2">
+          <button type="submit" className="btn btn-dark text-center" disabled={localIsLoading || isAdding}>
+            {(localIsLoading || isAdding) ? "Adding..." : "Add Project"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
