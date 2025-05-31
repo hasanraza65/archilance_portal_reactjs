@@ -69,9 +69,15 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
     e.target.value = '';
   };
 
-  const removeAttachment = (index) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-    setAttachmentsToRemove(prev => [...prev, attachments[index]?.id]);
+  const removeAttachment = (attachment) => {
+    if(attachment.name) {
+      setNewAttachments(prev => prev.filter(file => file.name !== attachment.name));
+      setAttachments(prev => prev.filter(file => file.name !== attachment.name));
+    } else {
+      let index = attachments.findIndex(a => a.id === attachment.id);
+      setAttachments(prev => prev.filter((_, i) => i !== index));
+      setAttachmentsToRemove(prev => [...prev, attachments[index]?.id]);
+    }
   };
 
   const getFileIcon = (fileType) => {
@@ -281,7 +287,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeAttachment(index)}
+                        onClick={() => removeAttachment(file)}
                         className="text-red-500 hover:text-red-700 p-1"
                         disabled={isSubmitting}
                       >
