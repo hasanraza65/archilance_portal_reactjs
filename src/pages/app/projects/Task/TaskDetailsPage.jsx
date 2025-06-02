@@ -13,6 +13,7 @@ import LoadingState from "./PartialTask/LoadingState";
 import ErrorState from "./PartialTask/ErrorState";
 import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 import AssigneeModal from "./PartialTask/AssigneeModal";
+import TaskAttachments from "./PartialTask/TaskAttachments"; 
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
@@ -21,6 +22,7 @@ const TaskDetailsPage = () => {
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
   const [subTasks, setSubTasks] = useState([]);
   const [comments, setComments] = useState([]);
+  
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentError, setCommentError] = useState(null);
@@ -109,12 +111,13 @@ const TaskDetailsPage = () => {
       }
       const data = await response.json();
       if (data && data.id) {
-        setParentTaskDetails(data);
+        setParentTaskDetails(data); 
         setSubTasks(data.sub_tasks || []);
         const sortedComments = (data.comments || []).sort(
           (a, b) => new Date(a.created_at) - new Date(b.created_at)
         );
         setComments(sortedComments);
+      
         setTaskFound(true);
       } else {
         setError("Invalid task data received from API.");
@@ -203,13 +206,13 @@ const TaskDetailsPage = () => {
     setIsUpdatingField(true);
     setFieldUpdateError(null);
     const originalValue = parentTaskDetails[fieldName];
-    setParentTaskDetails((prevDetails) => ({
-      ...prevDetails,
-      [fieldName]: value,
-    }));
+    // Optimistically update UI
+    const updatedDetails = { ...parentTaskDetails, [fieldName]: value };
+    setParentTaskDetails(updatedDetails);
+
     try {
       const payload = {};
-      if (fieldName === "description") {
+      if (fieldName === "description") { 
         payload["task_description"] = value;
       } else {
         payload[fieldName] = value;
@@ -228,44 +231,48 @@ const TaskDetailsPage = () => {
           body: JSON.stringify(payload),
         }
       );
+      const responseData = await response.json().catch(() => ({})); 
       if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Failed to update task field." }));
+        
         setParentTaskDetails((prevDetails) => ({
           ...prevDetails,
-          [fieldName]: originalValue,
+          [fieldName]: originalValue, 
         }));
         const errorMessage =
-          errorData.message ||
+          responseData.message ||
           `Failed to update ${fieldName}. Status: ${response.status}`;
         setFieldUpdateError(errorMessage);
         toast.error(errorMessage);
         throw new Error(errorMessage);
       }
-      const updatedTaskFromServer = await response.json();
-      if (updatedTaskFromServer && updatedTaskFromServer.id) {
-        setParentTaskDetails(updatedTaskFromServer);
-        if (updatedTaskFromServer.sub_tasks)
-          setSubTasks(updatedTaskFromServer.sub_tasks);
-        if (updatedTaskFromServer.comments) {
-          const sortedComments = (updatedTaskFromServer.comments || []).sort(
-            (a, b) => new Date(a.created_at) - new Date(b.created_at)
-          );
-          setComments(sortedComments);
-        }
+     
+      if (responseData && responseData.id) { 
+         setParentTaskDetails(responseData); 
+         if (responseData.sub_tasks) setSubTasks(responseData.sub_tasks);
+         if (responseData.comments) {
+             const sortedComments = (responseData.comments || []).sort(
+                 (a,b) => new Date(a.created_at) - new Date(b.created_at)
+             );
+             setComments(sortedComments);
+         }
+       
+      } else {
+       
       }
+
       toast.success(
         `${fieldName
           .replace(/_/g, " ")
           .replace(/\b\w/g, (l) => l.toUpperCase())} updated successfully!`
       );
     } catch (err) {
-      setParentTaskDetails((prevDetails) => ({
-        ...prevDetails,
-        [fieldName]: originalValue,
-      }));
-      if (!fieldUpdateError) {
+       setParentTaskDetails((prevDetails) => {
+           if (prevDetails[fieldName] !== originalValue) { 
+               return { ...prevDetails, [fieldName]: originalValue };
+           }
+           return prevDetails;
+       });
+      if (!fieldUpdateError) { 
         setFieldUpdateError(err.message || `An unknown error occurred while updating ${fieldName}.`);
       }
     } finally {
@@ -275,7 +282,7 @@ const TaskDetailsPage = () => {
     }
   };
 
-  const handleUpdateTaskAssignees = async (
+    const handleUpdateTaskAssignees = async (
     currentTaskId,
     selectedEmployeeIdsArray
   ) => {
@@ -292,18 +299,12 @@ const TaskDetailsPage = () => {
     const formData = new FormData();
     formData.append("task_id", String(currentTaskId));
     
-    // ----- UPDATED LOGIC -----
-    // Only append employee_ids[] if there are actual IDs to send.
-    // If selectedEmployeeIdsArray is empty, the 'employee_ids[]' key will NOT be added to formData.
     if (selectedEmployeeIdsArray.length > 0) {
         selectedEmployeeIdsArray.forEach((id) => {
             formData.append("employee_ids[]", String(id));
         });
     }
-    // If selectedEmployeeIdsArray.length is 0, no 'employee_ids[]' field is appended.
-    // The backend should interpret this as "unassign all" for the given task_id.
-    // ----- END OF UPDATED LOGIC -----
-
+   
     try {
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/bulk-assign`,
@@ -333,7 +334,7 @@ const TaskDetailsPage = () => {
       setIsAssigneeModalOpen(false);
       fetchTaskData(false); 
     } catch (err) {
-      console.error("TaskDetailsPage: Error updating assignees:", err.message);
+     
     } finally {
       setIsUpdatingAssignees(false);
     }
@@ -349,7 +350,7 @@ const TaskDetailsPage = () => {
   const handleCloseAddSubTaskModal = () => setIsAddSubTaskModalOpen(false);
 
   const handleSubTaskAdded = () => {
-    if (taskId) fetchTaskData(false);
+    if (taskId) fetchTaskData(false); 
   };
 
   const handleCommentSubmit = async (payload, isFormData) => {
@@ -368,7 +369,7 @@ const TaskDetailsPage = () => {
     };
     if (isFormData) {
       requestBody = payload;
-    } else {
+    } else { 
       requestBody = JSON.stringify(payload);
       headers["Content-Type"] = "application/json";
     }
@@ -385,7 +386,7 @@ const TaskDetailsPage = () => {
             `Failed to post comment (status ${response.status})`
         );
       }
-      if (taskId) fetchTaskData(false);
+      if (taskId) fetchTaskData(false); 
       setNewComment("");
       toast.success(responseData.message || "Comment posted!");
       return true;
@@ -410,13 +411,14 @@ const TaskDetailsPage = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_BACKEND_BASE_URL
-        }/api/admin/task-comment/${commentId}`,
+        }/api/admin/task-comment/${commentId}`, 
         {
-          method: "POST",
+          method: "POST", 
           headers: {
             Authorization: `Bearer ${token}`,
+            Accept: "application/json", 
           },
-          body: formData,
+          body: formData, 
         }
       );
       const responseData = await response.json().catch(() => ({}));
@@ -464,7 +466,7 @@ const TaskDetailsPage = () => {
         );
       }
       toast.success(responseData.message || "Comment deleted!");
-      if (taskId) fetchTaskData(false);
+      if (taskId) fetchTaskData(false); // Refresh comments
       return true;
     } catch (err) {
       setCommentError(err.message);
@@ -507,29 +509,29 @@ const TaskDetailsPage = () => {
     .filter(id => id !== null);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-800 dark:to-slate-900">
       <ToastContainer
         {...{
           ...toastContainerStyle,
-          position: "top-right", autoClose: 5000, hideProgressBar: false, newestOnTop: false,
+          position: "top-right", autoClose: 3000, hideProgressBar: false, newestOnTop: true,
           closeOnClick: true, rtl: false, pauseOnFocusLoss: true, draggable: true, pauseOnHover: true, theme: "colored",
         }}
       />
       <div className="container mx-auto px-4 py-6">
         {fieldUpdateError && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-lg text-sm shadow">
+          <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-lg text-sm shadow dark:bg-red-900/30 dark:text-red-300 dark:border-red-700">
             <strong>Update Issue:</strong> {fieldUpdateError}
           </div>
         )}
         {isUpdatingField && (
-          <div className="mb-4 p-3 bg-blue-100 text-blue-700 border border-blue-300 rounded-lg text-sm shadow animate-pulse">
+          <div className="mb-4 p-3 bg-blue-100 text-blue-700 border border-blue-300 rounded-lg text-sm shadow animate-pulse dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700">
             Updating task field...
           </div>
         )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700">
               <TaskHeader
                 taskTitle={parentTaskDetails.task_title}
                 projectId={parentTaskDetails.project_id}
@@ -550,26 +552,33 @@ const TaskDetailsPage = () => {
                 setIsPriorityDropdownOpen={setIsPriorityDropdownOpen}
                 priorityDropdownRef={priorityDropdownRef}
                 handleUpdateTaskField={handleUpdateTaskField}
+                onDescriptionUpdate={(newDescription) => handleUpdateTaskField('description', newDescription)}
               />
             </div>
+            
+          
             <SubTaskList
               subTasks={subTasks}
               onAddSubTaskClick={handleOpenAddSubTaskModal}
               parentTaskId={taskId}
+              onSubTaskUpdated={() => fetchTaskData(false)} 
             />
+  <TaskAttachments attachments={parentTaskDetails?.attachments} />
+
           </div>
+          
           <div className="lg:col-span-1">
             <CommentList
               comments={comments}
-              newComment={newComment}
-              setNewComment={setNewComment}
+              newComment={newComment} 
+              setNewComment={setNewComment} 
               handleCommentSubmit={handleCommentSubmit}
               isSubmittingComment={isSubmittingComment}
-              commentError={commentError}
+              commentError={commentError} 
               taskId={taskId}
               onEditComment={handleEditComment}
               onDeleteComment={handleDeleteComment}
-              currentUserId={currentUserId}
+              currentUserId={currentUserId} 
             />
           </div>
         </div>
