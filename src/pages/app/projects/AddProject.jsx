@@ -3,7 +3,6 @@ import Select, { components } from "react-select";
 import Modal from "@/components/ui/Modal";
 import { useSelector, useDispatch } from "react-redux";
 import { addProjectAPI, toggleAddModal } from "./store";
-// Removed Textarea, will use ReactQuill
 import Flatpickr from "react-flatpickr";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -14,11 +13,9 @@ import Textinput from "@/components/ui/Textinput";
 import axios from "axios";
 import Cookies from "js-cookie";
 
-// Import ReactQuill and its styles
 import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css'; // Snow theme is common
+import 'react-quill/dist/quill.snow.css'; 
 
-// Styles and OptionComponent can be reused or adapted from EditProject.jsx
 const selectStyles = {
     control: (base) => ({...base, borderColor: '#e2e8f0', borderRadius: '0.375rem', minHeight: '38px', '&:hover': {borderColor: '#cbd5e1',}, boxShadow: 'none', }),
     valueContainer: (base) => ({...base, padding: '2px 8px',}), input: (base) => ({...base, margin: '0px', padding: '0px',}),
@@ -30,26 +27,25 @@ const OptionComponent = ({ data, ...props }) => {
 };
 
 
-const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
+const AddProject = ({ onProjectAdded }) => {
   const { openProjectModal, isAdding } = useSelector((state) => state.project);
   const dispatch = useDispatch();
 
   const [localIsLoading, setLocalIsLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
-  const [quillDescription, setQuillDescription] = useState(""); // State for ReactQuill
+  const [quillDescription, setQuillDescription] = useState(""); 
 
   const FormValidationSchema = yup.object({
       project_name: yup.string().required("Project name is required"),
       project_description: yup.string()
         .required("Description is required.")
         .test(
-          'has-content', // Custom test name
-          'Description cannot be empty or just spaces.', // Error message
+          'has-content', 
+          'Description cannot be empty or just spaces.', 
           (value) => {
-            // Check if value exists and, after stripping HTML tags, if it has non-whitespace characters
             if (!value) return false;
-            const textContent = value.replace(/<[^>]*>/g, '').trim(); // Strip HTML and trim
+            const textContent = value.replace(/<[^>]*>/g, '').trim(); 
             return textContent.length > 0;
           }
         ),
@@ -67,25 +63,25 @@ const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
     control,
     reset,
     handleSubmit,
-    setValue, // <-- Need setValue from useForm
+    setValue, 
     formState: { errors },
   } = useForm({
     resolver: yupResolver(FormValidationSchema),
-    mode: "all", // Or "onChange" for better performance on complex forms
+    mode: "all", 
     defaultValues: {
       project_name: "",
-      project_description: "", // Will be handled by ReactQuill state
+      project_description: "", 
       start_date: new Date(),
-      due_date: null, // Or new Date() if you prefer a default
+      due_date: null, 
       customer_id: null,
     }
   });
 
-  // Effect to sync ReactQuill state with React Hook Form for validation
+  
   useEffect(() => {
     setValue("project_description", quillDescription, {
-      shouldValidate: true, // Validate after setting the value
-      shouldDirty: true,    // Mark the field as dirty
+      shouldValidate: true, 
+      shouldDirty: true,   
     });
   }, [quillDescription, setValue]);
 
@@ -105,7 +101,7 @@ const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
     setLocalIsLoading(true);
     const payload = {
       project_name: data.project_name,
-      project_description: data.project_description, // This now comes from RHF, updated by ReactQuill
+      project_description: data.project_description, 
       start_date: new Date(data.start_date).toISOString().split("T")[0],
       due_date: new Date(data.due_date).toISOString().split("T")[0],
       customer_id: data.customer_id.value,
@@ -115,16 +111,16 @@ const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
       .unwrap()
       .then(() => {
         console.log("DEBUG: AddProject addProjectAPI fulfilled in component.");
-        reset(); // Reset RHF form
-        setQuillDescription(""); // Reset Quill editor's content
-        // Modal close is handled by the thunk/reducer (toggleAddModal(false) should be dispatched there)
-        if (onProjectAdded) { // Call the callback from parent
+        reset(); 
+        setQuillDescription(""); 
+       
+        if (onProjectAdded) { 
           onProjectAdded();
         }
       })
       .catch((error) => {
         console.error("DEBUG: AddProject addProjectAPI rejected in component:", error);
-        // Toast for error is likely handled in the thunk or caught globally
+      
       })
       .finally(() => {
         setLocalIsLoading(false);
@@ -134,25 +130,24 @@ const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
   const handleCloseModal = () => {
     console.log("DEBUG: AddProject handleCloseModal: Dispatching toggleAddModal(false)");
     dispatch(toggleAddModal(false));
-    reset(); // Reset RHF form
-    setQuillDescription(""); // Reset Quill editor's content
+    reset(); 
+    setQuillDescription(""); 
   };
 
-  // Reset form and Quill when modal closes or opens
+ 
   useEffect(() => {
     if (openProjectModal) {
-        reset({ // Reset to default values when modal opens
+        reset({
             project_name: "",
             project_description: "",
             start_date: new Date(),
             due_date: null,
             customer_id: null,
         });
-        setQuillDescription(""); // Clear Quill editor
+        setQuillDescription(""); 
     }
   }, [openProjectModal, reset]);
 
-  // ReactQuill modules and formats
   const quillModules = {
     toolbar: [
       [{ 'header': [1, 2, 3, false] }],
@@ -181,7 +176,7 @@ const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
               render={({ field }) => (
                 <Flatpickr
                   {...field}
-                  value={field.value || new Date()} // Ensure a value is always passed
+                  value={field.value || new Date()} 
                   className="form-control h-[48px]"
                   onChange={(date) => field.onChange(date[0])}
                   options={{altInput:true, altFormat:"F j, Y", dateFormat:"Y-m-d"}}
@@ -197,7 +192,7 @@ const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
               render={({ field }) => (
                 <Flatpickr
                   {...field}
-                  value={field.value} // Can be null initially
+                  value={field.value} 
                   className="form-control h-[48px]"
                   onChange={(date) => field.onChange(date[0])}
                   options={{
@@ -237,36 +232,28 @@ const AddProject = ({ onProjectAdded }) => { // Added onProjectAdded prop
 
         {/* ReactQuill for Description */}
         <FormGroup label="Description" id="add_project_description_quill_fg">
-          {/* Hidden input for RHF to register the field, setValue updates it */}
           <input type="hidden" {...register("project_description")} />
           <ReactQuill
             theme="snow"
             value={quillDescription}
-            onChange={setQuillDescription} // Updates local state, which updates RHF via useEffect
+            onChange={setQuillDescription} 
             modules={quillModules}
             formats={quillFormats}
             placeholder="Enter project description..."
-            // Add a class for error styling on the Quill editor itself if needed
-            // And adjust height, mb-12 might be too much if error message is below
+            
             className={`h-32 ${errors.project_description ? 'ql-error border-danger-500' : ''}`}
             readOnly={isAdding || localIsLoading}
           />
           {errors.project_description && (
-            <div className="mt-1 text-danger-500 text-xs clear-both pt-1"> {/* Adjusted margin and clear for toolbar */}
+            <div className="mt-1 text-danger-500 text-xs clear-both pt-1">
               {errors.project_description.message}
             </div>
           )}
         </FormGroup>
-        {/*
-            You might need to add CSS for .ql-error to style the border of Quill:
-            .ql-error .ql-toolbar, .ql-error .ql-container {
-                border-color: #your_error_color !important;
-            }
-            Or use Tailwind's ring utilities on the parent if you prefer.
-        */}
+       
 
         <div className="ltr:text-right rtl:text-left pt-2">
-          <button type="submit" className="btn btn-dark text-center" disabled={localIsLoading || isAdding}>
+          <button type="submit" className="btn btn-dark text-center mt-4" disabled={localIsLoading || isAdding}>
             {(localIsLoading || isAdding) ? "Adding..." : "Add Project"}
           </button>
         </div>

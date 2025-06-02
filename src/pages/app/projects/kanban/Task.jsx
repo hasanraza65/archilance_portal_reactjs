@@ -3,6 +3,7 @@ import React from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import { Menu } from "@headlessui/react";
+import DOMPurify from 'dompurify'; // <<<<<<<<<<<<<<<<<<<<<<<< 1. IMPORT DOMPURIFY
 
 import { deleteTaskFromBackend, toggleTaskModal } from "./store";
 import { useDispatch } from "react-redux";
@@ -13,24 +14,30 @@ import "sweetalert2/dist/sweetalert2.min.css";
 const Task = ({ task }) => {
   const {
     name = "Untitled Task",
-    des = "No description.",
+    des = "", // Default to empty string for description
     endDate,
-    id: frontendId, 
-    apiData,      
+    id: frontendId,
+    apiData,
   } = task || {};
 
   const dispatch = useDispatch();
 
   const backendTaskId = apiData?.id;
 
+  // <<<<<<<<<<<<<<<<<<<<<<<< 2. SANITIZE THE DESCRIPTION
+  const sanitizedDescription = DOMPurify.sanitize(des);
+  // Check if the description (after stripping tags) has actual content
+  const hasActualDescription = sanitizedDescription.replace(/<[^>]*>/g, '').trim().length > 0;
+
+
   const handleEdit = () => {
     const taskIdForEdit = apiData?.id || frontendId;
     if (taskIdForEdit) {
       dispatch(
-        toggleTaskModal({ 
+        toggleTaskModal({
           open: true,
           mode: "edit",
-          taskData: task, 
+          taskData: task,
         })
       );
     } else {
@@ -40,7 +47,6 @@ const Task = ({ task }) => {
   };
 
   const handleDelete = () => {
-  
     if (frontendId === undefined) {
       console.error("Task.jsx: Cannot delete task, frontend ID (task.id) is undefined.", task);
       Swal.fire("Error!", "Task data is incomplete. Cannot delete.", "error");
@@ -75,19 +81,19 @@ const Task = ({ task }) => {
         dispatch(
           deleteTaskFromBackend({
             backendTaskId: backendTaskId,
-            frontendTaskId: frontendId, 
+            frontendTaskId: frontendId,
           })
         )
           .unwrap()
           .then(() => {
-            
+            // Optional: Success feedback already handled by thunk's toast
           })
-          .catch((error) => { 
+          .catch((error) => {
             console.error(
               `Local dispatch error for deleteTaskFromBackend (frontend ID: ${frontendId}):`,
               error
             );
-           
+            // Optional: Error feedback already handled by thunk's toast
           });
       }
     });
@@ -188,16 +194,23 @@ const Task = ({ task }) => {
           </Menu>
         </div>
       </header>
-      {des && (
+
+      {/* <<<<<<<<<<<<<<<<<<<<<<<< 3. RENDER THE SANITIZED DESCRIPTION */}
+      {hasActualDescription ? (
         <div
-          className="text-slate-600 dark:text-slate-400 text-sm pt-4 pb-6 line-clamp-3"
-          title={des}
-        >
-          {des}
+          className="text-slate-600 dark:text-slate-400 text-sm pt-4 pb-6 prose prose-sm max-w-none dark:prose-invert line-clamp-3"
+          // title={des} // Title attribute should show plain text if needed, not HTML
+          dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+        />
+      ) : (
+        <div className="text-slate-500 dark:text-slate-500 text-sm pt-4 pb-6 italic">
+          No description.
         </div>
       )}
+      {/* End of description rendering */}
+
       <div className="flex justify-between items-end pt-2 mt-auto border-t border-slate-100 dark:border-slate-700">
-        <div></div>
+        <div></div> {/* Placeholder for potential future content like assignees, tags etc. */}
         {endDate && (
           <div className="text-right">
             <span className="block text-xs text-slate-500 dark:text-slate-400">

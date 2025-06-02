@@ -10,9 +10,7 @@ export const STATUS_TO_COLUMN_MAP = {
   Todo: { name: "To Do", color: "#4669FA", order: 1 },
   "In Progress": { name: "In Progress", color: "#FA916B", order: 2 },
   Completed: { name: "Completed", color: "#50C793", order: 3 },
-  // Add other statuses if your backend uses more, e.g., 'Review', 'Blocked'
-  // Ensure the keys here ('Todo', 'In Progress', 'Completed') EXACTLY match
-  // the `task_status` values returned by your backend API for tasks.
+  
 };
 
 // --- ASYNC THUNKS ---
@@ -643,11 +641,6 @@ export const appKanbanSlice = createSlice({
                     apiData: { ...oldTask.apiData, ...updatedTaskDataFromApi }, // Crucially merge with full API response
                 };
                 
-                // Verify that the status in Redux (after optimistic update) matches the final server status.
-                // If not, the server's status is the source of truth.
-                // The `sort` reducer should have optimistically set `apiData.task_status`.
-                // If `updatedTaskDataFromApi.task_status` differs, the optimistic update was correct or server changed it again.
-                // The merge `...oldTask.apiData, ...updatedTaskDataFromApi` handles this.
                 
                 taskFoundAndUpdatedInRedux = true;
                 return { ...column, tasks: tasksCopy };

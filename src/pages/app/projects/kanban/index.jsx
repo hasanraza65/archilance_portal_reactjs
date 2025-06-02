@@ -200,15 +200,7 @@ const KanbanPage = () => {
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 dark:text-slate-200 inline-block ltr:pr-4 rtl:pl-4">
           Kanban Board {projectId ? `(Project ${projectId})` : ""}
         </h4>
-        <div className="flex space-x-4 justify-end items-center rtl:space-x-reverse">
-          <Button
-            icon="heroicons-outline:plus"
-            text="Add Column"
-            className="bg-slate-800 dark:hover:bg-opacity-70 h-min text-sm font-medium text-slate-50 hover:ring-2 hover:ring-opacity-80 ring-slate-900 hover:ring-offset-1 dark:hover:ring-0 dark:hover:ring-offset-0 dark:bg-slate-700 dark:hover:bg-slate-600"
-            iconclassName="text-lg"
-            onClick={() => dispatch(toggleColumnModal({ open: true }))}
-          />
-        </div>
+      
       </div>
 
       {(!columns || columns.length === 0) && !isLoading && !error && (

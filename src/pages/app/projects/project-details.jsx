@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+// src/pages/ProjectDetailsPage.jsx (or wherever your ProjectDetailsPage component is)
+import React, { useState, useEffect, useCallback } from "react"; // Added useCallback
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import AddTaskModal from "../projects/Task/PartialTask/AddSubTaskModal";
+import AddTaskModal from "../projects/Task/PartialTask/AddSubTaskModal"; // This is your AddSubTaskModal
 import EditTaskModal from "../projects/Task/PartialTask/EditTaskModal";
 import Swal from "sweetalert2";
-// Import DOMPurify
 import DOMPurify from 'dompurify';
 
-// ... (mapApiAssigneeToLocal, getStatusClass, getPriorityClass remain the same)
+// --- Helper Functions (Keep these as they are) ---
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object") {
     return {
@@ -61,6 +61,7 @@ const mapApiAssigneeToLocal = (apiUser) => {
   }
   return { id, name, avatar: avatarChar, color, profilePic };
 };
+
 const getStatusClass = (status) => {
   if (!status) return "bg-gray-100 text-gray-800 border-gray-200";
   switch (String(status).toLowerCase()) {
@@ -78,6 +79,7 @@ const getStatusClass = (status) => {
       return `bg-yellow-100 text-yellow-800 border-yellow-200`;
   }
 };
+
 const getPriorityClass = (priority) => {
   if (!priority) return "text-gray-600";
   switch (String(priority).toLowerCase()) {
@@ -94,10 +96,11 @@ const getPriorityClass = (priority) => {
       return "text-gray-600";
   }
 };
+// --- End of Helper Functions ---
 
 
 const ProjectDetailsPage = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Project ID from URL
   const navigate = useNavigate();
   const [projectDetails, setProjectDetails] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -110,7 +113,8 @@ const ProjectDetailsPage = () => {
 
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
 
-  const fetchProjectAndTasks = async () => {
+  const fetchProjectAndTasks = useCallback(async () => {
+    console.log("ProjectDetailsPage: fetchProjectAndTasks called for project ID:", id);
     if (!id) {
       setError("Project ID is missing from URL.");
       setLoading(false);
@@ -119,12 +123,13 @@ const ProjectDetailsPage = () => {
     }
     setLoading(true);
     setError(null);
-    setProjectFound(true);
+    // No need to setProjectFound(true) here, let API response determine it
+
     const token = Cookies.get("token");
     if (!token) {
       setError("Authorization token not found. Please log in.");
       setLoading(false);
-      setProjectFound(false);
+      setProjectFound(false); // Set to false as we can't fetch
       Swal.fire({
         icon: "error",
         title: "Authentication Error",
@@ -135,18 +140,26 @@ const ProjectDetailsPage = () => {
       });
       return;
     }
+
     try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        // Cache-busting headers
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      };
+
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project/${id}`,
         {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
+          headers: headers,
         }
       );
+
       if (!response.ok) {
         if (response.status === 404) {
           setProjectFound(false);
@@ -165,68 +178,58 @@ const ProjectDetailsPage = () => {
         setLoading(false);
         return;
       }
+
       const fetchedProjectData = await response.json();
-      // Assuming fetchedProjectData itself is the project object
-      // and tasks are within fetchedProjectData.tasks
       if (fetchedProjectData && fetchedProjectData.project_name) {
         setProjectDetails({
           project_title: fetchedProjectData.project_name,
-          // Storing the raw HTML description
           project_description: fetchedProjectData.project_description,
-          // You can add other project fields here if needed from fetchedProjectData
-          // e.g., start_date: fetchedProjectData.start_date,
+          // Add other project fields if needed
         });
         const processedTasks = (fetchedProjectData.tasks || []).map((task) => ({
           ...task,
-          assignees: task.assignees || [], // Ensure assignees is an array
+          assignees: task.assignees || [],
         }));
         setTasks(processedTasks);
-        setProjectFound(true);
+        setProjectFound(true); // Project found and data is valid
+        console.log("ProjectDetailsPage: Project and tasks fetched successfully.", fetchedProjectData);
       } else {
         setProjectFound(false);
         setError(
-          "Invalid project data received from server. Expected a 'project_name' field."
+          "Invalid project data received. Expected a 'project_name' field."
         );
         setProjectDetails(null);
         setTasks([]);
       }
     } catch (err) {
+      console.error("ProjectDetailsPage: Error fetching project details:", err);
       setError(
         err.message ||
           "An unknown error occurred while fetching project details."
       );
       setProjectFound(false);
-      setProjectDetails(null);
-      setTasks([]);
-      Swal.fire({
-        icon: "error",
-        title: "Fetch Error",
-        text:
-          err.message ||
-          "An unknown error occurred while fetching project details.",
-      });
+      // Keep existing projectDetails and tasks if they exist, to show stale data if preferred
+      // setProjectDetails(null);
+      // setTasks([]);
+      // No Swal here on general fetch error, error message will be displayed on page
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]); // Added navigate to dependency array
 
 
   useEffect(() => {
     fetchProjectAndTasks();
-  }, [id, navigate]); // Added navigate to dependency array as it's used in error handling
+  }, [fetchProjectAndTasks]); // fetchProjectAndTasks is now memoized with useCallback
 
   const handleOpenAddTaskModal = () => setIsAddTaskModalOpen(true);
   const handleCloseAddTaskModal = () => setIsAddTaskModalOpen(false);
+
   const handleTaskAdded = () => {
-    setIsAddTaskModalOpen(false);
-    fetchProjectAndTasks();
-    Swal.fire({
-      icon: "success",
-      title: "Task Added!",
-      text: "The new task has been successfully added.",
-      timer: 1500,
-      showConfirmButton: false,
-    });
+    console.log("ProjectDetailsPage: handleTaskAdded (callback from modal) called!");
+    setIsAddTaskModalOpen(false); // Close modal first
+    fetchProjectAndTasks(); // Then re-fetch data
+    
   };
 
   const handleOpenEditTaskModal = (task) => {
@@ -238,10 +241,11 @@ const ProjectDetailsPage = () => {
     setTaskToEdit(null);
   };
   const handleTaskUpdated = () => {
-    // The modal might close itself on success, or you can close it here
+    console.log("ProjectDetailsPage: handleTaskUpdated (callback from modal) called!");
+    // EditTaskModal might close itself, or you can close it here if needed
     // setIsEditTaskModalOpen(false);
     // setTaskToEdit(null);
-    fetchProjectAndTasks();
+    fetchProjectAndTasks(); // Re-fetch data
     Swal.fire({
       icon: "success",
       title: "Task Updated!",
@@ -306,10 +310,11 @@ const ProjectDetailsPage = () => {
               title: "Deletion Failed",
               text: errorMessage,
             });
-            // fetchProjectAndTasks(); // Refetch on failure if needed
             return;
           }
           Swal.fire("Deleted!", "Your task has been deleted.", "success");
+          // Optimistically update UI, or re-fetch
+          // fetchProjectAndTasks(); // Could also re-fetch here
           setTasks((prevTasks) =>
             prevTasks.filter((task) => task.id !== taskId)
           );
@@ -319,28 +324,26 @@ const ProjectDetailsPage = () => {
             title: "Error",
             text: err.message || "Could not connect to the server.",
           });
-          // fetchProjectAndTasks(); // Refetch on error
         }
       }
     });
   };
 
-  if (loading && !projectDetails) {
+  // --- Render Logic ---
+  if (loading && !projectDetails && tasks.length === 0) { // More precise loading state
     return <div className="container mx-auto p-4 text-center">Loading project details...</div>;
   }
-  if (error && !projectDetails && !projectFound) {
-    return <div className="container mx-auto p-4 text-center text-red-500">Error: {error}</div>;
-  }
-  if (!projectDetails && !loading) {
+
+  if (!projectFound && !loading) { // Show "Project Not Found" only if not loading and projectFound is false
     return (
       <div className="container mx-auto p-4">
-        <div className="text-center p-10 bg-white rounded-lg shadow">
+        <div className="text-center p-10 bg-white dark:bg-slate-800 rounded-lg shadow">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <h3 className="mt-2 text-lg font-medium text-gray-900">Project Not Found</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            The project with ID: {id} could not be found, or the data received was invalid.
+          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Project Not Found</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+            The project with ID: {id} could not be found.
             {error && <span className="block mt-1">Details: {error}</span>}
           </p>
           <div className="mt-6">
@@ -352,8 +355,18 @@ const ProjectDetailsPage = () => {
       </div>
     );
   }
+  
+  // Display general error if project was previously found or if it's a non-404 error during loading
+  if (error && (!projectFound || (projectDetails && loading))) {
+      return <div className="container mx-auto p-4 text-center text-red-500">Error: {error}</div>;
+  }
 
-  // Prepare sanitized project description
+  if (!projectDetails && !loading && projectFound) {
+    // This case might indicate an issue if projectFound is true but no details
+    return <div className="container mx-auto p-4 text-center text-yellow-500">No project data available, though project was marked as found. Please try refreshing.</div>;
+  }
+
+
   const projectDescriptionHtml = projectDetails?.project_description || "";
   const sanitizedProjectDescription = DOMPurify.sanitize(projectDescriptionHtml);
   const projectHasActualDescription = sanitizedProjectDescription.replace(/<[^>]*>/g, '').trim().length > 0;
@@ -366,7 +379,6 @@ const ProjectDetailsPage = () => {
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
             {projectDetails.project_title}
           </h1>
-          {/* === UPDATED PROJECT DESCRIPTION RENDERING === */}
           <div className="mt-2 text-slate-600 dark:text-slate-400 prose prose-sm max-w-none dark:prose-invert">
             <strong className="font-semibold text-slate-700 dark:text-slate-300">Project Description:</strong>
             {projectHasActualDescription ? (
@@ -375,15 +387,17 @@ const ProjectDetailsPage = () => {
                 <p className="italic mt-1">N/A</p>
             )}
           </div>
-          {/* === END OF UPDATED PROJECT DESCRIPTION === */}
-        </div>
-      )}
-      {error && projectDetails && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-400 rounded">
-          Note: There was an issue fetching latest updates. Displaying last known data. Error: {error}
         </div>
       )}
 
+      {/* Display error message if there was an error but we still have some data to show */}
+      {error && projectDetails && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-400 rounded">
+          Note: There was an issue fetching the latest updates. Displaying last known data. Error: {error}
+        </div>
+      )}
+
+      {/* Render tasks list or "no tasks" message only if projectDetails exist and project was found */}
       {projectDetails && projectFound ? (
         tasks.length > 0 ? (
           <div className="bg-white dark:bg-slate-700 rounded-lg shadow overflow-hidden">
@@ -422,7 +436,7 @@ const ProjectDetailsPage = () => {
               <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 text-center">Actions</div>
             </div>
 
-            <div className="max-h-[calc(100vh-300px)] overflow-y-auto"> {/* Adjusted max-h for better viewport fit */}
+            <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
               {tasks.map((task, index) => {
                 const mappedTaskAssignees = (task.assignees || [])
                   .map((assigneeEntry) => mapApiAssigneeToLocal(assigneeEntry.user || assigneeEntry))
@@ -523,16 +537,17 @@ const ProjectDetailsPage = () => {
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}
-        onTaskAdded={handleTaskAdded}
+        onSubTaskAdded={handleTaskAdded} // *** CORRECTED PROP NAME ***
         projectId={id}
+        parentTaskId={null} // Explicitly pass null for root tasks
       />
 
       <EditTaskModal
         isOpen={isEditTaskModalOpen}
         onClose={handleCloseEditTaskModal}
-        onTaskUpdated={handleTaskUpdated}
+        onTaskUpdated={handleTaskUpdated} // Make sure EditTaskModal calls this prop
         taskData={taskToEdit}
-        projectId={id}
+        projectId={id} // Pass projectId to EditTaskModal if it needs it
       />
     </div>
   );
