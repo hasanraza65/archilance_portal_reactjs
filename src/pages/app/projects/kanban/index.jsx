@@ -267,45 +267,7 @@ const KanbanPage = () => {
                                   {column.name || "Unnamed Column"} (
                                   {column.tasks?.length || 0})
                                 </div>
-                                <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                                  <Tooltip
-                                    placement="top"
-                                    theme="danger"
-                                    content="Delete Column"
-                                  >
-                                    <button
-                                      className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col items-center justify-center text-base text-slate-600 hover:bg-red-100 dark:hover:bg-red-600 dark:hover:text-white"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Consider using SweetAlert for column deletion confirmation too
-                                        dispatch(deleteColumnBoard(column.id));
-                                      }}
-                                    >
-                                      <Icon icon="heroicons-outline:trash" />
-                                    </button>
-                                  </Tooltip>
-
-                                  <Tooltip
-                                    placement="top"
-                                    content="Add Task to this Column"
-                                  >
-                                    <button
-                                      className="border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded h-6 w-6 flex flex-col items-center justify-center text-base text-slate-600 hover:bg-blue-100 dark:hover:bg-blue-600 dark:hover:text-white"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        dispatch(
-                                          toggleTaskModal({
-                                            open: true,
-                                            columnId: column.id,
-                                            mode: "add",
-                                          })
-                                        );
-                                      }}
-                                    >
-                                      <Icon icon="heroicons-outline:plus-sm" />
-                                    </button>
-                                  </Tooltip>
-                                </div>
+                                
                               </div>
                               <Droppable
                                 droppableId={String(column.id)}
@@ -371,12 +333,8 @@ const KanbanPage = () => {
           </DragDropContext>
         </div>
       )}
-      <AddColumn /> {/* This should use columnModal state from Redux */}
-      {/* 
-        AddTaskModal visibility is controlled by 'taskModal' from Redux state.
-        It might also need context like columnId or taskId for add/edit mode,
-        which can be stored in Redux (e.g., state.kanban.currentTaskAction).
-      */}
+      <AddColumn /> 
+      
       {taskModal && <AddTaskModal projectId={projectId} />}
     </div>
   );

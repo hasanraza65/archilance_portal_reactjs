@@ -3,7 +3,8 @@ import React from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import { Menu } from "@headlessui/react";
-import DOMPurify from 'dompurify'; // <<<<<<<<<<<<<<<<<<<<<<<< 1. IMPORT DOMPURIFY
+import DOMPurify from 'dompurify'; 
+import { useNavigate } from "react-router-dom"; 
 
 import { deleteTaskFromBackend, toggleTaskModal } from "./store";
 import { useDispatch } from "react-redux";
@@ -14,35 +15,39 @@ import "sweetalert2/dist/sweetalert2.min.css";
 const Task = ({ task }) => {
   const {
     name = "Untitled Task",
-    des = "", // Default to empty string for description
+    des = "", 
     endDate,
-    id: frontendId,
+    id: frontendId, 
     apiData,
   } = task || {};
 
   const dispatch = useDispatch();
+  const navigate = useNavigate(); 
 
-  const backendTaskId = apiData?.id;
+  
+  const backendTaskId = apiData?.id; 
+  
+  const taskIdForNavigation = backendTaskId;
 
-  // <<<<<<<<<<<<<<<<<<<<<<<< 2. SANITIZE THE DESCRIPTION
+
   const sanitizedDescription = DOMPurify.sanitize(des);
-  // Check if the description (after stripping tags) has actual content
   const hasActualDescription = sanitizedDescription.replace(/<[^>]*>/g, '').trim().length > 0;
 
 
   const handleEdit = () => {
-    const taskIdForEdit = apiData?.id || frontendId;
+    const taskIdForEdit = backendTaskId || frontendId; 
     if (taskIdForEdit) {
       dispatch(
         toggleTaskModal({
           open: true,
           mode: "edit",
-          taskData: task,
+          
+          taskData: { ...task, id: taskIdForEdit }, 
         })
       );
     } else {
       console.error("Task.jsx: Cannot edit task, ID for edit is missing.", task);
-      Swal.fire("Error", "Cannot open task details: Task ID is missing.", "error");
+      Swal.fire("Error", "Cannot open task editor: Task ID is missing.", "error");
     }
   };
 
@@ -86,17 +91,27 @@ const Task = ({ task }) => {
         )
           .unwrap()
           .then(() => {
-            // Optional: Success feedback already handled by thunk's toast
+            
           })
           .catch((error) => {
             console.error(
               `Local dispatch error for deleteTaskFromBackend (frontend ID: ${frontendId}):`,
               error
             );
-            // Optional: Error feedback already handled by thunk's toast
+           
           });
       }
     });
+  };
+
+  // <<<<<<<<<<<<<<<<<<<<<<<< 3. ADD handleViewDetails FUNCTION
+  const handleViewDetails = () => {
+    if (taskIdForNavigation) {
+      navigate(`/task/${taskIdForNavigation}`);
+    } else {
+      console.error("Task.jsx: Cannot view task details, Task ID for navigation is missing.", task);
+      Swal.fire("Error", "Cannot open task details: Task ID is missing.", "error");
+    }
   };
 
   const formatDate = (dateString) => {
@@ -126,6 +141,7 @@ const Task = ({ task }) => {
   return (
     <Card className="cursor-move group dark:bg-slate-800">
       <header className="flex justify-between items-start">
+        {/* ... (header content remains the same) ... */}
         <div className="flex space-x-4 items-center rtl:space-x-reverse flex-1 min-w-0">
           <div className="flex-none">
             <div className="h-10 w-10 rounded-md text-lg bg-slate-100 text-slate-900 dark:bg-slate-700 dark:text-slate-200 flex flex-col items-center justify-center font-normal capitalize">
@@ -157,12 +173,32 @@ const Task = ({ task }) => {
                 <Menu.Item>
                   {({ active }) => (
                     <button
+                      onClick={handleViewDetails}
+                      className={`${
+                        active
+                          ? "bg-slate-700 dark:bg-slate-600 text-white" 
+                          : "text-slate-700 dark:text-slate-300"
+                      } group flex w-full items-center rounded-md px-2 py-2 text-sm space-x-2 rtl:space-x-reverse`}
+                      disabled={!taskIdForNavigation} 
+                    >
+                      <Icon icon="heroicons-outline:eye" className="h-5 w-5" />
+                      <span>View Details</span>
+                    </button>
+                  )}
+                </Menu.Item>
+              </div>
+            
+              <div className="px-1 py-1 ">
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
                       onClick={handleEdit}
                       className={`${
                         active
                           ? "bg-slate-700 dark:bg-slate-600 text-white"
                           : "text-slate-700 dark:text-slate-300"
                       } group flex w-full items-center rounded-md px-2 py-2 text-sm space-x-2 rtl:space-x-reverse`}
+                      disabled={!(backendTaskId || frontendId)}
                     >
                       <Icon icon="heroicons-outline:pencil-alt" className="h-5 w-5" />
                       <span>Edit</span>
@@ -180,6 +216,7 @@ const Task = ({ task }) => {
                           ? "bg-red-500 text-white"
                           : "text-slate-700 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400"
                       } group flex w-full items-center rounded-md px-2 py-2 text-sm space-x-2 rtl:space-x-reverse`}
+                      disabled={!backendTaskId || frontendId === undefined} 
                     >
                       <Icon
                         icon="heroicons-outline:trash"
@@ -195,11 +232,9 @@ const Task = ({ task }) => {
         </div>
       </header>
 
-      {/* <<<<<<<<<<<<<<<<<<<<<<<< 3. RENDER THE SANITIZED DESCRIPTION */}
       {hasActualDescription ? (
         <div
           className="text-slate-600 dark:text-slate-400 text-sm pt-4 pb-6 prose prose-sm max-w-none dark:prose-invert line-clamp-3"
-          // title={des} // Title attribute should show plain text if needed, not HTML
           dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
         />
       ) : (
@@ -207,10 +242,9 @@ const Task = ({ task }) => {
           No description.
         </div>
       )}
-      {/* End of description rendering */}
 
       <div className="flex justify-between items-end pt-2 mt-auto border-t border-slate-100 dark:border-slate-700">
-        <div></div> {/* Placeholder for potential future content like assignees, tags etc. */}
+        <div></div> 
         {endDate && (
           <div className="text-right">
             <span className="block text-xs text-slate-500 dark:text-slate-400">
