@@ -188,24 +188,7 @@ const Task = ({ task }) => {
                 </Menu.Item>
               </div>
             
-              <div className="px-1 py-1 ">
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={handleEdit}
-                      className={`${
-                        active
-                          ? "bg-slate-700 dark:bg-slate-600 text-white"
-                          : "text-slate-700 dark:text-slate-300"
-                      } group flex w-full items-center rounded-md px-2 py-2 text-sm space-x-2 rtl:space-x-reverse`}
-                      disabled={!(backendTaskId || frontendId)}
-                    >
-                      <Icon icon="heroicons-outline:pencil-alt" className="h-5 w-5" />
-                      <span>Edit</span>
-                    </button>
-                  )}
-                </Menu.Item>
-              </div>
+             
               <div className="px-1 py-1">
                 <Menu.Item>
                   {({ active }) => (
