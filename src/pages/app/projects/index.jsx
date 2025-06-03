@@ -3,15 +3,15 @@ import { useDispatch, useSelector } from "react-redux";
 import useWidth from "@/hooks/useWidth";
 import Button from "@/components/ui/Button";
 import ProjectGrid from "./ProjectGrid";
-import ProjectList from "./ProjectList"; // Assuming this component exists
+import ProjectList from "./ProjectList"; 
 import GridLoading from "@/components/skeleton/Grid";
 import TableLoading from "@/components/skeleton/Table";
 import {
   toggleAddModal,
   fetchProjectsAPI,
-} from "./store"; // Ensure this path points to your slice file
-import AddProject from "./AddProject";   // Ensure this component uses addProjectAPI
-import EditProject from "./EditProject"; // Ensure this component uses saveEditedProjectAPI
+} from "./store"; 
+import AddProject from "./AddProject";  
+import EditProject from "./EditProject"; 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 

@@ -31,6 +31,7 @@ import EditEmployee from "./pages/employees/UpdateEmployee";
 import TaskDetailsPage from "./pages/app/projects/Task/TaskDetailsPage";
 
 import KanbanPage from "./pages/app/projects/kanban";
+import ProjectBriefDetailPage from "./pages/app/projects/Brief-task/ProjectBriefDetailPage";
 
 function App() {
   return (
@@ -103,6 +104,7 @@ function App() {
              <Route path="projects/:id" element={<ProjectDetailsPage />} />
             <Route path="/task/:taskId" element={<TaskDetailsPage />} />
              <Route path="/project/:id/kanban" element={<KanbanPage />} /> 
+             <Route path="/project-brief/:briefId" element={<ProjectBriefDetailPage  />} />
          
 
              {/* Employees Routes */}
