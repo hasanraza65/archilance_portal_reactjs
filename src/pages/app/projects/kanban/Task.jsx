@@ -1,53 +1,39 @@
-// src/pages/app/projects/kanban/Task.jsx
 import React from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import { Menu } from "@headlessui/react";
-import DOMPurify from 'dompurify'; 
-import { useNavigate } from "react-router-dom"; 
-
-import { deleteTaskFromBackend, toggleTaskModal } from "./store";
+import DOMPurify from 'dompurify';
+import { useNavigate } from "react-router-dom";
+import { deleteTaskFromBackend } from "./store";
 import { useDispatch } from "react-redux";
 
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
-const Task = ({ task }) => {
+const Task = ({ task, onOpenEditModal }) => { 
   const {
     name = "Untitled Task",
-    des = "", 
+    des = "",
     endDate,
     id: frontendId, 
-    apiData,
+    apiData,  
   } = task || {};
 
   const dispatch = useDispatch();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
-  
-  const backendTaskId = apiData?.id; 
-  
-  const taskIdForNavigation = backendTaskId;
-
+  const backendTaskId = apiData?.id;
+  const taskIdForNavigation = backendTaskId || frontendId;
 
   const sanitizedDescription = DOMPurify.sanitize(des);
   const hasActualDescription = sanitizedDescription.replace(/<[^>]*>/g, '').trim().length > 0;
 
-
   const handleEdit = () => {
-    const taskIdForEdit = backendTaskId || frontendId; 
-    if (taskIdForEdit) {
-      dispatch(
-        toggleTaskModal({
-          open: true,
-          mode: "edit",
-          
-          taskData: { ...task, id: taskIdForEdit }, 
-        })
-      );
+    if (onOpenEditModal) {
+      onOpenEditModal(task);
     } else {
-      console.error("Task.jsx: Cannot edit task, ID for edit is missing.", task);
-      Swal.fire("Error", "Cannot open task editor: Task ID is missing.", "error");
+      console.error("Task.jsx: onOpenEditModal prop is not defined!");
+      Swal.fire("Error", "Edit function not available.", "error");
     }
   };
 
@@ -85,26 +71,14 @@ const Task = ({ task }) => {
       if (result.isConfirmed) {
         dispatch(
           deleteTaskFromBackend({
-            backendTaskId: backendTaskId,
-            frontendTaskId: frontendId,
+            backendTaskId: backendTaskId, 
+            frontendTaskId: frontendId, 
           })
-        )
-          .unwrap()
-          .then(() => {
-            
-          })
-          .catch((error) => {
-            console.error(
-              `Local dispatch error for deleteTaskFromBackend (frontend ID: ${frontendId}):`,
-              error
-            );
-           
-          });
+        );
       }
     });
   };
 
-  // <<<<<<<<<<<<<<<<<<<<<<<< 3. ADD handleViewDetails FUNCTION
   const handleViewDetails = () => {
     if (taskIdForNavigation) {
       navigate(`/task/${taskIdForNavigation}`);
@@ -141,7 +115,6 @@ const Task = ({ task }) => {
   return (
     <Card className="cursor-move group dark:bg-slate-800">
       <header className="flex justify-between items-start">
-        {/* ... (header content remains the same) ... */}
         <div className="flex space-x-4 items-center rtl:space-x-reverse flex-1 min-w-0">
           <div className="flex-none">
             <div className="h-10 w-10 rounded-md text-lg bg-slate-100 text-slate-900 dark:bg-slate-700 dark:text-slate-200 flex flex-col items-center justify-center font-normal capitalize">
@@ -176,10 +149,10 @@ const Task = ({ task }) => {
                       onClick={handleViewDetails}
                       className={`${
                         active
-                          ? "bg-slate-700 dark:bg-slate-600 text-white" 
+                          ? "bg-slate-700 dark:bg-slate-600 text-white"
                           : "text-slate-700 dark:text-slate-300"
                       } group flex w-full items-center rounded-md px-2 py-2 text-sm space-x-2 rtl:space-x-reverse`}
-                      disabled={!taskIdForNavigation} 
+                      disabled={!taskIdForNavigation}
                     >
                       <Icon icon="heroicons-outline:eye" className="h-5 w-5" />
                       <span>View Details</span>
@@ -187,8 +160,25 @@ const Task = ({ task }) => {
                   )}
                 </Menu.Item>
               </div>
-            
-             
+              <div className="px-1 py-1"> 
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={handleEdit} 
+                      className={`${
+                        active
+                          ? "bg-blue-500 text-white" 
+                          : "text-slate-700 dark:text-slate-300"
+                      } group flex w-full items-center rounded-md px-2 py-2 text-sm space-x-2 rtl:space-x-reverse`}
+                    
+                      disabled={!onOpenEditModal || !task || frontendId === undefined}
+                    >
+                      <Icon icon="heroicons-outline:pencil-alt" className="h-5 w-5" />
+                      <span>Edit Task</span>
+                    </button>
+                  )}
+                </Menu.Item>
+              </div>
               <div className="px-1 py-1">
                 <Menu.Item>
                   {({ active }) => (
@@ -199,7 +189,7 @@ const Task = ({ task }) => {
                           ? "bg-red-500 text-white"
                           : "text-slate-700 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400"
                       } group flex w-full items-center rounded-md px-2 py-2 text-sm space-x-2 rtl:space-x-reverse`}
-                      disabled={!backendTaskId || frontendId === undefined} 
+                      disabled={!backendTaskId || frontendId === undefined}
                     >
                       <Icon
                         icon="heroicons-outline:trash"
