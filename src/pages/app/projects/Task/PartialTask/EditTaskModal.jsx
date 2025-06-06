@@ -231,7 +231,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
         </FormGroup>
 
         <div className="grid lg:grid-cols-2 gap-4 grid-cols-1">
-          <FormGroup label="Due Date (Optional)" error={errors.due_date}>
+          <FormGroup label="Due Date (Optional)" error={errors.due_date} className='mt-12'>
             <Controller
               name="due_date"
               control={control}
@@ -247,7 +247,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
               )}
             />
           </FormGroup>
-          <FormGroup label="Priority" error={errors.priority}>
+          <FormGroup label="Priority" error={errors.priority} className='mt-12'>
             <Controller
               name="priority"
               control={control}

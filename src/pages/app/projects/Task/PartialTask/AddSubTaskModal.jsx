@@ -224,7 +224,7 @@ const AddSubTaskModal = ({ isOpen, onClose, parentTaskId, projectId, onSubTaskAd
           {/* RHF error message will be displayed by FormGroup if configured, or add manually */}
         </FormGroup>
 
-        <FormGroup label="Due Date (Optional)" error={errors.due_date}>
+        <FormGroup label="Due Date (Optional)" error={errors.due_date} className='mt-12'>
             <Controller
               name="due_date"
               control={control}
