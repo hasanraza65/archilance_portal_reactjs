@@ -43,39 +43,49 @@ const DropdownMenu = ({ options, onSelect, onClose }) => {
   );
 };
 
+// <<< START OF FIX: YEH NAYA FUNCTION REPLIES KO SAHI SE DISPLAY KAREGA >>>
 const buildCommentTree = (commentsList) => {
   if (!commentsList || commentsList.length === 0) return [];
 
-  const treeNodesMap = {};
-  commentsList.forEach((c) => {
-    treeNodesMap[c.id] = { ...c, children: [] };
+  const commentsMap = new Map();
+  
+  // Step 1: Har comment ko map mein daalein aur uske liye ek 'children' array banayein.
+  commentsList.forEach(comment => {
+    // Purane children ko discard karke naya array banayein, taake har re-render pe sahi bane.
+    commentsMap.set(comment.id, { ...comment, children: [] });
   });
 
-  const tree = [];
-  Object.values(treeNodesMap).forEach((node) => {
-    if (node.reply_to && treeNodesMap[node.reply_to]) {
-      const parentNode = treeNodesMap[node.reply_to];
-      if (!parentNode.children.find((child) => child.id === node.id)) {
-        parentNode.children.push(node);
+  const rootComments = [];
+
+  // Step 2: Har comment ke liye, check karein ke uska parent hai ya nahi.
+  for (const comment of commentsMap.values()) {
+    if (comment.reply_to && commentsMap.has(comment.reply_to)) {
+      // Agar parent hai, to uske 'children' array mein is comment ko daal dein.
+      const parent = commentsMap.get(comment.reply_to);
+      if (parent) {
+        // Duplicate add karne se bachne ke liye check.
+        if (!parent.children.some(c => c.id === comment.id)) {
+            parent.children.push(comment);
+        }
       }
     } else {
-        // To avoid adding a child that's already in a parent to the root level again
-        if (!tree.find(rootNode => rootNode.id === node.id)) {
-            tree.push(node);
-        }
+      // Agar parent nahi hai, to yeh ek root comment hai.
+      rootComments.push(comment);
     }
-  });
+  }
 
+  // Step 3: Har comment ke children ko date ke hisaab se sort karein.
   const sortComments = (arr) => arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-  tree.forEach((node) => {
+  for (const node of commentsMap.values()) {
     if (node.children.length > 0) {
       sortComments(node.children);
     }
-  });
+  }
 
-  return sortComments(tree);
+  // Step 4: Root comments ko sort karke return karein.
+  return sortComments(rootComments);
 };
+// <<< END OF FIX >>>
 
 
 const CommentList = ({

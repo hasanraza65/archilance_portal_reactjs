@@ -83,7 +83,6 @@ const TaskDetailsPage = () => {
     return token;
   };
   
-  // <<< REFINED: Centralized fetch for comments >>>
   const fetchTaskComments = useCallback(
     async (
       currentTaskId,
@@ -93,7 +92,23 @@ const TaskDetailsPage = () => {
     ) => {
       if (!currentTaskId || !authToken) return;
       
-      const urlToFetch = fetchUrl || `${API_BASE_URL}/api/admin/task-comment?task_id=${currentTaskId}&page=1`;
+      let urlToFetch;
+      if (fetchUrl) {
+        try {
+          const urlObject = new URL(fetchUrl);
+          if (!urlObject.searchParams.has('task_id')) {
+            urlObject.searchParams.append('task_id', currentTaskId);
+          }
+          urlToFetch = urlObject.toString();
+        } catch (e) {
+          const separator = fetchUrl.includes('?') ? '&' : '?';
+          const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+          const relativeUrl = fetchUrl.startsWith('/') ? fetchUrl : `/${fetchUrl}`;
+          urlToFetch = `${baseUrl}${relativeUrl}${separator}task_id=${currentTaskId}`;
+        }
+      } else {
+        urlToFetch = `${API_BASE_URL}/api/admin/task-comment?task_id=${currentTaskId}&page=1`;
+      }
       
       if (isFetchingOlder) setIsLoadingOlderComments(true);
 
@@ -101,9 +116,7 @@ const TaskDetailsPage = () => {
         const response = await fetch(urlToFetch, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
+            Authorization: `Bearer ${authToken}`, "Content-Type": "application/json", Accept: "application/json",
           },
         });
 
@@ -115,15 +128,13 @@ const TaskDetailsPage = () => {
         const apiResponse = await response.json();
         const fetchedComments = apiResponse.data && Array.isArray(apiResponse.data) ? apiResponse.data : [];
         
-        // Ensure API data has a consistent shape
         const processedComments = fetchedComments.map(comment => ({
           ...comment,
           comment_attachments: Array.isArray(comment.comment_attachments) ? comment.comment_attachments : [],
           replies: Array.isArray(comment.replies) ? comment.replies : [],
         }));
         
-        // API often returns newest first. Reverse to get chronological order for prepending.
-        const chronologicallyOrderedBatch = processedComments.reverse();
+        const chronologicallyOrderedBatch = isFetchingOlder ? processedComments.reverse() : processedComments;
 
         setComments((prevComments) => {
           if (isFetchingOlder) {
@@ -131,7 +142,8 @@ const TaskDetailsPage = () => {
             const newUniqueOlderComments = chronologicallyOrderedBatch.filter(c => !existingIds.has(c.id));
             return [...newUniqueOlderComments, ...prevComments];
           }
-          return chronologicallyOrderedBatch; // Initial load
+          // For initial load, we expect the API to return newest first, so we don't reverse
+          return processedComments;
         });
 
         setNextPageUrl(apiResponse.links?.next || apiResponse.next_page_url || null);
@@ -145,10 +157,39 @@ const TaskDetailsPage = () => {
             setAllCommentsLoaded(true); 
         }
       } finally {
-        setIsLoadingOlderComments(false);
+        if (isFetchingOlder) setIsLoadingOlderComments(false);
       }
-    }, []
+    },
+    [API_BASE_URL]
   );
+  
+  const initialFetchAndSetup = useCallback(async (currentTaskId) => {
+    // This is a special version of fetch for the first load, where we reverse the order
+    const authToken = getAuthToken();
+    if (!authToken) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/task-comment?task_id=${currentTaskId}&page=1`, {
+            headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json", Accept: "application/json" }
+        });
+        if (!response.ok) throw new Error("Failed to fetch initial comments");
+
+        const apiResponse = await response.json();
+        const fetchedComments = apiResponse.data && Array.isArray(apiResponse.data) ? apiResponse.data : [];
+        const processedComments = fetchedComments.map(comment => ({
+            ...comment,
+            comment_attachments: Array.isArray(comment.comment_attachments) ? comment.comment_attachments : [],
+            replies: Array.isArray(comment.replies) ? comment.replies : [],
+        }));
+        setComments(processedComments.reverse()); // Reverse only on initial load for scrolling
+        setNextPageUrl(apiResponse.links?.next || apiResponse.next_page_url || null);
+        setTotalCommentsFromApi(apiResponse.meta?.total || apiResponse.total || 0);
+        setAllCommentsLoaded(!apiResponse.links?.next && !apiResponse.next_page_url);
+    } catch(err) {
+        toast.error(`Failed to load comments: ${err.message}`);
+    }
+  }, [API_BASE_URL]);
+
 
   const handleLoadOlderComments = useCallback(async () => {
     if (!nextPageUrl || isLoadingOlderComments || !parentTaskDetails) return;
@@ -189,11 +230,7 @@ const TaskDetailsPage = () => {
         setParentTaskDetails(data);
         setSubTasks(data.sub_tasks || []);
         
-        // Reset and fetch comments
-        setComments([]);
-        setNextPageUrl(null);
-        setAllCommentsLoaded(false);
-        await fetchTaskComments(taskId, token);
+        await initialFetchAndSetup(taskId);
         
     } catch (err) {
         setError(err.message || "An unknown error occurred.");
@@ -201,7 +238,7 @@ const TaskDetailsPage = () => {
     } finally {
         if (showLoadingSpinner) setLoading(false);
     }
-  }, [taskId, fetchTaskComments]);
+  }, [taskId, initialFetchAndSetup, API_BASE_URL]);
 
 
   const fetchAllEmployees = useCallback(async () => {
@@ -220,7 +257,7 @@ const TaskDetailsPage = () => {
     } finally {
       setLoadingEmployees(false);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   useEffect(() => {
     setCurrentUserId(getUserIdFromCookie());
@@ -245,15 +282,10 @@ const TaskDetailsPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleUpdateTaskField = async (fieldName, value) => {
-    // ... (Your existing logic is good, no changes needed here)
-  };
-
-  const handleUpdateTaskAssignees = async (currentTaskId, selectedEmployeeIdsArray) => {
-    // ... (Your existing logic is good, no changes needed here)
-  };
+  const handleUpdateTaskField = async (fieldName, value) => { /* ... */ };
+  const handleUpdateTaskAssignees = async (currentTaskId, selectedEmployeeIdsArray) => { /* ... */ };
   
-  // <<< CHANGED: More efficient comment submission >>>
+  // <<< FIX: REVERTING TO RE-FETCH LOGIC >>>
   const handleCommentSubmit = async (payload, isFormData) => {
     setIsSubmittingComment(true);
     setCommentError(null);
@@ -267,9 +299,7 @@ const TaskDetailsPage = () => {
       const response = await fetch(`${API_BASE_URL}/api/admin/task-comment`, {
         method: "POST",
         headers: isFormData ? { Authorization: `Bearer ${token}`, Accept: "application/json" } : {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, Accept: "application/json", "Content-Type": "application/json",
         },
         body: isFormData ? payload : JSON.stringify(payload),
       });
@@ -279,10 +309,9 @@ const TaskDetailsPage = () => {
         throw new Error(responseData.message || `Failed to post comment (status ${response.status})`);
       }
 
-      // Instead of refetching, add the new comment directly to state
-      const newCommentData = responseData.data || responseData;
-      setComments((prevComments) => [...prevComments, newCommentData]);
-      setTotalCommentsFromApi(prev => prev + 1);
+      // SUCCESS! Re-fetch the list to get complete data. This is the most reliable way.
+      await initialFetchAndSetup(taskId);
+
       setNewComment("");
       toast.success(responseData.message || "Comment posted!");
       return true;
@@ -296,7 +325,7 @@ const TaskDetailsPage = () => {
     }
   };
 
-  // <<< CHANGED: More efficient comment editing >>>
+  // <<< FIX: REVERTING TO RE-FETCH LOGIC >>>
   const handleEditComment = async (commentId, formData) => {
     setCommentError(null);
     const token = getAuthToken();
@@ -304,7 +333,7 @@ const TaskDetailsPage = () => {
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/admin/task-comment/${commentId}`, {
-        method: "POST", // HTML forms don't support PUT with FormData, so backend uses POST with _method
+        method: "POST", 
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         body: formData,
       });
@@ -314,9 +343,8 @@ const TaskDetailsPage = () => {
         throw new Error(responseData.message || `Failed to update comment (status ${response.status})`);
       }
       
-      // Instead of refetching, find and update the comment in state
-      const updatedComment = responseData.data || responseData;
-      setComments(prev => prev.map(c => c.id === commentId ? updatedComment : c));
+      // Re-fetch for consistency
+      await initialFetchAndSetup(taskId);
       
       toast.success("Comment updated successfully!");
       return true;
@@ -328,7 +356,7 @@ const TaskDetailsPage = () => {
     }
   };
 
-  // <<< CHANGED: More efficient comment deletion >>>
+  // <<< FIX: REVERTING TO RE-FETCH LOGIC >>>
   const handleDeleteComment = async (commentId) => {
     setCommentError(null);
     const token = getAuthToken();
@@ -345,9 +373,8 @@ const TaskDetailsPage = () => {
           throw new Error(responseData.message || `Failed to delete comment (status ${response.status})`);
       }
       
-      // Instead of refetching, filter out the deleted comment
-      setComments(prev => prev.filter(c => c.id !== commentId));
-      setTotalCommentsFromApi(prev => prev - 1);
+      // Re-fetch for consistency
+      await initialFetchAndSetup(taskId);
       
       return true;
 
@@ -358,7 +385,6 @@ const TaskDetailsPage = () => {
     }
   };
   
-  // <<< NEW: Function to load replies for a specific comment >>>
   const onLoadRepliesForComment = async (parentCommentId) => {
     const token = getAuthToken();
     if (!token) return;
@@ -382,15 +408,13 @@ const TaskDetailsPage = () => {
         const existingCommentIds = new Set(prevComments.map(c => c.id));
         const trulyNewReplies = newRepliesFromApi.filter(reply => !existingCommentIds.has(reply.id));
         
-        // Update the parent comment's data (e.g., replies_count) in the list
         const updatedList = prevComments.map(c => {
             if (c.id === parentCommentId) {
-                return { ...c, ...parentCommentDetail };
+                return { ...c, ...parentCommentDetail, replies_count: parentCommentDetail.replies.length };
             }
             return c;
         });
 
-        // Add the new replies to the main flat list
         return [...updatedList, ...trulyNewReplies];
       });
 

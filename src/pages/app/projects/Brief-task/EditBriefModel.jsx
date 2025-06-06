@@ -264,7 +264,7 @@ const EditBriefModal = ({ isOpen, onClose, onBriefUpdated, briefData, projectId,
                         readOnly={isSubmitting} 
                     />
                 </FormGroup>
-                <FormGroup label="Brief Date" error={errors.brief_date}>
+                <FormGroup label="Brief Date" error={errors.brief_date} className='mt-12'>
                     <Controller 
                         name="brief_date" 
                         control={control} 

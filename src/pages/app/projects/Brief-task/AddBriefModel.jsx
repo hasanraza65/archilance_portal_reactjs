@@ -228,7 +228,7 @@ const AddBriefModal = ({ isOpen, onClose, onBriefAdded, projectId }) => {
                 </FormGroup>
 
                 {/* Brief Date Field */}
-                <FormGroup label="Brief Date" error={errors.brief_date}>
+                <FormGroup label="Brief Date" error={errors.brief_date} className='mt-12'>
                     <Controller
                         name="brief_date"
                         control={control}

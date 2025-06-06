@@ -1,86 +1,78 @@
+// store/index.js (or wherever your appProjectSlice is defined)
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 
-// Assuming avatar paths are correct if you re-enable them for default members
-// import avatar1 from "@/assets/images/avatar/av-1.svg";
-// import avatar2 from "@/assets/images/avatar/av-2.svg";
-
-const API_BASE_URL = "https://demo.aentora.com/backend/public/api/admin/project";
-
-// --- Helper Functions ---
-const generateDefaultMembers = () => {
-  return [
-    // { image: avatar1, label: "Member 1" },
-    // { image: avatar2, label: "Member 2" },
-  ];
-};
-
+// Helper functions (unchanged)
+const generateDefaultMembers = () => [];
 const calculateEndDateFromToday = (days = 30) => {
-  const today = new Date();
-  const dateToModify = new Date(today);
+  const dateToModify = new Date();
   dateToModify.setDate(dateToModify.getDate() + days);
   return dateToModify.toISOString().split('T')[0];
 };
-
 const formatProjectFromAPI = (project) => ({
   id: project.id,
-  name: project.project_name || project.name || "Unnamed Project",
-  des: project.project_description || project.description || "",
+  name: project.project_name || "Unnamed Project",
+  des: project.project_description || "",
   startDate: project.start_date || new Date().toISOString().split('T')[0],
   endDate: project.due_date || calculateEndDateFromToday(),
   progress: typeof project.progress === 'number' ? project.progress : (project.project_progress || 0),
   customer_id: project.customer_id || null,
   status: project.status?.toLowerCase() || "ongoing",
-  assignee: project.members && project.members.length > 0 ? project.members : generateDefaultMembers(),
-  members: project.members && project.members.length > 0 ? project.members : generateDefaultMembers(), // Ensure 'members' is populated if ProjectGrid uses it
+  assignee: project.members || [],
+  members: project.members || [],
 });
 
-// --- Async Thunks ---
+const API_BASE_URL = "https://demo.aentora.com/backend/public/api/admin/project";
+
+// Async Thunks (fetch, add, save are unchanged from previous correct version)
 
 export const fetchProjectsAPI = createAsyncThunk(
-  "approject/fetchProjects",
-  async (_, { rejectWithValue }) => {
+  "project/fetchProjects",
+  async (page = 1, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
-
-      const response = await axios.get(API_BASE_URL, {
+      const response = await axios.get(`${API_BASE_URL}?page=${page}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
-
-      const responseData = response.data.data || response.data.projects || response.data;
-      if (!responseData) return rejectWithValue("Invalid project data structure from API.");
-      
-      const projectsApiData = Array.isArray(responseData) ? responseData : (responseData.data && Array.isArray(responseData.data) ? responseData.data : [responseData]);
-      
-      return projectsApiData.map(formatProjectFromAPI);
+      const responseData = response.data;
+      if (!responseData || !Array.isArray(responseData.data)) {
+        return rejectWithValue("Invalid project data structure from API.");
+      }
+      const formattedProjects = responseData.data.map(formatProjectFromAPI);
+      return {
+        projects: formattedProjects,
+        meta: {
+          currentPage: responseData.current_page,
+          totalPages: responseData.last_page,
+          totalProjects: responseData.total,
+        },
+      };
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || "Failed to load projects.";
-      // toast.error(errorMessage); // Toasting here can be redundant if ProjectPostPage also shows an error.
       return rejectWithValue(errorMessage);
     }
   }
 );
 
 export const addProjectAPI = createAsyncThunk(
-  "approject/addProject",
+  "project/addProject",
   async (projectData, { dispatch, rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
-      
       const response = await axios.post(API_BASE_URL, projectData, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
-
-      if (response.data && (response.status === 201 || response.status === 200 || response.data.status === "success")) {
+      if (response.data && (response.status === 201 || response.status === 200)) {
         toast.success("Project added successfully!");
-        dispatch(fetchProjectsAPI());
-        return formatProjectFromAPI(response.data.data || response.data.project || response.data);
+        dispatch(fetchProjectsAPI(1)); // Go to first page to see new project
+        return formatProjectFromAPI(response.data.data);
       } else {
-        const errorMsg = response.data?.message || "Failed to add project to server.";
+        const errorMsg = response.data?.message || "Failed to add project.";
         toast.error(errorMsg);
         return rejectWithValue(errorMsg);
       }
@@ -93,22 +85,21 @@ export const addProjectAPI = createAsyncThunk(
 );
 
 export const saveEditedProjectAPI = createAsyncThunk(
-  "approject/saveEditedProject",
-  async (projectData, { dispatch, rejectWithValue }) => {
+  "project/saveEditedProject",
+  async (projectData, { dispatch, getState, rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
-
       const response = await axios.put(`${API_BASE_URL}/${projectData.id}`, projectData, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
-      
-      if (response.data && (response.status === 200 || response.data.status === "success")) {
+      if (response.data && response.status === 200) {
         toast.success("Project updated successfully!");
-        dispatch(fetchProjectsAPI());
-        return formatProjectFromAPI(response.data.data || response.data.project || response.data);
+        const { currentPage } = getState().project;
+        dispatch(fetchProjectsAPI(currentPage)); // Refetch current page
+        return formatProjectFromAPI(response.data.data);
       } else {
-        const errorMsg = response.data?.message || "Failed to update project on server.";
+        const errorMsg = response.data?.message || "Failed to update project.";
         toast.error(errorMsg);
         return rejectWithValue(errorMsg);
       }
@@ -120,9 +111,11 @@ export const saveEditedProjectAPI = createAsyncThunk(
   }
 );
 
+
+// --- IMPROVED DELETE THUNK ---
 export const deleteProjectAPI = createAsyncThunk(
-  "approject/deleteProjectAPI",
-  async (projectId, { dispatch, rejectWithValue }) => {
+  "project/deleteProjectAPI",
+  async (projectId, { dispatch, getState, rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found");
@@ -131,27 +124,35 @@ export const deleteProjectAPI = createAsyncThunk(
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       });
 
-      if (response.status === 200 || response.status === 204 || response.data?.status === "success" || response.data?.message?.toLowerCase().includes("successfully")) {
-        // Success alert is handled by SweetAlert in ProjectGrid.jsx
-        dispatch(fetchProjectsAPI());
+      if (response.status === 200 || response.status === 204) {
+        const { currentPage, projects } = getState().project;
+        // If the deleted project was the only one on the current page (and it's not page 1),
+        // then fetch the previous page. Otherwise, refetch the current page.
+        if (projects.length === 1 && currentPage > 1) {
+          dispatch(fetchProjectsAPI(currentPage - 1));
+        } else {
+          dispatch(fetchProjectsAPI(currentPage));
+        }
         return projectId;
       } else {
-        const errorMsg = response.data?.message || "Failed to delete project from server.";
-        // Error alert is handled by SweetAlert in ProjectGrid.jsx
+        const errorMsg = response.data?.message || "Failed to delete project.";
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || "Failed to delete project.";
-      // Error alert is handled by SweetAlert in ProjectGrid.jsx
       return rejectWithValue(errorMessage);
     }
   }
 );
 
+// The rest of the slice is correct and unchanged
 export const appProjectSlice = createSlice({
-  name: "project", // Changed name to 'project' to match selector: state.project
+  name: "project",
   initialState: {
     projects: [],
+    currentPage: 1,
+    totalPages: 1,
+    totalProjects: 0,
     isLoading: false,
     isAdding: false,
     isUpdating: false,
@@ -185,17 +186,22 @@ export const appProjectSlice = createSlice({
       })
       .addCase(fetchProjectsAPI.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.projects = action.payload;
+        state.projects = action.payload.projects;
+        state.currentPage = action.payload.meta.currentPage;
+        state.totalPages = action.payload.meta.totalPages;
+        state.totalProjects = action.payload.meta.totalProjects;
       })
       .addCase(fetchProjectsAPI.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
         state.projects = [];
+        state.currentPage = 1;
+        state.totalPages = 1;
+        state.totalProjects = 0;
       })
       // Add Project
       .addCase(addProjectAPI.pending, (state) => {
         state.isAdding = true;
-        state.error = null;
       })
       .addCase(addProjectAPI.fulfilled, (state) => {
         state.isAdding = false;
@@ -208,7 +214,6 @@ export const appProjectSlice = createSlice({
       // Save Edited Project
       .addCase(saveEditedProjectAPI.pending, (state) => {
         state.isUpdating = true;
-        state.error = null;
       })
       .addCase(saveEditedProjectAPI.fulfilled, (state) => {
         state.isUpdating = false;
@@ -221,23 +226,17 @@ export const appProjectSlice = createSlice({
       // Delete Project
       .addCase(deleteProjectAPI.pending, (state) => {
         state.isDeleting = true;
-        state.error = null;
       })
       .addCase(deleteProjectAPI.fulfilled, (state) => {
         state.isDeleting = false;
       })
       .addCase(deleteProjectAPI.rejected, (state, action) => {
         state.isDeleting = false;
-        // Error for delete is primarily handled by SweetAlert in component
-        // but we can store it if needed for other UI indication.
         state.error = action.payload;
       });
   },
 });
 
-export const {
-  toggleAddModal,
-  setEditModalAndItem,
-} = appProjectSlice.actions;
+export const { toggleAddModal, setEditModalAndItem } = appProjectSlice.actions;
 
 export default appProjectSlice.reducer;
