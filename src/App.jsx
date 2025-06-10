@@ -1,6 +1,19 @@
+// src/App.jsx
+
 import React, { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { ToastContainer } from "react-toastify"; // <<<---- IMPORT THIS
+import "react-toastify/dist/ReactToastify.css"; // <<<---- And its CSS
 
+// Layouts
+import Layout from "./layout/Layout";
+import AuthLayout from "./layout/AuthLayout";
+
+// Components
+import Loading from "@/components/Loading";
+import ProtectedRoute from "./ProtectedRoute";
+
+// Pages
 const Dashboard = lazy(() => import("./pages/dashboard"));
 const Ecommerce = lazy(() => import("./pages/dashboard/ecommerce"));
 const Login = lazy(() => import("./pages/auth/login"));
@@ -9,34 +22,45 @@ const ForgotPass = lazy(() => import("./pages/auth/forgot-password"));
 const Profile = lazy(() => import("./pages/utility/profile"));
 const EditProfile = lazy(() => import("./pages/utility/edit-profile"));
 const ProjectPostPage = lazy(() => import("./pages/app/projects"));
-
-
-// Error page link
+const ProjectDetailsPage = lazy(() =>
+  import("./pages/app/projects/project-details")
+);
+const Allemployees = lazy(() => import("./pages/employees/AllEmployees"));
+const AddEmployee = lazy(() => import("./pages/employees/AddEmployees"));
+const AllCustomers = lazy(() => import("./pages/customers/AllCustomers"));
+const AddCustomers = lazy(() => import("./pages/customers/AddCustomers"));
+const CustomerView = lazy(() => import("./pages/customers/ViewCustomer"));
+const UpdateCustomer = lazy(() => import("./pages/customers/UpdateCustomer"));
+const ShowEmployee = lazy(() => import("./pages/employees/ShowEmployee"));
+const EditEmployee = lazy(() => import("./pages/employees/UpdateEmployee"));
+const TaskDetailsPage = lazy(() =>
+  import("./pages/app/projects/Task/TaskDetailsPage")
+);
+const KanbanPage = lazy(() => import("./pages/app/projects/kanban"));
+const ProjectBriefDetailPage = lazy(() =>
+  import("./pages/app/projects/Brief-task/ProjectBriefDetailPage")
+);
 const Error = lazy(() => import("./pages/404"));
-
-import Layout from "./layout/Layout";
-import AuthLayout from "./layout/AuthLayout";
-
-import Loading from "@/components/Loading";
-import ProtectedRoute from "./ProtectedRoute";
-import ProjectDetailsPage from "./pages/app/projects/project-details";
-import Allemployees from "./pages/employees/AllEmployees";
-import AddEmployee from "./pages/employees/AddEmployees";
-import AllCustomers from "./pages/customers/AllCustomers";
-import AddCustomers from "./pages/customers/AddCustomers";
-import CustomerView from "./pages/customers/ViewCustomer";
-import UpdateCustomer from "./pages/customers/UpdateCustomer";
-import ShowEmployee from "./pages/employees/ShowEmployee";
-import EditEmployee from "./pages/employees/UpdateEmployee";
-import TaskDetailsPage from "./pages/app/projects/Task/TaskDetailsPage";
-
-import KanbanPage from "./pages/app/projects/kanban";
-import ProjectBriefDetailPage from "./pages/app/projects/Brief-task/ProjectBriefDetailPage";
 
 function App() {
   return (
     <main className="App relative">
+     
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+
       <Routes>
+        {/* Authentication Routes (Public) */}
         <Route element={<AuthLayout />}>
           <Route
             path="/"
@@ -65,6 +89,7 @@ function App() {
           />
         </Route>
 
+        {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route
@@ -83,7 +108,6 @@ function App() {
                 </Suspense>
               }
             />
-
             <Route
               path="profile"
               element={
@@ -93,40 +117,52 @@ function App() {
               }
             />
             <Route
-              path="profile/edit" // New route for editing profile
+              path="profile/edit"
               element={
                 <Suspense fallback={<Loading />}>
                   <EditProfile />
                 </Suspense>
               }
             />
-             <Route path="projects" element={<ProjectPostPage />} />
-             <Route path="projects/:id" element={<ProjectDetailsPage />} />
+            <Route path="projects" element={<ProjectPostPage />} />
+            <Route path="projects/:id" element={<ProjectDetailsPage />} />
             <Route path="/task/:taskId" element={<TaskDetailsPage />} />
-             <Route path="/project/:id/kanban" element={<KanbanPage />} /> 
-             <Route path="/project-brief/:briefId" element={<ProjectBriefDetailPage  />} />
-         
+            <Route path="/project/:id/kanban" element={<KanbanPage />} />
+            <Route
+              path="/project-brief/:briefId"
+              element={<ProjectBriefDetailPage />}
+            />
 
-             {/* Employees Routes */}
-             <Route path="employees" element={<Allemployees />} />
-             <Route path="/employees/view/:employeeId" element={<ShowEmployee />} />
-             <Route path="employees/add" element={<AddEmployee />} />
-             <Route path="/employees/edit/:employeeId" element={<EditEmployee />} />
+            {/* Employees Routes */}
+            <Route path="employees" element={<Allemployees />} />
+            <Route
+              path="/employees/view/:employeeId"
+              element={<ShowEmployee />}
+            />
+            <Route path="employees/add" element={<AddEmployee />} />
+            <Route
+              path="/employees/edit/:employeeId"
+              element={<EditEmployee />}
+            />
 
+            {/* Customer Route */}
+            <Route path="customers" element={<AllCustomers />} />
+            <Route
+              path="/customers/view/:customerId"
+              element={<CustomerView />}
+            />
+            <Route path="customers/add" element={<AddCustomers />} />
+            <Route
+              path="/customers/edit/:customerId"
+              element={<UpdateCustomer />}
+            />
 
-              {/* Customer Route */}
-              <Route path="customers" element={<AllCustomers />} />
-               <Route path="/customers/view/:customerId" element={<CustomerView />} />
-              <Route path="customers/add" element={<AddCustomers />} />
-              <Route path="/customers/edit/:customerId" element={<UpdateCustomer />} />
-
-
-
-            {/* Error Page Route */}
+            {/* Fallback for protected routes */}
             <Route path="*" element={<Navigate to="/404" replace />} />
           </Route>
         </Route>
 
+        {/* 404 Error Page */}
         <Route
           path="/404"
           element={
@@ -135,6 +171,7 @@ function App() {
             </Suspense>
           }
         />
+        {/* Global Fallback */}
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </main>

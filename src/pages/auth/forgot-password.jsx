@@ -67,7 +67,15 @@ const forgotPass = () => {
               </div>
             </div>
             <div className="auth-footer text-center">
-              Copyright 2021, Dashcode All Rights Reserved.
+              © {new Date().getFullYear()}, Developed by{" "}
+              <a
+                href="https://5techsol.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                5techsol
+              </a>
+              . All Rights Reserved.
             </div>
           </div>
         </div>

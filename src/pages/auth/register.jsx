@@ -54,14 +54,14 @@ const register = () => {
                 </div>
               </div>
               <RegForm />
-              <div className=" relative border-b-[#9AA2AF]/15 border-b pt-6">
+              {/* <div className=" relative border-b-[#9AA2AF]/15 border-b pt-6">
                 <div className=" absolute inline-block  bg-white dark:bg-slate-800 left-1/2 top-1/2 transform -translate-x-1/2 px-4 min-w-max text-sm  text-slate-500  dark:text-slate-400font-normal ">
                   Or continue with
                 </div>
-              </div>
-              <div className="max-w-[242px] mx-auto mt-8 w-full">
+              </div> */}
+              {/* <div className="max-w-[242px] mx-auto mt-8 w-full">
                 <Social />
-              </div>
+              </div> */}
               <div className="max-w-[215px] mx-auto font-normal text-slate-500 dark:text-slate-400 2xl:mt-12 mt-6 uppercase text-sm">
                 Already registered?
                 <Link
@@ -73,7 +73,15 @@ const register = () => {
               </div>
             </div>
             <div className="auth-footer text-center">
-              Copyright 2021, Dashcode All Rights Reserved.
+              © {new Date().getFullYear()}, Developed by{" "}
+              <a
+                href="https://5techsol.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                5techsol
+              </a>
+              . All Rights Reserved.
             </div>
           </div>
         </div>
