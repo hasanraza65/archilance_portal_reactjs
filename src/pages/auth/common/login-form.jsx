@@ -1,15 +1,17 @@
+// File: src/pages/auth/common/login-form.jsx
+
 import React, { useState } from "react";
 import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Checkbox from "@/components/ui/Checkbox";
 import Button from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-toastify";
-import Cookies from "js-cookie";
+import { useAuth } from "@/context/AuthContext";
 
 const schema = yup
   .object({
@@ -18,19 +20,13 @@ const schema = yup
   })
   .required();
 
-const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || DEFAULT_BACKEND_URL;
-
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const LOGIN_URL = `${BACKEND_BASE_URL}/api/login`;
 
-
-
 const LoginForm = () => {
-  const [loginError, setLoginError] = useState(null);
   const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
+  const { login: authLogin } = useAuth();
 
   const {
     register,
@@ -38,100 +34,51 @@ const LoginForm = () => {
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
-    mode: "onChange", 
+    mode: "onChange",
   });
 
-  const { mutate: login, isPending: isLoading } = useMutation({
+  const { mutate: performLogin, isPending: isLoading } = useMutation({
     mutationFn: async (formData) => {
       const apiData = {
-        login: formData.email, 
+        login: formData.email,
         password: formData.password,
       };
-
-      console.log("Data being sent to API:", apiData);
-      console.log("Attempting to login at URL:", LOGIN_URL); 
-
-      const response = await axios.post(LOGIN_URL, apiData, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await axios.post(LOGIN_URL, apiData);
       return response.data;
     },
     onSuccess: (responseData) => {
-      if (responseData && responseData.access_token) {
-      
-        const isDevelopment = import.meta.env.DEV;
-        const cookieOptions = {
-          secure: !isDevelopment, 
-          sameSite: 'Lax',
-        };
+      const loggedInUser = authLogin(responseData, rememberMe);
 
-        if (rememberMe) {
-          cookieOptions.expires = 7; 
-        }
-
-        Cookies.set("token", responseData.access_token, cookieOptions);
-        if (responseData.user) {
-          Cookies.set("user", JSON.stringify(responseData.user), cookieOptions);
-        }
-
+      if (loggedInUser) {
         toast.success("Login Successful");
-
-        const from = location.state?.from?.pathname || "/dashboard";
-        navigate(from, { replace: true });
+        // <<<--- YAHAN CHANGE HAI ---<<<
+        // Ab hamesha root (/) par redirect karein.
+        // Baaqi logic aapka main login page sambhalega.
+        navigate('/', { replace: true });
       } else {
-        const errorMessage = responseData.message || "Login failed: Invalid server response.";
-        toast.error(errorMessage);
-        setLoginError(errorMessage);
+        toast.error("Login failed: Could not process user data.");
       }
     },
     onError: (error) => {
-      console.error("Login error details:", error);
       let errorMsg = "Login failed. Please check your credentials.";
-
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          console.error("Server Error Response Data:", error.response.data);
-          const serverErrorData = error.response.data;
-          errorMsg = serverErrorData.message || `Server error: ${error.response.status}`;
-          if (serverErrorData.errors && typeof serverErrorData.errors === 'object' && Object.keys(serverErrorData.errors).length > 0) {
-            const specificErrors = Object.values(serverErrorData.errors)
-              .map(errArray => Array.isArray(errArray) ? errArray.join(', ') : String(errArray))
-              .join('; ');
-            errorMsg += `: ${specificErrors}`;
-          }
-        } else if (error.request) {
-          console.error("Network error (no response received):", error.request);
-          errorMsg = "Network error. Please check your connection and try again.";
-        } else {
-          console.error("Axios error (request setup):", error.message);
-          errorMsg = `Request setup error: ${error.message}`;
-        }
+      if (axios.isAxiosError(error) && error.response) {
+        errorMsg = error.response.data.message || `Server error: ${error.response.status}`;
       } else if (error instanceof Error) {
         errorMsg = error.message;
       }
-
       toast.error(errorMsg);
-      setLoginError(errorMsg);
     },
   });
 
   const onSubmit = (formData) => {
-    setLoginError(null);
-    login(formData);
+    performLogin(formData);
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <Textinput
         name="email"
         label="Email"
-        defaultValue="admin@mail.com" // Consider removing if not always needed
         type="email"
         register={register}
         error={errors.email}
@@ -142,17 +89,11 @@ const LoginForm = () => {
         name="password"
         label="Password"
         type="password"
-        defaultValue="" // Default value for password should usually be empty
         register={register}
         error={errors.password}
         className="h-[48px]"
         placeholder="Enter your password"
       />
-      {loginError && (
-        <div className="text-sm text-red-500 dark:text-red-400" role="alert">
-          {loginError}
-        </div>
-      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Checkbox
           value={rememberMe}
@@ -171,7 +112,7 @@ const LoginForm = () => {
         text="Sign in"
         className="btn btn-dark block w-full text-center"
         isLoading={isLoading}
-        disabled={isLoading} 
+        disabled={isLoading}
       />
     </form>
   );

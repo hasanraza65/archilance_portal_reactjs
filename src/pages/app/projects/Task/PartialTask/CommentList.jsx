@@ -43,14 +43,16 @@ const DropdownMenu = ({ options, onSelect, onClose }) => {
   );
 };
 
-// <<< START OF FIX: YEH NAYA FUNCTION REPLIES KO SAHI SE DISPLAY KAREGA >>>
 const buildCommentTree = (commentsList) => {
   if (!commentsList || commentsList.length === 0) return [];
+
+  // <<< FIX: Filter out any null or undefined entries to prevent crashes. >>>
+  const validComments = commentsList.filter(c => c && typeof c === 'object' && c.id !== undefined);
 
   const commentsMap = new Map();
   
   // Step 1: Har comment ko map mein daalein aur uske liye ek 'children' array banayein.
-  commentsList.forEach(comment => {
+  validComments.forEach(comment => {
     // Purane children ko discard karke naya array banayein, taake har re-render pe sahi bane.
     commentsMap.set(comment.id, { ...comment, children: [] });
   });
@@ -85,7 +87,6 @@ const buildCommentTree = (commentsList) => {
   // Step 4: Root comments ko sort karke return karein.
   return sortComments(rootComments);
 };
-// <<< END OF FIX >>>
 
 
 const CommentList = ({
@@ -222,7 +223,7 @@ const CommentList = ({
   };
 
   const handleStartReply = (commentToReplyTo) => {
-    const sender = commentToReplyTo.sender ? mapApiUserToLocal(commentToReplyTo.sender, "commenter") : mapApiUserToLocal(null, "commenter");
+    const sender = commentToReplyTo.sender ? mapApiUserToLocal(commentToReplyTo.sender) : mapApiUserToLocal(null);
     let snippet;
     const numAtt = (commentToReplyTo.comment_attachments || []).length;
     if (commentToReplyTo.comment_message) snippet = commentToReplyTo.comment_message.length > 70 ? `${commentToReplyTo.comment_message.substring(0, 67)}...` : commentToReplyTo.comment_message;
@@ -438,7 +439,7 @@ const CommentList = ({
     );
 
   const RenderCommentNode = ({ commentNode, level }) => {
-    const sender = commentNode.sender ? mapApiUserToLocal(commentNode.sender, "commenter") : mapApiUserToLocal(null, "commenter");
+    const sender = commentNode.sender ? mapApiUserToLocal(commentNode.sender) : mapApiUserToLocal(null);
     const isEditingThis = editingCommentId === commentNode.id;
     const attToDisp = useMemo(() => {
       if (!commentNode.comment_attachments?.length) return [];
@@ -669,5 +670,6 @@ const CommentList = ({
     </div>
   );
 };
+
 
 export default CommentList;

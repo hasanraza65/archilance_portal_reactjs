@@ -1,11 +1,47 @@
-export const menuItems = [
+import User1 from "@/assets/images/all-img/user.png";
+import User2 from "@/assets/images/all-img/user2.png";
+import User3 from "@/assets/images/all-img/user3.png";
+import User4 from "@/assets/images/all-img/user4.png";
+import meetsImage1 from "@/assets/images/svg/sk.svg";
+import meetsImage2 from "@/assets/images/svg/path.svg";
+import meetsImage3 from "@/assets/images/svg/dc.svg";
+import meetsImage4 from "@/assets/images/svg/sk.svg";
+import file1Img from "@/assets/images/icon/file-1.svg";
+import file2Img from "@/assets/images/icon/pdf-1.svg";
+import file3Img from "@/assets/images/icon/zip-1.svg";
+import file4Img from "@/assets/images/icon/pdf-2.svg";
+import file5Img from "@/assets/images/icon/scr-1.svg";
+import blackJumper from "@/assets/images/e-commerce/product-card/classical-black-tshirt.png";
+import blackTshirt from "@/assets/images/e-commerce/product-card/black-t-shirt.png";
+import checkShirt from "@/assets/images/e-commerce/product-card/check-shirt.png";
+import grayJumper from "@/assets/images/e-commerce/product-card/gray-jumper.png";
+import grayTshirt from "@/assets/images/e-commerce/product-card/gray-t-shirt.png";
+import pinkBlazer from "@/assets/images/e-commerce/product-card/pink-blazer.png";
+import redTshirt from "@/assets/images/e-commerce/product-card/red-t-shirt.png";
+import yellowFrok from "@/assets/images/e-commerce/product-card/yellow-frok.png";
+import yellowJumper from "@/assets/images/e-commerce/product-card/yellow-jumper.png";
+import bkash from "@/assets/images/e-commerce/cart-icon/bkash.png";
+import fatoorah from "@/assets/images/e-commerce/cart-icon/fatoorah.png";
+import instamojo from "@/assets/images/e-commerce/cart-icon/instamojo.png";
+import iyzco from "@/assets/images/e-commerce/cart-icon/iyzco.png";
+import nagad from "@/assets/images/e-commerce/cart-icon/nagad.png";
+import ngenious from "@/assets/images/e-commerce/cart-icon/ngenious.png";
+import payfast from "@/assets/images/e-commerce/cart-icon/payfast.png";
+import payku from "@/assets/images/e-commerce/cart-icon/payku.png";
+import paypal from "@/assets/images/e-commerce/cart-icon/paypal.png";
+import paytm from "@/assets/images/e-commerce/cart-icon/paytm.png";
+import razorpay from "@/assets/images/e-commerce/cart-icon/razorpay.png";
+import ssl from "@/assets/images/e-commerce/cart-icon/ssl.png";
+import stripe from "@/assets/images/e-commerce/cart-icon/stripe.png";
+import truck from "@/assets/images/e-commerce/cart-icon/truck.png";
+import vougepay from "@/assets/images/e-commerce/cart-icon/vougepay.png";
+
+export const adminMenuItems = [
   {
     isHeadr: true,
     title: "menu",
   },
-
-  
-   {
+  {
     title: "Dashboard",
     icon: "heroicons-outline:home",
     isOpen: true,
@@ -15,15 +51,16 @@ export const menuItems = [
         childtitle: "Analytics Dashboard",
         childlink: "dashboard",
       },
-      {
-        childtitle: "Ecommerce Dashboard",
-        childlink: "ecommerce",
-      },
-     
     ],
   },
   {
-     title: "Projects",
+    title: "Chat",
+    isHide: true,
+    icon: "heroicons-outline:chat",
+    link: "chat",
+  },
+  {
+    title: "Projects",
     isHide: true,
     icon: "heroicons-outline:document",
     link: "projects",
@@ -39,6 +76,37 @@ export const menuItems = [
     isHide: true,
     icon: "heroicons-outline:user",
     link: "customers",
+  },
+];
+
+export const employeeMenuItems = [
+  {
+    isHeadr: true,
+    title: "menu",
+  },
+  {
+    title: "Dashboard",
+    icon: "heroicons-outline:home",
+    isOpen: true,
+    isHide: true,
+    child: [
+      {
+        childtitle: "Analytics Dashboard",
+        childlink: "dashboard",
+      },
+    ],
+  },
+  {
+    title: "Projects",
+    isHide: true,
+    icon: "heroicons-outline:document",
+    link: "projects",
+  },
+  {
+    title: "Chat",
+    isHide: true,
+    icon: "heroicons-outline:chat",
+    link: "chat",
   },
 ];
 
@@ -283,11 +351,6 @@ export const topMenu = [
             m_childtitle: "Pricing",
             m_childlink: "pricing",
           },
-
-          // {
-          //   m_childtitle: "Testimonial",
-          //   m_childlink: "testimonial",
-          // },
           {
             m_childtitle: "FAQ",
             m_childlink: "faq",
@@ -316,7 +379,6 @@ export const topMenu = [
       },
     ],
   },
-
   {
     title: "Widgets",
     icon: "heroicons-outline:view-grid-add",
@@ -334,11 +396,9 @@ export const topMenu = [
       },
     ],
   },
-
   {
     title: "Extra",
     icon: "heroicons-outline:template",
-
     child: [
       {
         childtitle: "Basic Table",
@@ -369,15 +429,10 @@ export const topMenu = [
   },
 ];
 
-import User1 from "@/assets/images/all-img/user.png";
-import User2 from "@/assets/images/all-img/user2.png";
-import User3 from "@/assets/images/all-img/user3.png";
-import User4 from "@/assets/images/all-img/user4.png";
 export const notifications = [
   {
     title: "Your order is placed",
     desc: "Amet minim mollit non deser unt ullamco est sit aliqua.",
-
     image: User1,
     link: "#",
   },
@@ -391,14 +446,12 @@ export const notifications = [
   {
     title: "Revised Order 👋",
     desc: "Won the monthly best seller badge",
-
     image: User3,
     link: "#",
   },
   {
     title: "Brooklyn Simmons",
     desc: "Added you to Top Secret Project group...",
-
     image: User4,
     link: "#",
   },
@@ -511,7 +564,6 @@ export const topFilterLists = [
     value: "sent",
     icon: "heroicons-outline:paper-airplane",
   },
-
   {
     name: "Drafts",
     value: "drafts",
@@ -552,11 +604,6 @@ export const bottomFilterLists = [
   },
 ];
 
-import meetsImage1 from "@/assets/images/svg/sk.svg";
-import meetsImage2 from "@/assets/images/svg/path.svg";
-import meetsImage3 from "@/assets/images/svg/dc.svg";
-import meetsImage4 from "@/assets/images/svg/sk.svg";
-
 export const meets = [
   {
     img: meetsImage1,
@@ -583,11 +630,6 @@ export const meets = [
     meet: "Zoom meeting",
   },
 ];
-import file1Img from "@/assets/images/icon/file-1.svg";
-import file2Img from "@/assets/images/icon/pdf-1.svg";
-import file3Img from "@/assets/images/icon/zip-1.svg";
-import file4Img from "@/assets/images/icon/pdf-2.svg";
-import file5Img from "@/assets/images/icon/scr-1.svg";
 
 export const files = [
   {
@@ -616,18 +658,6 @@ export const files = [
     date: "06 June 2021 / 155MB",
   },
 ];
-
-// ecommarce data
-
-import blackJumper from "@/assets/images/e-commerce/product-card/classical-black-tshirt.png";
-import blackTshirt from "@/assets/images/e-commerce/product-card/black-t-shirt.png";
-import checkShirt from "@/assets/images/e-commerce/product-card/check-shirt.png";
-import grayJumper from "@/assets/images/e-commerce/product-card/gray-jumper.png";
-import grayTshirt from "@/assets/images/e-commerce/product-card/gray-t-shirt.png";
-import pinkBlazer from "@/assets/images/e-commerce/product-card/pink-blazer.png";
-import redTshirt from "@/assets/images/e-commerce/product-card/red-t-shirt.png";
-import yellowFrok from "@/assets/images/e-commerce/product-card/yellow-frok.png";
-import yellowJumper from "@/assets/images/e-commerce/product-card/yellow-jumper.png";
 
 export const products = [
   {
@@ -824,6 +854,7 @@ export const selectOptions = [
     label: "Option 3",
   },
 ];
+
 export const selectCategory = [
   {
     value: "option1",
@@ -838,22 +869,6 @@ export const selectCategory = [
     label: "Option 3",
   },
 ];
-
-import bkash from "@/assets/images/e-commerce/cart-icon/bkash.png";
-import fatoorah from "@/assets/images/e-commerce/cart-icon/fatoorah.png";
-import instamojo from "@/assets/images/e-commerce/cart-icon/instamojo.png";
-import iyzco from "@/assets/images/e-commerce/cart-icon/iyzco.png";
-import nagad from "@/assets/images/e-commerce/cart-icon/nagad.png";
-import ngenious from "@/assets/images/e-commerce/cart-icon/ngenious.png";
-import payfast from "@/assets/images/e-commerce/cart-icon/payfast.png";
-import payku from "@/assets/images/e-commerce/cart-icon/payku.png";
-import paypal from "@/assets/images/e-commerce/cart-icon/paypal.png";
-import paytm from "@/assets/images/e-commerce/cart-icon/paytm.png";
-import razorpay from "@/assets/images/e-commerce/cart-icon/razorpay.png";
-import ssl from "@/assets/images/e-commerce/cart-icon/ssl.png";
-import stripe from "@/assets/images/e-commerce/cart-icon/stripe.png";
-import truck from "@/assets/images/e-commerce/cart-icon/truck.png";
-import vougepay from "@/assets/images/e-commerce/cart-icon/vougepay.png";
 
 export const payments = [
   {

@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, NavLink } from "react-router-dom";
-import { menuItems } from "@/constant/data";
+import { adminMenuItems, employeeMenuItems } from "@/constant/data";
 import Icon from "@/components/ui/Icon";
+import { useAuth } from "@/context/AuthContext";
 
 const Breadcrumbs = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const locationName = location.pathname.replace("/", "");
 
   const [isHide, setIsHide] = useState(null);
   const [groupTitle, setGroupTitle] = useState("");
+
+  const menuItems =
+    user?.role === "employee" ? employeeMenuItems : adminMenuItems;
 
   useEffect(() => {
     const currentMenuItem = menuItems.find(
@@ -21,11 +26,16 @@ const Breadcrumbs = () => {
 
     if (currentMenuItem) {
       setIsHide(currentMenuItem.isHide);
+      setGroupTitle(""); // Reset group title for top-level items
     } else if (currentChild) {
       setIsHide(currentChild?.isHide || false);
       setGroupTitle(currentChild?.title);
+    } else {
+      // Reset if no match is found (e.g., on a page not in the menu)
+      setIsHide(true);
+      setGroupTitle("");
     }
-  }, [location, locationName]);
+  }, [location, locationName, menuItems]);
 
   return (
     <>

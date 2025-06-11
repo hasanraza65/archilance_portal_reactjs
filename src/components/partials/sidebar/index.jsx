@@ -1,16 +1,17 @@
 import React, { useRef, useEffect, useState } from "react";
 import SidebarLogo from "./Logo";
 import Navmenu from "./Navmenu";
-import { menuItems } from "@/constant/data";
+import { adminMenuItems, employeeMenuItems } from "@/constant/data";
 import SimpleBar from "simplebar-react";
 import useSidebar from "@/hooks/useSidebar";
 import useSemiDark from "@/hooks/useSemiDark";
 import useSkin from "@/hooks/useSkin";
-import svgRabitImage from "@/assets/images/svg/rabit.svg";
+import { useAuth } from "@/context/AuthContext";
 
 const Sidebar = () => {
   const scrollableNodeRef = useRef();
   const [scroll, setScroll] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,16 +21,26 @@ const Sidebar = () => {
         setScroll(false);
       }
     };
-    scrollableNodeRef.current.addEventListener("scroll", handleScroll);
-  }, [scrollableNodeRef]);
+    const node = scrollableNodeRef.current;
+    if (node) {
+      node.addEventListener("scroll", handleScroll);
+    }
+
+    return () => {
+      if (node) {
+        node.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, []);
 
   const [collapsed, setMenuCollapsed] = useSidebar();
   const [menuHover, setMenuHover] = useState(false);
-
-  // semi dark option
   const [isSemiDark] = useSemiDark();
-  // skin
   const [skin] = useSkin();
+
+  const menusToDisplay =
+    user?.role === "employee" ? employeeMenuItems : adminMenuItems;
+
   return (
     <div className={isSemiDark ? "dark" : ""}>
       <div
@@ -61,7 +72,7 @@ const Sidebar = () => {
           className="sidebar-menu px-4 h-[calc(100%-80px)]"
           scrollableNodeProps={{ ref: scrollableNodeRef }}
         >
-          <Navmenu menus={menuItems} />
+          <Navmenu menus={menusToDisplay} />
         </SimpleBar>
       </div>
     </div>

@@ -5,9 +5,9 @@ import Cookies from "js-cookie";
 import AddTaskModal from "../projects/Task/PartialTask/AddSubTaskModal";
 import EditTaskModal from "../projects/Task/PartialTask/EditTaskModal";
 import AddBriefModal from "./Brief-task/AddBriefModel";
-import EditBriefModal from "./Brief-task/EditBriefModel"; 
+import EditBriefModal from "./Brief-task/EditBriefModel";
 import Swal from "sweetalert2";
-import DOMPurify from 'dompurify';
+import DOMPurify from "dompurify";
 
 // --- Helper Functions (Keep them as they are) ---
 // ... (mapApiAssigneeToLocal, getStatusClass, getPriorityClass, getAttachmentUrl, isImageFile) ...
@@ -31,10 +31,23 @@ const mapApiAssigneeToLocal = (apiUser) => {
   let defaultColor = "bg-gray-500";
   if (name !== "Unknown User" && name.length > 0) {
     const colors = [
-      "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500", "bg-lime-500",
-      "bg-green-500", "bg-emerald-500", "bg-teal-500", "bg-cyan-500", "bg-sky-500",
-      "bg-blue-500", "bg-indigo-500", "bg-violet-500", "bg-purple-500", "bg-fuchsia-500",
-      "bg-pink-500", "bg-rose-500",
+      "bg-red-500",
+      "bg-orange-500",
+      "bg-amber-500",
+      "bg-yellow-500",
+      "bg-lime-500",
+      "bg-green-500",
+      "bg-emerald-500",
+      "bg-teal-500",
+      "bg-cyan-500",
+      "bg-sky-500",
+      "bg-blue-500",
+      "bg-indigo-500",
+      "bg-violet-500",
+      "bg-purple-500",
+      "bg-fuchsia-500",
+      "bg-pink-500",
+      "bg-rose-500",
     ];
     const colorIndex = id
       ? (typeof id === "string" ? id.charCodeAt(0) : id) % colors.length
@@ -102,10 +115,10 @@ const getPriorityClass = (priority) => {
 
 const getAttachmentUrl = (filePath) => {
   const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
-  if (!backendBaseUrl || !filePath) return "#"; 
+  if (!backendBaseUrl || !filePath) return "#";
 
-  const cleanBaseUrl = backendBaseUrl.replace(/\/$/, ""); 
-  const cleanFilePath = filePath.replace(/^\//, ""); 
+  const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
+  const cleanFilePath = filePath.replace(/^\//, "");
   return `${cleanBaseUrl}/storage/${cleanFilePath}`;
 };
 
@@ -113,6 +126,26 @@ const isImageFile = (fileType) => {
   if (!fileType) return false;
   return fileType.startsWith("image/");
 };
+
+// --- NEW HELPER FUNCTION TO GET API PATH BASED ON ROLE ---
+const getApiBasePathForRole = () => {
+  const userCookie = Cookies.get("user");
+  if (userCookie) {
+    try {
+      const user = JSON.parse(userCookie);
+      // If the user role is 'employee', use the employee-specific API path
+      if (user && user.role === 'employee') {
+        return "/api/employee/project";
+      }
+    } catch (e) {
+      console.error("Failed to parse user cookie:", e);
+      // Fallback to admin path if the cookie is malformed
+    }
+  }
+  // Default to the admin path for any other case
+  return "/api/admin/project";
+};
+
 
 const ProjectDetailsPage = () => {
   const { id } = useParams(); // This is project ID
@@ -127,7 +160,7 @@ const ProjectDetailsPage = () => {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
-  
+
   const [isAddBriefModalOpen, setIsAddBriefModalOpen] = useState(false);
   const [isEditBriefModalOpen, setIsEditBriefModalOpen] = useState(false);
   const [briefToEdit, setBriefToEdit] = useState(null);
@@ -136,7 +169,10 @@ const ProjectDetailsPage = () => {
 
   const fetchProjectAndTasks = useCallback(async () => {
     // ... (fetchProjectAndTasks logic - no changes needed here for view brief)
-    console.log("ProjectDetailsPage: fetchProjectAndTasks called for project ID:", id);
+    console.log(
+      "ProjectDetailsPage: fetchProjectAndTasks called for project ID:",
+      id
+    );
     if (!id) {
       setError("Project ID is missing from URL.");
       setLoading(false);
@@ -167,18 +203,21 @@ const ProjectDetailsPage = () => {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
       };
+      
+      // --- MODIFIED: Use the helper function to get the correct API path ---
+      const apiPath = getApiBasePathForRole();
+      const apiUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${id}`;
+      
+      console.log(`Fetching project details from: ${apiUrl}`); // For debugging
 
-      const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project/${id}`,
-        {
-          method: "GET",
-          headers: headers,
-        }
-      );
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: headers,
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -200,38 +239,52 @@ const ProjectDetailsPage = () => {
       }
 
       const fetchedProjectData = await response.json();
-      if (fetchedProjectData && fetchedProjectData.project_name) {
+      
+      // The API response for a single project might be nested under a 'data' key.
+      // Let's check for both structures for robustness.
+      const projectData = fetchedProjectData.data || fetchedProjectData;
+
+      if (projectData && projectData.project_name) {
         setProjectDetails({
-          project_title: fetchedProjectData.project_name,
-          project_description: fetchedProjectData.project_description,
+          project_title: projectData.project_name,
+          project_description: projectData.project_description,
         });
-        const processedTasks = (fetchedProjectData.tasks || []).map((task) => ({
+        const processedTasks = (projectData.tasks || []).map((task) => ({
           ...task,
           assignees: task.assignees || [],
         }));
         setTasks(processedTasks);
 
-        const processedBriefs = (fetchedProjectData.all_briefs || []).map(brief => ({
-          ...brief,
-          sanitized_description: DOMPurify.sanitize(brief.brief_description || ""),
-          attachments: (brief.attachments || []).map(att => ({
-            ...att,
-            url: getAttachmentUrl(att.file_path) 
-          }))
-        }));
+        const processedBriefs = (projectData.all_briefs || []).map(
+          (brief) => ({
+            ...brief,
+            sanitized_description: DOMPurify.sanitize(
+              brief.brief_description || ""
+            ),
+            attachments: (brief.attachments || []).map((att) => ({
+              ...att,
+              url: getAttachmentUrl(att.file_path),
+            })),
+          })
+        );
         setBriefs(processedBriefs);
 
         setProjectFound(true);
       } else {
         setProjectFound(false);
-        setError("Invalid project data received. Expected a 'project_name' field.");
+        setError(
+          "Invalid project data received. Expected a 'project_name' field."
+        );
         setProjectDetails(null);
         setTasks([]);
         setBriefs([]);
       }
     } catch (err) {
       console.error("ProjectDetailsPage: Error fetching project details:", err);
-      setError(err.message || "An unknown error occurred while fetching project details.");
+      setError(
+        err.message ||
+          "An unknown error occurred while fetching project details."
+      );
       setProjectFound(false);
     } finally {
       setLoading(false);
@@ -275,7 +328,7 @@ const ProjectDetailsPage = () => {
   };
   const handleKanbanBoard = () => navigate(`/project/${id}/kanban`);
   const handleDeleteTask = async (taskId) => {
-     if (!taskId) {
+    if (!taskId) {
       Swal.fire({
         icon: "error",
         title: "Oops...",
@@ -380,13 +433,19 @@ const ProjectDetailsPage = () => {
       if (result.isConfirmed) {
         const token = Cookies.get("token");
         if (!token) {
-          Swal.fire("Authentication Error", "Please log in again.", "error").then(() => navigate("/login"));
+          Swal.fire(
+            "Authentication Error",
+            "Please log in again.",
+            "error"
+          ).then(() => navigate("/login"));
           return;
         }
 
         try {
           const response = await fetch(
-            `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-brief/${briefId}`,
+            `${
+              import.meta.env.VITE_BACKEND_BASE_URL
+            }/api/admin/project-brief/${briefId}`,
             {
               method: "DELETE",
               headers: {
@@ -397,55 +456,94 @@ const ProjectDetailsPage = () => {
           );
 
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: "Server error during brief deletion." }));
-            Swal.fire("Deletion Failed", errorData.message || `Failed to delete brief (Status: ${response.status})`, "error");
+            const errorData = await response
+              .json()
+              .catch(() => ({
+                message: "Server error during brief deletion.",
+              }));
+            Swal.fire(
+              "Deletion Failed",
+              errorData.message ||
+                `Failed to delete brief (Status: ${response.status})`,
+              "error"
+            );
             return;
           }
 
-          Swal.fire("Deleted!", "The project brief has been deleted.", "success");
-          setBriefs((prevBriefs) => prevBriefs.filter((brief) => brief.id !== briefId));
+          Swal.fire(
+            "Deleted!",
+            "The project brief has been deleted.",
+            "success"
+          );
+          setBriefs((prevBriefs) =>
+            prevBriefs.filter((brief) => brief.id !== briefId)
+          );
         } catch (err) {
-          Swal.fire("Error", err.message || "Could not connect to the server to delete brief.", "error");
+          Swal.fire(
+            "Error",
+            err.message || "Could not connect to the server to delete brief.",
+            "error"
+          );
         }
       }
     });
   };
 
-
   // --- View Brief Handler ---
   const handleViewBriefDetails = (briefId) => {
     if (!briefId) {
-        Swal.fire("Error", "Brief ID is missing.", "error");
-        return;
+      Swal.fire("Error", "Brief ID is missing.", "error");
+      return;
     }
     // Navigate to a new route, e.g., /project-brief/:briefId
     // You might want to include the projectId in the route as well if it's needed on the detail page
     // For example: /project/:projectId/brief/:briefId
-    navigate(`/project-brief/${briefId}`); 
+    navigate(`/project-brief/${briefId}`);
     // Or, if you want to keep project context: navigate(`/project/${id}/brief/${briefId}`);
   };
 
-
-  // --- Render Logic ---
+  // --- Render Logic (No Changes Below This Line) ---
   // ... (loading, error, project details, tasks section - all as before) ...
   if (loading && !projectDetails && tasks.length === 0 && briefs.length === 0) {
-    return <div className="container mx-auto p-4 text-center">Loading project details...</div>;
+    return (
+      <div className="container mx-auto p-4 text-center">
+        Loading project details...
+      </div>
+    );
   }
 
   if (!projectFound && !loading) {
     return (
       <div className="container mx-auto p-4">
         <div className="text-center p-10 bg-white dark:bg-slate-800 rounded-lg shadow">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
-          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Project Not Found</h3>
+          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">
+            Project Not Found
+          </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
             The project with ID: {id} could not be found.
             {error && <span className="block mt-1">Details: {error}</span>}
           </p>
           <div className="mt-6">
-            <button type="button" onClick={() => navigate("/projects")} className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button
+              type="button"
+              onClick={() => navigate("/projects")}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
               Go to Projects
             </button>
           </div>
@@ -453,19 +551,30 @@ const ProjectDetailsPage = () => {
       </div>
     );
   }
-  
+
   if (error && (!projectFound || (projectDetails && loading))) {
-      return <div className="container mx-auto p-4 text-center text-red-500">Error: {error}</div>;
+    return (
+      <div className="container mx-auto p-4 text-center text-red-500">
+        Error: {error}
+      </div>
+    );
   }
 
   if (!projectDetails && !loading && projectFound) {
-    return <div className="container mx-auto p-4 text-center text-yellow-500">No project data available, though project was marked as found. Please try refreshing.</div>;
+    return (
+      <div className="container mx-auto p-4 text-center text-yellow-500">
+        No project data available, though project was marked as found. Please
+        try refreshing.
+      </div>
+    );
   }
 
   const projectDescriptionHtml = projectDetails?.project_description || "";
-  const sanitizedProjectDescription = DOMPurify.sanitize(projectDescriptionHtml);
-  const projectHasActualDescription = sanitizedProjectDescription.replace(/<[^>]*>/g, '').trim().length > 0;
-
+  const sanitizedProjectDescription = DOMPurify.sanitize(
+    projectDescriptionHtml
+  );
+  const projectHasActualDescription =
+    sanitizedProjectDescription.replace(/<[^>]*>/g, "").trim().length > 0;
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -475,11 +584,18 @@ const ProjectDetailsPage = () => {
             {projectDetails.project_title}
           </h1>
           <div className="mt-2 text-slate-600 dark:text-slate-400 prose prose-sm max-w-none dark:prose-invert">
-            <strong className="font-semibold text-slate-700 dark:text-slate-300">Project Description:</strong>
+            <strong className="font-semibold text-slate-700 dark:text-slate-300">
+              Project Description:
+            </strong>
             {projectHasActualDescription ? (
-                <div className="mt-1" dangerouslySetInnerHTML={{ __html: sanitizedProjectDescription }} />
+              <div
+                className="mt-1"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizedProjectDescription,
+                }}
+              />
             ) : (
-                <p className="italic mt-1">N/A</p>
+              <p className="italic mt-1">N/A</p>
             )}
           </div>
         </div>
@@ -487,7 +603,8 @@ const ProjectDetailsPage = () => {
 
       {error && projectDetails && (
         <div className="p-3 bg-red-100 text-red-700 border border-red-400 rounded">
-          Note: There was an issue fetching the latest updates. Displaying last known data. Error: {error}
+          Note: There was an issue fetching the latest updates. Displaying last
+          known data. Error: {error}
         </div>
       )}
 
@@ -504,7 +621,12 @@ const ProjectDetailsPage = () => {
                   onClick={handleKanbanBoard}
                   className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out flex items-center"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
                   </svg>
                   Kanban Board
@@ -513,8 +635,17 @@ const ProjectDetailsPage = () => {
                   onClick={handleOpenAddTaskModal}
                   className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out flex items-center"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                   Add Task
                 </button>
@@ -523,17 +654,27 @@ const ProjectDetailsPage = () => {
 
             <div className="grid grid-cols-12 bg-slate-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-300 sticky top-0 z-10">
               <div className="col-span-12 sm:col-span-4 p-3 sm:p-4">Name</div>
-              <div className="col-span-12 sm:col-span-2 p-3 sm:p-4">Assignees</div>
+              <div className="col-span-12 sm:col-span-2 p-3 sm:p-4">
+                Assignees
+              </div>
               <div className="col-span-6 sm:col-span-2 p-3 sm:p-4">Status</div>
-              <div className="col-span-6 sm:col-span-2 p-3 sm:p-4">Due date</div>
-              <div className="col-span-6 sm:col-span-1 p-3 sm:p-4">Priority</div>
-              <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 text-center">Actions</div>
+              <div className="col-span-6 sm:col-span-2 p-3 sm:p-4">
+                Due date
+              </div>
+              <div className="col-span-6 sm:col-span-1 p-3 sm:p-4">
+                Priority
+              </div>
+              <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 text-center">
+                Actions
+              </div>
             </div>
 
             <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
               {tasks.map((task, index) => {
                 const mappedTaskAssignees = (task.assignees || [])
-                  .map((assigneeEntry) => mapApiAssigneeToLocal(assigneeEntry.user || assigneeEntry))
+                  .map((assigneeEntry) =>
+                    mapApiAssigneeToLocal(assigneeEntry.user || assigneeEntry)
+                  )
                   .filter(Boolean);
 
                 return (
@@ -541,52 +682,133 @@ const ProjectDetailsPage = () => {
                     key={task.id || `task-${index}`}
                     className="grid grid-cols-12 border-b border-gray-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600/50 transition-colors text-xs sm:text-sm"
                   >
-                    <div className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center cursor-pointer" onClick={() => navigate(`/task/${task.id}`)}>
-                      <span className="text-slate-900 dark:text-slate-100 truncate">{task.task_title || "N/A"}</span>
+                    <div
+                      className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center cursor-pointer"
+                      onClick={() => navigate(`/task/${task.id}`)}
+                    >
+                      <span className="text-slate-900 dark:text-slate-100 truncate">
+                        {task.task_title || "N/A"}
+                      </span>
                     </div>
-                    <div className="col-span-12 sm:col-span-2 p-3 sm:p-4 flex items-center" onClick={() => navigate(`/task/${task.id}`)}>
+                    <div
+                      className="col-span-12 sm:col-span-2 p-3 sm:p-4 flex items-center"
+                      onClick={() => navigate(`/task/${task.id}`)}
+                    >
                       {mappedTaskAssignees.length > 0 ? (
                         <div className="flex -space-x-2 overflow-hidden items-center">
-                          {mappedTaskAssignees.slice(0, MAX_DISPLAY_ASSIGNEES_IN_LIST).map((assignee) =>
+                          {mappedTaskAssignees
+                            .slice(0, MAX_DISPLAY_ASSIGNEES_IN_LIST)
+                            .map((assignee) =>
                               assignee.profilePic ? (
-                                <img key={assignee.id} src={assignee.profilePic} alt={assignee.name} title={assignee.name} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-1 ring-white dark:ring-slate-700" />
+                                <img
+                                  key={assignee.id}
+                                  src={assignee.profilePic}
+                                  alt={assignee.name}
+                                  title={assignee.name}
+                                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-1 ring-white dark:ring-slate-700"
+                                />
                               ) : (
-                                <span key={assignee.id} title={assignee.name} className={`w-7 h-7 sm:w-8 sm:h-8 ${assignee.color} text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ring-1 ring-white dark:ring-slate-700`}>
+                                <span
+                                  key={assignee.id}
+                                  title={assignee.name}
+                                  className={`w-7 h-7 sm:w-8 sm:h-8 ${assignee.color} text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ring-1 ring-white dark:ring-slate-700`}
+                                >
                                   {assignee.avatar}
                                 </span>
                               )
                             )}
-                          {mappedTaskAssignees.length > MAX_DISPLAY_ASSIGNEES_IN_LIST && (
+                          {mappedTaskAssignees.length >
+                            MAX_DISPLAY_ASSIGNEES_IN_LIST && (
                             <span className="flex-shrink-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-full ring-1 ring-white dark:ring-slate-700">
-                              +{mappedTaskAssignees.length - MAX_DISPLAY_ASSIGNEES_IN_LIST}
+                              +
+                              {mappedTaskAssignees.length -
+                                MAX_DISPLAY_ASSIGNEES_IN_LIST}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic">Unassigned</span>
+                        <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic">
+                          Unassigned
+                        </span>
                       )}
                     </div>
-                    <div className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center cursor-pointer" onClick={() => navigate(`/task/${task.id}`)}>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass(task.task_status)}`}>
+                    <div
+                      className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center cursor-pointer"
+                      onClick={() => navigate(`/task/${task.id}`)}
+                    >
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass(
+                          task.task_status
+                        )}`}
+                      >
                         {String(task.task_status || "N/A").toUpperCase()}
                       </span>
                     </div>
-                    <div className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center cursor-pointer" onClick={() => navigate(`/task/${task.id}`)}>
+                    <div
+                      className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center cursor-pointer"
+                      onClick={() => navigate(`/task/${task.id}`)}
+                    >
                       <span className="text-slate-700 dark:text-slate-300">
-                        {task.due_date ? new Date(task.due_date).toLocaleDateString() : "N/A"}
+                        {task.due_date
+                          ? new Date(task.due_date).toLocaleDateString()
+                          : "N/A"}
                       </span>
                     </div>
-                    <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 flex items-center cursor-pointer" onClick={() => navigate(`/task/${task.id}`)}>
-                      <span className={`font-medium ${getPriorityClass(task.priority)}`}>
+                    <div
+                      className="col-span-6 sm:col-span-1 p-3 sm:p-4 flex items-center cursor-pointer"
+                      onClick={() => navigate(`/task/${task.id}`)}
+                    >
+                      <span
+                        className={`font-medium ${getPriorityClass(
+                          task.priority
+                        )}`}
+                      >
                         {task.priority || "N/A"}
                       </span>
                     </div>
                     <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 flex items-center justify-center space-x-1">
-                      <button onClick={(e) => { e.stopPropagation(); handleOpenEditTaskModal(task); }} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-600 p-1 rounded hover:bg-blue-100 dark:hover:bg-slate-700" title="Edit Task">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditTaskModal(task);
+                        }}
+                        className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-600 p-1 rounded hover:bg-blue-100 dark:hover:bg-slate-700"
+                        title="Edit Task"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 sm:h-5 sm:w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                          <path
+                            fillRule="evenodd"
+                            d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 p-1 rounded hover:bg-red-100 dark:hover:bg-slate-700" title="Delete Task">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTask(task.id);
+                        }}
+                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 p-1 rounded hover:bg-red-100 dark:hover:bg-slate-700"
+                        title="Delete Task"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 sm:h-5 sm:w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -595,18 +817,68 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
         ) : (
-           <div className="text-center p-10 bg-white dark:bg-slate-800 rounded-lg shadow">
-            <svg className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-            <h3 className="mt-2 text-lg font-medium text-slate-900 dark:text-white">No Tasks in this Project Yet</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Get started by adding the first task to "{projectDetails?.project_title || "this project"}".</p>
+          <div className="text-center p-10 bg-white dark:bg-slate-800 rounded-lg shadow">
+            <svg
+              className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+              />
+            </svg>
+            <h3 className="mt-2 text-lg font-medium text-slate-900 dark:text-white">
+              No Tasks in this Project Yet
+            </h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Get started by adding the first task to "
+              {projectDetails?.project_title || "this project"}".
+            </p>
             <div className="mt-6 flex justify-center gap-3">
-              <button type="button" onClick={handleKanbanBoard} className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>View Kanban Board</button>
-              <button type="button" onClick={handleOpenAddTaskModal} className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>Add New Task</button>
+              <button
+                type="button"
+                onClick={handleKanbanBoard}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                </svg>
+                View Kanban Board
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenAddTaskModal}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Add New Task
+              </button>
             </div>
           </div>
         )
       ) : null}
-
 
       {/* Briefs Section - UPDATED ACTIONS */}
       {projectDetails && projectFound ? (
@@ -616,79 +888,300 @@ const ProjectDetailsPage = () => {
             <div className="flex justify-between items-center p-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                  <svg className="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  <svg
+                    className="h-5 w-5 text-blue-600 dark:text-blue-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
                 </div>
-                <h2 className="text-xl font-bold dark:text-white bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Project Briefs</h2>
-                <span className="px-3 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">{briefs.length} {briefs.length === 1 ? 'Brief' : 'Briefs'}</span>
+                <h2 className="text-xl font-bold dark:text-white bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                  Project Briefs
+                </h2>
+                <span className="px-3 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">
+                  {briefs.length} {briefs.length === 1 ? "Brief" : "Briefs"}
+                </span>
               </div>
-              <button onClick={handleOpenAddBriefModal} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg flex items-center">
-                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              <button
+                onClick={handleOpenAddBriefModal}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg flex items-center"
+              >
+                <svg
+                  className="h-4 w-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
                 <span>Add Brief</span>
               </button>
             </div>
 
             <div className="grid grid-cols-12 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 border-b border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 sticky top-0 z-10">
-                <div className="col-span-12 sm:col-span-5 p-4 sm:p-5 flex items-center space-x-2"><svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg><span>Description</span></div>
-                <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center space-x-2"><svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg><span>Date</span></div>
-                <div className="col-span-6 sm:col-span-3 p-4 sm:p-5 flex items-center space-x-2"><svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg><span>Attachments</span></div>
-                <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 text-center"><span>Actions</span></div>
+              <div className="col-span-12 sm:col-span-5 p-4 sm:p-5 flex items-center space-x-2">
+                <svg
+                  className="h-4 w-4 text-slate-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h7"
+                  />
+                </svg>
+                <span>Description</span>
+              </div>
+              <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center space-x-2">
+                <svg
+                  className="h-4 w-4 text-slate-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                  />
+                </svg>
+                <span>Date</span>
+              </div>
+              <div className="col-span-6 sm:col-span-3 p-4 sm:p-5 flex items-center space-x-2">
+                <svg
+                  className="h-4 w-4 text-slate-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                  />
+                </svg>
+                <span>Attachments</span>
+              </div>
+              <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 text-center">
+                <span>Actions</span>
+              </div>
             </div>
 
             <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
               {briefs.map((brief, index) => (
                 <div
                   key={brief.id || `brief-${index}`}
-                  className={`grid grid-cols-12 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 text-xs sm:text-sm group ${index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50'}`}
+                  className={`grid grid-cols-12 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 text-xs sm:text-sm group ${
+                    index % 2 === 0
+                      ? "bg-white dark:bg-slate-800"
+                      : "bg-slate-50 dark:bg-slate-800/50"
+                  }`}
                 >
                   {/* ... Description, Date, Attachments columns (no changes) ... */}
-                  <div className="col-span-12 sm:col-span-5 p-4 sm:p-5"><div className="relative"><div className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: brief.sanitized_description || "N/A" }} /></div></div>
-                  <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center"><div className="flex items-center space-x-2"><div className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors duration-300"><svg className="h-3 w-3 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg></div><span className="text-slate-700 dark:text-slate-300 font-medium">{brief.brief_date ? new Date(brief.brief_date).toLocaleDateString() : "N/A"}</span></div></div>
+                  <div className="col-span-12 sm:col-span-5 p-4 sm:p-5">
+                    <div className="relative">
+                      <div
+                        className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300 leading-relaxed"
+                        dangerouslySetInnerHTML={{
+                          __html: brief.sanitized_description || "N/A",
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors duration-300">
+                        <svg
+                          className="h-3 w-3 text-slate-500 dark:text-slate-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                          />
+                        </svg>
+                      </div>
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">
+                        {brief.brief_date
+                          ? new Date(brief.brief_date).toLocaleDateString()
+                          : "N/A"}
+                      </span>
+                    </div>
+                  </div>
                   <div className="col-span-6 sm:col-span-3 p-4 sm:p-5">
                     <div className="flex flex-wrap gap-3">
-                      {(brief.attachments && brief.attachments.length > 0) ? (
-                        brief.attachments.map(att => (
-                          <div key={att.id} className="flex items-start space-x-3 group/attachment">
+                      {brief.attachments && brief.attachments.length > 0 ? (
+                        brief.attachments.map((att) => (
+                          <div
+                            key={att.id}
+                            className="flex items-start space-x-3 group/attachment"
+                          >
                             {isImageFile(att.file_type) ? (
-                              <a href={att.url} target="_blank" rel="noopener noreferrer" title={`View ${att.file_name}`} className="flex-shrink-0 relative overflow-hidden rounded-xl">
-                                <img src={att.url} alt={att.file_name} className="w-14 h-14 sm:w-16 sm:h-16 object-cover border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-110 hover:shadow-lg" />
-                                <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-300 flex items-center justify-center"><svg className="h-5 w-5 text-white opacity-0 hover:opacity-100 transition-opacity duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg></div>
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={`View ${att.file_name}`}
+                                className="flex-shrink-0 relative overflow-hidden rounded-xl"
+                              >
+                                <img
+                                  src={att.url}
+                                  alt={att.file_name}
+                                  className="w-14 h-14 sm:w-16 sm:h-16 object-cover border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-110 hover:shadow-lg"
+                                />
+                                <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
+                                  <svg
+                                    className="h-5 w-5 text-white opacity-0 hover:opacity-100 transition-opacity duration-300"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                    />
+                                  </svg>
+                                </div>
                               </a>
                             ) : (
-                              <div className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-105 hover:shadow-lg group-hover/attachment:from-blue-50 group-hover/attachment:to-indigo-100 dark:group-hover/attachment:from-slate-600 dark:group-hover/attachment:to-slate-700" title={att.file_type}>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-500 dark:text-slate-400 group-hover/attachment:text-blue-600 dark:group-hover/attachment:text-blue-400 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                              <div
+                                className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-105 hover:shadow-lg group-hover/attachment:from-blue-50 group-hover/attachment:to-indigo-100 dark:group-hover/attachment:from-slate-600 dark:group-hover/attachment:to-slate-700"
+                                title={att.file_type}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 text-slate-500 dark:text-slate-400 group-hover/attachment:text-blue-600 dark:group-hover/attachment:text-blue-400 transition-colors duration-300"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  strokeWidth="2"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                  />
+                                </svg>
                               </div>
                             )}
                           </div>
                         ))
                       ) : (
-                        <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400 italic"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg><span>No attachments</span></div>
+                        <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400 italic">
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span>No attachments</span>
+                        </div>
                       )}
                     </div>
                   </div>
 
                   {/* Actions Column - UPDATED with View Button */}
                   <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 flex items-center justify-center space-x-1">
-                     <button 
-                        onClick={(e) => { e.stopPropagation(); handleViewBriefDetails(brief.id); }} 
-                        className="p-2 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-500 rounded-full hover:bg-green-50 dark:hover:bg-green-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md" 
-                        title="View Brief Details"
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewBriefDetails(brief.id);
+                      }}
+                      className="p-2 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-500 rounded-full hover:bg-green-50 dark:hover:bg-green-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
+                      title="View Brief Details"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                      </button>
-                     <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenEditBriefModal(brief); }} 
-                        className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md" 
-                        title="Edit Brief"
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditBriefModal(brief);
+                      }}
+                      className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
+                      title="Edit Brief"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteBrief(brief.id); }}
-                        className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
-                        title="Delete Brief"
+                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                        <path
+                          fillRule="evenodd"
+                          d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteBrief(brief.id);
+                      }}
+                      className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
+                      title="Delete Brief"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                      </button>
+                        <path
+                          fillRule="evenodd"
+                          d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -698,27 +1191,87 @@ const ProjectDetailsPage = () => {
           // ... Empty State for Briefs (no changes) ...
           <div className="text-center p-12 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
             <div className="max-w-md mx-auto">
-                <div className="p-4 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center"><svg className="h-10 w-10 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-3">No Project Briefs Yet</h3>
-                <p className="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">This project doesn't have any briefs yet. Add your first brief to get started.</p>
-                <div className="mt-8"><button type="button" onClick={handleOpenAddBriefModal} className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:scale-105 hover:shadow-lg"><svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>Add New Brief</button></div>
+              <div className="p-4 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                <svg
+                  className="h-10 w-10 text-blue-600 dark:text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-3">
+                No Project Briefs Yet
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+                This project doesn't have any briefs yet. Add your first brief
+                to get started.
+              </p>
+              <div className="mt-8">
+                <button
+                  type="button"
+                  onClick={handleOpenAddBriefModal}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                >
+                  <svg
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add New Brief
+                </button>
+              </div>
             </div>
           </div>
         )
       ) : null}
 
       {/* Modals (no changes) */}
-      <AddTaskModal isOpen={isAddTaskModalOpen} onClose={handleCloseAddTaskModal} onSubTaskAdded={handleTaskAdded} projectId={id} parentTaskId={null} />
-      <EditTaskModal isOpen={isEditTaskModalOpen} onClose={handleCloseEditTaskModal} onTaskUpdated={handleTaskUpdated} taskData={taskToEdit} projectId={id} />
-      {id && (<AddBriefModal isOpen={isAddBriefModalOpen} onClose={handleCloseAddBriefModal} onBriefAdded={handleBriefAdded} projectId={id} />)}
+      <AddTaskModal
+        isOpen={isAddTaskModalOpen}
+        onClose={handleCloseAddTaskModal}
+        onSubTaskAdded={handleTaskAdded}
+        projectId={id}
+        parentTaskId={null}
+      />
+      <EditTaskModal
+        isOpen={isEditTaskModalOpen}
+        onClose={handleCloseEditTaskModal}
+        onTaskUpdated={handleTaskUpdated}
+        taskData={taskToEdit}
+        projectId={id}
+      />
+      {id && (
+        <AddBriefModal
+          isOpen={isAddBriefModalOpen}
+          onClose={handleCloseAddBriefModal}
+          onBriefAdded={handleBriefAdded}
+          projectId={id}
+        />
+      )}
       {id && briefToEdit && (
         <EditBriefModal
-            isOpen={isEditBriefModalOpen}
-            onClose={handleCloseEditBriefModal}
-            onBriefUpdated={handleBriefUpdated}
-            briefData={briefToEdit}
-            projectId={id} 
-            getAttachmentUrl={getAttachmentUrl}
+          isOpen={isEditBriefModalOpen}
+          onClose={handleCloseEditBriefModal}
+          onBriefUpdated={handleBriefUpdated}
+          briefData={briefToEdit}
+          projectId={id}
+          getAttachmentUrl={getAttachmentUrl}
         />
       )}
     </div>

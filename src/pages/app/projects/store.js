@@ -1,23 +1,36 @@
-// store/index.js (or wherever your appProjectSlice is defined)
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 
-// Helper functions (unchanged)
-const generateDefaultMembers = () => [];
-const calculateEndDateFromToday = (days = 30) => {
-  const dateToModify = new Date();
-  dateToModify.setDate(dateToModify.getDate() + days);
-  return dateToModify.toISOString().split('T')[0];
+// --- DYNAMIC API LOGIC ---
+const API_ROOT = "https://demo.aentora.com/backend/public/api";
+
+// Helper function to get the correct API path based on user role from cookies
+const getProjectPath = () => {
+  const userCookie = Cookies.get("user");
+  if (userCookie) {
+    try {
+      const user = JSON.parse(userCookie);
+      // If user's role is 'employee', return the employee-specific path
+      if (user.role === 'employee') {
+        return "/employee/project";
+      }
+    } catch (e) {
+      console.error("Could not parse user cookie to determine role:", e);
+    }
+  }
+  // For any other case (admin, no cookie, etc.), default to the admin path
+  return "/admin/project";
 };
+
+// --- HELPER FUNCTIONS ---
 const formatProjectFromAPI = (project) => ({
   id: project.id,
   name: project.project_name || "Unnamed Project",
   des: project.project_description || "",
   startDate: project.start_date || new Date().toISOString().split('T')[0],
-  endDate: project.due_date || calculateEndDateFromToday(),
+  endDate: project.due_date,
   progress: typeof project.progress === 'number' ? project.progress : (project.project_progress || 0),
   customer_id: project.customer_id || null,
   status: project.status?.toLowerCase() || "ongoing",
@@ -25,9 +38,7 @@ const formatProjectFromAPI = (project) => ({
   members: project.members || [],
 });
 
-const API_BASE_URL = "https://demo.aentora.com/backend/public/api/admin/project";
-
-// Async Thunks (fetch, add, save are unchanged from previous correct version)
+// --- ASYNC THUNKS (USING DYNAMIC URL) ---
 
 export const fetchProjectsAPI = createAsyncThunk(
   "project/fetchProjects",
@@ -35,9 +46,12 @@ export const fetchProjectsAPI = createAsyncThunk(
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
-      const response = await axios.get(`${API_BASE_URL}?page=${page}`, {
+      
+      const path = getProjectPath(); // Get the correct path
+      const response = await axios.get(`${API_ROOT}${path}?page=${page}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
+
       const responseData = response.data;
       if (!responseData || !Array.isArray(responseData.data)) {
         return rejectWithValue("Invalid project data structure from API.");
@@ -64,12 +78,15 @@ export const addProjectAPI = createAsyncThunk(
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
-      const response = await axios.post(API_BASE_URL, projectData, {
+      
+      const path = getProjectPath(); // Get the correct path
+      const response = await axios.post(`${API_ROOT}${path}`, projectData, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
+
       if (response.data && (response.status === 201 || response.status === 200)) {
         toast.success("Project added successfully!");
-        dispatch(fetchProjectsAPI(1)); // Go to first page to see new project
+        dispatch(fetchProjectsAPI(1));
         return formatProjectFromAPI(response.data.data);
       } else {
         const errorMsg = response.data?.message || "Failed to add project.";
@@ -90,13 +107,16 @@ export const saveEditedProjectAPI = createAsyncThunk(
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
-      const response = await axios.put(`${API_BASE_URL}/${projectData.id}`, projectData, {
+
+      const path = getProjectPath(); // Get the correct path
+      const response = await axios.put(`${API_ROOT}${path}/${projectData.id}`, projectData, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
+
       if (response.data && response.status === 200) {
         toast.success("Project updated successfully!");
         const { currentPage } = getState().project;
-        dispatch(fetchProjectsAPI(currentPage)); // Refetch current page
+        dispatch(fetchProjectsAPI(currentPage));
         return formatProjectFromAPI(response.data.data);
       } else {
         const errorMsg = response.data?.message || "Failed to update project.";
@@ -111,8 +131,6 @@ export const saveEditedProjectAPI = createAsyncThunk(
   }
 );
 
-
-// --- IMPROVED DELETE THUNK ---
 export const deleteProjectAPI = createAsyncThunk(
   "project/deleteProjectAPI",
   async (projectId, { dispatch, getState, rejectWithValue }) => {
@@ -120,14 +138,14 @@ export const deleteProjectAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found");
 
-      const response = await axios.delete(`${API_BASE_URL}/${projectId}`, {
+      const path = getProjectPath(); // Get the correct path
+      const response = await axios.delete(`${API_ROOT}${path}/${projectId}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       });
 
       if (response.status === 200 || response.status === 204) {
+        toast.success("Project deleted successfully!");
         const { currentPage, projects } = getState().project;
-        // If the deleted project was the only one on the current page (and it's not page 1),
-        // then fetch the previous page. Otherwise, refetch the current page.
         if (projects.length === 1 && currentPage > 1) {
           dispatch(fetchProjectsAPI(currentPage - 1));
         } else {
@@ -136,16 +154,19 @@ export const deleteProjectAPI = createAsyncThunk(
         return projectId;
       } else {
         const errorMsg = response.data?.message || "Failed to delete project.";
+        toast.error(errorMsg);
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || "Failed to delete project.";
+      toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
   }
 );
 
-// The rest of the slice is correct and unchanged
+
+// --- REDUX SLICE DEFINITION (No changes needed here) ---
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {

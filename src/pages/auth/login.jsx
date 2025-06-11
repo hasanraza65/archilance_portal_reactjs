@@ -1,16 +1,53 @@
-import React from "react";
-import { Link } from "react-router-dom";
+// File: src/pages/auth/login.jsx
+
+import React, { useEffect } from "react"; // useEffect import karein
+import { Link, useNavigate } from "react-router-dom"; // useNavigate import karein
 import LoginForm from "./common/login-form";
-import Social from "./common/social";
+// import Social from "./common/social"; // Isko comment kiya gaya hai aapke code mein
 import useDarkMode from "@/hooks/useDarkMode";
+import { useAuth } from "@/context/AuthContext"; // AuthContext import karein
+import Loading from "@/components/Loading"; // Loading spinner import karein
 
 // image import
 import LogoWhite from "@/assets/images/logo/logo-white.svg";
 import Logo from "@/assets/images/logo/logo.svg";
 import Illustration from "@/assets/images/auth/ils1.svg";
 
-const login = () => {
+// Component ka naam Capital 'L' se shuru hona chahiye
+const Login = () => {
   const [isDark] = useDarkMode();
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // <<<--- YAHAN NAYA LOGIC ADD HUA HAI ---<<<
+  useEffect(() => {
+    // Agar user login hai, to usay login page mat dikhao, balkay redirect karo
+    if (isAuthenticated && user) {
+      switch (user.role) {
+        case 'admin':
+          navigate('/dashboard', { replace: true });
+          break;
+        case 'employee':
+          // Employee ko ab projects page par bhej rahe hain
+          navigate('/dashboard', { replace: true });
+          break;
+        case 'customer':
+          navigate('/dashboard', { replace: true });
+          break;
+        default:
+          // Fallback ke liye
+          navigate('/profile', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
+
+  // Agar user login hai, to redirection ke dauran loading dikhao
+  // Taake user ko ek second ke liye bhi login form na dikhe
+  if (isAuthenticated) {
+    return <Loading />;
+  }
+  
+  // Agar user login nahi hai, to poora login page dikhao
   return (
     <div className="loginwrapper">
       <div className="lg-inner-column">
@@ -53,23 +90,6 @@ const login = () => {
                 </div>
               </div>
               <LoginForm />
-              {/* <div className="relative border-b-[#9AA2AF]/15 border-b pt-6">
-                <div className="absolute inline-block bg-white dark:bg-slate-800 dark:text-slate-400 left-1/2 top-1/2 transform -translate-x-1/2 px-4 min-w-max text-sm text-slate-500 font-normal">
-                  Or continue with
-                </div>
-              </div>
-              <div className="max-w-[242px] mx-auto mt-8 w-full">
-                <Social />
-              </div>
-              <div className="md:max-w-[345px] mx-auto font-normal text-slate-500 dark:text-slate-400 mt-12 uppercase text-sm">
-                Don’t have an account?{" "}
-                <Link
-                  to="/register"
-                  className="text-slate-900 dark:text-white font-medium hover:underline"
-                >
-                  Sign up
-                </Link>
-              </div> */}
             </div>
             <div className="auth-footer text-center">
               © {new Date().getFullYear()}, Developed by{" "}
@@ -89,4 +109,4 @@ const login = () => {
   );
 };
 
-export default login;
+export default Login;

@@ -12,6 +12,7 @@ import AuthLayout from "./layout/AuthLayout";
 // Components
 import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
+import ChatPage from "./pages/app/chat";
 
 // Pages
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -156,6 +157,9 @@ function App() {
               path="/customers/edit/:customerId"
               element={<UpdateCustomer />}
             />
+
+          <Route path="chat" element={<ChatPage />} />
+
 
             {/* Fallback for protected routes */}
             <Route path="*" element={<Navigate to="/404" replace />} />
