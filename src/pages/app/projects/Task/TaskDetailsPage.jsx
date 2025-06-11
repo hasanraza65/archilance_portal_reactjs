@@ -1,10 +1,12 @@
-// src/pages/app/projects/Task/TaskDetailsPage.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+// ***** STEP 1: APNA HELPER FUNCTION IMPORT KAREIN *****
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+
 import TaskHeader from "./PartialTask/TaskHeader";
 import TaskMetadata from "./PartialTask/TaskMetadata";
 import SubTaskList from "./PartialTask/SubTaskList";
@@ -48,13 +50,15 @@ const TaskDetailsPage = () => {
   const toastContainerStyle = { zIndex: 10000 };
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
-  // ***** YEH PATHS AB HAR JAGAH ISTEMAL HONGE *****
+  // ***** STEP 2: SIRF EK BAAR PREFIX HASIL KAREIN *****
   const apiPrefix = getApiPrefix();
+
+  // ***** STEP 3: DYNAMIC API PATHS BANAYEIN JO AB AUTOMATICALLY ROLE KE MUTABIQ SET HONGE *****
   const taskApiPath = `/api/${apiPrefix}/project-task`;
   const commentApiPath = `/api/${apiPrefix}/task-comment`;
   const employeeListApiPath = `/api/${apiPrefix}/employee-user`;
   const bulkAssignApiPath = `/api/${apiPrefix}/bulk-assign`;
-  
+
   const getUserIdFromCookie = () => {
     const userCookie = Cookies.get("user");
     if (userCookie) {
@@ -84,7 +88,6 @@ const TaskDetailsPage = () => {
     if (!authToken) return;
 
     try {
-        // *** UPDATED: Using dynamic commentApiPath ***
         const response = await fetch(`${API_BASE_URL}${commentApiPath}?task_id=${currentTaskId}&page=1`, {
             headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json", Accept: "application/json" }
         });
@@ -105,7 +108,6 @@ const TaskDetailsPage = () => {
         toast.error(`Failed to load comments: ${err.message}`);
     }
   };
-
 
   const handleLoadOlderComments = async () => {
     if (!nextPageUrl || isLoadingOlderComments || !parentTaskDetails) return;
@@ -164,7 +166,6 @@ const TaskDetailsPage = () => {
     }
 
     try {
-        // *** UPDATED: Using dynamic taskApiPath ***
         const response = await fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, {
             method: "GET",
             headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
@@ -194,7 +195,6 @@ const TaskDetailsPage = () => {
     const token = getAuthToken();
     if (!token) { setLoadingEmployees(false); return; }
     try {
-      // *** UPDATED: Using dynamic employeeListApiPath ***
       const response = await fetch(`${API_BASE_URL}${employeeListApiPath}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
@@ -232,7 +232,7 @@ const TaskDetailsPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleUpdateTaskField = async (fieldName, value) => {
+const handleUpdateTaskField = async (fieldName, value) => {
     setIsUpdatingField(true);
     const token = getAuthToken();
     if (!token) {
@@ -315,7 +315,6 @@ const TaskDetailsPage = () => {
     }
 
     try {
-      // *** UPDATED: Using dynamic commentApiPath ***
       const response = await fetch(`${API_BASE_URL}${commentApiPath}`, {
         method: "POST",
         headers: isFormData ? { Authorization: `Bearer ${token}`, Accept: "application/json" } : {
@@ -350,7 +349,6 @@ const TaskDetailsPage = () => {
     if (!token) return false;
 
     try {
-      // *** UPDATED: Using dynamic commentApiPath ***
       const response = await fetch(`${API_BASE_URL}${commentApiPath}/${commentId}`, {
         method: "POST", 
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
@@ -380,7 +378,6 @@ const TaskDetailsPage = () => {
     if (!token) return false;
 
     try {
-      // *** UPDATED: Using dynamic commentApiPath ***
       const response = await fetch(`${API_BASE_URL}${commentApiPath}/${commentId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
@@ -407,7 +404,6 @@ const TaskDetailsPage = () => {
     if (!token) return;
 
     try {
-      // *** UPDATED: Using dynamic commentApiPath ***
       const response = await fetch(`${API_BASE_URL}${commentApiPath}/${parentCommentId}`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
@@ -420,12 +416,21 @@ const TaskDetailsPage = () => {
 
       const fetchedParentCommentData = await response.json();
       const parentCommentDetail = fetchedParentCommentData.data || fetchedParentCommentData;
-      
-      setComments(prevComments => 
-        prevComments.map(c => 
-            c.id === parentCommentId ? { ...c, ...parentCommentDetail, replies_count: parentCommentDetail.replies?.length || 0 } : c
-        )
-      );
+      const newRepliesFromApi = parentCommentDetail.replies || [];
+
+      setComments(prevComments => {
+        const updatedList = prevComments.map(c => {
+            if (c.id === parentCommentId) {
+                return { ...c, ...parentCommentDetail, replies_count: parentCommentDetail.replies.length };
+            }
+            return c;
+        });
+
+        const existingCommentIds = new Set(updatedList.map(c => c.id));
+        const trulyNewReplies = newRepliesFromApi.filter(reply => !existingCommentIds.has(reply.id));
+        
+        return [...updatedList, ...trulyNewReplies];
+      });
 
     } catch (error) {
       toast.error(error.message);

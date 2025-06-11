@@ -2,24 +2,34 @@
 import Cookies from 'js-cookie';
 
 /**
- * This function reads the user's role from the cookie and returns the appropriate API path prefix.
- * @returns {string} Returns "admin", "employee", or "customer" based on the user's role. Defaults to "admin" if the role is not found or an error occurs.
+ * Reads the user's role from the cookie and returns the appropriate API path prefix.
+ * It is designed to be secure by defaulting to the least privileged role.
+ * @returns {string|null} Returns "admin", "employee", "customer", or null if the user is not logged in.
  */
 export const getApiPrefix = () => {
   const userCookie = Cookies.get("user");
 
-  if (userCookie) {
-    try {
-      const user = JSON.parse(userCookie);
-      // Check if the role is one of the expected values
-      if (['admin', 'employee', 'customer'].includes(user?.role)) {
-        return user.role;
-      }
-    } catch (e) {
-      console.error("Error parsing user cookie:", e);
-    }
+  // Step 1: If the user is not logged in, return null to prevent API calls.
+  if (!userCookie) {
+    return null; 
   }
 
-  // Default to 'admin' if no role is found or an error occurs
-  return 'admin';
+  try {
+    const user = JSON.parse(userCookie);
+    const role = user?.role?.toLowerCase(); // Use toLowerCase() to make the check case-insensitive.
+
+    // Step 2: Check for valid roles.
+    if (['admin', 'employee', 'customer'].includes(role)) {
+      return role;
+    }
+
+    // Step 3: If the role is unknown, default to the safest, least-privileged role.
+    console.warn(`Unknown role found: '${user?.role}'. Defaulting to 'employee' access.`);
+    return 'employee'; // Defaulting to 'employee' is much safer than 'admin'.
+
+  } catch (e) {
+    console.error("Error parsing user cookie:", e);
+    // Step 4: In case of an error, also return the safest default.
+    return 'employee';
+  }
 };
