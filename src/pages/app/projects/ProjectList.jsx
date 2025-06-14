@@ -2,8 +2,6 @@ import React, { useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
-import Dropdown from "@/components/ui/Dropdown";
-import { MenuItem } from "@headlessui/react"; // Ensure this is the correct import
 import { deleteProjectAPI, setEditModalAndItem } from "./store";
 import { useNavigate } from "react-router-dom";
 import { useTable, useRowSelect, useSortBy, useGlobalFilter, usePagination } from "react-table";
@@ -24,37 +22,41 @@ const ProjectList = ({ projects }) => {
       return "Invalid Date";
     }
   };
+  
   const handleRowNavigation = (projectId) => projectId && navigate(`/projects/${projectId}`);
 
-  const actionsList = useMemo(() => [
-    { name: "view", icon: "heroicons-outline:eye", doit: (item) => navigate(`/projects/${item.id}`) },
-    { name: "edit", icon: "heroicons:pencil-square", doit: (item) => {
-        // console.log("DEBUG: ProjectList handleEdit: Dispatching setEditModalAndItem for:", item?.id);
-        dispatch(setEditModalAndItem({ open: true, project: item }));
+  // --- 2. ACTION HANDLERS ---
+  const handleView = (item, e) => {
+    e.stopPropagation();
+    navigate(`/projects/${item.id}`);
+  };
+
+  const handleEdit = (item, e) => {
+    e.stopPropagation();
+    // console.log("DEBUG: ProjectList handleEdit: Dispatching setEditModalAndItem for:", item?.id);
+    dispatch(setEditModalAndItem({ open: true, project: item }));
+  };
+
+  const handleDelete = (item, e) => {
+    e.stopPropagation();
+    // console.log("DEBUG: ProjectList handleDelete: Initiating delete for:", item?.id);
+    Swal.fire({
+      title: 'Are you sure?',
+      text: `You are about to delete the project "${item.name || 'this project'}". This action cannot be undone!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        dispatch(deleteProjectAPI(item.id)).unwrap()
+          .then(() => Swal.fire('Deleted!', `Project "${item.name || 'this project'}" has been deleted.`, 'success'))
+          .catch(error => Swal.fire('Failed!', `Could not delete project. ${error || 'Please try again.'}`, 'error'));
       }
-    },
-    { name: "delete", icon: "heroicons-outline:trash", doit: (item) => {
-        // console.log("DEBUG: ProjectList handleDelete: Initiating delete for:", item?.id);
-        Swal.fire({
-          title: 'Are you sure?',
-          text: `You are about to delete the project "${item.name || 'this project'}". This action cannot be undone!`,
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#d33',
-          cancelButtonColor: '#3085d6',
-          confirmButtonText: 'Yes, delete it!',
-          cancelButtonText: 'Cancel',
-        }).then((result) => {
-          if (result.isConfirmed) {
-            dispatch(deleteProjectAPI(item.id)).unwrap()
-              .then(() => Swal.fire('Deleted!', `Project "${item.name || 'this project'}" has been deleted.`, 'success'))
-              .catch(error => Swal.fire('Failed!', `Could not delete project. ${error || 'Please try again.'}`, 'error'));
-          }
-        });
-      },
-    },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [dispatch, navigate]); // dispatch and navigate are stable, fine for deps
+    });
+  };
 
   const COLUMNS = useMemo(() => [
     { Header: "Name", accessor: "name", Cell: ({ cell: { value } }) => {
@@ -77,46 +79,50 @@ const ProjectList = ({ projects }) => {
     { Header: "Action", accessor: "action", Cell: ({ row }) => {
         const projectItem = row.original;
         const actionsDisabled = isDeleting || isUpdating;
+        
         return (
-          <div className="text-center" onClick={(e) => e.stopPropagation()}>
-            <Dropdown
-              classMenuItems="right-0 w-[140px] top-[110%] "
-              label={
-                <span className="text-xl text-slate-900 dark:text-slate-300">
-                  <Icon icon="heroicons-outline:dots-vertical" />
-                </span>
-              }
+          <div className="flex items-center justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
+            {/* View Icon */}
+            <button
+              onClick={(e) => handleView(projectItem, e)}
+              className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors duration-200"
+              title="View Project"
             >
-              <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                {actionsList.map((item, i) => (
-                  // Updated MenuItem with as="div"
-                  <MenuItem
-                    as="div"
-                    key={i}
-                    disabled={actionsDisabled && (item.name === 'edit' || item.name === 'delete')}
-                  >
-                    {({ active }) => (
-                        <div
-                          onClick={(e) => { e.stopPropagation(); item.doit(projectItem); }}
-                          className={`
-                              ${active ? (item.name === "delete" ? "bg-red-500 bg-opacity-20 text-red-500" : "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200")
-                                      : (item.name === "delete" ? "text-red-500" : "text-slate-600 dark:text-slate-300")}
-                              ${(actionsDisabled && (item.name === 'edit' || item.name === 'delete')) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                              w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center rtl:space-x-reverse`}
-                        >
-                          <span className="text-base"><Icon icon={item.icon} /></span>
-                          <span>{item.name}</span>
-                        </div>
-                    )}
-                  </MenuItem>
-                ))}
-              </div>
-            </Dropdown>
+              <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
+            </button>
+
+            {/* Edit Icon */}
+            <button
+              onClick={(e) => handleEdit(projectItem, e)}
+              disabled={actionsDisabled}
+              className={`p-2 rounded-full transition-colors duration-200 ${
+                actionsDisabled 
+                  ? 'opacity-50 cursor-not-allowed text-gray-400' 
+                  : 'hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'
+              }`}
+              title="Edit Project"
+            >
+              <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+            </button>
+
+            {/* Delete Icon */}
+            <button
+              onClick={(e) => handleDelete(projectItem, e)}
+              disabled={actionsDisabled}
+              className={`p-2 rounded-full transition-colors duration-200 ${
+                actionsDisabled 
+                  ? 'opacity-50 cursor-not-allowed text-gray-400' 
+                  : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
+              }`}
+              title="Delete Project"
+            >
+              <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
+            </button>
           </div>
         );
     }},
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isDeleting, isUpdating, actionsList]); // actionsList is memoized, so this is fine
+  ], [isDeleting, isUpdating]); // dispatch and navigate are stable
 
   const data = useMemo(() => projects || [], [projects]);
   const tableInstance = useTable({ columns: COLUMNS, data, initialState: { pageSize: 10 } }, useGlobalFilter, useSortBy, usePagination, useRowSelect);

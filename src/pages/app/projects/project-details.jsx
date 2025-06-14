@@ -1,6 +1,6 @@
 // src/pages/ProjectDetailsPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom"; // useNavigate is already here
+import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import AddTaskModal from "../projects/Task/PartialTask/AddSubTaskModal";
 import EditTaskModal from "../projects/Task/PartialTask/EditTaskModal";
@@ -10,7 +10,6 @@ import Swal from "sweetalert2";
 import DOMPurify from "dompurify";
 
 // --- Helper Functions (Keep them as they are) ---
-// ... (mapApiAssigneeToLocal, getStatusClass, getPriorityClass, getAttachmentUrl, isImageFile) ...
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object") {
     return {
@@ -31,23 +30,10 @@ const mapApiAssigneeToLocal = (apiUser) => {
   let defaultColor = "bg-gray-500";
   if (name !== "Unknown User" && name.length > 0) {
     const colors = [
-      "bg-red-500",
-      "bg-orange-500",
-      "bg-amber-500",
-      "bg-yellow-500",
-      "bg-lime-500",
-      "bg-green-500",
-      "bg-emerald-500",
-      "bg-teal-500",
-      "bg-cyan-500",
-      "bg-sky-500",
-      "bg-blue-500",
-      "bg-indigo-500",
-      "bg-violet-500",
-      "bg-purple-500",
-      "bg-fuchsia-500",
-      "bg-pink-500",
-      "bg-rose-500",
+      "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500", "bg-lime-500",
+      "bg-green-500", "bg-emerald-500", "bg-teal-500", "bg-cyan-500", "bg-sky-500",
+      "bg-blue-500", "bg-indigo-500", "bg-violet-500", "bg-purple-500", "bg-fuchsia-500",
+      "bg-pink-500", "bg-rose-500",
     ];
     const colorIndex = id
       ? (typeof id === "string" ? id.charCodeAt(0) : id) % colors.length
@@ -127,30 +113,30 @@ const isImageFile = (fileType) => {
   return fileType.startsWith("image/");
 };
 
-// --- NEW HELPER FUNCTION TO GET API PATH BASED ON ROLE ---
 const getApiBasePathForRole = () => {
   const userCookie = Cookies.get("user");
   if (userCookie) {
     try {
       const user = JSON.parse(userCookie);
-      // If the user role is 'employee', use the employee-specific API path
       if (user && user.role === 'employee') {
         return "/api/employee/project";
       }
     } catch (e) {
       console.error("Failed to parse user cookie:", e);
-      // Fallback to admin path if the cookie is malformed
     }
   }
-  // Default to the admin path for any other case
   return "/api/admin/project";
 };
 
 
 const ProjectDetailsPage = () => {
-  const { id } = useParams(); // This is project ID
+  const { id } = useParams();
   const navigate = useNavigate();
-  // ... (all other state variables: projectDetails, tasks, briefs, loading, error, modals state, etc.)
+
+  // --- NEW: State to hold the current user's role ---
+  const [userRole, setUserRole] = useState(null);
+
+  // Existing state variables
   const [projectDetails, setProjectDetails] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [briefs, setBriefs] = useState([]);
@@ -160,19 +146,32 @@ const ProjectDetailsPage = () => {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
-
   const [isAddBriefModalOpen, setIsAddBriefModalOpen] = useState(false);
   const [isEditBriefModalOpen, setIsEditBriefModalOpen] = useState(false);
   const [briefToEdit, setBriefToEdit] = useState(null);
-
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
 
+  // --- NEW: useEffect to get user role from cookie on component mount ---
+  useEffect(() => {
+    const userCookie = Cookies.get("user");
+    if (userCookie) {
+      try {
+        const user = JSON.parse(userCookie);
+        setUserRole(user.role || null); // e.g., 'admin', 'employee'
+      } catch (e) {
+        console.error("Failed to parse user cookie:", e);
+        setUserRole(null); // Fallback to a non-privileged state
+      }
+    } else {
+        setUserRole(null);
+    }
+  }, []); // Empty dependency array ensures this runs only once
+
+  // --- NEW: Permission flag based on user role ---
+  // This flag is true if the user is NOT an 'employee'.
+  const isManagerOrAdmin = userRole && userRole !== 'employee';
+
   const fetchProjectAndTasks = useCallback(async () => {
-    // ... (fetchProjectAndTasks logic - no changes needed here for view brief)
-    console.log(
-      "ProjectDetailsPage: fetchProjectAndTasks called for project ID:",
-      id
-    );
     if (!id) {
       setError("Project ID is missing from URL.");
       setLoading(false);
@@ -208,12 +207,9 @@ const ProjectDetailsPage = () => {
         Expires: "0",
       };
       
-      // --- MODIFIED: Use the helper function to get the correct API path ---
       const apiPath = getApiBasePathForRole();
       const apiUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${id}`;
       
-      console.log(`Fetching project details from: ${apiUrl}`); // For debugging
-
       const response = await fetch(apiUrl, {
         method: "GET",
         headers: headers,
@@ -239,9 +235,6 @@ const ProjectDetailsPage = () => {
       }
 
       const fetchedProjectData = await response.json();
-      
-      // The API response for a single project might be nested under a 'data' key.
-      // Let's check for both structures for robustness.
       const projectData = fetchedProjectData.data || fetchedProjectData;
 
       if (projectData && projectData.project_name) {
@@ -295,13 +288,7 @@ const ProjectDetailsPage = () => {
     fetchProjectAndTasks();
   }, [fetchProjectAndTasks]);
 
-  // --- Task and other Modal Handlers (Keep as is) ---
-  // ... (handleOpenAddTaskModal, handleCloseAddTaskModal, handleTaskAdded, etc.)
-  // ... (handleOpenEditTaskModal, handleCloseEditTaskModal, handleTaskUpdated, etc.)
-  // ... (handleKanbanBoard, handleDeleteTask)
-  // ... (handleOpenAddBriefModal, handleCloseAddBriefModal, handleBriefAdded)
-  // ... (handleOpenEditBriefModal, handleCloseEditBriefModal, handleBriefUpdated)
-  // ... (handleDeleteBrief)
+  // --- Modal and Action Handlers ---
   const handleOpenAddTaskModal = () => setIsAddTaskModalOpen(true);
   const handleCloseAddTaskModal = () => setIsAddTaskModalOpen(false);
   const handleTaskAdded = () => {
@@ -488,22 +475,15 @@ const ProjectDetailsPage = () => {
       }
     });
   };
-
-  // --- View Brief Handler ---
   const handleViewBriefDetails = (briefId) => {
     if (!briefId) {
       Swal.fire("Error", "Brief ID is missing.", "error");
       return;
     }
-    // Navigate to a new route, e.g., /project-brief/:briefId
-    // You might want to include the projectId in the route as well if it's needed on the detail page
-    // For example: /project/:projectId/brief/:briefId
     navigate(`/project-brief/${briefId}`);
-    // Or, if you want to keep project context: navigate(`/project/${id}/brief/${briefId}`);
   };
 
-  // --- Render Logic (No Changes Below This Line) ---
-  // ... (loading, error, project details, tasks section - all as before) ...
+  // --- Render Logic ---
   if (loading && !projectDetails && tasks.length === 0 && briefs.length === 0) {
     return (
       <div className="container mx-auto p-4 text-center">
@@ -789,27 +769,30 @@ const ProjectDetailsPage = () => {
                           />
                         </svg>
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteTask(task.id);
-                        }}
-                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 p-1 rounded hover:bg-red-100 dark:hover:bg-slate-700"
-                        title="Delete Task"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 sm:h-5 sm:w-5"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
+                      {/* --- MODIFIED: Delete button is ONLY visible to managers/admins --- */}
+                      {isManagerOrAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTask(task.id);
+                          }}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 p-1 rounded hover:bg-red-100 dark:hover:bg-slate-700"
+                          title="Delete Task"
                         >
-                          <path
-                            fillRule="evenodd"
-                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4 sm:h-5 sm:w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -880,11 +863,10 @@ const ProjectDetailsPage = () => {
         )
       ) : null}
 
-      {/* Briefs Section - UPDATED ACTIONS */}
+      {/* Briefs Section */}
       {projectDetails && projectFound ? (
         briefs.length > 0 ? (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden backdrop-blur-sm">
-            {/* ... Briefs Header and Table Header (no changes) ... */}
             <div className="flex justify-between items-center p-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
@@ -994,7 +976,6 @@ const ProjectDetailsPage = () => {
                       : "bg-slate-50 dark:bg-slate-800/50"
                   }`}
                 >
-                  {/* ... Description, Date, Attachments columns (no changes) ... */}
                   <div className="col-span-12 sm:col-span-5 p-4 sm:p-5">
                     <div className="relative">
                       <div
@@ -1109,7 +1090,7 @@ const ProjectDetailsPage = () => {
                     </div>
                   </div>
 
-                  {/* Actions Column - UPDATED with View Button */}
+                  {/* Actions Column */}
                   <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 flex items-center justify-center space-x-1">
                     <button
                       onClick={(e) => {
@@ -1161,34 +1142,36 @@ const ProjectDetailsPage = () => {
                         />
                       </svg>
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteBrief(brief.id);
-                      }}
-                      className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
-                      title="Delete Brief"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
+                    {/* --- MODIFIED: Delete button is ONLY visible to managers/admins --- */}
+                    {isManagerOrAdmin && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBrief(brief.id);
+                        }}
+                        className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
+                        title="Delete Brief"
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          // ... Empty State for Briefs (no changes) ...
           <div className="text-center p-12 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
             <div className="max-w-md mx-auto">
               <div className="p-4 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
@@ -1241,7 +1224,7 @@ const ProjectDetailsPage = () => {
         )
       ) : null}
 
-      {/* Modals (no changes) */}
+      {/* Modals */}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}

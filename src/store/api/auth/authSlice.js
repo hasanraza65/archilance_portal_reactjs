@@ -1,20 +1,30 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { v4 as uuidv4 } from "uuid";
 
-const storedUser = JSON.parse(localStorage.getItem("user"));
+// A safer way to get the stored user to prevent crashes
+const getStoredUser = () => {
+  try {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch (error) {
+    console.error("Failed to parse user from localStorage", error);
+    return null;
+  }
+};
+
+const user = getStoredUser();
 
 export const authSlice = createSlice({
-  name: "auth",
+  name: "auth", // This name creates the 'state.auth' key.
   initialState: {
-    user: storedUser || null,
-    isAuth: !!storedUser,
+    user: user,
+    isAuth: !!user,
   },
   reducers: {
     setUser: (state, action) => {
       state.user = action.payload;
       state.isAuth = true;
     },
-    logOut: (state, action) => {
+    logOut: (state) => {
       state.user = null;
       state.isAuth = false;
     },
