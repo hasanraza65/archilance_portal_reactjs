@@ -1,12 +1,53 @@
-import { createSlice } from "@reduxjs/toolkit";
-import { v4 as uuidv4 } from "uuid";
+// src/pages/app/chat/appChatSlice.js
+
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
+import Cookies from 'js-cookie';
 import { toast } from "react-toastify";
-import image1 from "@/assets/images/users/user-1.jpg";
-import image2 from "@/assets/images/users/user-2.jpg";
-import image3 from "@/assets/images/users/user-3.jpg";
-import image4 from "@/assets/images/users/user-4.jpg";
-import image5 from "@/assets/images/users/user-5.jpg";
-import image6 from "@/assets/images/users/user-6.jpg";
+
+// --- API Configuration ---
+const API_URL = "https://demo.aentora.com/backend/public/api/chat/users-list";
+const IMAGE_BASE_URL = "https://demo.aentora.com/backend/public/storage/";
+
+const getTokenFromCookie = () => Cookies.get('token');
+
+/**
+ * AsyncThunk to fetch the list of contacts from the API.
+ * It's exported directly so components can dispatch it.
+ */
+export const fetchUsers = createAsyncThunk(
+  "appchat/fetchUsers",
+  async (_, { rejectWithValue }) => {
+    try {
+        const token = getTokenFromCookie();
+        if (!token) return rejectWithValue("Authentication token not found.");
+
+        const response = await axios.get(API_URL, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        console.log("API Response (Users):", response.data);
+        const users = response.data.users;
+
+        // Map API data. If profile_pic is missing, set avatar to null.
+        return users.map(user => ({
+            id: user.id,
+            fullName: user.name,
+            avatar: user.profile_pic ? `${IMAGE_BASE_URL}${user.profile_pic}` : null,
+            role: "User",
+            status: "active",
+            lastmessage: user.last_message || "No recent messages",
+            unredmessage: user.unread_count || 0,
+            lastmessageTime: user.last_message_at,
+        }));
+
+    } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message;
+        console.error("Failed to fetch users:", errorMessage);
+        return rejectWithValue(errorMessage);
+    }
+  }
+);
 
 export const appChatSlice = createSlice({
   name: "appchat",
@@ -16,210 +57,22 @@ export const appChatSlice = createSlice({
     activechat: false,
     searchContact: "",
     mobileChatSidebar: false,
+    user: {},
     profileinfo: {},
     messFeed: [],
-    user: {},
-    contacts: [
-      {
-        id: 1,
-        fullName: "Kathryn Murphy",
-        role: "Frontend Developer",
-        lastmessage: "Hey! there I'm available",
-        lastmessageTime: "2:30 PM",
-        unredmessage: Math.floor(Math.random() * 10),
-        avatar: image2,
-        status: "offline",
-      },
-      {
-        id: 2,
-        fullName: "Felecia Rower",
-        role: " UI/UX Designer",
-        lastmessage: "Hey! there I'm available",
-        lastmessageTime: "2:30 PM",
-        unredmessage: Math.floor(Math.random() * 10),
-        avatar: image3,
-        status: "active",
-      },
-      {
-        id: 3,
-        fullName: " Aileen Chavez",
-        role: " Backend Developer",
-        lastmessage: "Hey! there I'm available",
-        lastmessageTime: "2:30 PM",
-        unredmessage: Math.floor(Math.random() * 10),
-        avatar: image4,
-        status: "offline",
-      },
-      {
-        id: 4,
-        fullName: "Alec Thompson",
-        role: " Full Stack Developer",
-        lastmessage: "Hey! there I'm available",
-        lastmessageTime: "2:30 PM",
-        unredmessage: Math.floor(Math.random() * 10),
-        avatar: image5,
-        status: "active",
-      },
-      {
-        id: 5,
-        fullName: "Murphy Aileen",
-        role: "Frontend Developer",
-        lastmessage: "Hey! there I'm available",
-        lastmessageTime: "2:30 PM",
-        unredmessage: Math.floor(Math.random() * 10),
-        avatar: image1,
-        status: "offline",
-      },
-    ],
-    chats: [
-      {
-        id: 1,
-        userId: 1,
-        messages: [
-          {
-            img: image2,
-            content: "Hey! How are you?",
-            time: "10:00",
-            sender: "them",
-          },
-          {
-            img: image2,
-            content: "Good, I will book the meeting room for you.",
-            time: "10:02",
-
-            sender: "them",
-          },
-          {
-            content: "Hi, I am good, what about you?",
-            img: image1,
-            time: "10:01",
-            sender: "me",
-          },
-
-          {
-            content: "Thanks, It will be great.",
-            img: image1,
-            time: "10:03",
-            sender: "me",
-          },
-          {
-            img: image2,
-            content: "Hey! How are you?",
-            time: "10:00",
-            sender: "them",
-          },
-          {
-            img: image2,
-            content: "Good, I will book the meeting room for you.",
-            time: "10:02",
-
-            sender: "them",
-          },
-          {
-            content: "Hi, I am good, what about you?",
-            img: image1,
-            time: "10:01",
-            sender: "me",
-          },
-
-          {
-            content: "Thanks, It will be great.",
-            img: image1,
-            time: "10:03",
-            sender: "me",
-          },
-        ],
-      },
-      {
-        id: 2,
-        userId: 2,
-        messages: [
-          {
-            img: image2,
-            content: "Hey! How are you?",
-            time: "10:00",
-            sender: "them",
-          },
-          {
-            img: image2,
-            content: "Good, I will book the meeting room for you.",
-            time: "10:02",
-
-            sender: "them",
-          },
-        ],
-      },
-      {
-        id: 3,
-        userId: 3,
-        messages: [
-          {
-            img: image2,
-            content: "Hey! How are you?",
-            time: "10:00",
-            sender: "them",
-          },
-          {
-            img: image2,
-            content: "Good, I will book the meeting room for you.",
-            time: "10:02",
-
-            sender: "me",
-          },
-        ],
-      },
-      {
-        id: 4,
-        userId: 4,
-        messages: [
-          {
-            img: image2,
-            content: "Hey! How are you?",
-            time: "10:00",
-            sender: "me",
-          },
-          {
-            img: image2,
-            content: "Good, I will book the meeting room for you.",
-            time: "10:02",
-
-            sender: "them",
-          },
-        ],
-      },
-      {
-        id: 5,
-        userId: 5,
-        messages: [
-          {
-            img: image2,
-            content: "Hey! How are you?",
-            time: "10:00",
-            sender: "them",
-          },
-          {
-            img: image2,
-            content: "Good, I will book the meeting room for you.",
-            time: "10:02",
-
-            sender: "them",
-          },
-        ],
-      },
-    ],
+    contacts: [], // Will be populated by the API
+    chats: [], // Should also be populated by an API for message history
+    isLoading: false,
+    error: null,
   },
   reducers: {
     openChat: (state, action) => {
-      state.activechat = action.payload.activechat;
-      state.mobileChatSidebar = !state.mobileChatSidebar;
+      state.activechat = true;
+      state.mobileChatSidebar = false;
       state.user = action.payload.contact;
-      state.chats.map((item) => {
-        if (item.userId === action.payload.contact.id) {
-          state.messFeed = item.messages;
-        }
-      });
+      const chatHistory = state.chats.find((chat) => chat.userId === action.payload.contact.id);
+      state.messFeed = chatHistory ? chatHistory.messages : [];
     },
-    // toggole mobile chat sidebar
     toggleMobileChatSidebar: (state, action) => {
       state.mobileChatSidebar = action.payload;
     },
@@ -239,6 +92,22 @@ export const appChatSlice = createSlice({
       state.activechat = action.payload;
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchUsers.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchUsers.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.contacts = action.payload;
+      })
+      .addCase(fetchUsers.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        toast.error(action.payload || "Failed to load contacts");
+      });
+  },
 });
 
 export const {
@@ -250,4 +119,5 @@ export const {
   setContactSearch,
   toggleActiveChat,
 } = appChatSlice.actions;
+
 export default appChatSlice.reducer;

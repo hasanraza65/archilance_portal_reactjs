@@ -23,7 +23,9 @@ const ForgotPass = lazy(() => import("./pages/auth/forgot-password"));
 const Profile = lazy(() => import("./pages/utility/profile"));
 const EditProfile = lazy(() => import("./pages/utility/edit-profile"));
 const ProjectPostPage = lazy(() => import("./pages/app/projects"));
-const ProjectDetailsPage = lazy(() => import("./pages/app/projects/project-details"));
+const ProjectDetailsPage = lazy(() =>
+  import("./pages/app/projects/project-details")
+);
 const Allemployees = lazy(() => import("./pages/employees/AllEmployees"));
 const AddEmployee = lazy(() => import("./pages/employees/AddEmployees"));
 const AllCustomers = lazy(() => import("./pages/customers/AllCustomers"));
@@ -32,9 +34,13 @@ const CustomerView = lazy(() => import("./pages/customers/ViewCustomer"));
 const UpdateCustomer = lazy(() => import("./pages/customers/UpdateCustomer"));
 const ShowEmployee = lazy(() => import("./pages/employees/ShowEmployee"));
 const EditEmployee = lazy(() => import("./pages/employees/UpdateEmployee"));
-const TaskDetailsPage = lazy(() => import("./pages/app/projects/Task/TaskDetailsPage"));
+const TaskDetailsPage = lazy(() =>
+  import("./pages/app/projects/Task/TaskDetailsPage")
+);
 const KanbanPage = lazy(() => import("./pages/app/projects/kanban"));
-const ProjectBriefDetailPage = lazy(() => import("./pages/app/projects/Brief-task/ProjectBriefDetailPage"));
+const ProjectBriefDetailPage = lazy(() =>
+  import("./pages/app/projects/Brief-task/ProjectBriefDetailPage")
+);
 const Error = lazy(() => import("./pages/404"));
 
 function App() {
@@ -57,39 +63,110 @@ function App() {
       <Routes>
         {/* Authentication Routes (Public) */}
         <Route element={<AuthLayout />}>
-          <Route path="/" element={<Suspense fallback={<Loading />}><Login /></Suspense>} />
+          <Route
+            path="/"
+            element={
+              <Suspense fallback={<Loading />}>
+                <Login />
+              </Suspense>
+            }
+          />
           <Route path="login" element={<Navigate to="/" replace />} />
-          <Route path="register" element={<Suspense fallback={<Loading />}><Register /></Suspense>} />
-          <Route path="forgot-password" element={<Suspense fallback={<Loading />}><ForgotPass /></Suspense>} />
+          <Route
+            path="register"
+            element={
+              <Suspense fallback={<Loading />}>
+                <Register />
+              </Suspense>
+            }
+          />
+          <Route
+            path="forgot-password"
+            element={
+              <Suspense fallback={<Loading />}>
+                <ForgotPass />
+              </Suspense>
+            }
+          />
         </Route>
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
-            <Route path="dashboard" element={<Suspense fallback={<Loading />}><Dashboard /></Suspense>} />
-            <Route path="ecommerce" element={<Suspense fallback={<Loading />}><Ecommerce /></Suspense>} />
-            <Route path="profile" element={<Suspense fallback={<Loading />}><Profile /></Suspense>} />
-            <Route path="profile/edit" element={<Suspense fallback={<Loading />}><EditProfile /></Suspense>} />
+            <Route
+              path="dashboard"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <Dashboard />
+                </Suspense>
+              }
+            />
+            <Route
+              path="ecommerce"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <Ecommerce />
+                </Suspense>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <Profile />
+                </Suspense>
+              }
+            />
+            <Route
+              path="profile/edit"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <EditProfile />
+                </Suspense>
+              }
+            />
             <Route path="projects" element={<ProjectPostPage />} />
             <Route path="projects/:id" element={<ProjectDetailsPage />} />
             <Route path="/task/:taskId" element={<TaskDetailsPage />} />
             <Route path="/project/:id/kanban" element={<KanbanPage />} />
-            <Route path="/project-brief/:briefId" element={<ProjectBriefDetailPage />} />
+            <Route
+              path="/project-brief/:briefId"
+              element={<ProjectBriefDetailPage />}
+            />
             <Route path="employees" element={<Allemployees />} />
-            <Route path="/employees/view/:employeeId" element={<ShowEmployee />} />
+            <Route
+              path="/employees/view/:employeeId"
+              element={<ShowEmployee />}
+            />
             <Route path="employees/add" element={<AddEmployee />} />
-            <Route path="/employees/edit/:employeeId" element={<EditEmployee />} />
+            <Route
+              path="/employees/edit/:employeeId"
+              element={<EditEmployee />}
+            />
             <Route path="customers" element={<AllCustomers />} />
-            <Route path="/customers/view/:customerId" element={<CustomerView />} />
+            <Route
+              path="/customers/view/:customerId"
+              element={<CustomerView />}
+            />
             <Route path="customers/add" element={<AddCustomers />} />
-            <Route path="/customers/edit/:customerId" element={<UpdateCustomer />} />
+            <Route
+              path="/customers/edit/:customerId"
+              element={<UpdateCustomer />}
+            />
             <Route path="chat" element={<ChatPage />} />
             <Route path="*" element={<Navigate to="/404" replace />} />
           </Route>
         </Route>
 
         {/* 404 Error Page */}
-        <Route path="/404" element={<Suspense fallback={<Loading />}><Error /></Suspense>} />
+        <Route
+          path="/404"
+          element={
+            <Suspense fallback={<Loading />}>
+              <Error />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </main>
