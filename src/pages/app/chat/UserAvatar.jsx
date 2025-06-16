@@ -21,24 +21,12 @@ const getInitials = (name = "") => {
 
 const UserAvatar = ({ avatarUrl, fullName, className = 'h-10 w-10' }) => {
   if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={fullName}
-        className={`block object-cover rounded-full ${className}`}
-      />
-    );
+    return <img src={avatarUrl} alt={fullName} className={`block object-cover rounded-full ${className}`} />;
   }
-
   const initials = getInitials(fullName);
   const backgroundColor = generateHslColor(fullName);
-
   return (
-    <div
-      className={`flex items-center justify-center rounded-full text-white font-bold text-sm ${className}`}
-      style={{ backgroundColor }}
-      title={fullName}
-    >
+    <div className={`flex items-center justify-center rounded-full text-white font-bold text-sm ${className}`} style={{ backgroundColor }} title={fullName}>
       <span>{initials}</span>
     </div>
   );
