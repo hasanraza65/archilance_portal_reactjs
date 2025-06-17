@@ -1,5 +1,4 @@
 // src/pages/app/chat/appChatSlice.js
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from 'js-cookie';
@@ -40,12 +39,8 @@ export const fetchConversation = createAsyncThunk(
     try {
         const token = getTokenFromCookie();
         if (!token) return rejectWithValue("Authentication token not found.");
-        
         const loggedInUserId = getState().auth.user?.id;
-        if (!loggedInUserId) {
-          return rejectWithValue("Could not find logged-in user ID.");
-        }
-
+        if (!loggedInUserId) return rejectWithValue("Could not find logged-in user ID.");
         const response = await axios.get(`${API_BASE_URL}/conversations/${contactId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const messages = response.data.data;
         return messages.map(msg => ({
@@ -55,6 +50,7 @@ export const fetchConversation = createAsyncThunk(
             time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             img: msg.sender.profile_pic ? `${IMAGE_BASE_URL}${msg.sender.profile_pic}` : null,
             senderFullName: msg.sender.name,
+            reactions: msg.reactions || [],
         }));
     } catch (error) {
         return rejectWithValue(error.response?.data?.message || "Failed to load messages.");
@@ -68,25 +64,15 @@ export const sendMessageToServer = createAsyncThunk(
     try {
       const token = getTokenFromCookie();
       if (!token) return rejectWithValue("Authentication token not found.");
-
       const loggedInUserId = getState().auth.user?.id;
       if (!loggedInUserId) return rejectWithValue("Could not find logged-in user ID.");
-
       const API_URL = `${API_BASE_URL}/send`;
-      
       const formData = new FormData();
       formData.append('message', messageData.content);
       formData.append('receiver_id', messageData.receiverId);
-      
-      const response = await axios.post(API_URL, formData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
-
+      const response = await axios.post(API_URL, formData, { headers: { 'Authorization': `Bearer ${token}` } });
       const newMessage = response.data.chat;
       const loggedInUser = getState().auth.user;
-      
       return {
         originalMessage: { ...newMessage, sender_avatar: loggedInUser.profile_pic, sender_name: loggedInUser.name },
         formatted: {
@@ -96,9 +82,9 @@ export const sendMessageToServer = createAsyncThunk(
             time: new Date(newMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             img: null,
             senderFullName: loggedInUser?.name,
+            reactions: [],
         }
       };
-
     } catch (error) {
       toast.error("Failed to send message.");
       return rejectWithValue(error.response?.data?.message || "Failed to send message.");
@@ -112,10 +98,8 @@ export const deleteMessage = createAsyncThunk(
     try {
       const token = getTokenFromCookie();
       if (!token) return rejectWithValue("Authentication token not found.");
-      
       const API_URL = `${API_BASE_URL}/delete/${messageId}`;
       await axios.delete(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
-      
       toast.success("Message deleted successfully");
       return messageId;
     } catch (error) {
@@ -131,17 +115,11 @@ export const updateMessage = createAsyncThunk(
     try {
       const token = getTokenFromCookie();
       if (!token) return rejectWithValue("Authentication token not found.");
-      
       const API_URL = `${API_BASE_URL}/update/${messageId}`;
       const formData = new FormData();
       formData.append('message', newContent);
-      
-      const response = await axios.post(API_URL, formData, { 
-        headers: { 'Authorization': `Bearer ${token}` } 
-      });
-
-      const updatedMessage = response.data.chat; 
-      
+      const response = await axios.post(API_URL, formData, { headers: { 'Authorization': `Bearer ${token}` } });
+      const updatedMessage = response.data.chat;
       toast.success("Message updated successfully");
       return {
         id: updatedMessage.id,
@@ -150,6 +128,28 @@ export const updateMessage = createAsyncThunk(
     } catch (error) {
       toast.error("Failed to update message.");
       return rejectWithValue(error.response?.data?.message || "Failed to update message.");
+    }
+  }
+);
+
+export const addReaction = createAsyncThunk(
+  "appchat/addReaction",
+  async ({ messageId, emoji }, { rejectWithValue }) => {
+    try {
+      const token = getTokenFromCookie();
+      if (!token) return rejectWithValue("Authentication token not found.");
+      // Corrected API endpoint
+      const API_URL = `${API_BASE_URL}/reaction`; 
+      const formData = new FormData();
+      formData.append('chat_id', messageId);
+      formData.append('reaction', emoji);
+      const response = await axios.post(API_URL, formData, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      toast.error("Failed to add reaction.");
+      return rejectWithValue(error.response?.data?.message || "Failed to add reaction.");
     }
   }
 );
@@ -184,7 +184,6 @@ export const appChatSlice = createSlice({
     },
     toggleMobileChatSidebar: (state, action) => { state.mobileChatSidebar = action.payload; },
     infoToggle: (state, action) => { state.openinfo = action.payload; },
-    sendMessage: (state, action) => { state.messFeed.push(action.payload); },
     toggleProfile: (state, action) => { state.openProfile = action.payload; },
     setContactSearch: (state, action) => { state.searchContact = action.payload; },
     toggleActiveChat: (state, action) => { state.activechat = action.payload; },
@@ -198,6 +197,7 @@ export const appChatSlice = createSlice({
               time: new Date(newMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               img: newMessage.sender_avatar ? `${IMAGE_BASE_URL}${newMessage.sender_avatar}` : null,
               senderFullName: newMessage.sender_name,
+              reactions: newMessage.reactions || [],
         };
         state.messFeed.push(formattedMessage);
       }
@@ -217,24 +217,36 @@ export const appChatSlice = createSlice({
         }
       }
     },
+    liveUpdateReaction: (state, action) => {
+      const { messageId, reaction } = action.payload;
+      if (!state.activechat) return;
+      const message = state.messFeed.find((m) => m.id === messageId);
+      if (message) {
+        const existingReactionIndex = message.reactions.findIndex((r) => r.user_id === reaction.user_id);
+        if (existingReactionIndex > -1) {
+          if (message.reactions[existingReactionIndex].reaction === reaction.reaction) {
+            message.reactions.splice(existingReactionIndex, 1);
+          } else {
+            message.reactions[existingReactionIndex] = reaction;
+          }
+        } else {
+          message.reactions.push(reaction);
+        }
+      }
+    },
     updateContactLastMessage: (state, action) => {
         const { sender_id, message, created_at, receiver_id } = action.payload;
-        // Logic to determine which contact to update
-        const loggedInUserId = state.user?.id;
-        const isMyMessage = sender_id === loggedInUserId;
-        const contactId = isMyMessage ? receiver_id : sender_id;
-
+        const loggedInUserId = state.auth.user?.id;
+        if (!loggedInUserId) return;
+        const isMySentMessage = sender_id === loggedInUserId;
+        const contactId = isMySentMessage ? receiver_id : sender_id;
         const contactIndex = state.contacts.findIndex(contact => contact.id == contactId);
-  
         if (contactIndex !== -1) {
           state.contacts[contactIndex].lastmessage = message;
           state.contacts[contactIndex].lastmessageTime = created_at;
-          
-          // Increment unread count only if the message is from another user and their chat is not open
-          if (!isMyMessage && (!state.activechat || state.user.id != sender_id)) {
+          if (!isMySentMessage && (!state.activechat || state.user.id != sender_id)) {
               state.contacts[contactIndex].unredmessage = (state.contacts[contactIndex].unredmessage || 0) + 1;
           }
-  
           const updatedContact = state.contacts.splice(contactIndex, 1)[0];
           state.contacts.unshift(updatedContact);
         }
@@ -255,6 +267,7 @@ export const appChatSlice = createSlice({
           content,
           sender: "me",
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          reactions: [],
         });
       })
       .addCase(sendMessageToServer.fulfilled, (state, action) => {
@@ -262,7 +275,6 @@ export const appChatSlice = createSlice({
         if (tempMessageIndex !== -1) {
             state.messFeed[tempMessageIndex] = action.payload.formatted;
         }
-        // Also update the contact list with the sent message
         const { receiverId, content } = action.meta.arg;
         const contactIndex = state.contacts.findIndex(contact => contact.id == receiverId);
         if (contactIndex !== -1) {
@@ -291,9 +303,32 @@ export const appChatSlice = createSlice({
       })
       .addCase(updateMessage.rejected, (state, action) => {
         console.error("Update message failed:", action.payload);
+      })
+      .addCase(addReaction.fulfilled, (state, action) => {
+        const reactionData = action.payload.reaction || action.payload.data || action.payload;
+        if (!reactionData || !reactionData.chat_id) {
+          console.error("Invalid reaction response from API:", action.payload);
+          return;
+        }
+        const message = state.messFeed.find((m) => m.id === reactionData.chat_id);
+        if (message) {
+            const existingReactionIndex = message.reactions.findIndex((r) => r.user_id === reactionData.user_id);
+            if (existingReactionIndex > -1) {
+                if (action.payload.deleted) {
+                    message.reactions.splice(existingReactionIndex, 1);
+                } else {
+                    message.reactions[existingReactionIndex] = reactionData;
+                }
+            } else {
+                message.reactions.push(reactionData);
+            }
+        }
+      })
+      .addCase(addReaction.rejected, (state, action) => {
+          console.error("Add reaction failed:", action.payload);
       });
   },
 });
 
-export const { openChat, toggleMobileChatSidebar, infoToggle, sendMessage, toggleProfile, setContactSearch, toggleActiveChat, addLiveMessage, liveDeleteMessage, liveUpdateMessage, updateContactLastMessage } = appChatSlice.actions;
+export const { openChat, toggleMobileChatSidebar, infoToggle, toggleProfile, setContactSearch, toggleActiveChat, addLiveMessage, liveDeleteMessage, liveUpdateMessage, liveUpdateReaction, updateContactLastMessage } = appChatSlice.actions;
 export default appChatSlice.reducer;
