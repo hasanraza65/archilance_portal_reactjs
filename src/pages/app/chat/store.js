@@ -5,7 +5,6 @@ import axios from "axios";
 import Cookies from 'js-cookie';
 import { toast } from "react-toastify";
 
-// Using environment variables for base URLs
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/chat`;
 const IMAGE_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -86,14 +85,18 @@ export const sendMessageToServer = createAsyncThunk(
       });
 
       const newMessage = response.data.chat;
-
+      const loggedInUser = getState().auth.user;
+      
       return {
-        id: newMessage.id,
-        content: newMessage.message,
-        sender: newMessage.sender_id === loggedInUserId ? 'me' : 'them',
-        time: new Date(newMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        img: null,
-        senderFullName: getState().auth.user?.name,
+        originalMessage: { ...newMessage, sender_avatar: loggedInUser.profile_pic, sender_name: loggedInUser.name },
+        formatted: {
+            id: newMessage.id,
+            content: newMessage.message,
+            sender: newMessage.sender_id === loggedInUserId ? 'me' : 'them',
+            time: new Date(newMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            img: null,
+            senderFullName: loggedInUser?.name,
+        }
       };
 
     } catch (error) {
@@ -181,6 +184,24 @@ export const appChatSlice = createSlice({
     toggleProfile: (state, action) => { state.openProfile = action.payload; },
     setContactSearch: (state, action) => { state.searchContact = action.payload; },
     toggleActiveChat: (state, action) => { state.activechat = action.payload; },
+    addLiveMessage: (state, action) => {
+      const newMessage = action.payload;
+      if (newMessage && state.activechat && state.user && 
+          (newMessage.sender_id === state.user.id || newMessage.receiver_id === state.user.id)) {
+        state.messFeed.push(newMessage.formatted);
+      }
+    },
+    liveDeleteMessage: (state, action) => {
+      const { messageId } = action.payload;
+      state.messFeed = state.messFeed.filter((message) => message.id !== messageId);
+    },
+    liveUpdateMessage: (state, action) => {
+      const { messageId, newContent } = action.payload;
+      const messageIndex = state.messFeed.findIndex((msg) => msg.id === messageId);
+      if (messageIndex !== -1) {
+        state.messFeed[messageIndex].content = newContent;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -202,7 +223,7 @@ export const appChatSlice = createSlice({
       .addCase(sendMessageToServer.fulfilled, (state, action) => {
         const tempMessageIndex = state.messFeed.findIndex(msg => msg.id.toString().startsWith('temp-'));
         if (tempMessageIndex !== -1) {
-            state.messFeed[tempMessageIndex] = action.payload;
+            state.messFeed[tempMessageIndex] = action.payload.formatted;
         }
       })
       .addCase(sendMessageToServer.rejected, (state, action) => {
@@ -228,5 +249,5 @@ export const appChatSlice = createSlice({
   },
 });
 
-export const { openChat, toggleMobileChatSidebar, infoToggle, sendMessage, toggleProfile, setContactSearch, toggleActiveChat } = appChatSlice.actions;
+export const { openChat, toggleMobileChatSidebar, infoToggle, sendMessage, toggleProfile, setContactSearch, toggleActiveChat, addLiveMessage, liveDeleteMessage, liveUpdateMessage } = appChatSlice.actions;
 export default appChatSlice.reducer;
