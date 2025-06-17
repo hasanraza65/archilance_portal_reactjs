@@ -1,9 +1,13 @@
 // src/App.jsx
 
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useSelector, useDispatch } from 'react-redux';
+
+// Our new central socket service
+import { connectSocket, disconnectSocket } from './socket';
 
 // Layouts
 import Layout from "./layout/Layout";
@@ -44,9 +48,20 @@ const ProjectBriefDetailPage = lazy(() =>
 const Error = lazy(() => import("./pages/404"));
 
 function App() {
+  const loggedInUser = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (loggedInUser) {
+      connectSocket(dispatch, loggedInUser.id);
+    }
+    return () => {
+      disconnectSocket();
+    };
+  }, [loggedInUser, dispatch]);
+
   return (
     <main className="App relative">
-      {/* ToastContainer yahan par hai, bilkul sahi */}
       <ToastContainer
         position="top-right"
         autoClose={3000}
@@ -61,7 +76,6 @@ function App() {
       />
 
       <Routes>
-        {/* Authentication Routes (Public) */}
         <Route element={<AuthLayout />}>
           <Route
             path="/"
@@ -90,7 +104,6 @@ function App() {
           />
         </Route>
 
-        {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route
@@ -144,6 +157,7 @@ function App() {
               element={<EditEmployee />}
             />
             <Route path="customers" element={<AllCustomers />} />
+            {/* --- ERROR YAHAN THA --- */}
             <Route
               path="/customers/view/:customerId"
               element={<CustomerView />}
@@ -158,7 +172,6 @@ function App() {
           </Route>
         </Route>
 
-        {/* 404 Error Page */}
         <Route
           path="/404"
           element={

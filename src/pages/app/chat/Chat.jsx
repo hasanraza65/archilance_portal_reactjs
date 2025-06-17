@@ -1,3 +1,4 @@
+// src/pages/app/chat/Chat.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import useWidth from "@/hooks/useWidth";
@@ -9,14 +10,9 @@ import {
   sendMessageToServer,
   deleteMessage,
   updateMessage,
-  addLiveMessage,
-  liveDeleteMessage,
-  liveUpdateMessage,
 } from "./store";
 import Swal from "sweetalert2";
-import { io } from "socket.io-client";
-
-const SOCKET_URL = "http://13.60.76.68:3000";
+import { getSocket } from "@/socket"; // Hamari global socket service
 
 const Chat = () => {
   const { user, messFeed, openinfo, isMessagesLoading, messagesError } =
@@ -28,90 +24,7 @@ const Chat = () => {
   const [message, setMessage] = useState("");
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editedText, setEditedText] = useState("");
-  const socket = useRef(null);
-  const [connectionStatus, setConnectionStatus] = useState("connecting");
-
-  // <<<--- YAHAN CHANGE HAI ---<<<
-  // Hum ek variable bana rahe hain taake code saaf rahay
-  const isOnline = connectionStatus === "connected";
-
-  useEffect(() => {
-    if (!user.id || !loggedInUser.id) {
-      setConnectionStatus("disconnected");
-      return;
-    }
-
-    if (socket.current) {
-      socket.current.disconnect();
-    }
-
-    setConnectionStatus("connecting");
-    socket.current = io(SOCKET_URL);
-
-    const handleConnect = () => {
-      setConnectionStatus("connected");
-    };
-
-    const handleDisconnect = () => {
-      setConnectionStatus("disconnected");
-    };
-
-    const handleChatMessage = (data) => {
-      if (data.receiver_id == loggedInUser.id && data.sender_id == user.id) {
-        const formattedMessage = {
-          id: data.id || `socket-${Date.now()}`,
-          content: data.message,
-          sender: "them",
-          time: new Date(data.created_at).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          img: data.sender_avatar
-            ? `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${
-                data.sender_avatar
-              }`
-            : null,
-          senderFullName: data.sender_name,
-        };
-        dispatch(addLiveMessage({ formatted: formattedMessage, ...data }));
-      }
-    };
-
-    const handleMessageDeleted = (data) => {
-      if (data.receiverId == loggedInUser.id) {
-        dispatch(liveDeleteMessage({ messageId: data.messageId }));
-      }
-    };
-
-    const handleMessageUpdated = (data) => {
-      if (data.receiverId == loggedInUser.id) {
-        dispatch(
-          liveUpdateMessage({
-            messageId: data.messageId,
-            newContent: data.content,
-          })
-        );
-      }
-    };
-
-    socket.current.on("connect", handleConnect);
-    socket.current.on("chat-message", handleChatMessage);
-    socket.current.on("message-deleted", handleMessageDeleted);
-    socket.current.on("message-updated", handleMessageUpdated);
-    socket.current.on("disconnect", handleDisconnect);
-
-    return () => {
-      if (socket.current) {
-        socket.current.off("connect", handleConnect);
-        socket.current.off("chat-message", handleChatMessage);
-        socket.current.off("message-deleted", handleMessageDeleted);
-        socket.current.off("message-updated", handleMessageUpdated);
-        socket.current.off("disconnect", handleDisconnect);
-        socket.current.disconnect();
-      }
-    };
-  }, [user.id, loggedInUser.id, dispatch]);
-
+  
   useEffect(() => {
     if (chatheight.current) {
       chatheight.current.scrollTop = chatheight.current.scrollHeight;
@@ -121,13 +34,12 @@ const Chat = () => {
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (message.trim() && user?.id) {
-      dispatch(
-        sendMessageToServer({ content: message.trim(), receiverId: user.id })
-      )
+      dispatch(sendMessageToServer({ content: message.trim(), receiverId: user.id }))
         .unwrap()
         .then((result) => {
-          if (socket.current?.connected && result.originalMessage) {
-            socket.current.emit("chat-message", result.originalMessage);
+          const socket = getSocket();
+          if (socket?.connected && result.originalMessage) {
+            socket.emit("chat-message", result.originalMessage);
           }
         });
       setMessage("");
@@ -148,8 +60,9 @@ const Chat = () => {
         dispatch(deleteMessage(messageId))
           .unwrap()
           .then(() => {
-            if (socket.current?.connected) {
-              socket.current.emit("message-deleted", {
+            const socket = getSocket();
+            if (socket?.connected) {
+              socket.emit("message-deleted", {
                 messageId,
                 receiverId: user.id,
               });
@@ -166,8 +79,9 @@ const Chat = () => {
       dispatch(updateMessage({ messageId, newContent }))
         .unwrap()
         .then(() => {
-          if (socket.current?.connected) {
-            socket.current.emit("message-updated", {
+          const socket = getSocket();
+          if (socket?.connected) {
+            socket.emit("message-updated", {
               messageId,
               content: newContent,
               receiverId: user.id,
@@ -220,20 +134,7 @@ const Chat = () => {
                 <span className="block text-slate-800 dark:text-slate-300 text-sm font-medium mb-[2px] truncate">
                   {user.fullName}
                 </span>
-                <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                  {/* <<<--- YAHAN CHANGE HAI ---<<< */}
-                  {/* Status dot ab online par green, offline par gray ho jayega */}
-                  <span
-                    className={`h-2 w-2 rounded-full inline-block ${
-                      isOnline ? "bg-success-500" : "bg-slate-400"
-                    }`}
-                  ></span>
-                  {/* <<<--- YAHAN BHI CHANGE HAI ---<<< */}
-                  {/* Text ab "Active now" ya "Offline" show hoga */}
-                  <span className="block text-slate-500 dark:text-slate-300 text-xs font-normal capitalize">
-                    {isOnline ? "Active now" : "Offline"}
-                  </span>
-                </div>
+                <span className="block text-slate-500 dark:text-slate-300 text-xs font-normal">Active now</span>
               </div>
             </div>
           </div>
@@ -254,7 +155,6 @@ const Chat = () => {
         </div>
       </header>
 
-      {/* Baaqi ka JSX code wesa hi rahega */}
       <div className="chat-content parent-height">
         <div
           className="msgs overflow-y-auto msg-height pt-6 space-y-6"
@@ -330,8 +230,7 @@ const Chat = () => {
                         </form>
                       ) : (
                         <>
-                          {" "}
-                          {item.content}{" "}
+                          {item.content}
                           <div
                             className={`text-xs mt-1 ${
                               item.sender === "me"

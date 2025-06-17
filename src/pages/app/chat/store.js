@@ -177,6 +177,10 @@ export const appChatSlice = createSlice({
       state.user = action.payload.contact;
       state.messFeed = [];
       state.messagesError = null;
+      const contactIndex = state.contacts.findIndex(c => c.id === action.payload.contact.id);
+      if (contactIndex !== -1) {
+          state.contacts[contactIndex].unredmessage = 0;
+      }
     },
     toggleMobileChatSidebar: (state, action) => { state.mobileChatSidebar = action.payload; },
     infoToggle: (state, action) => { state.openinfo = action.payload; },
@@ -186,21 +190,54 @@ export const appChatSlice = createSlice({
     toggleActiveChat: (state, action) => { state.activechat = action.payload; },
     addLiveMessage: (state, action) => {
       const newMessage = action.payload;
-      if (newMessage && state.activechat && state.user && 
-          (newMessage.sender_id === state.user.id || newMessage.receiver_id === state.user.id)) {
-        state.messFeed.push(newMessage.formatted);
+      if (newMessage && state.activechat && state.user && (newMessage.sender_id == state.user.id)) {
+        const formattedMessage = {
+              id: newMessage.id || `socket-${Date.now()}`,
+              content: newMessage.message,
+              sender: 'them',
+              time: new Date(newMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              img: newMessage.sender_avatar ? `${IMAGE_BASE_URL}${newMessage.sender_avatar}` : null,
+              senderFullName: newMessage.sender_name,
+        };
+        state.messFeed.push(formattedMessage);
       }
     },
     liveDeleteMessage: (state, action) => {
       const { messageId } = action.payload;
-      state.messFeed = state.messFeed.filter((message) => message.id !== messageId);
+      if (state.activechat) {
+          state.messFeed = state.messFeed.filter((message) => message.id !== messageId);
+      }
     },
     liveUpdateMessage: (state, action) => {
-      const { messageId, newContent } = action.payload;
-      const messageIndex = state.messFeed.findIndex((msg) => msg.id === messageId);
-      if (messageIndex !== -1) {
-        state.messFeed[messageIndex].content = newContent;
+      const { messageId, content } = action.payload;
+      if (state.activechat) {
+        const messageIndex = state.messFeed.findIndex((msg) => msg.id === messageId);
+        if (messageIndex !== -1) {
+            state.messFeed[messageIndex].content = content;
+        }
       }
+    },
+    updateContactLastMessage: (state, action) => {
+        const { sender_id, message, created_at, receiver_id } = action.payload;
+        // Logic to determine which contact to update
+        const loggedInUserId = state.user?.id;
+        const isMyMessage = sender_id === loggedInUserId;
+        const contactId = isMyMessage ? receiver_id : sender_id;
+
+        const contactIndex = state.contacts.findIndex(contact => contact.id == contactId);
+  
+        if (contactIndex !== -1) {
+          state.contacts[contactIndex].lastmessage = message;
+          state.contacts[contactIndex].lastmessageTime = created_at;
+          
+          // Increment unread count only if the message is from another user and their chat is not open
+          if (!isMyMessage && (!state.activechat || state.user.id != sender_id)) {
+              state.contacts[contactIndex].unredmessage = (state.contacts[contactIndex].unredmessage || 0) + 1;
+          }
+  
+          const updatedContact = state.contacts.splice(contactIndex, 1)[0];
+          state.contacts.unshift(updatedContact);
+        }
     },
   },
   extraReducers: (builder) => {
@@ -224,6 +261,15 @@ export const appChatSlice = createSlice({
         const tempMessageIndex = state.messFeed.findIndex(msg => msg.id.toString().startsWith('temp-'));
         if (tempMessageIndex !== -1) {
             state.messFeed[tempMessageIndex] = action.payload.formatted;
+        }
+        // Also update the contact list with the sent message
+        const { receiverId, content } = action.meta.arg;
+        const contactIndex = state.contacts.findIndex(contact => contact.id == receiverId);
+        if (contactIndex !== -1) {
+            state.contacts[contactIndex].lastmessage = content;
+            state.contacts[contactIndex].lastmessageTime = new Date().toISOString();
+            const updatedContact = state.contacts.splice(contactIndex, 1)[0];
+            state.contacts.unshift(updatedContact);
         }
       })
       .addCase(sendMessageToServer.rejected, (state, action) => {
@@ -249,5 +295,5 @@ export const appChatSlice = createSlice({
   },
 });
 
-export const { openChat, toggleMobileChatSidebar, infoToggle, sendMessage, toggleProfile, setContactSearch, toggleActiveChat, addLiveMessage, liveDeleteMessage, liveUpdateMessage } = appChatSlice.actions;
+export const { openChat, toggleMobileChatSidebar, infoToggle, sendMessage, toggleProfile, setContactSearch, toggleActiveChat, addLiveMessage, liveDeleteMessage, liveUpdateMessage, updateContactLastMessage } = appChatSlice.actions;
 export default appChatSlice.reducer;
