@@ -3,7 +3,7 @@ import React from "react";
 import SimpleBar from "simplebar-react";
 import { useSelector } from "react-redux";
 import Icon from "@/components/ui/Icon";
-import UserAvatar from "./UserAvatar";
+import UserAvatar from "@/components/ui/UserAvatar";
 import Image1 from "@/assets/images/chat/sd1.png";
 import Image2 from "@/assets/images/chat/sd2.png";
 import Image3 from "@/assets/images/chat/sd3.png";

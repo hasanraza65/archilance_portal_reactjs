@@ -1,7 +1,7 @@
 // src/pages/app/chat/MyProfile.jsx
 import React from "react";
 import { useSelector } from "react-redux";
-import UserAvatar from "./UserAvatar";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 const MyProfile = () => {
   const { user } = useSelector((state) => state.auth);

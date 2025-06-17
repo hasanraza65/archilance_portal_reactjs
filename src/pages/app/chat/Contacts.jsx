@@ -1,7 +1,7 @@
 // src/pages/app/chat/Contacts.jsx
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import UserAvatar from './UserAvatar';
+import UserAvatar from '@/components/ui/UserAvatar';
 import { openChat, fetchConversation } from './store';
 
 const Contacts = ({ contact }) => {
