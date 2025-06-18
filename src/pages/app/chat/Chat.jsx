@@ -16,6 +16,7 @@ import Swal from "sweetalert2";
 import { getSocket } from "@/socket";
 import MessageContextMenu from "./MessageContextMenu";
 import { toast } from "react-toastify";
+import { current } from "@reduxjs/toolkit";
 
 const Chat = () => {
   const { user, messFeed, openinfo, isMessagesLoading, messagesError } =
@@ -78,7 +79,9 @@ const Chat = () => {
                 reaction: reactionData,
                 receiverId: user.id,
               });
+                   
             }
+             console.log('string ', reactionData);
           })
           .catch((err) => {
             console.error("Failed to add reaction or emit socket event:", err);

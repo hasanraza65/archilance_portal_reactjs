@@ -27,6 +27,7 @@ export const connectSocket = (dispatch, userId) => {
     socket.on('chat-message', (data) => {
       dispatch(addLiveMessage(data));
       dispatch(updateContactLastMessage(data));
+      console.log(object`%c[SOCKET] Received "chat-message":`, 'color: blue;', data);
     });
 
     socket.on('message-deleted', (data) => {
@@ -38,7 +39,8 @@ export const connectSocket = (dispatch, userId) => {
     });
     
     socket.on('message-reacted', (data) => {
-      console.log('%c[SOCKET] Received "message-reacted":', 'color: hotpink;', data);
+      // console.log('%c[SOCKET] Received "message-reacted":', 'color: hotpink;', data);
+      console.log('socket testing', data);
       dispatch(liveUpdateReaction(data));
     });
   }

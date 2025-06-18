@@ -58,13 +58,7 @@ const Info = () => {
           <div className="font-medium">Pakistan</div>
         </li>
       
-         {/* <li className="flex justify-between text-sm text-slate-600 dark:text-slate-300 leading-none">
-          <div className="flex space-x-2 items-start rtl:space-x-reverse">
-            <Icon icon="heroicons-outline:user" className="text-base" />
-            <span>Members since</span>
-          </div>
-          <div className="font-medium">Oct 2021</div>
-        </li> */}
+        
         <li className="flex justify-between text-sm text-slate-600 dark:text-slate-300 leading-none">
           <div className="flex space-x-2 items-start rtl:space-x-reverse">
             <Icon icon="heroicons-outline:translate" className="text-base" />
