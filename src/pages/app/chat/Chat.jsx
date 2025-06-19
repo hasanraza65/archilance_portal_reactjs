@@ -58,10 +58,7 @@ const Chat = () => {
   });
   const [replyingTo, setReplyingTo] = useState(null);
   const scrollHeightBeforeLoad = useRef(0);
-  
-  // ===> CHANGE START: Ref to track previous message count <===
   const prevMessFeedLengthRef = useRef(messFeed.length);
-  // ===> CHANGE END <===
 
   useEffect(() => {
     const chatContainer = chatheight.current;
@@ -79,17 +76,11 @@ const Chat = () => {
       return;
     }
 
-    // ===> CHANGE START: Smarter scroll logic <===
-    // Only scroll to bottom if a new message is ADDED.
-    // This prevents scrolling on edits, deletions, or reaction changes.
     if (messFeed.length > prevMessFeedLengthRef.current) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-
-    // Update the ref for the next render
-    prevMessFeedLengthRef.current = messFeed.length;
-    // ===> CHANGE END <===
     
+    prevMessFeedLengthRef.current = messFeed.length;
   }, [messFeed, isOlderMessagesLoading]);
 
   const handleScroll = useCallback(() => {
@@ -246,7 +237,7 @@ const Chat = () => {
       case "delete-for-me":
         handleDeleteMessage(currentMessage.id);
         break;
-      case "react": { // No need for scroll preservation logic here anymore
+      case "react": {
         const myReaction = currentMessage.reactions.find(r => r.user_id === loggedInUser.id);
         
         const actionToDispatch = (myReaction && myReaction.reaction === data)
@@ -324,22 +315,24 @@ const Chat = () => {
     </div>
   );
 
+  // ===> CHANGE START: Heavily Improved RepliedMessageBlock UI <===
   const RepliedMessageBlock = ({ message }) => {
     if (!message.parent) return null;
     
     const parentSenderName = message.parent.sender?.name || (message.sender === 'me' ? user.fullName : 'Yourself');
 
     return (
-        <div className="p-2 mb-1 bg-black/10 dark:bg-white/10 rounded-lg border-l-2 border-blue-400">
-            <div className="text-xs font-semibold text-blue-500 dark:text-blue-400">
+        <div className="p-2 mb-2 bg-black/5 dark:bg-white/10 rounded-lg border-l-4 border-blue-500">
+            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
                 {parentSenderName}
             </div>
-            <p className="text-xs text-slate-800 dark:text-slate-300 truncate">
+            <p className="text-xs text-slate-300 dark:text-white truncate mt-1">
                 {message.parent.message || "Attachment"}
             </p>
         </div>
     );
   };
+  // ===> CHANGE END <===
 
   return (
     <div className="h-full flex flex-col" onClick={handleCloseMenu}>
