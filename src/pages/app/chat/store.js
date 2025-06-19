@@ -130,7 +130,7 @@ export const sendMessageToServer = createAsyncThunk(
           attachments: formattedAttachments,
         },
       };
-    } catch (error) {
+    } catch (error)      {
       toast.error(error.response?.data?.message || "Failed to send message.");
       return rejectWithValue(
         error.response?.data?.message || "Failed to send message."
@@ -176,24 +176,40 @@ export const updateMessage = createAsyncThunk(
   }
 );
 
+// ====== FIX START: Updated addReaction Thunk ======
 export const addReaction = createAsyncThunk(
   "appchat/addReaction",
-  async ({ messageId, emoji }, { rejectWithValue }) => {
+  async ({ messageId, emoji }, { getState, rejectWithValue }) => {
     try {
       const token = getTokenFromCookie();
       if (!token) return rejectWithValue("Authentication token not found.");
+      
+      const loggedInUserId = getState().auth.user?.id;
+      if (!loggedInUserId) return rejectWithValue("User not logged in.");
+
       const API_URL = `${API_BASE_URL}/reaction`;
       const formData = new FormData();
       formData.append("chat_id", messageId);
       formData.append("reaction", emoji);
-      const response = await axios.post(API_URL, formData, { headers: { Authorization: `Bearer ${token}` } });
-      return response.data;
+      const response = await axios.post(API_URL, formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Return a comprehensive payload for the reducer
+      return {
+        response: response.data,
+        messageId: messageId,
+        userId: loggedInUserId,
+      };
     } catch (error) {
       toast.error("Failed to add reaction.");
-      return rejectWithValue(error.response?.data?.message || "Failed to add reaction.");
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to add reaction."
+      );
     }
   }
 );
+// ====== FIX END: Updated addReaction Thunk ======
 
 export const appChatSlice = createSlice({
   name: "appchat",
@@ -355,17 +371,36 @@ export const appChatSlice = createSlice({
       .addCase(deleteMessage.rejected, (state, action) => { console.error("Delete message failed:", action.payload); })
       .addCase(updateMessage.fulfilled, (state, action) => { const { id, content } = action.payload; const messageIndex = state.messFeed.findIndex((msg) => msg.id === id); if (messageIndex !== -1) { state.messFeed[messageIndex].content = content; } })
       .addCase(updateMessage.rejected, (state, action) => { console.error("Update message failed:", action.payload); })
+      // ====== FIX START: Updated addReaction fulfilled reducer ======
       .addCase(addReaction.fulfilled, (state, action) => {
-        const reactionData = action.payload.reaction || action.payload.data || action.payload;
-        if (!reactionData || !reactionData.chat_id) { console.error("Invalid reaction response from API:", action.payload); return; }
-        const message = state.messFeed.find((m) => m.id === reactionData.chat_id);
-        if (message) {
-          const existingReactionIndex = message.reactions.findIndex((r) => r.user_id === reactionData.user_id);
+        const { response, messageId, userId } = action.payload;
+        const reactionData = response.reaction || response.data || response;
+
+        const message = state.messFeed.find((m) => m.id === messageId);
+        if (!message) return;
+
+        const existingReactionIndex = message.reactions.findIndex(
+          (r) => r.user_id === userId
+        );
+
+        // Case 1: The API response indicates a reaction was deleted
+        if (response.deleted) {
           if (existingReactionIndex > -1) {
-            if (action.payload.deleted) { message.reactions.splice(existingReactionIndex, 1); } else { message.reactions[existingReactionIndex] = reactionData; }
-          } else { message.reactions.push(reactionData); }
+            message.reactions.splice(existingReactionIndex, 1);
+          }
+        }
+        // Case 2: The API response provides a reaction object (for add/update)
+        else if (reactionData && reactionData.id) {
+          if (existingReactionIndex > -1) {
+            // Update the existing reaction
+            message.reactions[existingReactionIndex] = reactionData;
+          } else {
+            // Add the new reaction
+            message.reactions.push(reactionData);
+          }
         }
       })
+      // ====== FIX END: Updated addReaction fulfilled reducer ======
       .addCase(addReaction.rejected, (state, action) => { console.error("Add reaction failed:", action.payload); });
   },
 });
