@@ -168,11 +168,28 @@ const Chat = () => {
       message: message,
     });
   };
-  const handleCloseMenu = () => {
+
+  // ✅ CHANGE #1: Wrapped in useCallback for performance and stable reference
+  const handleCloseMenu = useCallback(() => {
     if (menuState.visible) {
-      setMenuState({ ...menuState, visible: false });
+      setMenuState((prev) => ({ ...prev, visible: false }));
     }
-  };
+  }, [menuState.visible]);
+
+  // ✅ CHANGE #2: New useEffect to close menu on scroll
+  useEffect(() => {
+    const chatContainer = chatheight.current;
+    if (chatContainer) {
+      chatContainer.addEventListener('scroll', handleCloseMenu);
+    }
+    // Cleanup function to remove the event listener
+    return () => {
+      if (chatContainer) {
+        chatContainer.removeEventListener('scroll', handleCloseMenu);
+      }
+    };
+  }, [handleCloseMenu]); // Dependency ensures the effect is managed correctly
+
   const handleDeleteMessage = (messageId) => {
     Swal.fire({
       title: "Are you sure?",
@@ -314,8 +331,7 @@ const Chat = () => {
         </div>
     </div>
   );
-
-  // ===> CHANGE START: Heavily Improved RepliedMessageBlock UI <===
+  
   const RepliedMessageBlock = ({ message }) => {
     if (!message.parent) return null;
     
@@ -332,8 +348,7 @@ const Chat = () => {
         </div>
     );
   };
-  // ===> CHANGE END <===
-
+  
   return (
     <div className="h-full flex flex-col" onClick={handleCloseMenu}>
       <header className="border-b border-slate-100 dark:border-slate-700">
