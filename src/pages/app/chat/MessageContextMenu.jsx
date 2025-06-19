@@ -1,6 +1,5 @@
-// src/pages/app/chat/MessageContextMenu.jsx
 import React, { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom"; // IMPORT ahem hai
+import ReactDOM from "react-dom";
 import Icon from "@/components/ui/Icon";
 
 const EMOJI_REACTIONS = ["👍", "❤️", "😂", "😯", "😢", "🙏"];
@@ -11,12 +10,11 @@ const MessageContextMenu = ({
   message,
   onClose,
   onAction,
+  loggedInUserId,
 }) => {
   const menuRef = useRef(null);
-  // NEW: State to hold the final, adjusted position of the menu
   const [finalPosition, setFinalPosition] = useState({ top: 0, left: 0 });
 
-  // Bahar click karne par menu ko band karne ka logic
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -31,7 +29,6 @@ const MessageContextMenu = ({
     };
   }, [visible, onClose]);
 
-  // NEW: Yeh effect menu ki position ko adjust karega taake woh screen se bahar na jaye
   useEffect(() => {
     if (visible && menuRef.current) {
       const menuWidth = menuRef.current.offsetWidth;
@@ -42,80 +39,91 @@ const MessageContextMenu = ({
       let left = position.x;
       let top = position.y;
 
-      // Agar menu right edge se bahar ja raha ho
       if (left + menuWidth > windowWidth) {
-        left = windowWidth - menuWidth - 10; // 10px ka margin
+        left = windowWidth - menuWidth - 10;
       }
-
-      // Agar menu bottom edge se bahar ja raha ho
       if (top + menuHeight > windowHeight) {
-        top = windowHeight - menuHeight - 10; // 10px ka margin
+        top = windowHeight - menuHeight - 10;
       }
-
-      // Agar menu top ya left se bahar ja raha ho
-      if (top < 0) top = 10;
-      if (left < 0) left = 10;
+      if (top < 10) top = 10;
+      if (left < 10) left = 10;
 
       setFinalPosition({ top, left });
     }
   }, [visible, position]);
 
-  if (!visible) return null;
+  if (!visible || !message) return null;
+
+  const myReaction = message.reactions?.find(r => r.user_id === loggedInUserId);
 
   const menuItems = [
-    { name: "Reply", icon: "heroicons-outline:reply" },
-    { name: "Copy", icon: "heroicons-outline:duplicate" },
-    { name: "Forward", icon: "heroicons-outline:arrow-right" },
-    { name: "Pin", icon: "heroicons-outline:pin" },
-    { name: "Delete for me", icon: "heroicons-outline:trash", danger: true },
+    { 
+      name: "Reply", 
+      icon: "heroicons-outline:reply",
+      action: "reply"
+    },
+    { 
+      name: "Copy", 
+      icon: "heroicons-outline:document-copy",
+      action: "copy",
+      condition: !!message.content
+    },
+    { 
+      name: "Delete for me", 
+      icon: "heroicons-outline:trash", 
+      action: "delete-for-me",
+      danger: true,
+      condition: message.sender === 'me'
+    },
   ];
 
-  // Component ka JSX ab is variable mein hai
   const menuContent = (
     <div
       ref={menuRef}
-      // UPDATED: 'fixed' position use karein aur z-index barha dein
-      className="fixed z-[9999] w-48 rounded-md bg-[#202c33] shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-      // UPDATED: Adjusted position use karein
+      className="fixed z-[9999] w-48 rounded-xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none border border-slate-200 dark:border-slate-700 overflow-hidden"
       style={{ top: `${finalPosition.top}px`, left: `${finalPosition.left}px` }}
     >
-      {/* Emoji Reactions Bar */}
-      <div className="flex justify-around items-center p-2 border-b border-gray-600">
+     
+
+      <ul className="py-1">
+        {menuItems.map((item) => (
+          (typeof item.condition === 'undefined' || item.condition) && (
+            <li
+              key={item.name}
+              className={`
+                flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer
+                ${
+                  item.danger
+                    ? "hover:bg-red-500/10 hover:text-red-500 dark:hover:bg-red-500/20 dark:hover:text-red-400"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-700"
+                }
+              `}
+              onClick={() => onAction(item.action, message)}
+            >
+              <Icon icon={item.icon} className="w-5 h-5 mr-3" />
+              <span>{item.name}</span>
+            </li>
+          )
+        ))}
+      </ul>
+       <div className="flex justify-around items-center p-2 bg-slate-50 dark:bg-slate-700/50">
         {EMOJI_REACTIONS.map((emoji) => (
-          <span
+          <button
             key={emoji}
-            className="cursor-pointer text-xl hover:scale-125 transition-transform"
+            className={`cursor-pointer text-2xl p-1.5 rounded-full transition-transform hover:scale-125 ${
+              myReaction?.reaction === emoji 
+                ? 'bg-blue-200 dark:bg-blue-600'
+                : 'hover:bg-slate-200 dark:hover:bg-slate-600'
+            }`}
             onClick={() => onAction("react", emoji)}
           >
             {emoji}
-          </span>
+          </button>
         ))}
       </div>
-
-      {/* Action Menu Items */}
-      <ul className="py-1">
-        {menuItems.map((item) => (
-          <li
-            key={item.name}
-            className={`
-              flex items-center px-4 py-2 text-sm text-gray-300 cursor-pointer
-              ${
-                item.danger
-                  ? "hover:bg-red-500 hover:bg-opacity-20 hover:text-red-400"
-                  : "hover:bg-slate-600"
-              }
-            `}
-            onClick={() => onAction(item.name.toLowerCase().replace(/ /g, "-"), message)}
-          >
-            <Icon icon={item.icon} className="w-5 h-5 mr-3" />
-            <span>{item.name}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 
-  // UPDATED: React Portal ka istemal karein
   return ReactDOM.createPortal(menuContent, document.body);
 };
 

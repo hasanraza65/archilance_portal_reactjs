@@ -10,6 +10,7 @@ import {
   deleteMessage,
   updateMessage,
   addReaction,
+  removeReaction,
   fetchOlderConversation,
 } from "./store";
 import Swal from "sweetalert2";
@@ -17,7 +18,6 @@ import { getSocket } from "@/socket";
 import MessageContextMenu from "./MessageContextMenu";
 import { toast } from "react-toastify";
 
-// Helper function to check if an attachment is an image
 const isImage = (attachment) => {
   if (attachment.mime_type) {
     return attachment.mime_type.startsWith("image/");
@@ -54,51 +54,25 @@ const Chat = () => {
     position: { x: 0, y: 0 },
     message: null,
   });
+  const [replyingTo, setReplyingTo] = useState(null);
   const scrollHeightBeforeLoad = useRef(0);
-  const isInitialLoad = useRef(true);
 
-  // =====> SCROLL LOGIC STARTS HERE <=====
-
-  // Effect for scrolling on new messages or initial load
-  useEffect(() => {
-    const chatContainer = chatheight.current;
-    if (!chatContainer || isOlderMessagesLoading) return;
-
-    // On initial load, scroll to the bottom
-    if (isInitialLoad.current && !isMessagesLoading && messFeed.length > 0) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        isInitialLoad.current = false;
-        return;
-    }
-
-    // For new messages, scroll to bottom only if user is already near the bottom
-    const { scrollHeight, scrollTop, clientHeight } = chatContainer;
-    if (scrollHeight - scrollTop <= clientHeight + 300) { // 300px buffer
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-  }, [messFeed, isMessagesLoading, isOlderMessagesLoading]);
-
-  // Effect to handle scroll position during pagination (loading older messages)
   useEffect(() => {
     const chatContainer = chatheight.current;
     if (!chatContainer) return;
 
     if (isOlderMessagesLoading) {
-        // When loading starts, save the current scroll height
-        scrollHeightBeforeLoad.current = chatContainer.scrollHeight;
-    } else if (scrollHeightBeforeLoad.current > 0) {
-        // After loading finishes, restore scroll position relative to the old top
-        chatContainer.scrollTop = chatContainer.scrollHeight - scrollHeightBeforeLoad.current;
-        scrollHeightBeforeLoad.current = 0; // Reset for next time
+      scrollHeightBeforeLoad.current = chatContainer.scrollHeight;
+      return;
     }
-  }, [isOlderMessagesLoading]);
 
-  // Reset initial load flag when the user changes
-  useEffect(() => {
-    isInitialLoad.current = true;
-  }, [user.id]);
-
-  // =====> SCROLL LOGIC ENDS HERE <=====
+    if (scrollHeightBeforeLoad.current > 0) {
+      chatContainer.scrollTop = chatContainer.scrollHeight - scrollHeightBeforeLoad.current;
+      scrollHeightBeforeLoad.current = 0;
+    } else {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }, [messFeed, isOlderMessagesLoading]);
 
   const handleScroll = useCallback(() => {
       const chatContainer = chatheight.current;
@@ -135,16 +109,19 @@ const Chat = () => {
   };
   const handleSendMessage = (e) => {
     e.preventDefault();
+    const basePayload = {
+        receiverId: user.id,
+        replyTo: replyingTo ? replyingTo.id : null,
+    };
+
     if (attachment && user?.id) {
       dispatch(
         sendMessageToServer({
+          ...basePayload,
           caption: caption,
-          receiverId: user.id,
           attachments: [attachment],
         })
-      )
-        .unwrap()
-        .then((result) => {
+      ).unwrap().then((result) => {
           const socket = getSocket();
           if (socket?.connected && result.originalMessage) {
             socket.emit("chat-message", result.originalMessage);
@@ -155,13 +132,11 @@ const Chat = () => {
     } else if (message.trim() && user?.id) {
       dispatch(
         sendMessageToServer({
+          ...basePayload,
           content: message.trim(),
-          receiverId: user.id,
           attachments: [],
         })
-      )
-        .unwrap()
-        .then((result) => {
+      ).unwrap().then((result) => {
           const socket = getSocket();
           if (socket?.connected && result.originalMessage) {
             socket.emit("chat-message", result.originalMessage);
@@ -169,6 +144,7 @@ const Chat = () => {
         });
       setMessage("");
     }
+    setReplyingTo(null);
   };
   const handleRightClick = (event, message) => {
     if (message.status === 'pending') {
@@ -242,6 +218,8 @@ const Chat = () => {
   };
   const handleMenuAction = (action, data) => {
     const currentMessage = menuState.message;
+    const socket = getSocket();
+
     switch (action) {
       case "copy":
         navigator.clipboard.writeText(currentMessage.content);
@@ -251,25 +229,37 @@ const Chat = () => {
         handleDeleteMessage(currentMessage.id);
         break;
       case "react":
-        dispatch(addReaction({ messageId: currentMessage.id, emoji: data }))
-          .unwrap()
-          .then((result) => {
-            const socket = getSocket();
-            const reactionData = result.response.reaction || result.response.data || result.response;
-            if (socket?.connected && reactionData) {
-              socket.emit("message-reacted", {
-                messageId: currentMessage.id,
-                reaction: reactionData,
-                receiverId: user.id,
-              });
-            }
-          })
-          .catch((err) => {
-            console.error("Failed to add reaction or emit socket event:", err);
-          });
+        const myReaction = currentMessage.reactions.find(r => r.user_id === loggedInUser.id);
+        if (myReaction && myReaction.reaction === data) {
+            dispatch(removeReaction({ messageId: currentMessage.id }))
+                .unwrap()
+                .then((payload) => {
+                    if (socket?.connected) {
+                        socket.emit("message-reacted", {
+                            messageId: payload.messageId,
+                            userId: payload.userId,
+                            removed: true,
+                            receiverId: user.id,
+                        });
+                    }
+                });
+        } else {
+            dispatch(addReaction({ messageId: currentMessage.id, emoji: data }))
+                .unwrap()
+                .then((result) => {
+                    const reactionData = result.response.reaction || result.response.data || result.response;
+                    if (socket?.connected && reactionData) {
+                        socket.emit("message-reacted", {
+                            messageId: currentMessage.id,
+                            reaction: reactionData,
+                            receiverId: user.id,
+                        });
+                    }
+                });
+        }
         break;
       case "reply":
-        console.log("Reply action clicked for:", currentMessage);
+        setReplyingTo(currentMessage);
         break;
       default:
         console.log(`Action: ${action}`, currentMessage);
@@ -290,6 +280,45 @@ const Chat = () => {
       );
     }
     return <div className="text-xs text-right mt-1">{time}</div>;
+  };
+
+  const ReplyPreview = () => (
+    <div className="relative p-3 mb-3 bg-slate-100 dark:bg-slate-900 rounded-md border-l-4 border-blue-500">
+        <div className="flex justify-between items-center">
+            <div className="flex-1 min-w-0">
+                <div className="font-semibold text-blue-500 text-sm">
+                    Replying to {replyingTo.sender === 'me' ? 'Yourself' : replyingTo.senderFullName}
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
+                    {replyingTo.content || "Attachment"}
+                </p>
+            </div>
+            <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+            >
+                <Icon icon="heroicons-outline:x" />
+            </button>
+        </div>
+    </div>
+  );
+
+  const RepliedMessageBlock = ({ message }) => {
+    if (!message.parent) return null;
+    
+    const parentSenderName = message.parent.sender?.name || (message.sender === 'me' ? user.fullName : 'Yourself');
+
+    return (
+        <div className="p-2 mb-1 bg-black/10 dark:bg-white/10 rounded-lg border-l-2 border-blue-400">
+            <div className="text-xs font-semibold text-blue-500 dark:text-blue-400">
+                {parentSenderName}
+            </div>
+            <p className="text-xs text-slate-800 dark:text-slate-300 truncate">
+                {message.parent.message || "Attachment"}
+            </p>
+        </div>
+    );
   };
 
   return (
@@ -449,10 +478,11 @@ const Chat = () => {
                           </form>
                         </div>
                       ) : (
-                        <>
+                        <div className="p-3">
+                          <RepliedMessageBlock message={item} />
                           {item.attachments && item.attachments.length > 0 ? (
                             item.attachments.map((att, index) => (
-                              <div key={att.is_local ? `local-${index}`: att.id || index} className="p-2">
+                              <div key={att.is_local ? `local-${index}`: att.id || index} className="pt-1">
                                 {isImage(att) ? (
                                   <img
                                     src={att.url}
@@ -478,24 +508,21 @@ const Chat = () => {
                                 {item.content && (
                                   <div className="pt-2">{item.content}</div>
                                 )}
-                                <MessageStatus status={item.status} time={item.time} />
                               </div>
                             ))
                           ) : (
-                            <div className="p-3">
-                              <div>{item.content}</div>
-                              <MessageStatus status={item.status} time={item.time} />
-                            </div>
+                            <div>{item.content}</div>
                           )}
-                        </>
+                          <MessageStatus status={item.status} time={item.time} />
+                        </div>
                       )}
                     </div>
                     
                     {item.reactions && item.reactions.length > 0 && (
                       <div className="flex space-x-1 -mt-2 z-10">
-                        {item.reactions.map((reaction, index) => (
+                        {item.reactions.slice(0, 2).map((reaction) => (
                           <div
-                            key={index}
+                            key={reaction.id}
                             className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded-full text-xs shadow-md border border-slate-200 dark:border-slate-600"
                           >
                             {reaction.reaction}
@@ -545,6 +572,7 @@ const Chat = () => {
       </div>
 
       <footer className="md:px-6 px-4 border-t pt-4 border-slate-100 dark:border-slate-700">
+        {replyingTo && <ReplyPreview />}
         <form onSubmit={handleSendMessage} className="flex-1">
           {attachment && (
             <div className="relative p-3 mb-3 bg-slate-100 dark:bg-slate-900 rounded-md">
@@ -649,6 +677,7 @@ const Chat = () => {
         message={menuState.message}
         onClose={handleCloseMenu}
         onAction={handleMenuAction}
+        loggedInUserId={loggedInUser?.id}
       />
     </div>
   );

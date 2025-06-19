@@ -38,7 +38,6 @@ export const fetchUsers = createAsyncThunk(
   }
 );
 
-// This thunk will fetch the *first* page of the conversation
 export const fetchConversation = createAsyncThunk(
   "appchat/fetchConversation",
   async (contactId, { getState, rejectWithValue }) => {
@@ -71,10 +70,11 @@ export const fetchConversation = createAsyncThunk(
             ...att,
             url: `${IMAGE_BASE_URL}${att.file_path}` 
         })),
+        parent: msg.parent || null,
       }));
 
       return {
-          messages: formattedMessages.reverse(), // Reverse to show latest at the bottom
+          messages: formattedMessages,
           nextPageUrl: response.data.next_page_url,
       };
 
@@ -86,7 +86,6 @@ export const fetchConversation = createAsyncThunk(
   }
 );
 
-// Thunk for fetching older messages using pagination
 export const fetchOlderConversation = createAsyncThunk(
   "appchat/fetchOlderConversation",
   async (nextUrl, { getState, rejectWithValue }) => {
@@ -116,10 +115,11 @@ export const fetchOlderConversation = createAsyncThunk(
                 ...att,
                 url: `${IMAGE_BASE_URL}${att.file_path}`
             })),
+            parent: msg.parent || null,
         }));
         
         return {
-            messages: formattedMessages.reverse(), // Reverse to keep order correct
+            messages: formattedMessages,
             nextPageUrl: response.data.next_page_url,
         };
     } catch (error) {
@@ -143,6 +143,10 @@ export const sendMessageToServer = createAsyncThunk(
       const formData = new FormData();
       formData.append("message", messageData.content || messageData.caption || ""); 
       formData.append("receiver_id", messageData.receiverId);
+
+      if (messageData.replyTo) {
+        formData.append("reply_to", messageData.replyTo);
+      }
 
       if (messageData.attachments && messageData.attachments.length > 0) {
         messageData.attachments.forEach(file => {
@@ -178,6 +182,7 @@ export const sendMessageToServer = createAsyncThunk(
           senderFullName: loggedInUser?.name,
           reactions: [],
           attachments: formattedAttachments,
+          parent: newMessage.parent || null,
         },
       };
     } catch (error)      {
@@ -232,7 +237,6 @@ export const addReaction = createAsyncThunk(
     try {
       const token = getTokenFromCookie();
       if (!token) return rejectWithValue("Authentication token not found.");
-      
       const loggedInUserId = getState().auth.user?.id;
       if (!loggedInUserId) return rejectWithValue("User not logged in.");
 
@@ -250,9 +254,32 @@ export const addReaction = createAsyncThunk(
       };
     } catch (error) {
       toast.error("Failed to add reaction.");
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to add reaction."
-      );
+      return rejectWithValue(error.response?.data?.message || "Failed to add reaction.");
+    }
+  }
+);
+
+export const removeReaction = createAsyncThunk(
+  "appchat/removeReaction",
+  async ({ messageId }, { getState, rejectWithValue }) => {
+    try {
+        const token = getTokenFromCookie();
+        if (!token) return rejectWithValue("Authentication token not found.");
+        const loggedInUserId = getState().auth.user?.id;
+        if (!loggedInUserId) return rejectWithValue("User not logged in.");
+
+        const API_URL = `${API_BASE_URL}/remove-reaction`;
+        const formData = new FormData();
+        formData.append("chat_id", messageId);
+
+        await axios.post(API_URL, formData, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        return { messageId, userId: loggedInUserId };
+    } catch (error) {
+        toast.error("Failed to remove reaction.");
+        return rejectWithValue(error.response?.data?.message || "Failed to remove reaction.");
     }
   }
 );
@@ -304,7 +331,10 @@ export const appChatSlice = createSlice({
           senderFullName: newMessage.sender_name,
           reactions: newMessage.reactions || [],
           attachments: formattedAttachments,
+          parent: newMessage.parent || null,
         };
+        // =====> THE ONLY FIX IS HERE <=====
+        // Use .push() to add the new message to the end of the array
         state.messFeed.push(formattedMessage);
       }
     },
@@ -320,20 +350,20 @@ export const appChatSlice = createSlice({
       }
     },
     liveUpdateReaction: (state, action) => {
-      const { messageId, reaction } = action.payload;
+      const { messageId, reaction, removed, userId } = action.payload;
       if (!state.activechat) return;
       const message = state.messFeed.find((m) => m.id === messageId);
       if (message) {
-        const existingReactionIndex = message.reactions.findIndex((r) => r.user_id === reaction.user_id);
-        if (existingReactionIndex > -1) {
-          if (message.reactions[existingReactionIndex].reaction === reaction.reaction) {
-            message.reactions.splice(existingReactionIndex, 1);
+          if (removed) {
+              message.reactions = message.reactions.filter(r => r.user_id !== userId);
           } else {
-            message.reactions[existingReactionIndex] = reaction;
+              const existingReactionIndex = message.reactions.findIndex((r) => r.user_id === reaction.user_id);
+              if (existingReactionIndex > -1) {
+                  message.reactions[existingReactionIndex] = reaction;
+              } else {
+                  message.reactions.push(reaction);
+              }
           }
-        } else {
-          message.reactions.push(reaction);
-        }
       }
     },
     updateContactLastMessage: (state, action) => {
@@ -390,17 +420,30 @@ export const appChatSlice = createSlice({
       })
       
       .addCase(sendMessageToServer.pending, (state, action) => {
-        const { content, caption, attachments } = action.meta.arg;
+        const { content, caption, attachments, replyTo } = action.meta.arg;
         let tempAttachments = [];
         if (attachments && attachments.length > 0) {
           tempAttachments = attachments.map(file => ({
             url: URL.createObjectURL(file), mime_type: file.type, file_name: file.name, is_local: true,
           }));
         }
+        
+        let parentMessage = null;
+        if (replyTo) {
+            const msg = state.messFeed.find(m => m.id === replyTo);
+            if (msg) {
+                parentMessage = {
+                    message: msg.content,
+                    sender: { name: msg.sender === 'me' ? state.auth.user.name : msg.senderFullName }
+                };
+            }
+        }
+
         state.messFeed.push({
           id: `temp-${Date.now()}`, content: content || caption, sender: "me", status: "pending",
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           reactions: [], attachments: tempAttachments,
+          parent: parentMessage,
         });
       })
       .addCase(sendMessageToServer.fulfilled, (state, action) => {
@@ -412,8 +455,16 @@ export const appChatSlice = createSlice({
               if (att.is_local) { URL.revokeObjectURL(att.url); }
             });
           }
-          state.messFeed[tempMessageIndex] = { ...action.payload.formatted, status: 'sent' };
+          
+          const finalMessage = { 
+            ...action.payload.formatted, 
+            status: 'sent',
+            parent: action.payload.formatted.parent || tempMsg.parent 
+          };
+          
+          state.messFeed[tempMessageIndex] = finalMessage;
         }
+        
         const { receiverId } = action.meta.arg;
         const sentMessage = action.payload.formatted;
         const contactIndex = state.contacts.findIndex((contact) => contact.id == receiverId);
@@ -436,17 +487,15 @@ export const appChatSlice = createSlice({
       .addCase(deleteMessage.rejected, (state, action) => { console.error("Delete message failed:", action.payload); })
       .addCase(updateMessage.fulfilled, (state, action) => { const { id, content } = action.payload; const messageIndex = state.messFeed.findIndex((msg) => msg.id === id); if (messageIndex !== -1) { state.messFeed[messageIndex].content = content; } })
       .addCase(updateMessage.rejected, (state, action) => { console.error("Update message failed:", action.payload); })
+      
       .addCase(addReaction.fulfilled, (state, action) => {
         const { response, messageId, userId } = action.payload;
         const reactionData = response.reaction || response.data || response;
         const message = state.messFeed.find((m) => m.id === messageId);
         if (!message) return;
         const existingReactionIndex = message.reactions.findIndex((r) => r.user_id === userId);
-        if (response.deleted) {
-          if (existingReactionIndex > -1) {
-            message.reactions.splice(existingReactionIndex, 1);
-          }
-        } else if (reactionData && reactionData.id) {
+        
+        if (reactionData && reactionData.id) {
           if (existingReactionIndex > -1) {
             message.reactions[existingReactionIndex] = reactionData;
           } else {
@@ -454,7 +503,16 @@ export const appChatSlice = createSlice({
           }
         }
       })
-      .addCase(addReaction.rejected, (state, action) => { console.error("Add reaction failed:", action.payload); });
+      .addCase(addReaction.rejected, (state, action) => { console.error("Add reaction failed:", action.payload); })
+
+      .addCase(removeReaction.fulfilled, (state, action) => {
+          const { messageId, userId } = action.payload;
+          const message = state.messFeed.find((m) => m.id === messageId);
+          if (message) {
+              message.reactions = message.reactions.filter(r => r.user_id !== userId);
+          }
+      })
+      .addCase(removeReaction.rejected, (state, action) => { console.error("Remove reaction failed:", action.payload); });
   },
 });
 
