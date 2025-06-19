@@ -1,8 +1,9 @@
 // src/pages/app/chat/Contacts.jsx
+
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import UserAvatar from '@/components/ui/UserAvatar';
-import { openChat, fetchConversation } from './store';
+import { openChat, fetchConversation, markAsRead } from './store';
 
 const Contacts = ({ contact }) => {
   const { fullName, avatar, status, lastmessage, unredmessage, lastMessageTime } = contact;
@@ -15,8 +16,16 @@ const Contacts = ({ contact }) => {
   };
 
   const handleContactClick = () => {
+    // Opens the chat and optimistically sets unread count to 0 in UI
     dispatch(openChat({ contact }));
+    
+    // Fetches the conversation history
     dispatch(fetchConversation(contact.id));
+
+    // Calls the API to mark messages as read on the backend
+    if (contact.unredmessage > 0) {
+      dispatch(markAsRead(contact.id));
+    }
   };
 
   return (

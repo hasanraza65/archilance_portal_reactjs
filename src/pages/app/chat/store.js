@@ -1,3 +1,5 @@
+// src/pages/app/chat/store.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -194,6 +196,33 @@ export const sendMessageToServer = createAsyncThunk(
   }
 );
 
+// New async thunk to mark messages as read
+export const markAsRead = createAsyncThunk(
+  "appchat/markAsRead",
+  async (userId, { rejectWithValue }) => {
+    try {
+      const token = getTokenFromCookie();
+      if (!token) {
+        return rejectWithValue("Authentication token not found.");
+      }
+
+      const API_URL = `${API_BASE_URL}/bulk-read-status`;
+      const payload = { user_id: userId };
+
+      await axios.post(API_URL, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      return userId;
+    } catch (error) {
+      console.error("Failed to mark messages as read:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to update read status."
+      );
+    }
+  }
+);
+
 export const deleteMessage = createAsyncThunk(
   "appchat/deleteMessage",
   async (messageId, { rejectWithValue }) => {
@@ -333,8 +362,6 @@ export const appChatSlice = createSlice({
           attachments: formattedAttachments,
           parent: newMessage.parent || null,
         };
-        // =====> THE ONLY FIX IS HERE <=====
-        // Use .push() to add the new message to the end of the array
         state.messFeed.push(formattedMessage);
       }
     },
@@ -512,7 +539,17 @@ export const appChatSlice = createSlice({
               message.reactions = message.reactions.filter(r => r.user_id !== userId);
           }
       })
-      .addCase(removeReaction.rejected, (state, action) => { console.error("Remove reaction failed:", action.payload); });
+      .addCase(removeReaction.rejected, (state, action) => { console.error("Remove reaction failed:", action.payload); })
+      .addCase(markAsRead.fulfilled, (state, action) => {
+        const userId = action.payload;
+        const contactIndex = state.contacts.findIndex((c) => c.id === userId);
+        if (contactIndex !== -1) {
+          state.contacts[contactIndex].unredmessage = 0;
+        }
+      })
+      .addCase(markAsRead.rejected, (state, action) => {
+        console.error("Server-side marking as read failed:", action.payload);
+      });
   },
 });
 

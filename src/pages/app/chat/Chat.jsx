@@ -1,3 +1,5 @@
+// src/pages/app/chat/Chat.jsx
+
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import useWidth from "@/hooks/useWidth";
@@ -56,6 +58,10 @@ const Chat = () => {
   });
   const [replyingTo, setReplyingTo] = useState(null);
   const scrollHeightBeforeLoad = useRef(0);
+  
+  // ===> CHANGE START: Ref to track previous message count <===
+  const prevMessFeedLengthRef = useRef(messFeed.length);
+  // ===> CHANGE END <===
 
   useEffect(() => {
     const chatContainer = chatheight.current;
@@ -69,9 +75,21 @@ const Chat = () => {
     if (scrollHeightBeforeLoad.current > 0) {
       chatContainer.scrollTop = chatContainer.scrollHeight - scrollHeightBeforeLoad.current;
       scrollHeightBeforeLoad.current = 0;
-    } else {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      prevMessFeedLengthRef.current = messFeed.length;
+      return;
     }
+
+    // ===> CHANGE START: Smarter scroll logic <===
+    // Only scroll to bottom if a new message is ADDED.
+    // This prevents scrolling on edits, deletions, or reaction changes.
+    if (messFeed.length > prevMessFeedLengthRef.current) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Update the ref for the next render
+    prevMessFeedLengthRef.current = messFeed.length;
+    // ===> CHANGE END <===
+    
   }, [messFeed, isOlderMessagesLoading]);
 
   const handleScroll = useCallback(() => {
@@ -228,36 +246,38 @@ const Chat = () => {
       case "delete-for-me":
         handleDeleteMessage(currentMessage.id);
         break;
-      case "react":
+      case "react": { // No need for scroll preservation logic here anymore
         const myReaction = currentMessage.reactions.find(r => r.user_id === loggedInUser.id);
-        if (myReaction && myReaction.reaction === data) {
-            dispatch(removeReaction({ messageId: currentMessage.id }))
-                .unwrap()
-                .then((payload) => {
-                    if (socket?.connected) {
-                        socket.emit("message-reacted", {
-                            messageId: payload.messageId,
-                            userId: payload.userId,
-                            removed: true,
-                            receiverId: user.id,
-                        });
-                    }
+        
+        const actionToDispatch = (myReaction && myReaction.reaction === data)
+          ? removeReaction({ messageId: currentMessage.id })
+          : addReaction({ messageId: currentMessage.id, emoji: data });
+
+        dispatch(actionToDispatch)
+          .unwrap()
+          .then((result) => {
+            if (socket?.connected) {
+              if (actionToDispatch.type.includes('removeReaction')) {
+                socket.emit("message-reacted", {
+                  messageId: result.messageId,
+                  userId: result.userId,
+                  removed: true,
+                  receiverId: user.id,
                 });
-        } else {
-            dispatch(addReaction({ messageId: currentMessage.id, emoji: data }))
-                .unwrap()
-                .then((result) => {
-                    const reactionData = result.response.reaction || result.response.data || result.response;
-                    if (socket?.connected && reactionData) {
-                        socket.emit("message-reacted", {
-                            messageId: currentMessage.id,
-                            reaction: reactionData,
-                            receiverId: user.id,
-                        });
-                    }
-                });
-        }
+              } else {
+                const reactionData = result.response.reaction || result.response.data || result.response;
+                if (reactionData) {
+                  socket.emit("message-reacted", {
+                    messageId: currentMessage.id,
+                    reaction: reactionData,
+                    receiverId: user.id,
+                  });
+                }
+              }
+            }
+          });
         break;
+      }
       case "reply":
         setReplyingTo(currentMessage);
         break;
