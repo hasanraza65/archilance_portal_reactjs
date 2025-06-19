@@ -1,4 +1,3 @@
-// src/pages/app/chat/appChatSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -39,6 +38,7 @@ export const fetchUsers = createAsyncThunk(
   }
 );
 
+// This thunk will fetch the *first* page of the conversation
 export const fetchConversation = createAsyncThunk(
   "appchat/fetchConversation",
   async (contactId, { getState, rejectWithValue }) => {
@@ -53,7 +53,8 @@ export const fetchConversation = createAsyncThunk(
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const messages = response.data.data;
-      return messages.map((msg) => ({
+      
+      const formattedMessages = messages.map((msg) => ({
         id: msg.id,
         content: msg.message,
         sender: msg.sender_id === loggedInUserId ? "me" : "them",
@@ -67,14 +68,63 @@ export const fetchConversation = createAsyncThunk(
         senderFullName: msg.sender.name,
         reactions: msg.reactions || [],
         attachments: (msg.attachments || []).map(att => ({
-            ...att, // API must send `mime_type`
+            ...att,
             url: `${IMAGE_BASE_URL}${att.file_path}` 
         })),
       }));
+
+      return {
+          messages: formattedMessages.reverse(), // Reverse to show latest at the bottom
+          nextPageUrl: response.data.next_page_url,
+      };
+
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to load messages."
       );
+    }
+  }
+);
+
+// Thunk for fetching older messages using pagination
+export const fetchOlderConversation = createAsyncThunk(
+  "appchat/fetchOlderConversation",
+  async (nextUrl, { getState, rejectWithValue }) => {
+    try {
+        const token = getTokenFromCookie();
+        if (!token) return rejectWithValue("Authentication token not found.");
+        const loggedInUserId = getState().auth.user?.id;
+        if (!loggedInUserId) return rejectWithValue("User not found");
+
+        const response = await axios.get(nextUrl, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const messages = response.data.data;
+        const formattedMessages = messages.map((msg) => ({
+            id: msg.id,
+            content: msg.message,
+            sender: msg.sender_id === loggedInUserId ? "me" : "them",
+            time: new Date(msg.created_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            }),
+            img: msg.sender.profile_pic ? `${IMAGE_BASE_URL}${msg.sender.profile_pic}` : null,
+            senderFullName: msg.sender.name,
+            reactions: msg.reactions || [],
+            attachments: (msg.attachments || []).map(att => ({
+                ...att,
+                url: `${IMAGE_BASE_URL}${att.file_path}`
+            })),
+        }));
+        
+        return {
+            messages: formattedMessages.reverse(), // Reverse to keep order correct
+            nextPageUrl: response.data.next_page_url,
+        };
+    } catch (error) {
+        toast.error("Failed to load older messages.");
+        return rejectWithValue(error.response?.data?.message || "Failed to load older messages.");
     }
   }
 );
@@ -108,7 +158,7 @@ export const sendMessageToServer = createAsyncThunk(
       const loggedInUser = getState().auth.user;
 
       const formattedAttachments = (newMessage.attachments || []).map(att => ({
-        ...att, // API must send `mime_type`
+        ...att,
         url: `${IMAGE_BASE_URL}${att.file_path}`
       }));
       
@@ -176,7 +226,6 @@ export const updateMessage = createAsyncThunk(
   }
 );
 
-// ====== FIX START: Updated addReaction Thunk ======
 export const addReaction = createAsyncThunk(
   "appchat/addReaction",
   async ({ messageId, emoji }, { getState, rejectWithValue }) => {
@@ -194,8 +243,6 @@ export const addReaction = createAsyncThunk(
       const response = await axios.post(API_URL, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      // Return a comprehensive payload for the reducer
       return {
         response: response.data,
         messageId: messageId,
@@ -209,7 +256,6 @@ export const addReaction = createAsyncThunk(
     }
   }
 );
-// ====== FIX END: Updated addReaction Thunk ======
 
 export const appChatSlice = createSlice({
   name: "appchat",
@@ -222,6 +268,8 @@ export const appChatSlice = createSlice({
     user: {},
     contacts: [],
     messFeed: [],
+    nextPageUrl: null,
+    isOlderMessagesLoading: false, 
     isLoading: false,
     error: null,
     isMessagesLoading: false,
@@ -233,6 +281,7 @@ export const appChatSlice = createSlice({
       state.mobileChatSidebar = false;
       state.user = action.payload.contact;
       state.messFeed = [];
+      state.nextPageUrl = null;
       state.messagesError = null;
       const contactIndex = state.contacts.findIndex((c) => c.id === action.payload.contact.id);
       if (contactIndex !== -1) { state.contacts[contactIndex].unredmessage = 0; }
@@ -310,27 +359,48 @@ export const appChatSlice = createSlice({
       .addCase(fetchUsers.pending, (state) => { state.isLoading = true; state.error = null; })
       .addCase(fetchUsers.fulfilled, (state, action) => { state.isLoading = false; state.contacts = action.payload; })
       .addCase(fetchUsers.rejected, (state, action) => { state.isLoading = false; state.error = action.payload; })
-      .addCase(fetchConversation.pending, (state) => { state.isMessagesLoading = true; state.messagesError = null; })
-      .addCase(fetchConversation.fulfilled, (state, action) => { state.isMessagesLoading = false; state.messFeed = action.payload; })
-      .addCase(fetchConversation.rejected, (state, action) => { state.isMessagesLoading = false; state.messagesError = action.payload; })
+      
+      .addCase(fetchConversation.pending, (state) => { 
+        state.isMessagesLoading = true; 
+        state.messagesError = null; 
+        state.messFeed = []; 
+        state.nextPageUrl = null; 
+      })
+      .addCase(fetchConversation.fulfilled, (state, action) => { 
+        state.isMessagesLoading = false; 
+        state.messFeed = action.payload.messages;
+        state.nextPageUrl = action.payload.nextPageUrl;
+      })
+      .addCase(fetchConversation.rejected, (state, action) => { 
+        state.isMessagesLoading = false; 
+        state.messagesError = action.payload; 
+      })
+      
+      .addCase(fetchOlderConversation.pending, (state) => { 
+        state.isOlderMessagesLoading = true; 
+      })
+      .addCase(fetchOlderConversation.fulfilled, (state, action) => {
+        state.isOlderMessagesLoading = false;
+        state.messFeed = [...action.payload.messages, ...state.messFeed];
+        state.nextPageUrl = action.payload.nextPageUrl;
+      })
+      .addCase(fetchOlderConversation.rejected, (state, action) => {
+        state.isOlderMessagesLoading = false;
+        state.messagesError = action.payload;
+      })
+      
       .addCase(sendMessageToServer.pending, (state, action) => {
         const { content, caption, attachments } = action.meta.arg;
         let tempAttachments = [];
         if (attachments && attachments.length > 0) {
           tempAttachments = attachments.map(file => ({
-            url: URL.createObjectURL(file),
-            mime_type: file.type,
-            file_name: file.name,
-            is_local: true,
+            url: URL.createObjectURL(file), mime_type: file.type, file_name: file.name, is_local: true,
           }));
         }
         state.messFeed.push({
-          id: `temp-${Date.now()}`,
-          content: content || caption,
-          sender: "me",
+          id: `temp-${Date.now()}`, content: content || caption, sender: "me", status: "pending",
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          reactions: [],
-          attachments: tempAttachments,
+          reactions: [], attachments: tempAttachments,
         });
       })
       .addCase(sendMessageToServer.fulfilled, (state, action) => {
@@ -342,7 +412,7 @@ export const appChatSlice = createSlice({
               if (att.is_local) { URL.revokeObjectURL(att.url); }
             });
           }
-          state.messFeed[tempMessageIndex] = action.payload.formatted;
+          state.messFeed[tempMessageIndex] = { ...action.payload.formatted, status: 'sent' };
         }
         const { receiverId } = action.meta.arg;
         const sentMessage = action.payload.formatted;
@@ -357,50 +427,33 @@ export const appChatSlice = createSlice({
       .addCase(sendMessageToServer.rejected, (state, action) => {
         const tempMessageIndex = state.messFeed.findIndex((msg) => msg.id.toString().startsWith("temp-"));
         if (tempMessageIndex !== -1) {
-          const tempMsg = state.messFeed[tempMessageIndex];
-          if (tempMsg.attachments) {
-            tempMsg.attachments.forEach(att => {
-              if (att.is_local) { URL.revokeObjectURL(att.url); }
-            });
-          }
           state.messFeed.splice(tempMessageIndex, 1);
         }
         console.error("Send message failed:", action.payload);
       })
+      
       .addCase(deleteMessage.fulfilled, (state, action) => { state.messFeed = state.messFeed.filter((message) => message.id !== action.payload); })
       .addCase(deleteMessage.rejected, (state, action) => { console.error("Delete message failed:", action.payload); })
       .addCase(updateMessage.fulfilled, (state, action) => { const { id, content } = action.payload; const messageIndex = state.messFeed.findIndex((msg) => msg.id === id); if (messageIndex !== -1) { state.messFeed[messageIndex].content = content; } })
       .addCase(updateMessage.rejected, (state, action) => { console.error("Update message failed:", action.payload); })
-      // ====== FIX START: Updated addReaction fulfilled reducer ======
       .addCase(addReaction.fulfilled, (state, action) => {
         const { response, messageId, userId } = action.payload;
         const reactionData = response.reaction || response.data || response;
-
         const message = state.messFeed.find((m) => m.id === messageId);
         if (!message) return;
-
-        const existingReactionIndex = message.reactions.findIndex(
-          (r) => r.user_id === userId
-        );
-
-        // Case 1: The API response indicates a reaction was deleted
+        const existingReactionIndex = message.reactions.findIndex((r) => r.user_id === userId);
         if (response.deleted) {
           if (existingReactionIndex > -1) {
             message.reactions.splice(existingReactionIndex, 1);
           }
-        }
-        // Case 2: The API response provides a reaction object (for add/update)
-        else if (reactionData && reactionData.id) {
+        } else if (reactionData && reactionData.id) {
           if (existingReactionIndex > -1) {
-            // Update the existing reaction
             message.reactions[existingReactionIndex] = reactionData;
           } else {
-            // Add the new reaction
             message.reactions.push(reactionData);
           }
         }
       })
-      // ====== FIX END: Updated addReaction fulfilled reducer ======
       .addCase(addReaction.rejected, (state, action) => { console.error("Add reaction failed:", action.payload); });
   },
 });

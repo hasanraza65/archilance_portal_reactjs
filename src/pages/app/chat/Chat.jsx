@@ -1,5 +1,4 @@
-// src/pages/app/chat/Chat.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import useWidth from "@/hooks/useWidth";
 import Icon from "@/components/ui/Icon";
@@ -11,6 +10,7 @@ import {
   deleteMessage,
   updateMessage,
   addReaction,
+  fetchOlderConversation,
 } from "./store";
 import Swal from "sweetalert2";
 import { getSocket } from "@/socket";
@@ -30,8 +30,15 @@ const isImage = (attachment) => {
 };
 
 const Chat = () => {
-  const { user, messFeed, openinfo, isMessagesLoading, messagesError } =
-    useSelector((state) => state.appchat);
+  const { 
+    user, 
+    messFeed, 
+    openinfo, 
+    isMessagesLoading, 
+    messagesError,
+    nextPageUrl,
+    isOlderMessagesLoading,
+  } = useSelector((state) => state.appchat);
   const loggedInUser = useSelector((state) => state.auth.user);
   const { width, breakpoints } = useWidth();
   const dispatch = useDispatch();
@@ -47,12 +54,71 @@ const Chat = () => {
     position: { x: 0, y: 0 },
     message: null,
   });
+  const scrollHeightBeforeLoad = useRef(0);
+  const isInitialLoad = useRef(true);
+
+  // =====> SCROLL LOGIC STARTS HERE <=====
+
+  // Effect for scrolling on new messages or initial load
+  useEffect(() => {
+    const chatContainer = chatheight.current;
+    if (!chatContainer || isOlderMessagesLoading) return;
+
+    // On initial load, scroll to the bottom
+    if (isInitialLoad.current && !isMessagesLoading && messFeed.length > 0) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        isInitialLoad.current = false;
+        return;
+    }
+
+    // For new messages, scroll to bottom only if user is already near the bottom
+    const { scrollHeight, scrollTop, clientHeight } = chatContainer;
+    if (scrollHeight - scrollTop <= clientHeight + 300) { // 300px buffer
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }, [messFeed, isMessagesLoading, isOlderMessagesLoading]);
+
+  // Effect to handle scroll position during pagination (loading older messages)
+  useEffect(() => {
+    const chatContainer = chatheight.current;
+    if (!chatContainer) return;
+
+    if (isOlderMessagesLoading) {
+        // When loading starts, save the current scroll height
+        scrollHeightBeforeLoad.current = chatContainer.scrollHeight;
+    } else if (scrollHeightBeforeLoad.current > 0) {
+        // After loading finishes, restore scroll position relative to the old top
+        chatContainer.scrollTop = chatContainer.scrollHeight - scrollHeightBeforeLoad.current;
+        scrollHeightBeforeLoad.current = 0; // Reset for next time
+    }
+  }, [isOlderMessagesLoading]);
+
+  // Reset initial load flag when the user changes
+  useEffect(() => {
+    isInitialLoad.current = true;
+  }, [user.id]);
+
+  // =====> SCROLL LOGIC ENDS HERE <=====
+
+  const handleScroll = useCallback(() => {
+      const chatContainer = chatheight.current;
+      if (
+          chatContainer &&
+          chatContainer.scrollTop === 0 &&
+          !isOlderMessagesLoading &&
+          nextPageUrl
+      ) {
+          dispatch(fetchOlderConversation(nextPageUrl));
+      }
+  }, [isOlderMessagesLoading, nextPageUrl, dispatch]);
 
   useEffect(() => {
-    if (chatheight.current) {
-      chatheight.current.scrollTop = chatheight.current.scrollHeight;
-    }
-  }, [messFeed]);
+      const chatContainer = chatheight.current;
+      chatContainer?.addEventListener("scroll", handleScroll);
+      return () => {
+          chatContainer?.removeEventListener("scroll", handleScroll);
+      };
+  }, [handleScroll]);
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -105,6 +171,10 @@ const Chat = () => {
     }
   };
   const handleRightClick = (event, message) => {
+    if (message.status === 'pending') {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     setMenuState({
@@ -185,7 +255,7 @@ const Chat = () => {
           .unwrap()
           .then((result) => {
             const socket = getSocket();
-            const reactionData = result.reaction || result.data || result;
+            const reactionData = result.response.reaction || result.response.data || result.response;
             if (socket?.connected && reactionData) {
               socket.emit("message-reacted", {
                 messageId: currentMessage.id,
@@ -207,6 +277,21 @@ const Chat = () => {
     handleCloseMenu();
   };
 
+  const MessageStatus = ({ status, time }) => {
+    if (status === 'pending') {
+      return (
+        <div className="text-xs text-right mt-1 flex items-center justify-end space-x-1 text-slate-400">
+          <span>Sending</span>
+          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+      );
+    }
+    return <div className="text-xs text-right mt-1">{time}</div>;
+  };
+
   return (
     <div className="h-full flex flex-col" onClick={handleCloseMenu}>
       <header className="border-b border-slate-100 dark:border-slate-700">
@@ -218,35 +303,31 @@ const Chat = () => {
                   onClick={() => dispatch(toggleMobileChatSidebar(true))}
                   className="text-slate-900 dark:text-white cursor-pointer text-xl self-center ltr:mr-3 rtl:ml-3"
                 >
-                  {" "}
-                  <Icon icon="heroicons-outline:menu-alt-1" />{" "}
+                  <Icon icon="heroicons-outline:menu-alt-1" />
                 </span>
-              )}{" "}
+              )}
               <div className="flex-none">
-                {" "}
                 <div className="h-10 w-10 rounded-full relative">
-                  {" "}
                   <span
                     className={`status ring-1 ring-white inline-block h-[10px] w-[10px] rounded-full absolute -right-0 top-0 ${
                       user.status === "active"
                         ? "bg-success-500"
                         : "bg-secondary-500"
                     }`}
-                  ></span>{" "}
+                  ></span>
                   <UserAvatar
                     avatarUrl={user.avatar}
                     fullName={user.fullName}
-                  />{" "}
+                  />
                 </div>
-              </div>{" "}
+              </div>
               <div className="flex-1 text-start">
-                {" "}
                 <span className="block text-slate-800 dark:text-slate-300 text-sm font-medium mb-[2px] truncate">
                   {user.fullName}
-                </span>{" "}
+                </span>
                 <span className="block text-slate-500 dark:text-slate-300 text-xs font-normal capitalize">
                   Active now
-                </span>{" "}
+                </span>
               </div>
             </div>
           </div>
@@ -272,8 +353,31 @@ const Chat = () => {
           className="msgs overflow-y-auto h-full pt-6 space-y-6"
           ref={chatheight}
         >
+          {isMessagesLoading && (
+            <div className="flex justify-center items-center h-full">
+                <Icon icon="eos-icons:loading" className="text-4xl text-slate-500" />
+            </div>
+          )}
+
+          {isOlderMessagesLoading && (
+              <div className="flex justify-center py-2">
+                  <Icon icon="eos-icons:loading" className="text-2xl text-slate-500" />
+              </div>
+          )}
+
+          {!isMessagesLoading && messFeed.length === 0 && !messagesError &&(
+             <div className="text-center text-slate-500 h-full flex flex-col justify-center">
+                No messages yet. Start the conversation!
+             </div>
+          )}
+
+          {messagesError && !isMessagesLoading && (
+             <div className="text-center text-danger-500 h-full flex flex-col justify-center">
+                Error: {messagesError}
+             </div>
+          )}
+          
           {!isMessagesLoading &&
-            !messagesError &&
             messFeed.map((item) => (
               <div
                 className="block md:px-6 px-4"
@@ -300,7 +404,6 @@ const Chat = () => {
                       item.sender === "me" ? "items-end" : "items-start"
                     }`}
                   >
-                    {/* ====== THE REAL FIX IS HERE ====== */}
                     <div
                       className={`text-sm break-words w-full rounded-xl 
                     ${
@@ -310,7 +413,6 @@ const Chat = () => {
                     }`}
                     >
                       {editingMessageId === item.id ? (
-                        // 1. Show Edit Form if editing
                         <div className="p-3">
                           <form
                             onSubmit={(e) => handleUpdateSubmit(e, item.id)}
@@ -347,12 +449,10 @@ const Chat = () => {
                           </form>
                         </div>
                       ) : (
-                        // 2. Otherwise, show the message content
                         <>
                           {item.attachments && item.attachments.length > 0 ? (
-                            // Message WITH attachment
                             item.attachments.map((att, index) => (
-                              <div key={index} className="p-2">
+                              <div key={att.is_local ? `local-${index}`: att.id || index} className="p-2">
                                 {isImage(att) ? (
                                   <img
                                     src={att.url}
@@ -378,44 +478,35 @@ const Chat = () => {
                                 {item.content && (
                                   <div className="pt-2">{item.content}</div>
                                 )}
-                                <div className="text-xs text-right mt-1">
-                                  {item.time}
-                                </div>
+                                <MessageStatus status={item.status} time={item.time} />
                               </div>
                             ))
                           ) : (
-                            // Message WITHOUT attachment (text only)
                             <div className="p-3">
                               <div>{item.content}</div>
-                              <div className="text-xs text-right mt-1">
-                                {item.time}
-                              </div>
+                              <MessageStatus status={item.status} time={item.time} />
                             </div>
                           )}
                         </>
                       )}
                     </div>
-                    {/* ====== END OF FIX ====== */}
-
+                    
                     {item.reactions && item.reactions.length > 0 && (
                       <div className="flex space-x-1 -mt-2 z-10">
-                        {" "}
                         {item.reactions.map((reaction, index) => (
                           <div
                             key={index}
                             className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded-full text-xs shadow-md border border-slate-200 dark:border-slate-600"
                           >
-                            {" "}
-                            {reaction.reaction}{" "}
+                            {reaction.reaction}
                           </div>
-                        ))}{" "}
+                        ))}
                       </div>
                     )}
                   </div>
 
-                  {item.sender === "me" && !editingMessageId && (
+                  {item.sender === "me" && !editingMessageId && item.status !== 'pending' && (
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-2 self-center">
-                      {" "}
                       {item.content && (
                         <div
                           onClick={() => handleEditClick(item)}
@@ -426,7 +517,7 @@ const Chat = () => {
                             className="text-slate-400 hover:text-blue-500"
                           />
                         </div>
-                      )}{" "}
+                      )}
                       <div
                         onClick={() => handleDeleteMessage(item.id)}
                         className="cursor-pointer"
@@ -435,7 +526,7 @@ const Chat = () => {
                           icon="heroicons-outline:trash"
                           className="text-slate-400 hover:text-danger-500"
                         />
-                      </div>{" "}
+                      </div>
                     </div>
                   )}
                   {item.sender === "me" && (
