@@ -5,10 +5,9 @@ import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-
-// --- KEY CHANGE: Import the correct actions from your updated slice ---
 import { setUser as setReduxUser, logOut as logOutRedux } from "@/store/api/auth/authSlice";
 
+// Yeh mapping bilkul theek hai
 const ROLE_MAP = {
   2: "admin",
   3: "employee",
@@ -33,8 +32,7 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // --- KEY CHANGE: Sync Redux on initial load ---
-  // This ensures that if the page is refreshed, Redux gets the user data from the cookie.
+  // Redux ko cookie ke data se sync karna zaroori hai, yeh logic bhi theek hai
   useEffect(() => {
     if (user) {
       dispatch(setReduxUser(user));
@@ -44,12 +42,14 @@ export const AuthProvider = ({ children }) => {
   const login = (apiResponse, rememberMe = false) => {
     if (apiResponse && apiResponse.user && apiResponse.access_token) {
       const userData = apiResponse.user;
+      
+      // User object mein role sahi se set ho raha hai
       const userToSave = {
         id: userData.id,
         name: userData.name,
         email: userData.email,
-        role: ROLE_MAP[userData.user_role] || 'unknown',
-        profile_pic: userData.profile_pic, // Include profile_pic for other components
+        role: ROLE_MAP[userData.user_role] || 'unknown', // Yeh line role set karti hai
+        profile_pic: userData.profile_pic,
       };
 
       const cookieOptions = {
@@ -58,15 +58,15 @@ export const AuthProvider = ({ children }) => {
         expires: rememberMe ? 7 : undefined,
       };
 
-      // 1. Update React Context State
+      // 1. Context State Update
       setUser(userToSave);
       setToken(apiResponse.access_token);
       
-      // 2. Set Cookies
+      // 2. Cookies Set
       Cookies.set("user", JSON.stringify(userToSave), cookieOptions);
       Cookies.set("token", apiResponse.access_token, cookieOptions);
 
-      // --- KEY CHANGE: 3. Dispatch action to update Redux Store ---
+      // 3. Redux Store Update
       dispatch(setReduxUser(userToSave));
 
       return userToSave;
@@ -77,16 +77,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // 1. Update React Context State
+    // 1. Context State Clear
     setUser(null);
     setToken(null);
     
-    // 2. Remove Cookies
+    // 2. Cookies Remove
     Cookies.remove("user");
     Cookies.remove("token");
 
-    // --- KEY CHANGE: Dispatch action to clear Redux Store ---
-    // Your code was already doing this, which is great!
+    // 3. Redux Store Clear
     dispatch(logOutRedux());
 
     toast.info("You have been logged out.");
@@ -94,7 +93,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
-    user,
+    user, // Sidebar is 'user' object ko istemal karke role hasil karega
     token,
     login,
     logout,

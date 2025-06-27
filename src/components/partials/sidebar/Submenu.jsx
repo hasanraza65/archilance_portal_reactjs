@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+// src/components/sidebar/Submenu.jsx
+
+import React from "react";
 import { Collapse } from "react-collapse";
 import { NavLink } from "react-router-dom";
 import Icon from "@/components/ui/Icon";

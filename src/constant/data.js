@@ -36,79 +36,60 @@ import stripe from "@/assets/images/e-commerce/cart-icon/stripe.png";
 import truck from "@/assets/images/e-commerce/cart-icon/truck.png";
 import vougepay from "@/assets/images/e-commerce/cart-icon/vougepay.png";
 
-export const adminMenuItems = [
+// --- MASTER MENU CONFIGURATION ---
+// Sidebar navigation ke liye ab sirf yeh 'menuItems' array istemal hoga.
+// Ismein 'allowedRoles' se hum control karenge ke kaun sa item kisko dikhega.
+export const menuItems = [
   {
     isHeadr: true,
     title: "menu",
+    allowedRoles: ["admin", "employee", "customer"], // Sabko dikhega
   },
   {
     title: "Dashboard",
     icon: "heroicons-outline:home",
-    isOpen: true,
-    isHide: true,
+    allowedRoles: ["admin", "employee", "customer"], // Sabko dikhega
+    // Aapke purane structure ke mutabiq child yahan hai
     child: [
       {
         childtitle: "Analytics Dashboard",
         childlink: "dashboard",
+        allowedRoles: ["admin", "employee", "customer"],
       },
     ],
-  },
-  {
-    title: "Chat",
-    isHide: true,
-    icon: "heroicons-outline:chat",
-    link: "chat",
   },
   {
     title: "Projects",
     isHide: true,
     icon: "heroicons-outline:document",
     link: "projects",
+    allowedRoles: ["admin", "employee","customer"], // Sirf admin aur employee ko
+  },
+  {
+    title: "Chat",
+    isHide: true,
+    icon: "heroicons-outline:chat",
+    link: "chat",
+    allowedRoles: ["admin", "employee"], // Sirf admin aur employee ko
   },
   {
     title: "Employees",
     isHide: true,
     icon: "heroicons-outline:user",
     link: "employees",
+    allowedRoles: ["admin"], // Sirf admin ko
   },
   {
     title: "Customers",
     isHide: true,
     icon: "heroicons-outline:user",
     link: "customers",
+    allowedRoles: ["admin"], // Sirf admin ko
   },
 ];
 
-export const employeeMenuItems = [
-  {
-    isHeadr: true,
-    title: "menu",
-  },
-  {
-    title: "Dashboard",
-    icon: "heroicons-outline:home",
-    isOpen: true,
-    isHide: true,
-    child: [
-      {
-        childtitle: "Analytics Dashboard",
-        childlink: "dashboard",
-      },
-    ],
-  },
-  {
-    title: "Projects",
-    isHide: true,
-    icon: "heroicons-outline:document",
-    link: "projects",
-  },
-  {
-    title: "Chat",
-    isHide: true,
-    icon: "heroicons-outline:chat",
-    link: "chat",
-  },
-];
+
+// NOTE: Purane 'adminMenuItems' aur 'employeeMenuItems' ab yahan se hata diye gaye hain.
 
 export const topMenu = [
   {
@@ -895,7 +876,6 @@ export const payments = [
     img: ngenious,
     value: "ngenious",
   },
-
   {
     img: payfast,
     value: "payfast",

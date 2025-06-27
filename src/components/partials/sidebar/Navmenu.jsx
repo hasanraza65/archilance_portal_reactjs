@@ -1,3 +1,5 @@
+// src/components/sidebar/Navmenu.jsx
+
 import React, { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Collapse } from "react-collapse";
@@ -33,8 +35,10 @@ const Navmenu = ({ menus }) => {
 
   const isLocationMatch = (targetLocation) => {
     return (
-      locationName === targetLocation ||
-      locationName.startsWith(`${targetLocation}/`)
+      targetLocation && (
+        locationName === targetLocation ||
+        locationName.startsWith(`${targetLocation}/`)
+      )
     );
   };
 
@@ -63,14 +67,16 @@ const Navmenu = ({ menus }) => {
         });
       }
     });
-    document.title = `Aentora  | ${locationName}`;
+    // This part of title logic might need adjustment if routes change.
+    // document.title = `Aentora  | ${locationName}`;
 
     setActiveSubmenu(submenuIndex);
     setMultiMenu(multiMenuIndex);
     if (mobileMenu) {
       setMobileMenu(false);
     }
-  }, [location]);
+    // Minor improvement: dependency array includes `menus` so it recalculates if the user logs out and in with a new role.
+  }, [location, menus]);
 
   return (
     <>

@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import Navmenu from "./Navmenu";
-import { adminMenuItems, employeeMenuItems } from "@/constant/data";
+// --- KEY CHANGE 1: Naya 'menuItems' array import karein ---
+import { menuItems } from "@/constant/data";
 import SimpleBar from "simplebar-react";
 import useSemiDark from "@/hooks/useSemiDark";
 import useSkin from "@/hooks/useSkin";
@@ -27,16 +28,45 @@ const MobileMenu = ({ className = "custom-class" }) => {
         setScroll(false);
       }
     };
-    scrollableNodeRef.current.addEventListener("scroll", handleScroll);
-  }, [scrollableNodeRef]);
+    // Check if ref is attached before adding listener
+    const node = scrollableNodeRef.current;
+    if (node) {
+      node.addEventListener("scroll", handleScroll);
+    }
+    return () => {
+      if (node) {
+        node.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, []);
 
   const [isSemiDark] = useSemiDark();
-  const [skin] = useSkin();
+  // eslint-disable-next-line no-unused-vars
+  const [skin, setSkin] = useSkin();
   const [isDark] = useDarkMode();
   const [mobileMenu, setMobileMenu] = useMobileMenu();
 
-  const menusToDisplay =
-    user?.role === "employee" ? employeeMenuItems : adminMenuItems;
+  // --- KEY CHANGE 2: Purana logic hata kar naya filtering logic istemal karein ---
+  const accessibleMenus = useMemo(() => {
+    if (!user?.role) {
+      return []; // Agar user login nahi hai to khali menu
+    }
+    // Master list ko user ke role ke hisaab se filter karein
+    return menuItems
+      .filter((item) => item.allowedRoles.includes(user.role))
+      .map((item) => {
+        // Agar item ke child hain, to unhe bhi filter karein
+        if (item.child) {
+          return {
+            ...item,
+            child: item.child.filter((childItem) =>
+              childItem.allowedRoles.includes(user.role)
+            ),
+          };
+        }
+        return item;
+      });
+  }, [user]);
 
   return (
     <div
@@ -77,7 +107,8 @@ const MobileMenu = ({ className = "custom-class" }) => {
         className="sidebar-menu px-4 h-[calc(100%-80px)]"
         scrollableNodeProps={{ ref: scrollableNodeRef }}
       >
-        <Navmenu menus={menusToDisplay} />
+        {/* --- KEY CHANGE 3: Yahan filtered menu pass karein --- */}
+        <Navmenu menus={accessibleMenus} />
       </SimpleBar>
     </div>
   );
