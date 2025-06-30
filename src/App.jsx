@@ -18,7 +18,7 @@ import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
 import ChatPage from "./pages/app/chat";
 import WorkSession from "./pages/employees/WorkSession/WorkSession";
-import WorkSessionDetail from "./pages/employees/WorkSession/WorkSessionDetail";
+
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -159,7 +159,7 @@ function App() {
               element={<EditEmployee />}
             />
             <Route path="work-session" element={<WorkSession />} />
-            <Route path="/work-sessions/:id" element={<WorkSessionDetail />} /> 
+        
             {/* --- Customers YAHAN THA --- */}
             <Route path="customers" element={<AllCustomers />} />
             <Route
