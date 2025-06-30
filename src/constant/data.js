@@ -63,7 +63,7 @@ export const menuItems = [
     isHide: true,
     icon: "heroicons-outline:document",
     link: "projects",
-    allowedRoles: ["admin", "employee","customer"], // Sirf admin aur employee ko
+    allowedRoles: ["admin", "employee","customer"], // Sabko dikhega
   },
   {
     title: "Chat",
@@ -85,6 +85,13 @@ export const menuItems = [
     icon: "heroicons-outline:user",
     link: "customers",
     allowedRoles: ["admin"], // Sirf admin ko
+  },
+   {
+    title: "Work Session",
+    isHide: true,
+    icon: "heroicons-outline:document",
+    link: "work-session",
+    allowedRoles: ["employee"], // Sirf admin ko
   },
 ];
 
