@@ -4,10 +4,10 @@ import React, { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector, useDispatch } from "react-redux";
 
 // Our new central socket service
-import { connectSocket, disconnectSocket } from './socket';
+import { connectSocket, disconnectSocket } from "./socket";
 
 // Layouts
 import Layout from "./layout/Layout";
@@ -18,7 +18,7 @@ import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
 import ChatPage from "./pages/app/chat";
 import WorkSession from "./pages/employees/WorkSession/WorkSession";
-
+import AdminEmployeeWorkSession from "./pages/employees/WorkSession/AdminEmployeeWorkSession";
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -159,7 +159,11 @@ function App() {
               element={<EditEmployee />}
             />
             <Route path="work-session" element={<WorkSession />} />
-        
+            <Route
+              path="/employees/work-sessions/:employeeId"
+              element={<AdminEmployeeWorkSession />}
+            />
+
             {/* --- Customers YAHAN THA --- */}
             <Route path="customers" element={<AllCustomers />} />
             <Route

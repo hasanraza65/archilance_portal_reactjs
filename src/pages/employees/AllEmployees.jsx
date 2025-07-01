@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react"; // Added useCallback
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Card from "@/components/ui/Card";
@@ -36,11 +36,17 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
               {profile_pic ? (
                 <img
                   src={`${PFP_BASE_URL}${profile_pic}`}
-                  alt={name || 'Profile'}
+                  alt={name || "Profile"}
                   className="object-cover w-full h-full rounded-full"
                   onError={(e) => {
                     e.target.onerror = null;
-                    const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
+                    const initials = name
+                      ? name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                      : "?";
                     e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
                   }}
                 />
@@ -58,18 +64,40 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
       );
     },
   },
-  { Header: "Email", accessor: "email", Cell: ({ cell: { value } }) => <span>{value}</span> },
-  { Header: "Username", accessor: "username", Cell: ({ cell: { value } }) => <span>{value}</span> },
-  { Header: "Phone", accessor: "phone", Cell: ({ cell: { value } }) => <span>{value || "N/A"}</span> },
-  { Header: "Role ID", accessor: "user_role", Cell: ({ cell: { value } }) => <span>{value}</span> },
+  {
+    Header: "Email",
+    accessor: "email",
+    Cell: ({ cell: { value } }) => <span>{value}</span>,
+  },
+  {
+    Header: "Username",
+    accessor: "username",
+    Cell: ({ cell: { value } }) => <span>{value}</span>,
+  },
+  {
+    Header: "Phone",
+    accessor: "phone",
+    Cell: ({ cell: { value } }) => <span>{value || "N/A"}</span>,
+  },
+  {
+    Header: "Role ID",
+    accessor: "user_role",
+    Cell: ({ cell: { value } }) => <span>{value}</span>,
+  },
   {
     Header: "Action",
     accessor: "action",
     Cell: ({ row }) => {
-      // Removed useNavigate from here, it's passed in or available in AllEmployees scope
+      // Removed useNavigate from here, it's available in AllEmployees scope
       const handleView = () => {
         navigate(`/employees/view/${row.original.id}`);
       };
+      // *** START: NEW CODE FOR WORK SESSION BUTTON ***
+      const handleWorkSessionView = () => {
+        // Navigate to the work sessions page for this employee
+        navigate(`/employees/work-sessions/${row.original.id}`);
+      };
+      // *** END: NEW CODE FOR WORK SESSION BUTTON ***
       const handleEdit = () => {
         navigate(`/employees/edit/${row.original.id}`);
       };
@@ -86,6 +114,17 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
           >
             <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
           </button>
+
+          {/* *** START: NEW WORK SESSION BUTTON *** */}
+          <button
+            onClick={handleWorkSessionView}
+            className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-100 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-green-200 dark:hover:border-green-700"
+            title="View Work Sessions"
+          >
+            <Icon icon="heroicons-outline:briefcase" className="w-4 h-4" />
+          </button>
+          {/* *** END: NEW WORK SESSION BUTTON *** */}
+
           <button
             onClick={handleEdit}
             className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
@@ -112,13 +151,20 @@ const IndeterminateCheckbox = React.forwardRef(
     const defaultRef = React.useRef();
     const resolvedRef = ref || defaultRef;
     React.useEffect(() => {
-      if (resolvedRef.current) resolvedRef.current.indeterminate = indeterminate;
+      if (resolvedRef.current)
+        resolvedRef.current.indeterminate = indeterminate;
     }, [resolvedRef, indeterminate]);
-    return <input type="checkbox" ref={resolvedRef} {...rest} className="table-checkbox" />;
+    return (
+      <input
+        type="checkbox"
+        ref={resolvedRef}
+        {...rest}
+        className="table-checkbox"
+      />
+    );
   }
 );
 IndeterminateCheckbox.displayName = "IndeterminateCheckbox";
-
 
 const Allemployees = () => {
   const [employeeData, setEmployeeData] = useState([]);
@@ -133,7 +179,8 @@ const Allemployees = () => {
   const [deleteError, setDeleteError] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState(null);
 
-  const fetchEmployees = useCallback(async () => { // Wrapped in useCallback
+  const fetchEmployees = useCallback(async () => {
+    // Wrapped in useCallback
     setLoading(true);
     setFetchError(null);
     setDeleteSuccess(null); // Clear messages on new fetch
@@ -147,7 +194,12 @@ const Allemployees = () => {
     try {
       const response = await axios.get(
         "https://demo.aentora.com/backend/public/api/admin/employee-user",
-        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
       );
       if (response.data && Array.isArray(response.data.data)) {
         setEmployeeData(response.data.data);
@@ -158,7 +210,11 @@ const Allemployees = () => {
         setEmployeeData([]);
       }
     } catch (err) {
-      setFetchError(err.response?.data?.message || err.message || "Failed to fetch employees.");
+      setFetchError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch employees."
+      );
       setEmployeeData([]);
     } finally {
       setLoading(false);
@@ -197,14 +253,27 @@ const Allemployees = () => {
     try {
       await axios.delete(
         `https://demo.aentora.com/backend/public/api/admin/employee-user/${employeeToDelete.id}`,
-        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
       );
-      setEmployeeData((prevData) => prevData.filter((emp) => emp.id !== employeeToDelete.id));
-      setDeleteSuccess(`Employee "${employeeToDelete.name}" deleted successfully!`);
+      setEmployeeData((prevData) =>
+        prevData.filter((emp) => emp.id !== employeeToDelete.id)
+      );
+      setDeleteSuccess(
+        `Employee "${employeeToDelete.name}" deleted successfully!`
+      );
       handleCloseDeleteModal(); // Close modal on success
       setTimeout(() => setDeleteSuccess(null), 4000); // Auto-dismiss success
     } catch (err) {
-      setDeleteError(err.response?.data?.message || err.message || "Failed to delete employee.");
+      setDeleteError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to delete employee."
+      );
     } finally {
       setDeleteLoading(false);
     }
@@ -219,26 +288,47 @@ const Allemployees = () => {
 
   const tableInstance = useTable(
     { columns, data, initialState: { pageIndex: 0, pageSize: 10 } },
-    useGlobalFilter, useSortBy, usePagination, useRowSelect
+    useGlobalFilter,
+    useSortBy,
+    usePagination,
+    useRowSelect
   );
 
   const {
-    getTableProps, getTableBodyProps, headerGroups, page, nextPage, previousPage,
-    canNextPage, canPreviousPage, pageOptions, state, gotoPage, pageCount,
-    setPageSize, setGlobalFilter, prepareRow,
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    page,
+    nextPage,
+    previousPage,
+    canNextPage,
+    canPreviousPage,
+    pageOptions,
+    state,
+    gotoPage,
+    pageCount,
+    setPageSize,
+    setGlobalFilter,
+    prepareRow,
   } = tableInstance;
   const { globalFilter, pageIndex, pageSize } = state;
 
   // Loading and Error States (similar to previous logic)
   if (loading && !employeeData.length) {
-    return <Card><div className="p-4 text-center">Loading employee data...</div></Card>;
+    return (
+      <Card>
+        <div className="p-4 text-center">Loading employee data...</div>
+      </Card>
+    );
   }
   if (fetchError && !loading && !employeeData.length) {
     return (
       <Card>
         <div className="p-4 text-center text-danger-500">
           Error: {fetchError} <br />
-          <button onClick={fetchEmployees} className="mt-2 btn btn-primary">Try Again</button>
+          <button onClick={fetchEmployees} className="mt-2 btn btn-primary">
+            Try Again
+          </button>
         </div>
       </Card>
     );
@@ -249,11 +339,16 @@ const Allemployees = () => {
       <Card noBorder>
         <div className="md:flex justify-between items-center mb-6">
           <h4 className="card-title">Employee List</h4>
-          <div className="flex flex-wrap space-x-3 items-center"> {/* flex-wrap for responsiveness */}
-            <GlobalFilter filter={globalFilter || ""} setFilter={setGlobalFilter} />
+          <div className="flex flex-wrap space-x-3 items-center">
+            {" "}
+            {/* flex-wrap for responsiveness */}
+            <GlobalFilter
+              filter={globalFilter || ""}
+              setFilter={setGlobalFilter}
+            />
             <button
               className="btn btn-dark flex items-center mt-2 md:mt-0"
-              onClick={() => navigate('/employees/add')}
+              onClick={() => navigate("/employees/add")}
             >
               <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
               Add Employee
@@ -262,12 +357,18 @@ const Allemployees = () => {
         </div>
 
         {deleteSuccess && (
-          <Alert className="alert-success light-mode mb-4" toggle={() => setDeleteSuccess(null)}>
+          <Alert
+            className="alert-success light-mode mb-4"
+            toggle={() => setDeleteSuccess(null)}
+          >
             {deleteSuccess}
           </Alert>
         )}
         {deleteError && (
-          <Alert className="alert-danger light-mode mb-4" toggle={() => setDeleteError(null)}>
+          <Alert
+            className="alert-danger light-mode mb-4"
+            toggle={() => setDeleteError(null)}
+          >
             {deleteError}
           </Alert>
         )}
@@ -283,22 +384,37 @@ const Allemployees = () => {
                   {headerGroups.map((headerGroup) => (
                     <tr {...headerGroup.getHeaderGroupProps()}>
                       {headerGroup.headers.map((column) => (
-                        <th {...column.getHeaderProps(column.getSortByToggleProps())} className="table-th">
+                        <th
+                          {...column.getHeaderProps(
+                            column.getSortByToggleProps()
+                          )}
+                          className="table-th"
+                        >
                           {column.render("Header")}
                           <span className="ltr:ml-1 rtl:mr-1">
-                            {column.isSorted ? (column.isSortedDesc ? " 🔽" : " 🔼") : ""}
+                            {column.isSorted
+                              ? column.isSortedDesc
+                                ? " 🔽"
+                                : " 🔼"
+                              : ""}
                           </span>
                         </th>
                       ))}
                     </tr>
                   ))}
                 </thead>
-                <tbody {...getTableBodyProps()} className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                <tbody
+                  {...getTableBodyProps()}
+                  className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700"
+                >
                   {page.length > 0 ? (
                     page.map((row) => {
                       prepareRow(row);
                       return (
-                        <tr {...row.getRowProps()} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
+                        <tr
+                          {...row.getRowProps()}
+                          className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150"
+                        >
                           {row.cells.map((cell) => (
                             <td {...cell.getCellProps()} className="table-td">
                               {cell.render("Cell")}
@@ -309,8 +425,13 @@ const Allemployees = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={columns.length} className="text-center p-6 text-slate-500 dark:text-slate-400 table-td">
-                        {loading ? "Fetching employees..." : "No employees found."}
+                      <td
+                        colSpan={columns.length}
+                        className="text-center p-6 text-slate-500 dark:text-slate-400 table-td"
+                      >
+                        {loading
+                          ? "Fetching employees..."
+                          : "No employees found."}
                       </td>
                     </tr>
                   )}
@@ -327,10 +448,12 @@ const Allemployees = () => {
                 className="form-select py-2"
                 value={pageSize}
                 onChange={(e) => setPageSize(Number(e.target.value))}
-                style={{ width: '100px' }}
+                style={{ width: "100px" }}
               >
                 {[10, 25, 50, 100].map((size) => (
-                  <option key={size} value={size}>Show {size}</option>
+                  <option key={size} value={size}>
+                    Show {size}
+                  </option>
                 ))}
               </select>
               <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
@@ -338,15 +461,70 @@ const Allemployees = () => {
                 <span className="font-bold text-slate-900 dark:text-white">
                   {pageIndex + 1} of {pageOptions.length}
                 </span>
-                <span className="hidden sm:inline"> ({data.length} total records)</span>
+                <span className="hidden sm:inline">
+                  {" "}
+                  ({data.length} total records)
+                </span>
               </span>
             </div>
             <ul className="flex items-center space-x-2 rtl:space-x-reverse">
-              <li><button className={`pagination-link ${!canPreviousPage && "opacity-50 cursor-not-allowed"}`} onClick={() => gotoPage(0)} disabled={!canPreviousPage}><Icon icon="heroicons:chevron-double-left-20-solid" /></button></li>
-              <li><button className={`pagination-link ${!canPreviousPage && "opacity-50 cursor-not-allowed"}`} onClick={() => previousPage()} disabled={!canPreviousPage}><Icon icon="heroicons-outline:chevron-left" /></button></li>
-              <li><input type="number" className="form-control py-2 w-[60px] text-center" value={pageIndex + 1} onChange={(e) => { const p = e.target.value ? Number(e.target.value) - 1 : 0; if (p < pageOptions.length && p >= 0) gotoPage(p); }} min="1" max={pageOptions.length}/></li>
-              <li><button className={`pagination-link ${!canNextPage && "opacity-50 cursor-not-allowed"}`} onClick={() => nextPage()} disabled={!canNextPage}><Icon icon="heroicons-outline:chevron-right" /></button></li>
-              <li><button className={`pagination-link ${!canNextPage && "opacity-50 cursor-not-allowed"}`} onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}><Icon icon="heroicons:chevron-double-right-20-solid" /></button></li>
+              <li>
+                <button
+                  className={`pagination-link ${
+                    !canPreviousPage && "opacity-50 cursor-not-allowed"
+                  }`}
+                  onClick={() => gotoPage(0)}
+                  disabled={!canPreviousPage}
+                >
+                  <Icon icon="heroicons:chevron-double-left-20-solid" />
+                </button>
+              </li>
+              <li>
+                <button
+                  className={`pagination-link ${
+                    !canPreviousPage && "opacity-50 cursor-not-allowed"
+                  }`}
+                  onClick={() => previousPage()}
+                  disabled={!canPreviousPage}
+                >
+                  <Icon icon="heroicons-outline:chevron-left" />
+                </button>
+              </li>
+              <li>
+                <input
+                  type="number"
+                  className="form-control py-2 w-[60px] text-center"
+                  value={pageIndex + 1}
+                  onChange={(e) => {
+                    const p = e.target.value ? Number(e.target.value) - 1 : 0;
+                    if (p < pageOptions.length && p >= 0) gotoPage(p);
+                  }}
+                  min="1"
+                  max={pageOptions.length}
+                />
+              </li>
+              <li>
+                <button
+                  className={`pagination-link ${
+                    !canNextPage && "opacity-50 cursor-not-allowed"
+                  }`}
+                  onClick={() => nextPage()}
+                  disabled={!canNextPage}
+                >
+                  <Icon icon="heroicons-outline:chevron-right" />
+                </button>
+              </li>
+              <li>
+                <button
+                  className={`pagination-link ${
+                    !canNextPage && "opacity-50 cursor-not-allowed"
+                  }`}
+                  onClick={() => gotoPage(pageCount - 1)}
+                  disabled={!canNextPage}
+                >
+                  <Icon icon="heroicons:chevron-double-right-20-solid" />
+                </button>
+              </li>
             </ul>
           </div>
         )}

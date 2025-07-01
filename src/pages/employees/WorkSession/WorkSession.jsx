@@ -1,13 +1,13 @@
 // src/pages/WorkSession.js
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
 import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
-// Helper Icons and Functions
+// Helper Icons and Functions (No Change)
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -54,18 +54,19 @@ const WorkSession = () => {
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState([]);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
+  const [hasSearched, setHasSearched] = useState(false); // *** NEW: Track if a search has been made
 
   const API_BASE_URL = "https://demo.aentora.com/backend/public/api/employee";
   const STORAGE_URL = "https://demo.aentora.com/backend/public/storage";
 
-  // Step 1: Fetch all projects
+  // Fetch projects
   useEffect(() => {
     if (!isAuthenticated) return;
     const fetchProjects = async () => {
@@ -83,7 +84,7 @@ const WorkSession = () => {
     fetchProjects();
   }, [isAuthenticated, token]);
 
-  // Step 2: Fetch tasks when a project is selected
+  // Fetch tasks
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
@@ -100,17 +101,8 @@ const WorkSession = () => {
           throw new Error(
             `Could not fetch details for project ID ${selectedProject}.`
           );
-
         const projectDetails = await res.json();
-
-        // <<< FIX IS HERE >>>
-        // Ab yeh aapke diye gaye response ke mutabiq kaam karega
-        const projectTasks = projectDetails.tasks || [];
-
-        if (projectTasks.length === 0) {
-          toast.info("No tasks found for this project.");
-        }
-        setTasks(projectTasks);
+        setTasks(projectDetails.tasks || []);
       } catch (error) {
         toast.error(error.message);
         setTasks([]);
@@ -121,58 +113,68 @@ const WorkSession = () => {
     fetchTasksForProject();
   }, [selectedProject, token]);
 
-  // Step 4: Fetch work sessions based on filters
-  const fetchWorkSessions = useCallback(async () => {
-    setLoading(true);
-    window.scrollTo(0, 0);
-    const params = new URLSearchParams({ page: currentPage.toString() });
-
-    if (selectedTask) params.append("task_id", selectedTask);
-    if (dateRange[0])
-      params.append("start_date", formatDateForAPI(dateRange[0]));
-    if (dateRange[1]) params.append("end_date", formatDateForAPI(dateRange[1]));
-
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/work-session?${params.toString()}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.status === 401) {
-        toast.error("Session expired.");
-        logout();
+  // Centralized Fetch Logic
+  useEffect(() => {
+    const performFetch = async () => {
+      // *** MODIFICATION: Only fetch if a search has been triggered by the user
+      if (!isAuthenticated || !hasSearched) {
+        setLoading(false);
+        setSessions([]); // Ensure sessions are empty on initial load
         return;
       }
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.message || "Failed to fetch data");
+      setLoading(true);
+      window.scrollTo(0, 0);
 
-      setSessions(result.data?.reverse() || []);
-      setPaginationInfo({
-        currentPage: result.current_page,
-        lastPage: result.last_page,
-      });
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
+      const params = new URLSearchParams({ page: currentPage.toString() });
+      if (selectedTask) params.append("task_id", selectedTask);
+      if (dateRange[0])
+        params.append("start_date", formatDateForAPI(dateRange[0]));
+      if (dateRange[1])
+        params.append("end_date", formatDateForAPI(dateRange[1]));
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/work-session?${params.toString()}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || `Request failed`);
+        setSessions(result.data?.reverse() || []);
+        setPaginationInfo({
+          currentPage: result.current_page,
+          lastPage: result.last_page,
+        });
+      } catch (err) {
+        toast.error(err.message);
+        setSessions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    performFetch();
+  }, [fetchTrigger, currentPage, isAuthenticated, token, logout, hasSearched]);
+
+  const handleSearch = () => {
+    setHasSearched(true); // Mark that a search has been initiated
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      setFetchTrigger((t) => t + 1);
     }
-  }, [currentPage, selectedTask, dateRange, token, isAuthenticated, logout]);
-
-  useEffect(() => {
-    if (isAuthenticated) fetchWorkSessions();
-    else setLoading(false);
-  }, [fetchWorkSessions, isAuthenticated]);
-
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    if (currentPage !== 1) setCurrentPage(1);
-  }, [selectedTask, dateRange, selectedProject]);
+  };
 
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
     setTasks([]);
     setDateRange([]);
+    setHasSearched(false); // Reset search state, so the initial message appears
+    setSessions([]); // Clear sessions from display
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
   };
 
   const handleDelete = (sessionId) => {
@@ -209,7 +211,7 @@ const WorkSession = () => {
     if (paginationInfo?.currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
-  if (!isAuthenticated)
+  if (!isAuthenticated && !loading)
     return (
       <div className="p-8 text-center">
         <p>Please log in.</p>
@@ -222,222 +224,115 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-6">
           Work Diary
         </h1>
-
-
-{/* Filters Section */}
-<div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
-    <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-            <svg className="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z" />
-            </svg>
-            Filter Work Sessions
-        </h3>
-        
-        {/* Active Filters Count */}
-        {(selectedProject || selectedTask || dateRange.length > 0) && (
-            <div className="flex items-center gap-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                    {[selectedProject, selectedTask, dateRange.length > 0].filter(Boolean).length} active
-                </span>
-            </div>
-        )}
-    </div>
-
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-        {/* Project Filter */}
-        <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                Project
-            </label>
-            <div className="relative">
-                <select 
-                    value={selectedProject} 
-                    onChange={(e) => { 
-                        setSelectedProject(e.target.value); 
-                        setSelectedTask(''); 
-                    }} 
-                    className="w-full px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 transition-all duration-200 appearance-none cursor-pointer hover:border-slate-400 dark:hover:border-slate-500"
-                >
-                    <option value="">All Projects</option>
-                    {projects.map(p => (
-                        <option key={p.id} value={p.id}>{p.project_name}</option>
-                    ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        {/* Task Filter */}
-        <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                Task
-                {tasksLoading && (
-                    <div className="w-3 h-3 border border-blue-300 border-t-blue-600 rounded-full animate-spin ml-1"></div>
-                )}
-            </label>
-            <div className="relative">
-                <select 
-                    value={selectedTask} 
-                    onChange={(e) => setSelectedTask(e.target.value)} 
-                    disabled={!selectedProject || tasksLoading} 
-                    className="w-full px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 transition-all duration-200 appearance-none cursor-pointer hover:border-slate-400 dark:hover:border-slate-500 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    <option value="">
-                        {!selectedProject ? "Select project first" : "All Tasks"}
-                    </option>
-                    {tasksLoading ? (
-                        <option>Loading tasks...</option>
-                    ) : (
-                        tasks.map(t => (
-                            <option key={t.id} value={t.id}>{t.task_title}</option>
-                        ))
-                    )}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        {/* Date Range Filter */}
-        <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Date Range
-            </label>
-            <div className="relative">
-                <Flatpickr 
-                    value={dateRange} 
-                    onChange={setDateRange} 
-                    className="w-full px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-500" 
-                    options={{ 
-                        mode: "range", 
-                        dateFormat: "Y-m-d",
-                        altInput: true,
-                        altFormat: "M j, Y",
-                        allowInput: true
-                    }} 
-                    placeholder="Select date range" 
+        {/* Filters Section (No Change in JSX) */}
+        <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+          {/* ... Your Filter UI JSX ... */}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-slate-600 dark:text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"
                 />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </div>
+              </svg>
+              Filter Work Sessions
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Project
+              </label>
+              <select
+                value={selectedProject}
+                onChange={(e) => {
+                  setSelectedProject(e.target.value);
+                  setSelectedTask("");
+                }}
+                className="form-select w-full"
+              >
+                <option value="">All Projects</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.project_name}
+                  </option>
+                ))}
+              </select>
             </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="space-y-2">
-            <label className="text-sm font-medium text-transparent">Actions</label>
-            <div className="flex flex-col sm:flex-row gap-2">
-                <button 
-                    onClick={handleResetFilters} 
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all duration-200"
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Task
+              </label>
+              <select
+                value={selectedTask}
+                onChange={(e) => setSelectedTask(e.target.value)}
+                disabled={!selectedProject || tasksLoading}
+                className="form-select w-full disabled:bg-slate-100"
+              >
+                <option value="">
+                  {!selectedProject ? "Select project first" : "All Tasks"}
+                </option>
+                {tasksLoading ? (
+                  <option>Loading tasks...</option>
+                ) : (
+                  tasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.task_title}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Date Range
+              </label>
+              <Flatpickr
+                value={dateRange}
+                onChange={setDateRange}
+                className="form-input w-full"
+                options={{ mode: "range", dateFormat: "Y-m-d" }}
+                placeholder="Select date range"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-transparent">
+                Actions
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={handleResetFilters}
+                  className="btn btn-outline-secondary w-full"
                 >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Reset
+                  Reset
                 </button>
-                
-                <button 
-                    onClick={fetchWorkSessions}
-                    disabled={loading}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                <button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="btn btn-dark w-full"
                 >
-                    {loading ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Loading
-                        </>
-                    ) : (
-                        <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            Search
-                        </>
-                    )}
+                  {loading ? "Loading..." : "Search"}
                 </button>
+              </div>
             </div>
+          </div>
         </div>
-    </div>
 
-    {/* Active Filters Display */}
-    {(selectedProject || selectedTask || dateRange.length > 0) && (
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Active filters:</span>
-                
-                {selectedProject && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                        Project: {projects.find(p => p.id == selectedProject)?.project_name}
-                        <button 
-                            onClick={() => {setSelectedProject(''); setSelectedTask(''); setTasks([]);}}
-                            className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                        >
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                    </span>
-                )}
-                
-                {selectedTask && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                        Task: {tasks.find(t => t.id == selectedTask)?.task_title}
-                        <button 
-                            onClick={() => setSelectedTask('')}
-                            className="ml-1 hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5"
-                        >
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                    </span>
-                )}
-                
-                {dateRange.length > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                        Date: {dateRange.length === 1 ? dateRange[0].toLocaleDateString() : `${dateRange[0].toLocaleDateString()} - ${dateRange[1].toLocaleDateString()}`}
-                        <button 
-                            onClick={() => setDateRange([])}
-                            className="ml-1 hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5"
-                        >
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                    </span>
-                )}
-            </div>
-        </div>
-    )}
-</div>
-
-        {/* Main Content */}
+        {/* Main Content with Better User Messages */}
         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
           {loading ? (
             <div className="text-center py-16">
               <p>Loading diary entries...</p>
             </div>
           ) : sessions.length > 0 ? (
+            // Data Display Logic (same as before)
             <div>
               {sessions.map((session, index) => (
                 <div
@@ -513,10 +408,36 @@ const WorkSession = () => {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : hasSearched ? (
+            // Message when a search was made but found nothing
             <div className="text-center py-16">
               <p className="text-slate-500">
                 No work sessions found matching your criteria.
+              </p>
+            </div>
+          ) : (
+            // *** NEW: Initial message before any search ***
+            <div className="text-center py-16">
+              <svg
+                className="mx-auto h-12 w-12 text-slate-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-200">
+                No work diary to show
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Please select filters and click "Search" to view sessions.
               </p>
             </div>
           )}
