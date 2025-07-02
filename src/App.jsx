@@ -20,6 +20,7 @@ import ChatPage from "./pages/app/chat";
 import WorkSession from "./pages/employees/WorkSession/WorkSession";
 import AdminEmployeeWorkSession from "./pages/employees/WorkSession/AdminEmployeeWorkSession";
 import OrderDetailsPage from "./pages/customers/OrderPage/OrderDetailPage";
+import Subscription from "./pages/customers/Subscription/Subscription";
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -177,6 +178,9 @@ function App() {
               element={<UpdateCustomer />}
             />
             <Route path="order-detail" element={<OrderDetailsPage />} />
+              <Route path="subscriptions" element={<Subscription />} />
+
+
             <Route path="chat" element={<ChatPage />} />
             <Route path="*" element={<Navigate to="/404" replace />} />
           </Route>
