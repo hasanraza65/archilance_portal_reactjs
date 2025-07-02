@@ -19,6 +19,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import ChatPage from "./pages/app/chat";
 import WorkSession from "./pages/employees/WorkSession/WorkSession";
 import AdminEmployeeWorkSession from "./pages/employees/WorkSession/AdminEmployeeWorkSession";
+import OrderDetailsPage from "./pages/customers/OrderPage/OrderDetailPage";
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -175,6 +176,7 @@ function App() {
               path="/customers/edit/:customerId"
               element={<UpdateCustomer />}
             />
+            <Route path="order-detail" element={<OrderDetailsPage />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="*" element={<Navigate to="/404" replace />} />
           </Route>
