@@ -166,12 +166,12 @@ const Subscription = () => {
           </div>
           <div className="flex justify-between items-center py-2">
             <span className="text-gray-500">Upgrade</span>
-             <Link 
-                    to="/upgrade-plan" 
-                    className="px-4 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-100 transition"
-                >
-                    Upgrade Plan
-                </Link>
+            <Link
+              to="/upgrade-plan"
+              className="px-4 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-100 transition"
+            >
+              Upgrade Plan
+            </Link>
           </div>
         </div>
       </div>
