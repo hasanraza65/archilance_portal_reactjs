@@ -1,11 +1,51 @@
-// src/Subscription.jsx (UPDATED with Cancel Button and SweetAlert)
+// src/Subscription.jsx (UPDATED with correct scroll lock)
 
-import React from "react";
-// --- YAHAN TABDEELI KI GAI HAI ---
-// SweetAlert2 ko import karein
+import React, { useState, useEffect } from "react"; // 1. useEffect ko yahan import karein
 import Swal from "sweetalert2";
+import ManageCardsModal from "./ManageCardsModal";
+import BillingHistoryModal from "./BillingHistoryModal";
+import { Link } from "react-router-dom";
 
-// Icon component (jaisa pehle tha)
+// --- DUMMY DATA FOR CARDS ---
+const initialCards = [
+  { id: 1, type: "Visa", last4: "7830", expiry: "06/24", isDefault: true },
+  {
+    id: 2,
+    type: "Mastercard",
+    last4: "1075",
+    expiry: "02/25",
+    isDefault: false,
+  },
+];
+
+// --- DUMMY DATA FOR BILLING HISTORY ---
+const initialHistory = [
+  {
+    id: 1,
+    invoiceId: "INV-2024-003",
+    date: "June 1, 2024",
+    amount: "$300.00",
+    status: "Paid",
+    downloadUrl: "#",
+  },
+  {
+    id: 2,
+    invoiceId: "INV-2023-003",
+    date: "June 1, 2023",
+    amount: "$300.00",
+    status: "Paid",
+    downloadUrl: "#",
+  },
+  {
+    id: 3,
+    invoiceId: "INV-2022-003",
+    date: "June 1, 2022",
+    amount: "$300.00",
+    status: "Paid",
+    downloadUrl: "#",
+  },
+];
+
 const InfoIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -21,7 +61,6 @@ const InfoIcon = () => (
   </svg>
 );
 
-// SummaryCard component (jaisa pehle tha)
 const SummaryCard = ({ title, value, subtext, bgColor }) => (
   <div className={`p-6 rounded-xl border ${bgColor}`}>
     <h3 className="text-sm font-medium text-gray-600">{title}</h3>
@@ -31,8 +70,33 @@ const SummaryCard = ({ title, value, subtext, bgColor }) => (
 );
 
 const Subscription = () => {
-  // --- YAHAN TABDEELI KI GAI HAI ---
-  // Cancel button ke liye function
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [cards, setCards] = useState(initialCards);
+
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [billingHistory, setBillingHistory] = useState(initialHistory);
+
+  // --- YAHAN NAI TABDEELI KI GAI HAI ---
+  // Yeh effect scroll lock ko control karega
+  useEffect(() => {
+    // Check karein agar koi bhi modal khula hai
+    const isAnyModalOpen = isModalOpen || isHistoryModalOpen;
+
+    if (isAnyModalOpen) {
+      // Body par scroll lock lagayein
+      document.body.style.overflow = "hidden";
+    } else {
+      // Body se scroll lock hatayein
+      document.body.style.overflow = "auto";
+    }
+
+    // Cleanup function: Yeh component ke hatne par style ko reset kar dega
+    // Taake page kabhi bhi 'stuck' na ho.
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isModalOpen, isHistoryModalOpen]); // Yeh effect in states ke badalne par chalega
+
   const handleCancelSubscription = () => {
     Swal.fire({
       title: "Are you sure?",
@@ -44,8 +108,6 @@ const Subscription = () => {
       confirmButtonText: "Yes, cancel it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        // Yahan aap apni API call kar sakte hain subscription cancel karne ke liye
-        // For now, we will just show a success message.
         Swal.fire(
           "Cancelled!",
           "Your subscription has been cancelled.",
@@ -89,7 +151,6 @@ const Subscription = () => {
           </span>
           <h2 className="text-lg font-semibold text-gray-800">Pro Plan</h2>
         </div>
-        {/* ... baki ka subscription content jaisa pehle tha ... */}
         <div className="space-y-4">
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-gray-500">Seats</span>
@@ -105,16 +166,18 @@ const Subscription = () => {
           </div>
           <div className="flex justify-between items-center py-2">
             <span className="text-gray-500">Upgrade</span>
-            <button className="px-4 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-100 transition">
-              Upgrade Plan
-            </button>
+             <Link 
+                    to="/upgrade-plan" 
+                    className="px-4 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-100 transition"
+                >
+                    Upgrade Plan
+                </Link>
           </div>
         </div>
       </div>
 
       {/* Billing Details Section */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
-        {/* ... Billing details jaisa pehle tha ... */}
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Billing</h2>
         <div className="divide-y divide-gray-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-2">
@@ -138,12 +201,12 @@ const Subscription = () => {
                 Access and download your billing history if needed.
               </p>
             </div>
-            <a
-              href="#"
+            <button
+              onClick={() => setIsHistoryModalOpen(true)}
               className="text-sm font-medium text-blue-600 hover:underline shrink-0"
             >
               View History
-            </a>
+            </button>
           </div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-2">
             <div>
@@ -152,18 +215,17 @@ const Subscription = () => {
                 View and update your payment method.
               </p>
             </div>
-            <a
-              href="#"
+            <button
+              onClick={() => setIsModalOpen(true)}
               className="text-sm font-medium text-blue-600 hover:underline shrink-0"
             >
               Edit Payment Method
-            </a>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* --- YAHAN TABDEELI KI GAI HAI --- */}
-      {/* Cancellation Section with Button */}
+      {/* Cancellation Section */}
       <div>
         <h2 className="text-xl font-semibold text-red-600">Cancellation</h2>
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mt-4 text-sm">
@@ -178,6 +240,22 @@ const Subscription = () => {
           </button>
         </div>
       </div>
+
+      {/* --- YAHAN SABHI MODALS RENDER HONGE --- */}
+      {/* Cards Modal */}
+      <ManageCardsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        cards={cards}
+        setCards={setCards}
+      />
+
+      {/* History Modal */}
+      <BillingHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        history={billingHistory}
+      />
     </div>
   );
 };

@@ -21,6 +21,8 @@ import WorkSession from "./pages/employees/WorkSession/WorkSession";
 import AdminEmployeeWorkSession from "./pages/employees/WorkSession/AdminEmployeeWorkSession";
 import OrderDetailsPage from "./pages/customers/OrderPage/OrderDetailPage";
 import Subscription from "./pages/customers/Subscription/Subscription";
+import UpgradePlan from "./pages/customers/Subscription/UpgradePlan";
+import Checkout from "./pages/customers/Subscription/Checkout";
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -179,6 +181,8 @@ function App() {
             />
             <Route path="order-detail" element={<OrderDetailsPage />} />
               <Route path="subscriptions" element={<Subscription />} />
+              <Route path="/upgrade-plan" element={<UpgradePlan />} />
+              <Route path="/checkout" element={<Checkout />} />
 
 
             <Route path="chat" element={<ChatPage />} />
