@@ -6,12 +6,13 @@ import { deleteProjectAPI, setEditModalAndItem } from "./store";
 import { useNavigate } from "react-router-dom";
 import { useTable, useRowSelect, useSortBy, useGlobalFilter, usePagination } from "react-table";
 import Swal from 'sweetalert2';
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const ProjectList = ({ projects }) => {
-  // console.log("DEBUG: ProjectList rendering with projects count:", projects?.length);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isDeleting, isUpdating } = useSelector(state => state.project);
+  const userRole = getApiPrefix();
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -25,7 +26,6 @@ const ProjectList = ({ projects }) => {
   
   const handleRowNavigation = (projectId) => projectId && navigate(`/projects/${projectId}`);
 
-  // --- 2. ACTION HANDLERS ---
   const handleView = (item, e) => {
     e.stopPropagation();
     navigate(`/projects/${item.id}`);
@@ -33,13 +33,11 @@ const ProjectList = ({ projects }) => {
 
   const handleEdit = (item, e) => {
     e.stopPropagation();
-    // console.log("DEBUG: ProjectList handleEdit: Dispatching setEditModalAndItem for:", item?.id);
     dispatch(setEditModalAndItem({ open: true, project: item }));
   };
 
   const handleDelete = (item, e) => {
     e.stopPropagation();
-    // console.log("DEBUG: ProjectList handleDelete: Initiating delete for:", item?.id);
     Swal.fire({
       title: 'Are you sure?',
       text: `You are about to delete the project "${item.name || 'this project'}". This action cannot be undone!`,
@@ -82,7 +80,6 @@ const ProjectList = ({ projects }) => {
         
         return (
           <div className="flex items-center justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
-            {/* View Icon */}
             <button
               onClick={(e) => handleView(projectItem, e)}
               className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors duration-200"
@@ -90,39 +87,38 @@ const ProjectList = ({ projects }) => {
             >
               <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
             </button>
-
-            {/* Edit Icon */}
-            <button
-              onClick={(e) => handleEdit(projectItem, e)}
-              disabled={actionsDisabled}
-              className={`p-2 rounded-full transition-colors duration-200 ${
-                actionsDisabled 
-                  ? 'opacity-50 cursor-not-allowed text-gray-400' 
-                  : 'hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'
-              }`}
-              title="Edit Project"
-            >
-              <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
-            </button>
-
-            {/* Delete Icon */}
-            <button
-              onClick={(e) => handleDelete(projectItem, e)}
-              disabled={actionsDisabled}
-              className={`p-2 rounded-full transition-colors duration-200 ${
-                actionsDisabled 
-                  ? 'opacity-50 cursor-not-allowed text-gray-400' 
-                  : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
-              }`}
-              title="Delete Project"
-            >
-              <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
-            </button>
+            {userRole === 'admin' && (
+              <>
+                <button
+                  onClick={(e) => handleEdit(projectItem, e)}
+                  disabled={actionsDisabled}
+                  className={`p-2 rounded-full transition-colors duration-200 ${
+                    actionsDisabled 
+                      ? 'opacity-50 cursor-not-allowed text-gray-400' 
+                      : 'hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'
+                  }`}
+                  title="Edit Project"
+                >
+                  <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={(e) => handleDelete(projectItem, e)}
+                  disabled={actionsDisabled}
+                  className={`p-2 rounded-full transition-colors duration-200 ${
+                    actionsDisabled 
+                      ? 'opacity-50 cursor-not-allowed text-gray-400' 
+                      : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
+                  }`}
+                  title="Delete Project"
+                >
+                  <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
         );
     }},
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isDeleting, isUpdating]); // dispatch and navigate are stable
+  ], [isDeleting, isUpdating, userRole]);
 
   const data = useMemo(() => projects || [], [projects]);
   const tableInstance = useTable({ columns: COLUMNS, data, initialState: { pageSize: 10 } }, useGlobalFilter, useSortBy, usePagination, useRowSelect);
@@ -130,7 +126,6 @@ const ProjectList = ({ projects }) => {
   const { pageIndex, pageSize } = state;
 
   if (!projects || projects.length === 0) {
-    // This can be handled by the parent component (ProjectPostPage)
     return null;
   }
 

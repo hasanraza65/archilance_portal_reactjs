@@ -19,25 +19,29 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
             {subTasks.length} task{subTasks.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        <button
-          onClick={onAddSubTaskClick}
-          className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-2.5 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2 text-sm"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        
+        {/* ***** SUDHAAR: Button sirf tabhi show hoga jab onAddSubTaskClick prop ho ***** */}
+        {onAddSubTaskClick && (
+          <button
+            onClick={onAddSubTaskClick}
+            className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-2.5 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2 text-sm"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
-          <span>Add Task</span>
-        </button>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            <span>Add Task</span>
+          </button>
+        )}
       </div>
       {subTasks.length > 0 ? (
         <div className="divide-y divide-slate-100">
@@ -173,14 +177,21 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
             No tasks yet
           </h3>
           <p className="text-slate-500 mb-4 text-sm">
-            Break down this task into smaller, manageable pieces.
+            {onAddSubTaskClick 
+              ? "Break down this task into smaller, manageable pieces." 
+              : "There are no sub-tasks for this item."
+            }
           </p>
-          <button
-            onClick={onAddSubTaskClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors text-sm"
-          >
-            Create First Task
-          </button>
+          
+          {/* ***** SUDHAAR: Yahan bhi button sirf tabhi show hoga jab onAddSubTaskClick prop ho ***** */}
+          {onAddSubTaskClick && (
+            <button
+              onClick={onAddSubTaskClick}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors text-sm"
+            >
+              Create First Task
+            </button>
+          )}
         </div>
       )}
     </div>

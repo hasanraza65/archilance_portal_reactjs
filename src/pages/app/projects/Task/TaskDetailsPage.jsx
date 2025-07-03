@@ -4,9 +4,10 @@ import Cookies from "js-cookie";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// ***** STEP 1: APNA HELPER FUNCTION IMPORT KAREIN *****
-import { getApiPrefix } from "@/pages/utility/apiHelper";
+// Helper functions ko import karein
+import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 
+// Sabhi partial components ko import karein
 import TaskHeader from "./PartialTask/TaskHeader";
 import TaskMetadata from "./PartialTask/TaskMetadata";
 import SubTaskList from "./PartialTask/SubTaskList";
@@ -21,6 +22,7 @@ const TaskDetailsPage = () => {
   const { taskId } = useParams();
   const navigate = useNavigate();
 
+  // State variables
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
   const [subTasks, setSubTasks] = useState([]);
   const [comments, setComments] = useState([]);
@@ -36,29 +38,41 @@ const TaskDetailsPage = () => {
   const [error, setError] = useState(null);
   const [taskFound, setTaskFound] = useState(true);
   const [isUpdatingField, setIsUpdatingField] = useState(false);
-  const [fieldUpdateError, setFieldUpdateError] = useState(null);
   const [isAddSubTaskModalOpen, setIsAddSubTaskModalOpen] = useState(false);
   const [isAssigneeModalOpen, setIsAssigneeModalOpen] = useState(false);
   const [isPriorityDropdownOpen, setIsPriorityDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const priorityDropdownRef = useRef(null);
-  const statusDropdownRef = useRef(null);
   const [allEmployees, setAllEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [isUpdatingAssignees, setIsUpdatingAssignees] = useState(false);
 
+  // Refs
+  const priorityDropdownRef = useRef(null);
+  const statusDropdownRef = useRef(null);
+
+  // Constants
   const toastContainerStyle = { zIndex: 10000 };
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
-  // ***** STEP 2: SIRF EK BAAR PREFIX HASIL KAREIN *****
-  const apiPrefix = getApiPrefix();
+  // --- ROLE-BASED PERMISSIONS ---
+  const userRole = getUserRole();
+  const isCustomer = userRole === 'customer';
+  
+  // Permissions ko saaf variables mein define karein
+  const canEditTaskDetails = !isCustomer;
+  const canManageAssignees = !isCustomer;
+  const canManageSubtasks = !isCustomer;
+  const canChangeStatus = !isCustomer;
+  const canManageComments = userRole === 'admin' || userRole === 'employee'; 
 
-  // ***** STEP 3: DYNAMIC API PATHS BANAYEIN JO AB AUTOMATICALLY ROLE KE MUTABIQ SET HONGE *****
+  // --- DYNAMIC API PATHS ---
+  const apiPrefix = getApiPrefix();
   const taskApiPath = `/api/${apiPrefix}/project-task`;
-  const commentApiPath = `/api/${apiPrefix}/task-comment`;
-  const employeeListApiPath = `/api/${apiPrefix}/employee-user`;
+  const commentApiPath = canManageComments ? `/api/${apiPrefix}/task-comment` : null;
+  const employeeListApiPath = canManageAssignees ? `/api/${apiPrefix}/employee-user` : null;
   const bulkAssignApiPath = `/api/${apiPrefix}/bulk-assign`;
 
+  // --- HELPER FUNCTIONS ---
   const getUserIdFromCookie = () => {
     const userCookie = Cookies.get("user");
     if (userCookie) {
@@ -83,7 +97,11 @@ const TaskDetailsPage = () => {
     return token;
   };
   
+  // --- DATA FETCHING & HANDLERS ---
+  
   const initialFetchAndSetup = async (currentTaskId) => {
+    if (!canManageComments) return; // Permission check: Comments fetch na karein
+
     const authToken = getAuthToken();
     if (!authToken) return;
 
@@ -180,7 +198,10 @@ const TaskDetailsPage = () => {
         setParentTaskDetails(data);
         setSubTasks(data.sub_tasks || []);
         
-        await initialFetchAndSetup(taskId);
+        // Permission check: Sirf tabhi comments fetch karein jab ijazat ho
+        if (canManageComments) {
+            await initialFetchAndSetup(taskId);
+        }
         
     } catch (err) {
         setError(err.message || "An unknown error occurred.");
@@ -189,8 +210,12 @@ const TaskDetailsPage = () => {
         if (showLoadingSpinner) setLoading(false);
     }
   };
-
+  
   const fetchAllEmployees = async () => {
+    if (!employeeListApiPath) {
+        setLoadingEmployees(false);
+        return;
+    }
     setLoadingEmployees(true);
     const token = getAuthToken();
     if (!token) { setLoadingEmployees(false); return; }
@@ -232,7 +257,7 @@ const TaskDetailsPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-const handleUpdateTaskField = async (fieldName, value) => {
+  const handleUpdateTaskField = async (fieldName, value) => {
     setIsUpdatingField(true);
     const token = getAuthToken();
     if (!token) {
@@ -329,11 +354,9 @@ const handleUpdateTaskField = async (fieldName, value) => {
       }
 
       await initialFetchAndSetup(taskId);
-
       setNewComment("");
       toast.success(responseData.message || "Comment posted!");
       return true;
-
     } catch (err) {
       setCommentError(err.message);
       toast.error(`Failed to post comment: ${err.message}`);
@@ -361,10 +384,8 @@ const handleUpdateTaskField = async (fieldName, value) => {
       }
       
       await initialFetchAndSetup(taskId);
-      
       toast.success("Comment updated successfully!");
       return true;
-
     } catch (err) {
       setCommentError(err.message);
       toast.error(`Comment update failed: ${err.message}`);
@@ -389,10 +410,9 @@ const handleUpdateTaskField = async (fieldName, value) => {
       }
       
       await initialFetchAndSetup(taskId);
-      
       return true;
-
-    } catch (err) {
+    } catch (err)
+    {
       setCommentError(err.message);
       toast.error(`Comment delete failed: ${err.message}`);
       return false;
@@ -416,20 +436,11 @@ const handleUpdateTaskField = async (fieldName, value) => {
 
       const fetchedParentCommentData = await response.json();
       const parentCommentDetail = fetchedParentCommentData.data || fetchedParentCommentData;
-      const newRepliesFromApi = parentCommentDetail.replies || [];
 
       setComments(prevComments => {
-        const updatedList = prevComments.map(c => {
-            if (c.id === parentCommentId) {
-                return { ...c, ...parentCommentDetail, replies_count: parentCommentDetail.replies.length };
-            }
-            return c;
-        });
-
-        const existingCommentIds = new Set(updatedList.map(c => c.id));
-        const trulyNewReplies = newRepliesFromApi.filter(reply => !existingCommentIds.has(reply.id));
-        
-        return [...updatedList, ...trulyNewReplies];
+        return prevComments.map(c => 
+            c.id === parentCommentId ? { ...c, ...parentCommentDetail, replies_count: parentCommentDetail.replies.length } : c
+        );
       });
 
     } catch (error) {
@@ -437,21 +448,32 @@ const handleUpdateTaskField = async (fieldName, value) => {
     }
   };
 
+
+  // --- RENDER LOGIC ---
+
   if (loading) return <LoadingState />;
   if (error || !taskFound || !parentTaskDetails)
-    return (
-        <ErrorState title={!taskFound ? "Task Not Found" : "Error"} message={error} />
-    );
+    return <ErrorState title={!taskFound ? "Task Not Found" : "Error"} message={error} />;
 
   const currentAssignees = parentTaskDetails.assignees || [];
   const currentAssigneeUserIds = currentAssignees.map(a => a?.user?.id).filter(id => id != null);
+  
+  // Dynamic layout classes based on comment visibility
+  const gridLayoutClass = canManageComments 
+    ? "grid lg:grid-cols-3 gap-6"
+    : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
+
+  const mainContentClass = canManageComments 
+    ? "lg:col-span-2 space-y-6"
+    : "space-y-6";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100">
       <ToastContainer {...toastContainerStyle} position="top-right" autoClose={3000} theme="colored" />
       <div className="container mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className={gridLayoutClass}>
+          
+          <div className={mainContentClass}>
             <div className="bg-white rounded-2xl shadow-xl border border-slate-200">
               <TaskHeader
                  taskTitle={parentTaskDetails.task_title}
@@ -461,52 +483,60 @@ const handleUpdateTaskField = async (fieldName, value) => {
                  statusDropdownRef={statusDropdownRef}
                  handleUpdateTaskField={handleUpdateTaskField}
                  isUpdatingField={isUpdatingField}
+                 isEditable={canChangeStatus}
               />
               <TaskMetadata
                 description={parentTaskDetails.task_description}
                 priority={parentTaskDetails.priority}
                 dueDate={parentTaskDetails.due_date}
                 currentAssignees={currentAssignees}
-                onOpenAssigneeModal={() => setIsAssigneeModalOpen(true)}
+                onOpenAssigneeModal={canManageAssignees ? () => setIsAssigneeModalOpen(true) : null}
                 isPriorityDropdownOpen={isPriorityDropdownOpen}
                 setIsPriorityDropdownOpen={setIsPriorityDropdownOpen}
                 priorityDropdownRef={priorityDropdownRef}
                 handleUpdateTaskField={handleUpdateTaskField}
-                onDescriptionUpdate={(newDescription) => handleUpdateTaskField("description", newDescription)}
+                onDescriptionUpdate={canEditTaskDetails ? (newDescription) => handleUpdateTaskField("description", newDescription) : null}
                 isUpdatingField={isUpdatingField}
+                isEditable={canEditTaskDetails}
               />
             </div>
             <SubTaskList
               subTasks={subTasks}
-              onAddSubTaskClick={() => setIsAddSubTaskModalOpen(true)}
+              onAddSubTaskClick={canManageSubtasks ? () => setIsAddSubTaskModalOpen(true) : null}
               parentTaskId={taskId}
               onSubTaskUpdated={async () => await fetchTaskData(false)}
+              isEditable={canManageSubtasks}
             />
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
           </div>
 
-          <div className="lg:col-span-1">
-            <CommentList
-              comments={comments}
-              newComment={newComment}
-              setNewComment={setNewComment}
-              handleCommentSubmit={handleCommentSubmit}
-              isSubmittingComment={isSubmittingComment}
-              commentError={commentError}
-              taskId={taskId}
-              onEditComment={handleEditComment}
-              onDeleteComment={handleDeleteComment}
-              currentUserId={currentUserId}
-              onLoadOlderComments={handleLoadOlderComments}
-              isLoadingOlderComments={isLoadingOlderComments}
-              allCommentsLoaded={allCommentsLoaded}
-              totalCommentsFromApi={totalCommentsFromApi}
-              onLoadRepliesForComment={onLoadRepliesForComment}
-            />
-          </div>
+          {/* Conditional Rendering for the Comment Section */}
+          {canManageComments && (
+            <div className="lg:col-span-1">
+              <CommentList
+                comments={comments}
+                newComment={newComment}
+                setNewComment={setNewComment}
+                handleCommentSubmit={handleCommentSubmit}
+                isSubmittingComment={isSubmittingComment}
+                commentError={commentError}
+                taskId={taskId}
+                onEditComment={handleEditComment}
+                onDeleteComment={handleDeleteComment}
+                currentUserId={currentUserId}
+                onLoadOlderComments={handleLoadOlderComments}
+                isLoadingOlderComments={isLoadingOlderComments}
+                allCommentsLoaded={allCommentsLoaded}
+                totalCommentsFromApi={totalCommentsFromApi}
+                onLoadRepliesForComment={onLoadRepliesForComment}
+              />
+            </div>
+          )}
         </div>
       </div>
-      {isAddSubTaskModalOpen && parentTaskDetails && (
+      
+      {/* Conditional Rendering for Modals */}
+      {canManageSubtasks && isAddSubTaskModalOpen && parentTaskDetails && (
           <AddSubTaskModal
             isOpen={isAddSubTaskModalOpen}
             onClose={() => setIsAddSubTaskModalOpen(false)}
@@ -515,7 +545,7 @@ const handleUpdateTaskField = async (fieldName, value) => {
             onSubTaskAdded={async () => await fetchTaskData(false)}
           />
         )}
-      {isAssigneeModalOpen && parentTaskDetails && !loadingEmployees && (
+      {canManageAssignees && isAssigneeModalOpen && parentTaskDetails && !loadingEmployees && (
         <AssigneeModal
           isOpen={isAssigneeModalOpen}
           onClose={() => setIsAssigneeModalOpen(false)}

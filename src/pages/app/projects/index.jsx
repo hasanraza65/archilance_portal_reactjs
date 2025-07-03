@@ -15,13 +15,13 @@ import AddProject from "./AddProject";
 import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getApiPrefix } from "@/pages/utility/apiHelper"; // --- CHANGE IS HERE ---
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const ProjectPostPage = () => {
   const [filler, setFiller] = useState("grid");
   const { width, breakpoints } = useWidth();
   const [isViewLoading, setIsViewLoading] = useState(false);
-  const userRole = getApiPrefix(); // --- CHANGE IS HERE ---
+  const userRole = getApiPrefix();
 
   const dispatch = useDispatch();
   const {
@@ -113,7 +113,6 @@ const ProjectPostPage = () => {
             iconClass="text-lg"
             disabled={anyOperationPending}
           />
-          {/* --- CHANGE IS HERE: Conditionally render Add Project button --- */}
           {userRole !== 'employee' && userRole !== 'customer' && (
             <Button
               icon="heroicons-outline:plus"

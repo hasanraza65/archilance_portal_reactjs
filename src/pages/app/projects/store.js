@@ -2,19 +2,19 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
-import { getApiPrefix } from "@/pages/utility/apiHelper"; // --- CHANGE IS HERE ---
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const API_ROOT = "https://demo.aentora.com/backend/public/api";
 
-// --- CHANGE IS HERE: Updated to use your getApiPrefix function ---
 const getProjectPath = () => {
-  const role = getApiPrefix(); // This will return 'admin', 'employee', or null
+  const role = getApiPrefix();
 
   if (role === "employee") {
     return "/employee/project";
   }
-  // For 'admin' or any other case, default to the admin path.
-  // The authentication check in the thunk will handle unauthorized access.
+  if (role === "customer") {
+    return "/customer/project";
+  }
   return "/admin/project";
 };
 
