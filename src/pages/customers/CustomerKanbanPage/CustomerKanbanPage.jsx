@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Menu } from "@headlessui/react"; // For the dropdown menu
+import { Menu } from "@headlessui/react";
 import { v4 as uuidv4 } from "uuid";
-import DOMPurify from "dompurify"; // For safely rendering HTML descriptions
+import DOMPurify from "dompurify";
 import {
   Loader2,
   AlertCircle,
@@ -21,9 +21,9 @@ const STATUS_TO_COLUMN_MAP = {
   Completed: { name: "Completed", color: "#7ED321", order: 3 },
 };
 
-// --- Helper: NEW Task Card Component (Styled to match your employee Task.js) ---
+// --- Helper: Task Card Component ---
 const CustomerTaskCard = ({ task }) => {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Use the navigate hook here
   const {
     task_title: name,
     task_description: des,
@@ -35,12 +35,13 @@ const CustomerTaskCard = ({ task }) => {
   const hasActualDescription =
     sanitizedDescription.replace(/<[^>]*>/g, "").trim().length > 0;
 
+  // --- THIS IS THE KEY CHANGE ---
   const handleViewDetails = () => {
-    // NOTE: You will need to create a TaskDetailsPage and a route like `/task/:taskId` for this to work.
     if (id) {
-      // navigate(`/task/${id}`);
-      console.log(`Navigate to details for task ID: ${id}`);
-      alert(`This would navigate to the details page for task: "${name}"`);
+      // Navigate to the Task Details Page with the task's ID
+      navigate(`/task/${id}`);
+    } else {
+      console.error("Cannot navigate: Task ID is missing.");
     }
   };
 
@@ -134,200 +135,150 @@ const CustomerTaskCard = ({ task }) => {
 
 // --- Main Page Component ---
 const CustomerKanbanPage = () => {
-  const { projectId } = useParams();
-  const token = Cookies.get("token");
-  const API_BASE_URL = "https://demo.aentora.com/backend/public/api/customer";
-
-  const [columns, setColumns] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!token || !projectId) {
-      setError("Authentication token or Project ID is missing.");
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchTasks = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/project-task?project_id=${projectId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(
-            errData.message ||
-              `Failed to fetch tasks. Status: ${response.status}`
-          );
-        }
-        const tasksFromApi = await response.json();
-
-        const columnsMap = {};
-        Object.keys(STATUS_TO_COLUMN_MAP).forEach((key) => {
-          columnsMap[key] = {
-            id: uuidv4(),
-            ...STATUS_TO_COLUMN_MAP[key],
-            tasks: [],
-          };
-        });
-
-        if (Array.isArray(tasksFromApi)) {
-          tasksFromApi.forEach((task) => {
-            if (columnsMap[task.task_status]) {
-              task.id = String(task.id);
-              columnsMap[task.task_status].tasks.push(task);
-            } else {
-              console.warn(`Unknown task status: "${task.task_status}"`);
-            }
-          });
-        }
-        const sortedColumns = Object.values(columnsMap).sort(
-          (a, b) => a.order - b.order
-        );
-        setColumns(sortedColumns);
-      } catch (err) {
-        setError(err.message);
-      } finally {
+    const { projectId } = useParams();
+    const token = Cookies.get("token");
+    const API_BASE_URL = "https://demo.aentora.com/backend/public/api/customer";
+  
+    const [columns, setColumns] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+  
+    useEffect(() => {
+      if (!token || !projectId) {
+        setError("Authentication token or Project ID is missing.");
         setIsLoading(false);
+        return;
       }
-    };
-    fetchTasks();
-  }, [projectId, token]);
-
-  const onDragEnd = () => {};
-
-  if (isLoading && columns.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-slate-900">
-        <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-slate-900 p-4">
-        <div className="text-center p-8 bg-white dark:bg-slate-800 rounded-lg shadow-md">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-red-700">
-            Failed to load Kanban Board
-          </h2>
-          <p className="text-gray-600 dark:text-slate-300 mt-2">{error}</p>
-          <Link
-            to="/projects"
-            className="mt-6 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Back to Order Details
-          </Link>
+  
+      const fetchTasks = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/project-task?project_id=${projectId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(
+              errData.message ||
+                `Failed to fetch tasks. Status: ${response.status}`
+            );
+          }
+          const tasksFromApi = await response.json();
+  
+          const columnsMap = {};
+          Object.keys(STATUS_TO_COLUMN_MAP).forEach((key) => {
+            columnsMap[key] = {
+              id: uuidv4(),
+              ...STATUS_TO_COLUMN_MAP[key],
+              tasks: [],
+            };
+          });
+  
+          if (Array.isArray(tasksFromApi)) {
+            tasksFromApi.forEach((task) => {
+              if (columnsMap[task.task_status]) {
+                task.id = String(task.id);
+                columnsMap[task.task_status].tasks.push(task);
+              } else {
+                console.warn(`Unknown task status: "${task.task_status}"`);
+              }
+            });
+          }
+          const sortedColumns = Object.values(columnsMap).sort(
+            (a, b) => a.order - b.order
+          );
+          setColumns(sortedColumns);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchTasks();
+    }, [projectId, token]);
+  
+    const onDragEnd = () => {};
+  
+    if (isLoading && columns.length === 0) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-slate-900">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gray-100 dark:bg-slate-900 min-h-screen">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="mb-6">
-          <Link
-            to="/projects"
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold"
-          >
-            <ArrowLeft size={18} />
-            Back to Order Details
-          </Link>
+      );
+    }
+    if (error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-slate-900 p-4">
+          <div className="text-center p-8 bg-white dark:bg-slate-800 rounded-lg shadow-md">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-red-700">
+              Failed to load Kanban Board
+            </h2>
+            <p className="text-gray-600 dark:text-slate-300 mt-2">{error}</p>
+            <Link
+              to="/"
+              className="mt-6 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Back to Order Details
+            </Link>
+          </div>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-200 mb-6 flex items-center gap-3">
-          <Trello className="w-8 h-8 text-blue-600" />
-          Project Kanban Board
-        </h1>
-
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="board" type="COLUMN" direction="horizontal">
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className="flex space-x-6 overflow-x-auto pb-4"
-              >
-                {columns.length > 0 ? (
-                  columns.map((column, index) => (
-                    <Draggable
-                      key={column.id}
-                      draggableId={column.id}
-                      index={index}
-                    >
-                      {(providedDraggable) => (
-                        <div
-                          ref={providedDraggable.innerRef}
-                          {...providedDraggable.draggableProps}
-                        >
-                          <div className="w-[320px] flex-none h-full rounded-md bg-slate-200 dark:bg-slate-700 shadow-md">
-                            <div
-                              className="relative flex justify-between items-center bg-white dark:bg-slate-800 rounded-t-md shadow-sm px-6 py-5"
-                              {...providedDraggable.dragHandleProps}
-                            >
-                              <div
-                                className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full"
-                                style={{ backgroundColor: column.color }}
-                              ></div>
-                              <div className="text-lg text-slate-900 dark:text-white font-medium capitalize truncate pr-2">
-                                {column.name} ({column.tasks.length})
-                              </div>
-                            </div>
-                            <Droppable droppableId={column.id} type="TASK">
-                              {(providedTasks, snapshotTasks) => (
-                                <div
-                                  ref={providedTasks.innerRef}
-                                  {...providedTasks.droppableProps}
-                                  className={`px-2 py-4 h-full min-h-[100px] space-y-4 rounded-b-md transition-colors ${
-                                    snapshotTasks.isDraggingOver
-                                      ? "bg-slate-300/60 dark:bg-slate-700/60"
-                                      : ""
-                                  }`}
-                                >
-                                  {column.tasks.map((task, taskIndex) => (
-                                    <Draggable
-                                      key={task.id}
-                                      draggableId={task.id}
-                                      index={taskIndex}
-                                    >
-                                      {(providedTask) => (
-                                        <div
-                                          ref={providedTask.innerRef}
-                                          {...providedTask.draggableProps}
-                                          {...providedTask.dragHandleProps}
-                                        >
-                                          <CustomerTaskCard task={task} />
+      );
+    }
+  
+    return (
+        <div className="bg-gray-100 dark:bg-slate-900 min-h-screen">
+        <div className="p-4 sm:p-6 lg:p-8">
+            <div className="mb-6"><Link to="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold"><ArrowLeft size={18} />Back to Order Details</Link></div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-200 mb-6 flex items-center gap-3"><Trello className="w-8 h-8 text-blue-600" />Project Kanban Board</h1>
+            
+            <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+                    {(provided) => (
+                         <div ref={provided.innerRef} {...provided.droppableProps} className="flex space-x-6 overflow-x-auto pb-4">
+                            {columns.length > 0 ? columns.map((column, index) => (
+                                <Draggable key={column.id} draggableId={column.id} index={index}>
+                                    {(providedDraggable) => (
+                                         <div ref={providedDraggable.innerRef} {...providedDraggable.draggableProps}>
+                                            <div className="w-[320px] flex-none h-full rounded-md bg-slate-200 dark:bg-slate-700 shadow-md">
+                                                <div className="relative flex justify-between items-center bg-white dark:bg-slate-800 rounded-t-md shadow-sm px-6 py-5" {...providedDraggable.dragHandleProps}>
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full" style={{ backgroundColor: column.color }}></div>
+                                                    <div className="text-lg text-slate-900 dark:text-white font-medium capitalize truncate pr-2">{column.name} ({column.tasks.length})</div>
+                                                </div>
+                                                <Droppable droppableId={column.id} type="TASK">
+                                                    {(providedTasks, snapshotTasks) => (
+                                                        <div ref={providedTasks.innerRef} {...providedTasks.droppableProps} className={`px-2 py-4 h-full min-h-[100px] space-y-4 rounded-b-md transition-colors ${snapshotTasks.isDraggingOver ? 'bg-slate-300/60 dark:bg-slate-700/60' : ''}`}>
+                                                            {column.tasks.map((task, taskIndex) => (
+                                                                <Draggable key={task.id} draggableId={task.id} index={taskIndex}>
+                                                                    {(providedTask) => (
+                                                                        <div ref={providedTask.innerRef} {...providedTask.draggableProps} {...providedTask.dragHandleProps}>
+                                                                            <CustomerTaskCard task={task} />
+                                                                        </div>
+                                                                    )}
+                                                                </Draggable>
+                                                            ))}
+                                                            {providedTasks.placeholder}
+                                                        </div>
+                                                    )}
+                                                </Droppable>
+                                            </div>
                                         </div>
-                                      )}
-                                    </Draggable>
-                                  ))}
-                                  {providedTasks.placeholder}
-                                </div>
-                              )}
-                            </Droppable>
-                          </div>
+                                    )}
+                                </Draggable>
+                            )) : (
+                                <div className="text-center p-10 text-slate-500 dark:text-slate-400 w-full">No tasks found for this project.</div>
+                            )}
+                            {provided.placeholder}
                         </div>
-                      )}
-                    </Draggable>
-                  ))
-                ) : (
-                  <div className="text-center p-10 text-slate-500 dark:text-slate-400 w-full">
-                    No tasks found for this project.
-                  </div>
-                )}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </div>
+                    )}
+                </Droppable>
+            </DragDropContext>
+        </div>
     </div>
-  );
+    );
 };
 
 export default CustomerKanbanPage;
