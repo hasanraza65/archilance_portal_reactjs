@@ -23,6 +23,8 @@ import OrderDetailsPage from "./pages/customers/OrderPage/OrderDetailPage";
 import Subscription from "./pages/customers/Subscription/Subscription";
 import UpgradePlan from "./pages/customers/Subscription/UpgradePlan";
 import Checkout from "./pages/customers/Subscription/Checkout";
+import WorkDiaryPage from "./pages/customers/WorkDiaryPage/WorkDiaryPage";
+import CustomerKanbanPage from "./pages/customers/CustomerKanbanPage/CustomerKanbanPage";
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -168,7 +170,7 @@ function App() {
               element={<AdminEmployeeWorkSession />}
             />
 
-            {/* --- Customers YAHAN THA --- */}
+            {/* --- Customers Routes --- */}
             <Route path="customers" element={<AllCustomers />} />
             <Route
               path="/customers/view/:customerId"
@@ -179,10 +181,20 @@ function App() {
               path="/customers/edit/:customerId"
               element={<UpdateCustomer />}
             />
-            <Route path="order-detail" element={<OrderDetailsPage />} />
-              <Route path="subscriptions" element={<Subscription />} />
-              <Route path="/upgrade-plan" element={<UpgradePlan />} />
-              <Route path="/checkout" element={<Checkout />} />
+            
+            {/* =================================================================== */}
+            <Route
+              path="/customer/order-details/:id"
+              element={<OrderDetailsPage />}
+            />
+            <Route path="/order-detail" element={<OrderDetailsPage />} />
+            <Route path="/work-diary/:projectId" element={<WorkDiaryPage />} />
+            <Route path="/kanban/:projectId" element={<CustomerKanbanPage />} />
+            {/* =================================================================== */}
+              
+            <Route path="subscriptions" element={<Subscription />} />
+            <Route path="/upgrade-plan" element={<UpgradePlan />} />
+            <Route path="/checkout" element={<Checkout />} />
 
 
             <Route path="chat" element={<ChatPage />} />

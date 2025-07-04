@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import {
   Clock,
   MessageCircle,
@@ -8,10 +9,12 @@ import {
   ClipboardList,
   ChevronDown,
   ChevronUp,
-  Calendar
+  Calendar,
+  LayoutGrid, // Icon for Kanban
+  BookText    // Icon for Work Diary
 } from "lucide-react";
 
-// Component for collapsible requirements
+// Component for collapsible requirements (No changes)
 const OrderRequirements = ({ text }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const maxLength = 150;
@@ -41,8 +44,7 @@ const OrderRequirements = ({ text }) => {
   );
 };
 
-
-// Refined helper component for Order Status steps with dashed line
+// Refined helper component for Order Status steps (No changes)
 const OrderStatusStep = ({ status, text, isLast = false }) => {
     const statusConfig = {
       done: {
@@ -76,6 +78,8 @@ const OrderStatusStep = ({ status, text, isLast = false }) => {
 
 
 const OrderDetailsPage = () => {
+  const navigate = useNavigate(); // Initialize the navigate hook
+
   const [timeLeft, setTimeLeft] = useState({ days: 2, hours: 14, minutes: 30, seconds: 45 });
   const [messages, setMessages] = useState([
     { id: 1, sender: "seller", content: "Hello! I've started working on your project. I'll deliver it within the promised timeframe.", time: "2:30 PM", avatar: "/api/placeholder/32/32" },
@@ -84,6 +88,9 @@ const OrderDetailsPage = () => {
   ]);
   const [newMessage, setNewMessage] = useState("");
   const orderRequirementsText = "Modern, responsive design with a dark theme. The site must be built using React and Tailwind CSS. Key sections required are: Home, About Us, Services, Portfolio, and a Contact page with a functional form. Please ensure the portfolio section has a filterable gallery. All assets (images, logos) will be provided in a shared Google Drive folder. The primary color should be a deep blue (#1E3A8A) and the accent color should be a vibrant teal (#14B8A6).";
+
+  // For now, let's assume the project ID is 1. In a real app, you'd get this from the order data.
+  const projectId = 1; 
 
   // Timer countdown effect
   useEffect(() => {
@@ -111,23 +118,50 @@ const OrderDetailsPage = () => {
     }
   };
 
+  // --- Navigation Handlers ---
+  const handleWorkDiaryClick = () => {
+    navigate(`/work-diary/${projectId}`);
+  };
+
+  const handleKanbanClick = () => {
+    navigate(`/kanban/${projectId}`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header with Due Date Badge */}
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        {/* Header with Due Date Badge and Action Buttons */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-1">Order Details</h1>
             <p className="text-gray-500">Order #FO12345678</p>
           </div>
-          <div className="mt-3 sm:mt-0">
+          <div className="flex flex-col sm:flex-row-reverse items-start sm:items-center gap-3">
+             {/* Due Date Badge */}
              <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 text-sm font-semibold px-4 py-2 rounded-full">
                 <Calendar size={16} />
                 <span>Due on: March 15, 2024</span>
              </div>
+             {/* Action Buttons */}
+             <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleKanbanClick}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
+                    <LayoutGrid size={16} />
+                    <span>Kanban</span>
+                </button>
+                <button 
+                  onClick={handleWorkDiaryClick}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-br from-teal-500 to-cyan-500 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                >
+                    <BookText size={16} />
+                    <span>Work Diary</span>
+                </button>
+             </div>
           </div>
         </div>
-
+        
         {/* Requirements Section */}
         <OrderRequirements text={orderRequirementsText} />
         
@@ -163,7 +197,7 @@ const OrderDetailsPage = () => {
             </div>
           </div>
 
-          {/* Sidebar Area - Now a flex container */}
+          {/* Sidebar Area */}
           <div className="lg:col-span-1 flex flex-col gap-8">
             {/* Timer Card */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 flex-shrink-0">
@@ -188,7 +222,7 @@ const OrderDetailsPage = () => {
               </div>
             </div>
 
-            {/* Order Status Card - Now a flexible item to fill height */}
+            {/* Order Status Card */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 flex-1 flex flex-col">
               <div className="p-6 pb-0 flex-shrink-0">
                 <div className="flex justify-between items-center">

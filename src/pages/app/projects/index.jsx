@@ -7,10 +7,7 @@ import ProjectList from "./ProjectList";
 import GridLoading from "@/components/skeleton/Grid";
 import TableLoading from "@/components/skeleton/Table";
 import Pagination from "@/components/ui/Pagination";
-import {
-  toggleAddModal,
-  fetchProjectsAPI,
-} from "./store";
+import { toggleAddModal, fetchProjectsAPI } from "./store";
 import AddProject from "./AddProject";
 import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
@@ -21,6 +18,7 @@ const ProjectPostPage = () => {
   const [filler, setFiller] = useState("grid");
   const { width, breakpoints } = useWidth();
   const [isViewLoading, setIsViewLoading] = useState(false);
+  // This userRole will be passed down to child components
   const userRole = getApiPrefix();
 
   const dispatch = useDispatch();
@@ -53,9 +51,12 @@ const ProjectPostPage = () => {
     }
   };
 
-  const anyOperationPending = projectsDataLoading || isDeleting || isAdding || isUpdating;
-  const showGridSkeleton = (projectsDataLoading || isViewLoading) && filler === "grid";
-  const showListSkeleton = (projectsDataLoading || isViewLoading) && filler === "list";
+  const anyOperationPending =
+    projectsDataLoading || isDeleting || isAdding || isUpdating;
+  const showGridSkeleton =
+    (projectsDataLoading || isViewLoading) && filler === "grid";
+  const showListSkeleton =
+    (projectsDataLoading || isViewLoading) && filler === "list";
 
   return (
     <div>
@@ -113,7 +114,7 @@ const ProjectPostPage = () => {
             iconClass="text-lg"
             disabled={anyOperationPending}
           />
-          {userRole !== 'employee' && userRole !== 'customer' && (
+          {userRole !== "employee" && userRole !== "customer" && (
             <Button
               icon="heroicons-outline:plus"
               text="Add Project"
@@ -127,9 +128,16 @@ const ProjectPostPage = () => {
       </div>
 
       {projectsError && !projectsDataLoading && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+          role="alert"
+        >
           <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{typeof projectsError === 'string' ? projectsError : 'An unknown error occurred.'}</span>
+          <span className="block sm:inline">
+            {typeof projectsError === "string"
+              ? projectsError
+              : "An unknown error occurred."}
+          </span>
         </div>
       )}
 
@@ -138,21 +146,33 @@ const ProjectPostPage = () => {
 
       {!projectsDataLoading && !isViewLoading && filler === "grid" && (
         <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
-          {projects && projects.length > 0 ? (
-            projects.map((project) => (
-              <ProjectGrid project={project} key={project.id} />
-            ))
-          ) : (
-            !projectsError && <div className="col-span-full text-center py-10 text-slate-500">No projects found.</div>
-          )}
+          {projects && projects.length > 0
+            ? projects.map((project) => (
+                // *** KEY CHANGE 1: Pass userRole to ProjectGrid ***
+                <ProjectGrid
+                  project={project}
+                  key={project.id}
+                  userRole={userRole}
+                />
+              ))
+            : !projectsError && (
+                <div className="col-span-full text-center py-10 text-slate-500">
+                  No projects found.
+                </div>
+              )}
         </div>
       )}
       {!projectsDataLoading && !isViewLoading && filler === "list" && (
         <div>
           {projects && projects.length > 0 ? (
-            <ProjectList projects={projects} />
+            // *** KEY CHANGE 2: Pass userRole to ProjectList ***
+            <ProjectList projects={projects} userRole={userRole} />
           ) : (
-            !projectsError && <div className="text-center py-10 text-slate-500">No projects found.</div>
+            !projectsError && (
+              <div className="text-center py-10 text-slate-500">
+                No projects found.
+              </div>
+            )
           )}
         </div>
       )}

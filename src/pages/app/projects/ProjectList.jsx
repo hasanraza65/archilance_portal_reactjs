@@ -24,11 +24,17 @@ const ProjectList = ({ projects }) => {
     }
   };
   
-  const handleRowNavigation = (projectId) => projectId && navigate(`/projects/${projectId}`);
+  // **MODIFICATION**: This function now handles navigation based on user role.
+  const handleRowNavigation = (projectId) => {
+    if (!projectId) return;
 
-  const handleView = (item, e) => {
-    e.stopPropagation();
-    navigate(`/projects/${item.id}`);
+    if (userRole === "customer") {
+      // For customers, navigate to the specific order details page.
+      navigate(`/customer/order-details/${projectId}`);
+    } else {
+      // For admin and employees, navigate to the general project details page.
+      navigate(`/projects/${projectId}`);
+    }
   };
 
   const handleEdit = (item, e) => {
@@ -56,69 +62,74 @@ const ProjectList = ({ projects }) => {
     });
   };
 
-  const COLUMNS = useMemo(() => [
-    { Header: "Name", accessor: "name", Cell: ({ cell: { value } }) => {
-        const initials = value ? (value.charAt(0) + (value.charAt(1) || "")).toUpperCase() : "NA";
-        return (
-          <div className="flex space-x-3 items-center text-left rtl:space-x-reverse">
-            <div className="flex-none">
-              <div className="h-10 w-10 rounded-full text-sm bg-slate-100 dark:bg-slate-700 flex flex-col items-center justify-center font-medium -tracking-[1px]">
-                {initials}
+  // **MODIFICATION**: Columns are now conditionally generated based on userRole.
+  const COLUMNS = useMemo(() => {
+    const baseColumns = [
+      { Header: "Name", accessor: "name", Cell: ({ cell: { value } }) => {
+          const initials = value ? (value.charAt(0) + (value.charAt(1) || "")).toUpperCase() : "NA";
+          return (
+            <div className="flex space-x-3 items-center text-left rtl:space-x-reverse">
+              <div className="flex-none">
+                <div className="h-10 w-10 rounded-full text-sm bg-slate-100 dark:bg-slate-700 flex flex-col items-center justify-center font-medium -tracking-[1px]">
+                  {initials}
+                </div>
+              </div>
+              <div className="flex-1 font-medium text-sm leading-4 whitespace-nowrap">
+                {value && value.length > 25 ? value.substring(0, 25) + "..." : value || "N/A"}
               </div>
             </div>
-            <div className="flex-1 font-medium text-sm leading-4 whitespace-nowrap">
-              {value && value.length > 25 ? value.substring(0, 25) + "..." : value || "N/A"}
+          );
+      }},
+      { Header: "Start Date", accessor: "startDate", Cell: ({ cell: { value } }) => (<span>{formatDate(value)}</span>) },
+      { Header: "End Date", accessor: "endDate", Cell: ({ cell: { value } }) => (<div>{formatDate(value)}</div>) },
+    ];
+    
+    // The "Action" column is only added if the user is NOT a customer.
+    if (userRole !== 'customer') {
+      baseColumns.push({
+        Header: "Action",
+        accessor: "action",
+        Cell: ({ row }) => {
+          const projectItem = row.original;
+          const actionsDisabled = isDeleting || isUpdating;
+
+          return (
+            <div className="flex items-center justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleRowNavigation(projectItem.id); }} // Re-use main nav logic for view
+                className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors duration-200"
+                title="View Project"
+              >
+                <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
+              </button>
+              {userRole === 'admin' && (
+                <>
+                  <button
+                    onClick={(e) => handleEdit(projectItem, e)}
+                    disabled={actionsDisabled}
+                    className={`p-2 rounded-full transition-colors duration-200 ${actionsDisabled ? 'opacity-50 cursor-not-allowed text-gray-400' : 'hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'}`}
+                    title="Edit Project"
+                  >
+                    <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => handleDelete(projectItem, e)}
+                    disabled={actionsDisabled}
+                    className={`p-2 rounded-full transition-colors duration-200 ${actionsDisabled ? 'opacity-50 cursor-not-allowed text-gray-400' : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'}`}
+                    title="Delete Project"
+                  >
+                    <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
-          </div>
-        );
-    }},
-    { Header: "Start Date", accessor: "startDate", Cell: ({ cell: { value } }) => (<span>{formatDate(value)}</span>) },
-    { Header: "End Date", accessor: "endDate", Cell: ({ cell: { value } }) => (<div>{formatDate(value)}</div>) },
-    { Header: "Action", accessor: "action", Cell: ({ row }) => {
-        const projectItem = row.original;
-        const actionsDisabled = isDeleting || isUpdating;
-        
-        return (
-          <div className="flex items-center justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={(e) => handleView(projectItem, e)}
-              className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors duration-200"
-              title="View Project"
-            >
-              <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
-            </button>
-            {userRole === 'admin' && (
-              <>
-                <button
-                  onClick={(e) => handleEdit(projectItem, e)}
-                  disabled={actionsDisabled}
-                  className={`p-2 rounded-full transition-colors duration-200 ${
-                    actionsDisabled 
-                      ? 'opacity-50 cursor-not-allowed text-gray-400' 
-                      : 'hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'
-                  }`}
-                  title="Edit Project"
-                >
-                  <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={(e) => handleDelete(projectItem, e)}
-                  disabled={actionsDisabled}
-                  className={`p-2 rounded-full transition-colors duration-200 ${
-                    actionsDisabled 
-                      ? 'opacity-50 cursor-not-allowed text-gray-400' 
-                      : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
-                  }`}
-                  title="Delete Project"
-                >
-                  <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
-        );
-    }},
-  ], [isDeleting, isUpdating, userRole]);
+          );
+        }
+      });
+    }
+
+    return baseColumns;
+  }, [isDeleting, isUpdating, userRole]);
 
   const data = useMemo(() => projects || [], [projects]);
   const tableInstance = useTable({ columns: COLUMNS, data, initialState: { pageSize: 10 } }, useGlobalFilter, useSortBy, usePagination, useRowSelect);

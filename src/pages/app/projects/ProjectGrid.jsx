@@ -8,17 +8,27 @@ import { useNavigate } from "react-router-dom";
 import { deleteProjectAPI, setEditModalAndItem } from "./store";
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
-import { getApiPrefix } from "@/pages/utility/apiHelper";
 
-const ProjectGrid = ({ project }) => {
+// **MODIFICATION**: Added userRole as a prop to use it for conditional logic.
+const ProjectGrid = ({ project, userRole }) => {
   const { id, name, des, startDate, endDate } = project;
   const dispatch = useDispatch();
   const { isDeleting, isUpdating } = useSelector(state => state.project);
   const navigate = useNavigate();
-  const userRole = getApiPrefix();
 
-  const handleCardNavigation = () => id && navigate(`/projects/${id}`);
-  const handleViewClick = (proj) => proj?.id && navigate(`/projects/${proj.id}`);
+  // **MODIFICATION**: This function now handles navigation based on user role.
+  const handleCardClick = () => {
+    if (!id) return;
+    
+    if (userRole === 'customer') {
+      // For customers, navigate to the specific order details page.
+      navigate(`/customer/order-details/${id}`);
+    } else {
+      // For admin and employees, navigate to the general project details page.
+      navigate(`/projects/${id}`);
+    }
+  };
+
   const handleEditClick = (proj) => {
     dispatch(setEditModalAndItem({ open: true, project: proj }));
   };
@@ -57,7 +67,8 @@ const ProjectGrid = ({ project }) => {
   const actionsDisabled = isDeleting || isUpdating;
 
   return (
-    <Card className="cursor-pointer hover:shadow-lg transition-shadow duration-150" onClick={handleCardNavigation}>
+    // **MODIFICATION**: The onClick now calls the new role-aware function.
+    <Card className="cursor-pointer hover:shadow-lg transition-shadow duration-150" onClick={handleCardClick}>
       <header className="flex justify-between items-end">
         <div className="flex space-x-4 items-center rtl:space-x-reverse">
           <div className="flex-none">
@@ -71,62 +82,63 @@ const ProjectGrid = ({ project }) => {
             </div>
           </div>
         </div>
-        <div onClick={(e) => e.stopPropagation()}>
-          <Dropdown
-            classMenuItems="w-[130px]"
-            label={
-              <span className="text-lg inline-flex flex-col items-center justify-center h-8 w-8 rounded-full bg-gray-500/10 dark:bg-slate-900 dark:text-slate-400">
-                <Icon icon="heroicons-outline:dots-vertical" />
-              </span>
-            }
-          >
-            <div className="divide-y divide-slate-100 dark:divide-slate-700">
-              <MenuItem as="div">
-                {({ active }) => (
-                  <div
-                    onClick={(e) => { e.stopPropagation(); handleViewClick(project); }}
-                    className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}
-                    ${actionsDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                    w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
-                  >
-                    <span className="text-base"><Icon icon="heroicons:eye" /></span>
-                    <span>View</span>
-                  </div>
+        
+        {/* **MODIFICATION**: The entire dropdown menu is now hidden for customers. */}
+        {userRole !== 'customer' && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dropdown
+              classMenuItems="w-[130px]"
+              label={
+                <span className="text-lg inline-flex flex-col items-center justify-center h-8 w-8 rounded-full bg-gray-500/10 dark:bg-slate-900 dark:text-slate-400">
+                  <Icon icon="heroicons-outline:dots-vertical" />
+                </span>
+              }
+            >
+              <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {/* View action is available to non-customers */}
+                  <MenuItem as="div">
+                    {({ active }) => (
+                      <div
+                        onClick={(e) => { e.stopPropagation(); handleCardClick(); }} // Re-use the main click logic
+                        className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"} cursor-pointer w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
+                      >
+                        <span className="text-base"><Icon icon="heroicons:eye" /></span>
+                        <span>View</span>
+                      </div>
+                    )}
+                  </MenuItem>
+                
+                {/* Admin-specific actions */}
+                {userRole === 'admin' && (
+                  <>
+                    <MenuItem as="div" disabled={actionsDisabled}>
+                      {({ active }) => (
+                        <div
+                          onClick={(e) => { e.stopPropagation(); handleEditClick(project); }}
+                          className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"} ${actionsDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
+                        >
+                          <span className="text-base"><Icon icon="heroicons-outline:pencil-alt" /></span>
+                          <span>Edit</span>
+                        </div>
+                      )}
+                    </MenuItem>
+                    <MenuItem as="div" disabled={isDeleting}>
+                      {({ active }) => (
+                        <div
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(project.id, project.name); }}
+                          className={`${active ? "bg-red-500 bg-opacity-20 text-red-600 dark:text-red-400 dark:bg-opacity-30" : "text-red-500 dark:text-red-400"} ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
+                        >
+                          <span className="text-base"><Icon icon="heroicons-outline:trash" /></span>
+                          <span>Delete</span>
+                        </div>
+                      )}
+                    </MenuItem>
+                  </>
                 )}
-              </MenuItem>
-              {userRole === 'admin' && (
-                <>
-                  <MenuItem as="div" disabled={actionsDisabled}>
-                    {({ active }) => (
-                      <div
-                        onClick={(e) => { e.stopPropagation(); handleEditClick(project); }}
-                        className={`${active ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}
-                        ${actionsDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                        w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
-                      >
-                        <span className="text-base"><Icon icon="heroicons-outline:pencil-alt" /></span>
-                        <span>Edit</span>
-                      </div>
-                    )}
-                  </MenuItem>
-                  <MenuItem as="div" disabled={isDeleting}>
-                    {({ active }) => (
-                      <div
-                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(project.id, project.name); }}
-                        className={`${active ? "bg-red-500 bg-opacity-20 text-red-600 dark:text-red-400 dark:bg-opacity-30" : "text-red-500 dark:text-red-400"}
-                        ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                        w-full px-4 py-2 text-sm last:mb-0 first:rounded-t last:rounded-b flex space-x-2 items-center capitalize rtl:space-x-reverse`}
-                      >
-                        <span className="text-base"><Icon icon="heroicons-outline:trash" /></span>
-                        <span>Delete</span>
-                      </div>
-                    )}
-                  </MenuItem>
-                </>
-              )}
-            </div>
-          </Dropdown>
-        </div>
+              </div>
+            </Dropdown>
+          </div>
+        )}
       </header>
 
       <div className="text-slate-600 dark:text-slate-400 text-sm pt-4 pb-6 min-h-[50px] break-words prose prose-sm max-w-none dark:prose-invert">
