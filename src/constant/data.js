@@ -72,6 +72,13 @@ export const menuItems = [
     link: "chat",
     allowedRoles: ["admin", "employee"], // Sirf admin aur employee ko
   },
+   {
+    title: "Leaves",
+    isHide: true,
+    icon: "heroicons-outline:calendar-days",
+    link: "leaves",
+    allowedRoles: ["admin"], // Sirf admin aur employee ko
+  },
   {
     title: "Employees",
     isHide: true,
@@ -93,13 +100,13 @@ export const menuItems = [
     link: "work-session",
     allowedRoles: ["employee"], // Sirf admin ko
   },
-  //  {
-  //   title: "Orders",
-  //   isHide: true,
-  //   icon: "heroicons-outline:shopping-cart",
-  //   link: "order-detail",
-  //   allowedRoles: ["customer"], // Sirf customer ko
-  // },
+   {
+    title: "Leaves",
+    isHide: true,
+    icon: "heroicons-outline:calendar-days",
+    link: "employeeleaves",
+    allowedRoles: ["employee"], 
+  },
   {
     title: "Subscriptions",
     isHide: true,

@@ -25,6 +25,8 @@ import UpgradePlan from "./pages/customers/Subscription/UpgradePlan";
 import Checkout from "./pages/customers/Subscription/Checkout";
 import WorkDiaryPage from "./pages/customers/WorkDiaryPage/WorkDiaryPage";
 import CustomerKanbanPage from "./pages/customers/CustomerKanbanPage/CustomerKanbanPage";
+import EmployeeDashboard from "./pages/employees/Leave/EmployeeDashboard";
+import LeaveManagementPage from "./pages/AdminLeave/LeaveManagementPage";
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -150,6 +152,7 @@ function App() {
             <Route path="projects/:id" element={<ProjectDetailsPage />} />
             <Route path="/task/:taskId" element={<TaskDetailsPage />} />
             <Route path="/project/:id/kanban" element={<KanbanPage />} />
+            <Route path="leaves" element={<LeaveManagementPage />} />
             <Route
               path="/project-brief/:briefId"
               element={<ProjectBriefDetailPage />}
@@ -169,7 +172,7 @@ function App() {
               path="/employees/work-sessions/:employeeId"
               element={<AdminEmployeeWorkSession />}
             />
-
+            <Route path="employeeleaves" element={<EmployeeDashboard />} />
             {/* --- Customers Routes --- */}
             <Route path="customers" element={<AllCustomers />} />
             <Route
