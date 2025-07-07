@@ -93,13 +93,13 @@ export const menuItems = [
     link: "work-session",
     allowedRoles: ["employee"], // Sirf admin ko
   },
-   {
-    title: "Orders",
-    isHide: true,
-    icon: "heroicons-outline:shopping-cart",
-    link: "order-detail",
-    allowedRoles: ["customer"], // Sirf customer ko
-  },
+  //  {
+  //   title: "Orders",
+  //   isHide: true,
+  //   icon: "heroicons-outline:shopping-cart",
+  //   link: "order-detail",
+  //   allowedRoles: ["customer"], // Sirf customer ko
+  // },
   {
     title: "Subscriptions",
     isHide: true,
