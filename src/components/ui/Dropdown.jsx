@@ -1,3 +1,5 @@
+// src/components/ui/Dropdown.jsx (Corrected)
+
 import {
   Menu,
   MenuButton,
@@ -5,7 +7,7 @@ import {
   MenuItem,
   Transition,
 } from "@headlessui/react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment } from "react";
 import { NavLink } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 
@@ -14,28 +16,19 @@ const Dropdown = ({
   wrapperClass = "inline-block",
   labelClass = "",
   children,
-  anchor = "bottom start",
-  classMenuItems = "mt-2 w-[200px]",
+  classMenuItems = "mt-2 w-[200px]", // You can still override width and margin here
   items = [
     { label: "Action", link: "#" },
     { label: "Another action", link: "#" },
     { label: "Something else here", link: "#" },
   ],
   classItem = "px-4 py-2",
-  className = "",
 }) => {
-  const handleOpenDropdown = () => {
-    if (typeof window !== "undefined") {
-      document.documentElement.style.paddingRight = "0px";
-    }
-  };
   return (
     <div className={`relative ${wrapperClass}`}>
       <Menu>
-        <MenuButton
-          className={`block w-full ${labelClass}`}
-          onClick={handleOpenDropdown}
-        >
+        {/* The onClick handler has been removed from MenuButton */}
+        <MenuButton className={`block w-full ${labelClass}`}>
           {label}
         </MenuButton>
 
@@ -48,11 +41,11 @@ const Dropdown = ({
           leaveFrom="transform opacity-100 scale-100"
           leaveTo="transform opacity-0 scale-95"
         >
+          {/* The styling classes here are now corrected and consistent */}
           <MenuItems
-            className={`absolute ltr:right-0 rtl:left-0 origin-top-right  border border-slate-100
-            rounded bg-white dark:bg-slate-800 dark:border-slate-700 shadow-sm z-9999 focus-visible:outline-none
-            ${classMenuItems}
-            `}
+            className={`absolute ltr:right-0 rtl:left-0 origin-top-right z-[9999] rounded-md
+            bg-white dark:bg-slate-800 shadow-base border border-slate-200 dark:border-slate-700 
+            focus-visible:outline-none ${classMenuItems}`}
           >
             <div>
               {children

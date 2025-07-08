@@ -23,9 +23,7 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <BrowserRouter>
-      {/* Redux Provider bahar hai, bilkul sahi */}
       <Provider store={store}>
-        {/* AuthProvider iske andar hai, bilkul sahi */}
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
             <App />
