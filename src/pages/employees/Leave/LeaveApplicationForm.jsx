@@ -1,14 +1,35 @@
-import React, { useState } from "react";
-import { Calendar, Clock, FileText, Send, User, Edit3 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Calendar, Send, User, Edit3, X } from "lucide-react";
 
-const LeaveApplicationForm = ({ onApplyLeave }) => {
+const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [leaveType, setLeaveType] = useState("");
   const [otherLeaveType, setOtherLeaveType] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Removed showSuccess and submitError states, as toasts will handle this.
+  const isEditMode = !!initialData;
+
+  useEffect(() => {
+    if (isEditMode && initialData) {
+      setStartDate(initialData.start_date || "");
+      setEndDate(initialData.end_date || "");
+      setReason(initialData.reason || "");
+      const type = initialData.leave_type?.toLowerCase() || "";
+      const standardTypes = ["sick", "vacation", "personal"];
+      if (standardTypes.includes(type)) {
+        setLeaveType(type);
+        setOtherLeaveType("");
+      } else if (type) {
+        setLeaveType("other");
+        setOtherLeaveType(initialData.leave_type || "");
+      } else {
+        handleResetForm();
+      }
+    } else {
+      handleResetForm();
+    }
+  }, [initialData, isEditMode]);
 
   const leaveTypes = [
     { value: "sick", label: "Sick Leave" },
@@ -16,12 +37,17 @@ const LeaveApplicationForm = ({ onApplyLeave }) => {
     { value: "personal", label: "Personal Leave" },
     { value: "other", label: "Other" },
   ];
+  const handleResetForm = () => {
+    setStartDate("");
+    setEndDate("");
+    setReason("");
+    setLeaveType("");
+    setOtherLeaveType("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!reason || !startDate || !endDate || !leaveType) {
-      // You can use a toast here too, or a simple alert.
       alert("Please fill in all required fields.");
       return;
     }
@@ -29,64 +55,46 @@ const LeaveApplicationForm = ({ onApplyLeave }) => {
       alert('Please specify the reason for the "Other" leave type.');
       return;
     }
-
     setIsSubmitting(true);
-
     try {
       const finalLeaveType = leaveType === "other" ? otherLeaveType : leaveType;
-      // onApplyLeave will now handle the toast notifications
-      await onApplyLeave({
-        startDate,
-        endDate,
-        reason,
-        leaveType: finalLeaveType,
-      });
-
-      // If onApplyLeave succeeds, reset the form
-      setReason("");
-      setStartDate("");
-      setEndDate("");
-      setLeaveType("");
-      setOtherLeaveType("");
+      await onSubmit({ startDate, endDate, reason, leaveType: finalLeaveType });
+      if (!isEditMode) {
+        handleResetForm();
+      }
     } catch (error) {
-      // The parent component already showed an error toast.
-      // We just need to catch the error here so the form doesn't reset.
-      console.log("Submission failed, form not reset.");
+      console.log("Submission failed, keeping form open for correction.");
     } finally {
-      // This runs after both success and failure
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 rounded-3xl border border-gray-200/50 shadow-inner">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 rounded-3xl">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-4 shadow-lg">
-            <Calendar className="w-8 h-8 text-white" />
+            <Edit3 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Leave Application
+            {isEditMode ? "Edit Leave Request" : "New Leave Application"}
           </h1>
-          <p className="text-gray-600">Submit your leave request with ease</p>
+          <p className="text-gray-600">
+            {isEditMode
+              ? "Update the details of your leave request."
+              : "Fill out the form to apply for leave."}
+          </p>
         </div>
-
-        {/* Success and Error messages are now handled by toasts, so no need for divs here. */}
-
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6">
             <div className="flex items-center space-x-3 text-white">
               <User className="w-6 h-6" />
               <div>
-                <h2 className="text-xl font-semibold">
-                  Employee Leave Request
-                </h2>
+                <h2 className="text-xl font-semibold">Leave Request Details</h2>
               </div>
             </div>
           </div>
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            {/* The form JSX remains the same, only the handler logic changed */}
-            {/* ... (Your existing form fields JSX) ... */}
             <div className="space-y-3">
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Leave Type
@@ -130,7 +138,7 @@ const LeaveApplicationForm = ({ onApplyLeave }) => {
                   id="otherLeaveType"
                   value={otherLeaveType}
                   onChange={(e) => setOtherLeaveType(e.target.value)}
-                  placeholder="e.g., Bereavement, Jury Duty"
+                  placeholder="e.g., Bereavement"
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl"
                   required
                 />
@@ -149,7 +157,11 @@ const LeaveApplicationForm = ({ onApplyLeave }) => {
                   id="startDate"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={
+                    isEditMode
+                      ? undefined
+                      : new Date().toISOString().split("T")[0]
+                  }
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl"
                   required
                 />
@@ -166,7 +178,12 @@ const LeaveApplicationForm = ({ onApplyLeave }) => {
                   id="endDate"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  min={startDate || new Date().toISOString().split("T")[0]}
+                  min={
+                    startDate ||
+                    (isEditMode
+                      ? undefined
+                      : new Date().toISOString().split("T")[0])
+                  }
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl"
                   required
                 />
@@ -193,7 +210,17 @@ const LeaveApplicationForm = ({ onApplyLeave }) => {
                 {reason.length}/200
               </p>
             </div>
-            <div className="pt-4">
+            <div className="pt-4 flex flex-col sm:flex-row gap-3">
+              {isEditMode && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-4 rounded-xl font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                  <span>Cancel Edit</span>
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -206,12 +233,14 @@ const LeaveApplicationForm = ({ onApplyLeave }) => {
                 {isSubmitting ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Submitting...</span>
+                    <span>{isEditMode ? "Updating..." : "Submitting..."}</span>
                   </>
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    <span>Submit Leave Request</span>
+                    <span>
+                      {isEditMode ? "Update Request" : "Submit Request"}
+                    </span>
                   </>
                 )}
               </button>

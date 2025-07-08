@@ -9,31 +9,29 @@ import {
   AlertCircle,
   PlusCircle,
   X,
+  Edit,
+  Trash2,
   RefreshCw,
   AlertTriangle,
 } from "lucide-react";
-import LeaveApplicationForm from "./LeaveApplicationForm";
 
 const LeaveHistoryTable = ({
+  children,
   leaves = [],
   counts = {},
-  onApplyLeave,
   isLoading,
   error,
   onRefresh,
+  onEdit,
+  onDelete,
+  isFormVisible,
+  onToggleForm,
+  editingLeaveId,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [isFormVisible, setIsFormVisible] = useState(false);
 
-  // Colors should match the 'leave_type' values from your API
-  const leaveTypeColors = {
-    Vacation: "bg-blue-100 text-blue-800",
-    Sick: "bg-purple-100 text-purple-800",
-    Personal: "bg-indigo-100 text-indigo-800",
-    Emergency: "bg-orange-100 text-orange-800",
-  };
-
+  // Configuration for status colors, icons, and text
   const statusConfig = {
     Approved: {
       icon: CheckCircle,
@@ -55,6 +53,15 @@ const LeaveHistoryTable = ({
     },
   };
 
+  // Configuration for leave type colors
+  const leaveTypeColors = {
+    Vacation: "bg-blue-100 text-blue-800",
+    Sick: "bg-purple-100 text-purple-800",
+    Personal: "bg-indigo-100 text-indigo-800",
+    Emergency: "bg-orange-100 text-orange-800",
+  };
+
+  // Filter logic for the leave requests
   const filteredLeaves = leaves.filter((leave) => {
     const searchLower = searchTerm.toLowerCase();
     const reasonMatch = leave.reason.toLowerCase().includes(searchLower);
@@ -63,6 +70,7 @@ const LeaveHistoryTable = ({
     return (reasonMatch || typeMatch) && statusMatch;
   });
 
+  // Helper function to format date strings
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -72,6 +80,7 @@ const LeaveHistoryTable = ({
     });
   };
 
+  // Helper function to calculate leave duration
   const calculateDuration = (start, end) => {
     if (!start || !end) return 0;
     const startDate = new Date(start);
@@ -82,20 +91,9 @@ const LeaveHistoryTable = ({
     return diffDays;
   };
 
-  const handleApplyAndCloseForm = async (leaveData) => {
-    try {
-      await onApplyLeave(leaveData);
-      setIsFormVisible(false); // Close form only on success
-    } catch (error) {
-      // If an error occurs, the form remains open for the user to correct
-      console.log("Submit failed, keeping form open.");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header and Dynamic Stats Cards */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -107,7 +105,7 @@ const LeaveHistoryTable = ({
                   Leave Management
                 </h1>
                 <p className="text-gray-600">
-                  Track and manage your leave requests
+                  Track, apply for, and manage your leave requests
                 </p>
               </div>
             </div>
@@ -163,7 +161,6 @@ const LeaveHistoryTable = ({
               </div>
             </div>
           </div>
-          {/* Filters and Apply Button */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 mb-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -174,7 +171,7 @@ const LeaveHistoryTable = ({
                     placeholder="Search by reason or type..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -182,7 +179,7 @@ const LeaveHistoryTable = ({
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    className="px-4 py-3 rounded-xl border border-gray-200"
                   >
                     <option value="All">All Status</option>
                     <option value="Approved">Approved</option>
@@ -193,7 +190,7 @@ const LeaveHistoryTable = ({
               </div>
               <div className="w-full md:w-auto">
                 <button
-                  onClick={() => setIsFormVisible((prev) => !prev)}
+                  onClick={onToggleForm}
                   className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${
                     isFormVisible
                       ? "bg-gradient-to-r from-gray-500 to-gray-600"
@@ -214,7 +211,6 @@ const LeaveHistoryTable = ({
           </div>
         </div>
 
-        {/* Expandable Form */}
         <div
           className={`transition-all duration-700 ease-in-out overflow-hidden ${
             isFormVisible
@@ -222,12 +218,9 @@ const LeaveHistoryTable = ({
               : "max-h-0 opacity-0"
           }`}
         >
-          {isFormVisible && (
-            <LeaveApplicationForm onApplyLeave={handleApplyAndCloseForm} />
-          )}
+          {isFormVisible && children}
         </div>
 
-        {/* History Table */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
           <div className="overflow-x-auto">
             {isLoading ? (
@@ -255,7 +248,7 @@ const LeaveHistoryTable = ({
                       Details
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Status
+                      Status & Actions
                     </th>
                   </tr>
                 </thead>
@@ -271,7 +264,11 @@ const LeaveHistoryTable = ({
                       return (
                         <tr
                           key={leave.id}
-                          className="hover:bg-blue-50/50 transition-all duration-200 group"
+                          className={`${
+                            editingLeaveId === leave.id
+                              ? "bg-blue-100"
+                              : "hover:bg-blue-50/50"
+                          } transition-all duration-300 group`}
                         >
                           <td className="px-6 py-6">
                             <div className="flex items-center gap-3">
@@ -321,20 +318,42 @@ const LeaveHistoryTable = ({
                             </div>
                           </td>
                           <td className="px-6 py-6">
-                            <div
-                              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm ${
-                                statusConfig[leave.status]?.className ||
-                                "bg-gray-100 text-gray-800"
-                              }`}
-                            >
+                            <div className="flex items-center justify-between">
                               <div
-                                className={`w-2 h-2 rounded-full ${
-                                  statusConfig[leave.status]?.dotColor ||
-                                  "bg-gray-400"
+                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm ${
+                                  statusConfig[leave.status]?.className ||
+                                  "bg-gray-100 text-gray-800"
                                 }`}
-                              ></div>
-                              <StatusIcon className="w-4 h-4" />
-                              {leave.status}
+                              >
+                                <div
+                                  className={`w-2 h-2 rounded-full ${
+                                    statusConfig[leave.status]?.dotColor ||
+                                    "bg-gray-400"
+                                  }`}
+                                ></div>
+                                <StatusIcon className="w-4 h-4" />
+                                {leave.status}
+                              </div>
+                              <div className="flex items-center">
+                                {leave.status === "Pending" && (
+                                  <>
+                                    <button
+                                      onClick={() => onEdit(leave)}
+                                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors ml-2"
+                                      aria-label="Edit Leave Request"
+                                    >
+                                      <Edit className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                      onClick={() => onDelete(leave.id)}
+                                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
+                                      aria-label="Delete Leave Request"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -352,9 +371,7 @@ const LeaveHistoryTable = ({
                               No leaves found
                             </h3>
                             <p className="text-gray-600">
-                              {searchTerm || statusFilter !== "All"
-                                ? "No results for this filter"
-                                : "You have not applied for any leave yet."}
+                              No requests match your criteria.
                             </p>
                           </div>
                         </div>
