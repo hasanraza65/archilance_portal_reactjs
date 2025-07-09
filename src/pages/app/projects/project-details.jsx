@@ -1,4 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import AddTaskModal from "../projects/Task/PartialTask/AddSubTaskModal";
@@ -8,6 +13,430 @@ import EditBriefModal from "./Brief-task/EditBriefModel";
 import Swal from "sweetalert2";
 import DOMPurify from "dompurify";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+import {
+  MessageCircle,
+  Paperclip,
+  Send,
+  Loader,
+  ImageIcon,
+  FileText,
+  Edit,
+  Trash2,
+  XCircle,
+  Undo2,
+} from "lucide-react";
+
+const ConversationBox = ({
+  messages,
+  newMessage,
+  setNewMessage,
+  attachments,
+  setAttachments,
+  onSendMessage,
+  onUpdateMessage,
+  onDeleteMessage,
+  isSending,
+  isLoading,
+  error,
+  currentUserId,
+  apiBaseUrl,
+}) => {
+  const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const isInitialLoad = useRef(true);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editedText, setEditedText] = useState("");
+  const [newAttachmentsForEdit, setNewAttachmentsForEdit] = useState([]);
+  const [attachmentIdsToDelete, setAttachmentIdsToDelete] = useState([]);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+
+  // useEffect(() => {
+  //   if (isInitialLoad.current) {
+  //       if (messages.length > 0) {
+  //           isInitialLoad.current = false;
+  //       }
+  //       return;
+  //   }
+  //   chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [messages]);
+
+
+  const STORAGE_BASE_URL = `${apiBaseUrl}/storage/`;
+
+  const formatTime = (dateString) =>
+    new Date(dateString).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const getFileIcon = (fileName) => {
+    const ext = fileName?.split(".").pop().toLowerCase() || "";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext))
+      return <ImageIcon className="w-6 h-6 text-green-500" />;
+    if (ext === "pdf") return <FileText className="w-6 h-6 text-red-500" />;
+    return <FileText className="w-6 h-6 text-blue-500" />;
+  };
+
+  const handleFileSelect = (e, isEdit = false) => {
+    const targetFiles = Array.from(e.target.files).filter((file) => {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name} is too large (max 10MB).`);
+        return false;
+      }
+      return true;
+    });
+    const newAtts = targetFiles.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      id: `${isEdit ? "edit" : "new"}-${Date.now()}-${file.name}`,
+    }));
+    if (isEdit) {
+      setNewAttachmentsForEdit((prev) => [...prev, ...newAtts]);
+    } else {
+      setAttachments((prev) => [...prev, ...newAtts]);
+    }
+    e.target.value = "";
+  };
+
+  const removeAttachment = (id, isEdit = false) => {
+    const [getter, setter] = isEdit
+      ? [newAttachmentsForEdit, setNewAttachmentsForEdit]
+      : [attachments, setAttachments];
+    setter((prev) => {
+      const att = prev.find((a) => a.id === id);
+      if (att?.preview) URL.revokeObjectURL(att.preview);
+      return prev.filter((a) => a.id !== id);
+    });
+  };
+
+  const handleStartEdit = (message) => {
+    setEditingMessage(message);
+    setEditedText(message.message || "");
+    setNewAttachmentsForEdit([]);
+    setAttachmentIdsToDelete([]);
+  };
+  const handleCancelEdit = () => setEditingMessage(null);
+  const toggleDeleteExistingAttachment = (id) =>
+    setAttachmentIdsToDelete((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+
+  const handleSaveEdit = async () => {
+    setIsProcessingAction(true);
+    const success = await onUpdateMessage(
+      editingMessage.id,
+      editedText,
+      newAttachmentsForEdit.map((a) => a.file),
+      attachmentIdsToDelete
+    );
+    if (success) handleCancelEdit();
+    setIsProcessingAction(false);
+  };
+
+  const handleDelete = async (messageId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this message? This action cannot be undone."
+      )
+    )
+      return;
+    setIsProcessingAction(true);
+    await onDeleteMessage(messageId);
+    setIsProcessingAction(false);
+  };
+
+  const renderAttachment = (url, name, isPreview = false) => {
+    const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(
+      name.split(".").pop().toLowerCase()
+    );
+    const finalUrl = isPreview ? url : `${STORAGE_BASE_URL}${url}`;
+    return (
+      <a
+        href={finalUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block p-1.5 bg-black/5 rounded-lg hover:bg-black/10 transition-colors"
+      >
+        {isImage ? (
+          <img
+            src={finalUrl}
+            alt={name}
+            className="w-20 h-20 object-cover rounded-md border border-white/20"
+          />
+        ) : (
+          <div className="w-20 h-20 flex flex-col items-center justify-center bg-white/10 rounded-md p-1">
+            {getFileIcon(name)}
+            <p className="text-xs text-center mt-2 break-all line-clamp-2">
+              {name}
+            </p>
+          </div>
+        )}
+      </a>
+    );
+  };
+
+  const renderMessageContent = (message, isSentByMe) => (
+    <div className="w-full">
+      {message.message && (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          {message.message}
+        </p>
+      )}
+      {message.attachments?.length > 0 && (
+        <div
+          className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${
+            message.message
+              ? `mt-3 pt-3 border-t ${
+                  isSentByMe ? "border-white/20" : "border-gray-200/80"
+                }`
+              : ""
+          }`}
+        >
+          {message.attachments.map((att) => (
+            <div key={att.id}>
+              {renderAttachment(att.file_path, att.file_name, att.file_path.startsWith('blob:'))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderEditView = () => (
+    <div className="w-full space-y-3">
+      <textarea
+        value={editedText}
+        onChange={(e) => setEditedText(e.target.value)}
+        className="w-full bg-white/20 text-white rounded-lg p-2 text-sm focus:outline-none"
+        rows={3}
+      />
+      {editingMessage.attachments?.length > 0 && (
+        <div>
+          <p className="text-xs font-medium mb-2">Current files:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {editingMessage.attachments.map((att) => {
+              const isMarkedForDeletion = attachmentIdsToDelete.includes(
+                att.id
+              );
+              return (
+                <div key={att.id} className="relative group">
+                  {renderAttachment(att.file_path, att.file_name)}
+                  <button
+                    onClick={() => toggleDeleteExistingAttachment(att.id)}
+                    className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md transition-all ${
+                      isMarkedForDeletion
+                        ? "bg-green-500 hover:bg-green-600"
+                        : "bg-red-500 hover:bg-red-600"
+                    }`}
+                  >
+                    {isMarkedForDeletion ? (
+                      <Undo2 size={12} />
+                    ) : (
+                      <Trash2 size={12} />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {newAttachmentsForEdit.length > 0 && (
+        <div>
+          <p className="text-xs font-medium mb-2">New files to add:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {newAttachmentsForEdit.map((att) => (
+              <div key={att.id} className="relative group">
+                {renderAttachment(att.preview, att.file.name, true)}
+                <button
+                  onClick={() => removeAttachment(att.id, true)}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md bg-red-500 hover:bg-red-600"
+                >
+                  <XCircle size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <label className="inline-flex items-center px-3 py-1.5 border border-dashed border-white/50 rounded-lg cursor-pointer hover:bg-white/10 text-xs">
+        <Paperclip size={12} className="mr-1.5" />
+        Add Files
+        <input
+          type="file"
+          multiple
+          onChange={(e) => handleFileSelect(e, true)}
+          className="hidden"
+        />
+      </label>
+      <div className="flex justify-end gap-2 pt-2 border-t border-white/20">
+        <button
+          onClick={handleCancelEdit}
+          disabled={isProcessingAction}
+          className="text-xs px-3 py-1 rounded-full bg-gray-500 hover:bg-gray-600 text-white"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveEdit}
+          disabled={isProcessingAction}
+          className="text-xs px-3 py-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+        >
+          {isProcessingAction ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/20 h-full flex flex-col overflow-hidden">
+      <div className="p-6 bg-slate-50 dark:bg-slate-900 flex-shrink-0">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl text-white">
+            <MessageCircle className="w-6 h-6" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Project Chat
+          </h3>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {isLoading && (
+          <div className="flex justify-center items-center h-full">
+            <Loader className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        )}
+        {error && (
+          <div className="text-center text-red-500">Error: {error}</div>
+        )}
+        {!isLoading &&
+          messages.map((message) => {
+            const isSentByMe = message.sender_id === currentUserId;
+            const isEditing =
+              editingMessage && editingMessage.id === message.id;
+            return (
+              <div
+                key={message.id}
+                className={`flex items-end gap-3 ${
+                  isSentByMe ? "flex-row-reverse" : ""
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full flex-shrink-0">
+                  {message.sender?.profile_pic ? (
+                    <img
+                      src={`${STORAGE_BASE_URL}${message.sender.profile_pic}`}
+                      alt={message.sender.name}
+                      className="w-full h-full rounded-full object-cover border-2 border-white shadow-md"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg border-2 border-white shadow-md">
+                      {message.sender?.name
+                        ? message.sender.name.charAt(0).toUpperCase()
+                        : "?"}
+                    </div>
+                  )}
+                </div>
+                <div
+                  className={`group relative max-w-md min-w-[150px] px-5 py-3 rounded-2xl shadow-lg ${
+                    isSentByMe
+                      ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-br-md"
+                      : "bg-white/90 dark:bg-slate-700 text-gray-800 dark:text-slate-200 rounded-bl-md"
+                  }`}
+                >
+                  {isEditing
+                    ? renderEditView()
+                    : renderMessageContent(message, isSentByMe)}
+                  <p
+                    className={`text-xs mt-2 text-right ${
+                      isSentByMe ? "text-blue-200" : "text-gray-500 dark:text-slate-400"
+                    }`}
+                  >
+                    {formatTime(message.created_at)}
+                  </p>
+                  {isSentByMe && !isEditing && (
+                    <div className="absolute top-1 -right-12 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleStartEdit(message)}
+                        disabled={isProcessingAction}
+                        className="p-1.5 bg-white dark:bg-slate-600 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-slate-500 disabled:opacity-50"
+                      >
+                        <Edit size={12} className="text-gray-600 dark:text-slate-200" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(message.id)}
+                        disabled={isProcessingAction}
+                        className="p-1.5 bg-white dark:bg-slate-600 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-slate-500 disabled:opacity-50"
+                      >
+                        <Trash2 size={12} className="text-red-500" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        <div ref={chatEndRef} />
+      </div>
+      <div className="p-4 bg-slate-50 dark:bg-slate-900 flex-shrink-0 space-y-3">
+        {attachments.length > 0 && (
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+            {attachments.map((att) => (
+              <div key={att.id} className="relative group">
+                {renderAttachment(att.preview, att.file.name, true)}
+                <button
+                  onClick={() => removeAttachment(att.id)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs shadow-md bg-red-500 hover:bg-red-600"
+                >
+                  <XCircle size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="relative">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type a message..."
+            className="w-full bg-white/80 dark:bg-slate-700/80 border border-gray-200 dark:border-slate-600 text-gray-800 dark:text-slate-200 rounded-2xl pl-12 pr-28 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onKeyPress={(e) =>
+              e.key === "Enter" && !isSending && onSendMessage()
+            }
+            disabled={isSending}
+          />
+          <button
+            onClick={() => fileInputRef.current.click()}
+            className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-600"
+          >
+            <Paperclip className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            multiple
+            hidden
+          />
+          <button
+            onClick={onSendMessage}
+            disabled={
+              isSending || (!newMessage.trim() && attachments.length === 0)
+            }
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-semibold shadow-lg hover:scale-105 disabled:opacity-50"
+          >
+            {isSending ? (
+              <Loader size={16} className="animate-spin" />
+            ) : (
+              <Send size={16} />
+            )}{" "}
+            <span>Send</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object")
@@ -146,8 +575,129 @@ const ProjectDetailsPage = () => {
   const [isEditBriefModalOpen, setIsEditBriefModalOpen] = useState(false);
   const [briefToEdit, setBriefToEdit] = useState(null);
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
-
   const isManagerOrAdmin = userRole === "admin";
+
+  const [messages, setMessages] = useState([]);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(true);
+  const [messagesError, setMessagesError] = useState(null);
+  const [newMessage, setNewMessage] = useState("");
+  const [attachments, setAttachments] = useState([]);
+  const [isSending, setIsSending] = useState(false);
+
+  const CURRENT_USER_ID = 20;
+  const API_BASE_URL =
+    import.meta.env.VITE_BACKEND_BASE_URL || "https://demo.aentora.com/backend/public";
+    
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
+  useEffect(() => {
+    setIsMessagesLoading(true);
+    const mockSender1 = {
+      id: 20,
+      name: "You (Current User)",
+      profile_pic: "users/user-1.jpg",
+    };
+    const mockSender2 = {
+      id: 15,
+      name: "Jane Doe",
+      profile_pic: "users/user-2.png",
+    };
+
+    const mockMessages = [
+      {
+        id: 1,
+        sender_id: 15,
+        sender: mockSender2,
+        message: "Hey, how is the project going?",
+        created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+        attachments: [],
+      },
+      {
+        id: 2,
+        sender_id: 20,
+        sender: mockSender1,
+        message: "Going well! Just finalizing the first draft of the UI.",
+        created_at: new Date(Date.now() - 1000 * 60 * 3).toISOString(),
+        attachments: [],
+      },
+      {
+        id: 3,
+        sender_id: 15,
+        sender: mockSender2,
+        message:
+          "Great to hear. Can you share the latest mockups? I have attached the brand guidelines again for reference.",
+        created_at: new Date(Date.now() - 1000 * 60 * 2).toISOString(),
+        attachments: [
+          { id: 101, file_name: "Brand-Guidelines.pdf", file_path: "docs/guidelines.pdf" },
+        ],
+      },
+      {
+        id: 4,
+        sender_id: 20,
+        sender: mockSender1,
+        message: "Sure, here are the latest screens.",
+        created_at: new Date(Date.now() - 1000 * 60 * 1).toISOString(),
+        attachments: [
+          { id: 102, file_name: "dashboard-view.png", file_path: "images/screen1.png" },
+          { id: 103, file_name: "profile-page.jpg", file_path: "images/screen2.jpg" },
+        ],
+      },
+    ];
+
+    setTimeout(() => {
+      setMessages(mockMessages);
+      setIsMessagesLoading(false);
+    }, 1000);
+  }, []);
+
+  const handleSendMessage = async () => {
+    if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
+    setIsSending(true);
+
+    const newMockMessage = {
+      id: Date.now(),
+      sender_id: CURRENT_USER_ID,
+      sender: {
+        id: CURRENT_USER_ID,
+        name: "You (Current User)",
+        profile_pic: "users/user-1.jpg",
+      },
+      message: newMessage.trim(),
+      created_at: new Date().toISOString(),
+      attachments: attachments.map((att, index) => ({
+        id: Date.now() + index,
+        file_name: att.file.name,
+        file_path: att.preview,
+      })),
+    };
+
+    setTimeout(() => {
+      setMessages((prev) => [...prev, newMockMessage]);
+      setNewMessage("");
+      setAttachments([]);
+      setIsSending(false);
+    }, 500);
+  };
+
+  const handleUpdateMessage = async (
+    messageId,
+    updatedText,
+    newFiles,
+    deletedAttachmentIds
+  ) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, message: updatedText } : msg
+      )
+    );
+    return true;
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+  };
 
   const fetchProjectAndTasks = useCallback(async () => {
     if (!id) {
@@ -1176,6 +1726,26 @@ const ProjectDetailsPage = () => {
           )}
         </>
       )}
+
+      <div className="mt-8">
+        <div className="h-[700px] relative">
+          <ConversationBox
+            messages={messages}
+            newMessage={newMessage}
+            setNewMessage={setNewMessage}
+            attachments={attachments}
+            setAttachments={setAttachments}
+            onSendMessage={handleSendMessage}
+            onUpdateMessage={handleUpdateMessage}
+            onDeleteMessage={handleDeleteMessage}
+            isSending={isSending}
+            isLoading={isMessagesLoading}
+            error={messagesError}
+            currentUserId={CURRENT_USER_ID}
+            apiBaseUrl={API_BASE_URL}
+          />
+        </div>
+      </div>
 
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
