@@ -190,7 +190,6 @@ function App() {
               path="/customer/order-details/:id"
               element={<OrderDetailsPage />}
             />
-            <Route path="/order-detail" element={<OrderDetailsPage />} />
             <Route path="/work-diary/:projectId" element={<WorkDiaryPage />} />
             <Route path="/kanban/:projectId" element={<CustomerKanbanPage />} />
             {/* =================================================================== */}

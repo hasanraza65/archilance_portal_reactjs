@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Cookies from "js-cookie";
 import {
@@ -27,6 +27,12 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  Trash2,
+  Edit,
+  XCircle,
+  FileText,
+  ImageIcon,
+  Undo2,
 } from "lucide-react";
 
 // Helper to remove HTML tags for truncation
@@ -39,21 +45,20 @@ const stripHtml = (html) => {
 // Animated Background Component
 const AnimatedBackground = () => (
   <div className="fixed inset-0 -z-10 overflow-hidden">
-    <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse" />
-    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-emerald-400/20 to-cyan-600/20 rounded-full blur-3xl animate-pulse delay-1000" />
-    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-pink-400/10 to-orange-600/10 rounded-full blur-3xl animate-pulse delay-500" />
+    {" "}
+    <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse" />{" "}
+    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-emerald-400/20 to-cyan-600/20 rounded-full blur-3xl animate-pulse delay-1000" />{" "}
+    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-pink-400/10 to-orange-600/10 rounded-full blur-3xl animate-pulse delay-500" />{" "}
   </div>
 );
 
-// Component for collapsible requirements with glass morphism
+// OrderRequirements Component
 const OrderRequirements = ({ htmlContent }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const textContent = stripHtml(htmlContent);
   const maxLength = 200;
   const isTruncatable = textContent.length > maxLength;
-
   if (!htmlContent) return null;
-
   return (
     <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-8 mb-8 hover:shadow-3xl transition-all duration-500 hover:-translate-y-1">
       <div className="flex items-center justify-between mb-6">
@@ -88,7 +93,7 @@ const OrderRequirements = ({ htmlContent }) => {
   );
 };
 
-// Enhanced OrderStatusStep component with animations
+// OrderStatusStep Component
 const OrderStatusStep = ({ status, text, isLast = false }) => {
   const statusConfig = {
     done: {
@@ -115,9 +120,7 @@ const OrderStatusStep = ({ status, text, isLast = false }) => {
       lineClass: "border-gray-300",
     },
   };
-
   const { Icon, textClass, lineClass } = statusConfig[status];
-
   return (
     <div className="flex items-start group">
       <div className="flex flex-col items-center mr-6 relative">
@@ -139,14 +142,13 @@ const OrderStatusStep = ({ status, text, isLast = false }) => {
   );
 };
 
-// ProjectTasksList with Pagination and fixed height
+// ProjectTasksList Component
 const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 4;
-
   if (!tasks || tasks.length === 0) {
     return (
-      <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-8 text-center flex flex-col justify-center">
+      <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-8 text-center flex flex-col justify-center h-full">
         <div className="p-4 bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl text-white mx-auto mb-4 w-fit">
           <Briefcase className="w-12 h-12" />
         </div>
@@ -159,12 +161,10 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
       </div>
     );
   }
-
   const indexOfLastTask = currentPage * tasksPerPage;
   const indexOfFirstTask = indexOfLastTask - tasksPerPage;
   const currentTasks = tasks.slice(indexOfFirstTask, indexOfLastTask);
   const totalPages = Math.ceil(tasks.length / tasksPerPage);
-
   const getStatusBadge = (status) => {
     switch (status) {
       case "Completed":
@@ -177,7 +177,6 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
         return "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg";
     }
   };
-
   return (
     <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 flex flex-col overflow-hidden h-full">
       <div className="p-6 bg-gradient-to-r from-slate-50 to-gray-50 flex-shrink-0">
@@ -261,7 +260,6 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
           </div>
         ))}
       </div>
-
       {totalPages > 1 && (
         <div className="flex-shrink-0 p-4 bg-slate-50/50 flex items-center justify-center gap-4 border-t border-white/20">
           <button
@@ -272,11 +270,9 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
             <ChevronLeft size={16} />
             Previous
           </button>
-
           <span className="font-bold text-gray-700">
             {currentPage} / {totalPages}
           </span>
-
           <button
             onClick={() =>
               setCurrentPage((prev) => Math.min(prev + 1, totalPages))
@@ -293,16 +289,262 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
   );
 };
 
-// Enhanced ConversationBox with modern chat design
+// ===============================================
+//         ADVANCED ConversationBox Component
+// ===============================================
 const ConversationBox = ({
   messages,
   newMessage,
   setNewMessage,
+  attachments,
+  setAttachments,
   onSendMessage,
+  onUpdateMessage,
+  onDeleteMessage,
+  isSending,
+  isLoading,
+  error,
+  currentUserId,
+  apiBaseUrl,
 }) => {
-  const otherUserName = "Admin";
-  const otherUserAvatar = "/api/placeholder/32/32";
-  const currentUserAvatar = "/api/placeholder/32/32";
+  const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editedText, setEditedText] = useState("");
+  const [newAttachmentsForEdit, setNewAttachmentsForEdit] = useState([]);
+  const [attachmentIdsToDelete, setAttachmentIdsToDelete] = useState([]);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const STORAGE_BASE_URL = `${apiBaseUrl}/storage/`;
+
+  const formatTime = (dateString) =>
+    new Date(dateString).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const getFileIcon = (fileName) => {
+    const ext = fileName?.split(".").pop().toLowerCase() || "";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext))
+      return <ImageIcon className="w-6 h-6 text-green-500" />;
+    if (ext === "pdf") return <FileText className="w-6 h-6 text-red-500" />;
+    return <FileText className="w-6 h-6 text-blue-500" />;
+  };
+
+  const handleFileSelect = (e, isEdit = false) => {
+    const targetFiles = Array.from(e.target.files).filter((file) => {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name} is too large (max 10MB).`);
+        return false;
+      }
+      return true;
+    });
+    const newAtts = targetFiles.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      id: `${isEdit ? "edit" : "new"}-${Date.now()}-${file.name}`,
+    }));
+    if (isEdit) {
+      setNewAttachmentsForEdit((prev) => [...prev, ...newAtts]);
+    } else {
+      setAttachments((prev) => [...prev, ...newAtts]);
+    }
+    e.target.value = "";
+  };
+
+  const removeAttachment = (id, isEdit = false) => {
+    const [getter, setter] = isEdit
+      ? [newAttachmentsForEdit, setNewAttachmentsForEdit]
+      : [attachments, setAttachments];
+    setter((prev) => {
+      const att = prev.find((a) => a.id === id);
+      if (att?.preview) URL.revokeObjectURL(att.preview);
+      return prev.filter((a) => a.id !== id);
+    });
+  };
+
+  const handleStartEdit = (message) => {
+    setEditingMessage(message);
+    setEditedText(message.message || "");
+    setNewAttachmentsForEdit([]);
+    setAttachmentIdsToDelete([]);
+  };
+  const handleCancelEdit = () => setEditingMessage(null);
+  const toggleDeleteExistingAttachment = (id) =>
+    setAttachmentIdsToDelete((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+
+  const handleSaveEdit = async () => {
+    setIsProcessingAction(true);
+    const success = await onUpdateMessage(
+      editingMessage.id,
+      editedText,
+      newAttachmentsForEdit.map((a) => a.file),
+      attachmentIdsToDelete
+    );
+    if (success) handleCancelEdit();
+    setIsProcessingAction(false);
+  };
+
+  const handleDelete = async (messageId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this message? This action cannot be undone."
+      )
+    )
+      return;
+    setIsProcessingAction(true);
+    await onDeleteMessage(messageId);
+    setIsProcessingAction(false);
+  };
+
+  const renderAttachment = (url, name, isPreview = false) => {
+    const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(
+      name.split(".").pop().toLowerCase()
+    );
+    const finalUrl = isPreview ? url : `${STORAGE_BASE_URL}${url}`;
+    return (
+      <a
+        href={finalUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block p-1.5 bg-black/5 rounded-lg hover:bg-black/10 transition-colors"
+      >
+        {isImage ? (
+          <img
+            src={finalUrl}
+            alt={name}
+            className="w-20 h-20 object-cover rounded-md border border-white/20"
+          />
+        ) : (
+          <div className="w-20 h-20 flex flex-col items-center justify-center bg-white/10 rounded-md p-1">
+            {getFileIcon(name)}
+            <p className="text-xs text-center mt-2 break-all line-clamp-2">
+              {name}
+            </p>
+          </div>
+        )}
+      </a>
+    );
+  };
+
+  const renderMessageContent = (message, isSentByMe) => (
+    <div className="w-full">
+      {message.message && (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          {message.message}
+        </p>
+      )}
+      {message.attachments?.length > 0 && (
+        <div
+          className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${
+            message.message
+              ? `mt-3 pt-3 border-t ${
+                  isSentByMe ? "border-white/20" : "border-gray-200/80"
+                }`
+              : ""
+          }`}
+        >
+          {message.attachments.map((att) => (
+            <div key={att.id}>
+              {renderAttachment(att.file_path, att.file_name)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderEditView = () => (
+    <div className="w-full space-y-3">
+      <textarea
+        value={editedText}
+        onChange={(e) => setEditedText(e.target.value)}
+        className="w-full bg-white/20 text-white rounded-lg p-2 text-sm focus:outline-none"
+        rows={3}
+      />
+      {editingMessage.attachments?.length > 0 && (
+        <div>
+          <p className="text-xs font-medium mb-2">Current files:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {editingMessage.attachments.map((att) => {
+              const isMarkedForDeletion = attachmentIdsToDelete.includes(
+                att.id
+              );
+              return (
+                <div key={att.id} className="relative group">
+                  {renderAttachment(att.file_path, att.file_name)}
+                  <button
+                    onClick={() => toggleDeleteExistingAttachment(att.id)}
+                    className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md transition-all ${
+                      isMarkedForDeletion
+                        ? "bg-green-500 hover:bg-green-600"
+                        : "bg-red-500 hover:bg-red-600"
+                    }`}
+                  >
+                    {isMarkedForDeletion ? (
+                      <Undo2 size={12} />
+                    ) : (
+                      <Trash2 size={12} />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {newAttachmentsForEdit.length > 0 && (
+        <div>
+          <p className="text-xs font-medium mb-2">New files to add:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {newAttachmentsForEdit.map((att) => (
+              <div key={att.id} className="relative group">
+                {renderAttachment(att.preview, att.file.name, true)}
+                <button
+                  onClick={() => removeAttachment(att.id, true)}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md bg-red-500 hover:bg-red-600"
+                >
+                  <XCircle size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <label className="inline-flex items-center px-3 py-1.5 border border-dashed border-white/50 rounded-lg cursor-pointer hover:bg-white/10 text-xs">
+        <Paperclip size={12} className="mr-1.5" />
+        Add Files
+        <input
+          type="file"
+          multiple
+          onChange={(e) => handleFileSelect(e, true)}
+          className="hidden"
+        />
+      </label>
+      <div className="flex justify-end gap-2 pt-2 border-t border-white/20">
+        <button
+          onClick={handleCancelEdit}
+          disabled={isProcessingAction}
+          className="text-xs px-3 py-1 rounded-full bg-gray-500 hover:bg-gray-600 text-white"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveEdit}
+          disabled={isProcessingAction}
+          className="text-xs px-3 py-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+        >
+          {isProcessingAction ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 h-full flex flex-col overflow-hidden">
@@ -312,63 +554,141 @@ const ConversationBox = ({
             <MessageCircle className="w-6 h-6" />
           </div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-            Chat with {otherUserName}
+            Project Chat
           </h3>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 h-96">
-        {messages.map((message, index) => (
-          <div
-            key={message.id}
-            className={`flex items-end gap-3 ${
-              message.sender === "buyer" ? "flex-row-reverse" : ""
-            } animate-fade-in`}
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            <img
-              src={
-                message.sender === "buyer" ? currentUserAvatar : otherUserAvatar
-              }
-              alt="avatar"
-              className="w-10 h-10 rounded-full border-2 border-white shadow-lg"
-            />
-            <div
-              className={`max-w-md px-6 py-4 rounded-2xl shadow-lg ${
-                message.sender === "buyer"
-                  ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-br-md"
-                  : "bg-white/90 backdrop-blur-sm text-gray-800 rounded-bl-md border border-gray-200"
-              } transition-all duration-300 hover:shadow-xl`}
-            >
-              <p className="text-sm leading-relaxed">{message.content}</p>
-              <p
-                className={`text-xs mt-2 text-right ${
-                  message.sender === "buyer" ? "text-blue-200" : "text-gray-500"
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {isLoading && (
+          <div className="flex justify-center items-center h-full">
+            <Loader className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        )}
+        {error && (
+          <div className="text-center text-red-500">Error: {error}</div>
+        )}
+        {!isLoading &&
+          messages.map((message) => {
+            const isSentByMe = message.sender_id === currentUserId;
+            const isEditing =
+              editingMessage && editingMessage.id === message.id;
+            return (
+              <div
+                key={message.id}
+                className={`flex items-end gap-3 ${
+                  isSentByMe ? "flex-row-reverse" : ""
                 }`}
               >
-                {message.time}
-              </p>
-            </div>
-          </div>
-        ))}
+                <div className="w-10 h-10 rounded-full flex-shrink-0">
+                  {message.sender?.profile_pic ? (
+                    <img
+                      src={`${STORAGE_BASE_URL}${message.sender.profile_pic}`}
+                      alt={message.sender.name}
+                      className="w-full h-full rounded-full object-cover border-2 border-white shadow-md"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg border-2 border-white shadow-md">
+                      {message.sender?.name
+                        ? message.sender.name.charAt(0).toUpperCase()
+                        : "?"}
+                    </div>
+                  )}
+                </div>
+                <div
+                  className={`group relative max-w-md min-w-[150px] px-5 py-3 rounded-2xl shadow-lg ${
+                    isSentByMe
+                      ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-br-md"
+                      : "bg-white/90 text-gray-800 rounded-bl-md"
+                  }`}
+                >
+                  {isEditing
+                    ? renderEditView()
+                    : renderMessageContent(message, isSentByMe)}
+                  <p
+                    className={`text-xs mt-2 text-right ${
+                      isSentByMe ? "text-blue-200" : "text-gray-500"
+                    }`}
+                  >
+                    {formatTime(message.created_at)}
+                  </p>
+                  {isSentByMe && !isEditing && (
+                    <div className="absolute top-1 -right-12 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleStartEdit(message)}
+                        disabled={isProcessingAction}
+                        className="p-1.5 bg-white rounded-full shadow-md hover:bg-gray-100 disabled:opacity-50"
+                      >
+                        <Edit size={12} className="text-gray-600" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(message.id)}
+                        disabled={isProcessingAction}
+                        className="p-1.5 bg-white rounded-full shadow-md hover:bg-gray-100 disabled:opacity-50"
+                      >
+                        <Trash2 size={12} className="text-red-500" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        <div ref={chatEndRef} />
       </div>
-      <div className="p-6 bg-gradient-to-r from-slate-50 to-gray-50 flex-shrink-0">
+      <div className="p-4 bg-gradient-to-r from-slate-50 to-gray-50 flex-shrink-0 space-y-3">
+        {attachments.length > 0 && (
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+            {attachments.map((att) => (
+              <div key={att.id} className="relative group">
+                {renderAttachment(att.preview, att.file.name, true)}
+                <button
+                  onClick={() => removeAttachment(att.id)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs shadow-md bg-red-500 hover:bg-red-600"
+                >
+                  <XCircle size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="relative">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message here..."
-            className="w-full bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl pl-14 pr-32 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-gray-800 placeholder-gray-500"
-            onKeyPress={(e) => e.key === "Enter" && onSendMessage()}
+            placeholder="Type a message..."
+            className="w-full bg-white/80 border border-gray-200 rounded-2xl pl-12 pr-28 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onKeyPress={(e) =>
+              e.key === "Enter" && !isSending && onSendMessage()
+            }
+            disabled={isSending}
           />
-          <div className="absolute left-4 top-1/2 -translate-y-1/2">
-            <Paperclip className="w-5 h-5 text-gray-400" />
-          </div>
+          <button
+            onClick={() => fileInputRef.current.click()}
+            className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-gray-200"
+          >
+            <Paperclip className="w-5 h-5 text-gray-500" />
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            multiple
+            hidden
+          />
           <button
             onClick={onSendMessage}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl hover:scale-105"
+            disabled={
+              isSending || (!newMessage.trim() && attachments.length === 0)
+            }
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-semibold shadow-lg hover:scale-105 disabled:opacity-50"
           >
-            Send <Send className="w-4 h-4" />
+            {isSending ? (
+              <Loader size={16} className="animate-spin" />
+            ) : (
+              <Send size={16} />
+            )}{" "}
+            <span>Send</span>
           </button>
         </div>
       </div>
@@ -376,8 +696,9 @@ const ConversationBox = ({
   );
 };
 
-// Helper function for timer (unchanged)
+// Helper function for timer
 const calculateTimeLeft = (dueDate) => {
+  if (!dueDate) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   const difference = +new Date(dueDate) - +new Date();
   if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   return {
@@ -388,76 +709,165 @@ const calculateTimeLeft = (dueDate) => {
   };
 };
 
-// Main component
+// ===============================================
+//           MAIN OrderDetailsPage Component
+// ===============================================
 const OrderDetailsPage = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id: projectId } = useParams();
   const API_BASE_URL = "https://demo.aentora.com/backend/public";
   const token = Cookies.get("token");
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // !! IMPORTANT: Replace '20' with the actual logged-in user's ID.    !!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  const CURRENT_USER_ID = 20;
 
   const [projectData, setProjectData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeLeft, setTimeLeft] = useState({});
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: "seller",
-      content:
-        "Hello! I've started working on your project. I'll deliver it within the promised timeframe.",
-      time: "2:30 PM",
-    },
-    {
-      id: 2,
-      sender: "buyer",
-      content:
-        "Great! Looking forward to seeing the progress. Please keep me updated.",
-      time: "3:15 PM",
-    },
-    {
-      id: 3,
-      sender: "seller",
-      content:
-        "Sure! I'll send you a preview by tomorrow. Do you have any specific requirements for the color scheme?",
-      time: "3:45 PM",
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(true);
+  const [messagesError, setMessagesError] = useState(null);
   const [newMessage, setNewMessage] = useState("");
+  const [attachments, setAttachments] = useState([]);
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: messages.length + 1,
-        sender: "buyer",
-        content: newMessage,
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-      setMessages([...messages, message]);
+  const fetchMessages = async () => {
+    if (!token || !projectId) return;
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/customer/project-chat/${projectId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      if (!response.ok) throw new Error("Failed to fetch messages.");
+      const data = await response.json();
+      setMessages(data.chats || []);
+      setMessagesError(null);
+    } catch (err) {
+      setMessagesError(err.message);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
+    setIsSending(true);
+    const formData = new FormData();
+    formData.append("project_id", projectId);
+    formData.append("message", newMessage.trim());
+    attachments.forEach((att) => formData.append("attachments[]", att.file));
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/customer/project-chat`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+          body: formData,
+        }
+      );
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to send message.");
+      }
+      const result = await response.json();
+      setMessages((prev) => [...prev, result.chat]);
       setNewMessage("");
+      setAttachments([]);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleUpdateMessage = async (
+    messageId,
+    updatedText,
+    newFiles,
+    deletedAttachmentIds
+  ) => {
+    const formData = new FormData();
+    formData.append("_method", "PUT");
+    formData.append("message", updatedText.trim());
+    newFiles.forEach((file) => formData.append("attachments[]", file));
+    deletedAttachmentIds.forEach((id) =>
+      formData.append("delete_attachments[]", id)
+    );
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/customer/project-chat/${messageId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+          body: formData,
+        }
+      );
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to update message.");
+      }
+      const result = await response.json();
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === messageId ? result.chat : msg))
+      );
+      return true;
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+      return false;
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/customer/project-chat/${messageId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to delete message.");
+      }
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    } catch (err) {
+      alert(`Error: ${err.message}`);
     }
   };
 
   useEffect(() => {
     if (!token) {
-      setError("Authorization Error: No token found. Please log in.");
+      setError("Authorization Error: No token found.");
       setIsLoading(false);
       return;
     }
-
-    if (!id) {
-      setError("Error: No Project ID provided in the URL.");
+    if (!projectId) {
+      setError("Error: No Project ID provided.");
       setIsLoading(false);
       return;
     }
-
-    const fetchProjectDetails = async (projectId) => {
+    const fetchInitialData = async () => {
       setIsLoading(true);
+      setIsMessagesLoading(true);
       try {
-        const response = await fetch(
+        const projectResponse = await fetch(
           `${API_BASE_URL}/api/customer/project/${projectId}`,
           {
             headers: {
@@ -466,46 +876,39 @@ const OrderDetailsPage = () => {
             },
           }
         );
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
+        if (!projectResponse.ok) {
+          const errData = await projectResponse.json().catch(() => ({}));
           throw new Error(
             errData.message ||
-              `Failed to fetch data. Status: ${response.status}`
+              `Failed to fetch project data. Status: ${projectResponse.status}`
           );
         }
-
-        const data = await response.json();
-        setProjectData(data);
-        setTimeLeft(calculateTimeLeft(data.due_date));
+        const projectData = await projectResponse.json();
+        setProjectData(projectData);
+        setTimeLeft(calculateTimeLeft(projectData.due_date));
+        await fetchMessages();
         setError(null);
       } catch (err) {
-        console.error("API Fetch Error:", err);
+        console.error("Initial Data Fetch Error:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
+        setIsMessagesLoading(false);
       }
     };
-
-    fetchProjectDetails(id);
-  }, [id, token]);
+    fetchInitialData();
+    const pollInterval = setInterval(fetchMessages, 20000);
+    return () => clearInterval(pollInterval);
+  }, [projectId, token]);
 
   useEffect(() => {
-    if (
-      !projectData ||
-      !timeLeft ||
-      (timeLeft.days === 0 &&
-        timeLeft.hours === 0 &&
-        timeLeft.minutes === 0 &&
-        timeLeft.seconds === 0)
-    )
-      return;
+    if (!projectData) return;
     const timer = setInterval(
       () => setTimeLeft(calculateTimeLeft(projectData.due_date)),
       1000
     );
     return () => clearInterval(timer);
-  }, [timeLeft, projectData]);
+  }, [projectData]);
 
   const getStatusSteps = (status) => {
     const steps = {
@@ -515,7 +918,6 @@ const OrderDetailsPage = () => {
       delivery: "pending",
     };
     if (!status) return steps;
-
     switch (status.toLowerCase()) {
       case "completed":
       case "delivered":
@@ -539,7 +941,6 @@ const OrderDetailsPage = () => {
     }
     return steps;
   };
-
   const statusSteps = projectData ? getStatusSteps(projectData.status) : {};
 
   if (isLoading) {
@@ -560,7 +961,6 @@ const OrderDetailsPage = () => {
       </div>
     );
   }
-
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex justify-center items-center relative">
@@ -585,16 +985,13 @@ const OrderDetailsPage = () => {
       </div>
     );
   }
-
   if (!projectData) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative">
       <AnimatedBackground />
-
       <div className="relative z-10 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Enhanced Header */}
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-6">
               <button
@@ -612,7 +1009,6 @@ const OrderDetailsPage = () => {
                 </p>
               </div>
             </div>
-
             <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
               <div className="flex flex-wrap gap-3">
                 <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg">
@@ -621,11 +1017,7 @@ const OrderDetailsPage = () => {
                     Due:{" "}
                     {new Date(projectData.due_date).toLocaleDateString(
                       "en-US",
-                      {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      }
+                      { month: "short", day: "numeric", year: "numeric" }
                     )}
                   </span>
                 </div>
@@ -634,7 +1026,6 @@ const OrderDetailsPage = () => {
                   <span>{projectData.status}</span>
                 </div>
               </div>
-
               <div className="flex gap-3">
                 <button
                   onClick={() => navigate(`/kanban/${projectData.id}`)}
@@ -653,23 +1044,16 @@ const OrderDetailsPage = () => {
               </div>
             </div>
           </div>
-
           <OrderRequirements htmlContent={projectData.project_description} />
-
-          {/* Main content area with enhanced layout */}
           <div className="flex flex-col gap-8">
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-              {/* Left Column: Tasks List */}
               <div className="xl:col-span-3">
                 <ProjectTasksList
                   tasks={projectData.tasks}
                   apiBaseUrl={API_BASE_URL}
                 />
               </div>
-
-              {/* Right Column: Enhanced Sidebar */}
               <div className="xl:col-span-1 flex flex-col gap-6">
-                {/* Enhanced Timer Card */}
                 <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-6 hover:shadow-3xl transition-all duration-500">
                   <div className="flex items-center space-x-3 mb-6">
                     <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl text-white">
@@ -717,8 +1101,6 @@ const OrderDetailsPage = () => {
                     ))}
                   </div>
                 </div>
-
-                {/* Enhanced Project Status Card */}
                 <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 flex-1 hover:shadow-3xl transition-all duration-500">
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
@@ -732,7 +1114,6 @@ const OrderDetailsPage = () => {
                         </span>
                       </div>
                     </div>
-
                     <div className="space-y-6">
                       <OrderStatusStep
                         status={statusSteps.placed}
@@ -756,15 +1137,22 @@ const OrderDetailsPage = () => {
                 </div>
               </div>
             </div>
-
-            {/* Section 2: Enhanced Chat Interface */}
             <div className="grid grid-cols-1 gap-8">
-              <div className="h-[600px]">
+              <div className="h-[calc(100vh-8rem)] min-h-[700px]">
                 <ConversationBox
                   messages={messages}
                   newMessage={newMessage}
                   setNewMessage={setNewMessage}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
                   onSendMessage={handleSendMessage}
+                  onUpdateMessage={handleUpdateMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  isSending={isSending}
+                  isLoading={isMessagesLoading}
+                  error={messagesError}
+                  currentUserId={CURRENT_USER_ID}
+                  apiBaseUrl={API_BASE_URL}
                 />
               </div>
             </div>
