@@ -315,9 +315,9 @@ const ConversationBox = ({
   const [attachmentIdsToDelete, setAttachmentIdsToDelete] = useState([]);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // useEffect(() => {
+  //   chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [messages]);
 
   const STORAGE_BASE_URL = `${apiBaseUrl}/storage/`;
 
