@@ -1,41 +1,37 @@
 import React, { useState } from "react";
-import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import {
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import Cookies from "js-cookie";
+import { toast } from 'react-toastify'; // react-toastify ko import karein
+import 'react-toastify/dist/ReactToastify.css'; // Toast ke styles ko import karein
 
-// Icon (koi tabdeeli nahi)
+// (CreditCardIcon component yahan mojood hai... usay change nahi kiya)
 const CreditCardIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="h-6 w-6 text-gray-400"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-    />
-  </svg>
-);
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-6 w-6 text-gray-400"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+      />
+    </svg>
+  );
 
-/**
- * Reusable Checkout Form Component
- * @param {function} onSuccess - (async) Function to call with paymentMethodId on success. Should handle API calls.
- * @param {function} onCancel - Function to call when the cancel button is clicked.
- * @param {string} submitButtonText - Text for the submit button (e.g., "Pay", "Add Card").
- * @param {string} cancelButtonText - Text for the cancel button (e.g., "Back", "Cancel").
- */
-const CheckoutForm = ({
-  onSuccess,
-  onCancel,
-  submitButtonText = "Pay",
-  cancelButtonText = "Back",
-}) => {
+const CheckoutForm = ({ onBack }) => {
   const stripe = useStripe();
   const elements = useElements();
 
-  const [message, setMessage] = useState(null);
+  // message state ki ab zaroorat nahi hai
+  // const [message, setMessage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -46,32 +42,63 @@ const CheckoutForm = ({
     }
 
     setIsProcessing(true);
-    setMessage(null); // Clear previous errors
+
+    const token = Cookies.get("token");
+    if (!token) {
+      toast.error("Authentication error. Please log in again.");
+      setIsProcessing(false);
+      return;
+    }
+
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: "card",
+      card: elements.getElement(CardElement),
+    });
+
+    if (error) {
+      toast.error(error.message);
+      setIsProcessing(false);
+      return;
+    }
 
     try {
-      const { error, paymentMethod } = await stripe.createPaymentMethod({
-        type: "card",
-        card: elements.getElement(CardElement),
-      });
-
-      if (error) {
-        // Stripe-side error (e.g., invalid card number)
-        throw new Error(error.message);
-      }
-
-      // Call the parent's success handler with the new payment method ID.
-      // The parent component is responsible for the API call and what happens next.
-      if (onSuccess) {
-        await onSuccess(paymentMethod.id);
-      }
-    } catch (err) {
-      // Catches errors from Stripe or from the parent's onSuccess function (e.g., API failure)
-      setMessage(
-        err.message || "An unexpected error occurred. Please try again."
+      const response = await fetch(
+        "https://demo.aentora.com/backend/public/api/customer/subscription/create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            plan_id: 1,
+            payment_method_id: paymentMethod.id,
+          }),
+        }
       );
-    } finally {
-      setIsProcessing(false);
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // ---- YEH HISSA UPDATE KIYA GAYA HAI ----
+        // Ab error toast mein dikhaya jayega
+        const errorMessage = result.error || result.message || `An unexpected error occurred (Status: ${response.status}).`;
+        toast.error(errorMessage);
+      } else {
+        // ---- YEH HISSA BHI UPDATE KIYA GAYA HAI ----
+        // Kamyabi ka message toast mein dikhaya jayega
+        console.log("API Response:", result);
+        toast.success("Subscription created successfully!");
+        // Yahan aap user ko success page per redirect kar saktay hain
+        // onBack(); // Ya shayad pichlay step per wapis le jayein
+      }
+    } catch (apiError) {
+      console.error("API Call Error:", apiError);
+      toast.error("Failed to connect to the server. Please try again later.");
     }
+
+    setIsProcessing(false);
   };
 
   const cardElementOptions = {
@@ -95,7 +122,7 @@ const CheckoutForm = ({
   return (
     <form id="payment-form" onSubmit={handleSubmit} className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-800">
-        Enter Card Details
+        Payment Details
       </h3>
 
       <div>
@@ -113,10 +140,10 @@ const CheckoutForm = ({
       <div className="flex justify-between items-center pt-4">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={onBack}
           className="w-auto text-center px-6 py-3 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 transition shadow-sm"
         >
-          {cancelButtonText}
+          Back
         </button>
         <button
           disabled={isProcessing || !stripe || !elements}
@@ -124,19 +151,17 @@ const CheckoutForm = ({
           className="w-auto text-center px-8 py-3 bg-gray-800 text-white rounded-lg text-sm font-semibold hover:bg-gray-900 transition shadow-sm disabled:opacity-50"
         >
           <span id="button-text">
-            {isProcessing ? "Processing..." : submitButtonText}
+            {isProcessing ? "Processing..." : "Pay"}
           </span>
         </button>
       </div>
 
-      {message && (
-        <div
-          id="payment-message"
-          className="mt-4 text-red-500 text-sm font-medium"
-        >
+      {/* Is hissay ki ab zaroorat nahi, kyunke hum toasts istemal kar rahe hain */}
+      {/* {message && (
+        <div id="payment-message" className="mt-4 text-red-500 text-sm font-medium">
           {message}
         </div>
-      )}
+      )} */}
     </form>
   );
 };
