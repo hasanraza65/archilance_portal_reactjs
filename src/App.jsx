@@ -27,6 +27,7 @@ import WorkDiaryPage from "./pages/customers/WorkDiaryPage/WorkDiaryPage";
 import CustomerKanbanPage from "./pages/customers/CustomerKanbanPage/CustomerKanbanPage";
 import EmployeeDashboard from "./pages/employees/Leave/EmployeeDashboard";
 import LeaveManagementPage from "./pages/AdminLeave/LeaveManagementPage";
+import PaymentStatusPage from "./pages/customers/Subscription/PaymentMethod";
 
 // Pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/dashboard"));
@@ -197,6 +198,7 @@ function App() {
             <Route path="subscriptions" element={<Subscription />} />
             <Route path="/upgrade-plan" element={<UpgradePlan />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/payment-status" element={<PaymentStatusPage />} />
 
 
             <Route path="chat" element={<ChatPage />} />

@@ -200,12 +200,9 @@ const UpgradePlan = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-gray-100">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-extrabold text-gray-900 text-center">
-          Billing
-        </h1>
-
+       
         {/* Monthly/Annual toggle barkarar hai */}
-        <div className="flex justify-center mt-8">
+        {/* <div className="flex justify-center mt-8">
           <div className="relative bg-gray-200 p-1 rounded-full flex items-center">
             <button
               onClick={() => setIsAnnual(false)}
@@ -230,7 +227,7 @@ const UpgradePlan = () => {
               style={{ width: "calc(50% - 4px)", left: "4px" }}
             ></span>
           </div>
-        </div>
+        </div> */}
 
         <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-8">
           {pricingData.map((plan) => (

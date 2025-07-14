@@ -1,12 +1,12 @@
-// src/Subscription.jsx (UPDATED with correct scroll lock)
-
-import React, { useState, useEffect } from "react"; // 1. useEffect ko yahan import karein
+import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import ManageCardsModal from "./ManageCardsModal";
 import BillingHistoryModal from "./BillingHistoryModal";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { format, formatDistanceToNow } from "date-fns";
+import Cookies from "js-cookie";
 
-// --- DUMMY DATA FOR CARDS ---
+// --- DUMMY DATA & ICONS (Koi tabdeeli nahi) ---
 const initialCards = [
   { id: 1, type: "Visa", last4: "7830", expiry: "06/24", isDefault: true },
   {
@@ -17,8 +17,6 @@ const initialCards = [
     isDefault: false,
   },
 ];
-
-// --- DUMMY DATA FOR BILLING HISTORY ---
 const initialHistory = [
   {
     id: 1,
@@ -45,7 +43,6 @@ const initialHistory = [
     downloadUrl: "#",
   },
 ];
-
 const InfoIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -60,42 +57,76 @@ const InfoIcon = () => (
     />
   </svg>
 );
-
 const SummaryCard = ({ title, value, subtext, bgColor }) => (
   <div className={`p-6 rounded-xl border ${bgColor}`}>
-    <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-    <p className="text-3xl font-bold mt-1 text-gray-800">{value}</p>
-    <p className="text-sm text-gray-500 mt-1">{subtext}</p>
+    {" "}
+    <h3 className="text-sm font-medium text-gray-600">{title}</h3>{" "}
+    <p className="text-3xl font-bold mt-1 text-gray-800">{value}</p>{" "}
+    <p className="text-sm text-gray-500 mt-1">{subtext}</p>{" "}
   </div>
 );
 
 const Subscription = () => {
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [cards, setCards] = useState(initialCards);
-
+  const [cards, setCards] = useState(initialCards); // Yeh ab ManageCardsModal khud handle karega
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [billingHistory, setBillingHistory] = useState(initialHistory);
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // --- YAHAN NAI TABDEELI KI GAI HAI ---
-  // Yeh effect scroll lock ko control karega
   useEffect(() => {
-    // Check karein agar koi bhi modal khula hai
+    const fetchSubscriptionData = async () => {
+      try {
+        const token = Cookies.get("token");
+        if (!token) {
+          throw new Error(
+            "Authentication token not found in cookies. Please log in."
+          );
+        }
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_BACKEND_BASE_URL
+          }/api/customer/subscription/active`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (response.status === 401) {
+          navigate("/login");
+          throw new Error(
+            "You are not authorized. Your session may have expired."
+          );
+        }
+        if (!response.ok) {
+          throw new Error(
+            "Failed to fetch subscription data. Please try again later."
+          );
+        }
+        const data = await response.json();
+        setSubscriptionData(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSubscriptionData();
+  }, [navigate]);
+
+  useEffect(() => {
     const isAnyModalOpen = isModalOpen || isHistoryModalOpen;
-
-    if (isAnyModalOpen) {
-      // Body par scroll lock lagayein
-      document.body.style.overflow = "hidden";
-    } else {
-      // Body se scroll lock hatayein
-      document.body.style.overflow = "auto";
-    }
-
-    // Cleanup function: Yeh component ke hatne par style ko reset kar dega
-    // Taake page kabhi bhi 'stuck' na ho.
+    document.body.style.overflow = isAnyModalOpen ? "hidden" : "auto";
     return () => {
       document.body.style.overflow = "auto";
     };
-  }, [isModalOpen, isHistoryModalOpen]); // Yeh effect in states ke badalne par chalega
+  }, [isModalOpen, isHistoryModalOpen]);
 
   const handleCancelSubscription = () => {
     Swal.fire({
@@ -117,11 +148,36 @@ const Subscription = () => {
     });
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-xl font-medium text-gray-600">
+          Loading Billing Information...
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+          role="alert"
+        >
+          <strong className="font-bold">Error:</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const renewalDate = new Date(subscriptionData.subscription.ends_at);
+  const renewalIn = formatDistanceToNow(renewalDate, { addSuffix: true });
+  const renewalDateFormatted = format(renewalDate, "MM/dd/yyyy");
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-8">Billing</h1>
-
-      {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         <SummaryCard
           title="Billing Cycle"
@@ -137,13 +193,11 @@ const Subscription = () => {
         />
         <SummaryCard
           title="Next Renewal"
-          value="In 8 Months"
-          subtext="Date: 03/12/2026"
+          value={renewalIn}
+          subtext={`Date: ${renewalDateFormatted}`}
           bgColor="bg-orange-50 border-orange-200"
         />
       </div>
-
-      {/* Current Subscription Section */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <span className="text-gray-400">
@@ -153,12 +207,8 @@ const Subscription = () => {
         </div>
         <div className="space-y-4">
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
-            <span className="text-gray-500">Seats</span>
-            <span className="font-medium text-gray-800">1</span>
-          </div>
-          <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-gray-500">Next Renewal</span>
-            <span className="font-medium text-gray-800">In 8 Months</span>
+            <span className="font-medium text-gray-800">{renewalIn}</span>
           </div>
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-gray-500">Current Billing</span>
@@ -175,8 +225,6 @@ const Subscription = () => {
           </div>
         </div>
       </div>
-
-      {/* Billing Details Section */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Billing</h2>
         <div className="divide-y divide-gray-200">
@@ -224,8 +272,6 @@ const Subscription = () => {
           </div>
         </div>
       </div>
-
-      {/* Cancellation Section */}
       <div>
         <h2 className="text-xl font-semibold text-red-600">Cancellation</h2>
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mt-4 text-sm">
@@ -240,17 +286,10 @@ const Subscription = () => {
           </button>
         </div>
       </div>
-
-      {/* --- YAHAN SABHI MODALS RENDER HONGE --- */}
-      {/* Cards Modal */}
       <ManageCardsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        cards={cards}
-        setCards={setCards}
       />
-
-      {/* History Modal */}
       <BillingHistoryModal
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}

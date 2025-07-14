@@ -47,7 +47,7 @@ const MobileFooter = () => {
          
           setProfilePicSrc(imageUrl);
         } else {
-          console.log("MobileFooter: No profile_pic in API response, using default avatar.");
+          // console.log("MobileFooter: No profile_pic in API response, using default avatar.");
         }
       } catch (error) {
         console.error("MobileFooter: Error fetching profile picture:", error);
