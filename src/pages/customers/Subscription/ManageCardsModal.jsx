@@ -54,12 +54,15 @@ const CardPlaceholderIcon = () => (
 const getCardLogo = (cardType) => {
   const type = cardType.toLowerCase();
   if (type.includes("visa"))
-    return "/src/assets/images/svg/card-brands/visa.svg";
+    return "/card-brands/visa.svg"; 
   if (type.includes("mastercard"))
-    return "/src/assets/images/svg/card-brands/mastercard.svg";
+    return "/card-brands/mastercard.svg";
+  if (type.includes("jcb"))
+    return "/card-brands/jcb.svg";
   if (type.includes("amex"))
-    return "/src/assets/images/svg/card-brands/amex.svg";
-  return "/src/assets/images/svg/card-brands/default.svg";
+    return "/card-brands/amex.svg";
+
+  return "/card-brands/default.svg";
 };
 const NoCardsView = ({ setView }) => (
   <div className="text-center py-8">
@@ -181,7 +184,6 @@ const ManageCardsModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen, fetchCards]);
 
-  // --- MODIFICATION: Implemented Delete Card Functionality ---
   const handleDeleteCard = async (cardId) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -224,7 +226,6 @@ const ManageCardsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  // --- MODIFICATION: Implemented Set Default Card Functionality ---
   const handleSetDefault = async (cardId) => {
     try {
       const token = Cookies.get("token");
@@ -321,7 +322,7 @@ const ManageCardsModal = ({ isOpen, onClose }) => {
             <h2 className="text-xl font-bold text-gray-900">
               {view === "list"
                 ? "Manage Payment Methods"
-                : "Add New Credit Card"}
+                : "Add Card"}
             </h2>
             <button
               onClick={closeModal}
@@ -348,7 +349,7 @@ const ManageCardsModal = ({ isOpen, onClose }) => {
         <div className="p-6 overflow-y-auto">
           {isLoading ? (
             <div className="text-center py-12">Loading cards...</div>
-          ) : error && cards.length === 0 ? ( // Only show main error if loading fails
+          ) : error && cards.length === 0 ? (
             <div className="text-center py-12 text-red-600">{error}</div>
           ) : view === "list" ? (
             cards.length > 0 ? (
