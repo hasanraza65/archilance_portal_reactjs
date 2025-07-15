@@ -68,7 +68,7 @@ const Navmenu = ({ menus }) => {
       }
     });
     // This part of title logic might need adjustment if routes change.
-    // document.title = `Aentora  | ${locationName}`;
+    // document.title = `Archilance LLC  | ${locationName}`;
 
     setActiveSubmenu(submenuIndex);
     setMultiMenu(multiMenuIndex);

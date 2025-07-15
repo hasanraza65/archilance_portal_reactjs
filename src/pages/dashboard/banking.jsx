@@ -55,7 +55,7 @@ const BankingPage = () => {
                 <span className="block font-light">Good evening,</span>
                 <span className="block">Mr. Jone Doe</span>
               </h4>
-              <p className="text-sm dark:text-slate-300">Welcome to Dashcode</p>
+              <p className="text-sm dark:text-slate-300">Welcome to Archilance LLC</p>
             </div>
           </div>
           <GroupChart5 />

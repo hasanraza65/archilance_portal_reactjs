@@ -15,7 +15,7 @@ const SearchModal = () => {
   const searchList = [
     {
       id: 1,
-      name: "What is Aentora ?",
+      name: "What is Archilance LLC ?",
     },
     {
       id: 2,

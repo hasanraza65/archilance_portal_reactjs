@@ -7,8 +7,8 @@ import useSemiDark from "@/hooks/useSemiDark";
 import useSkin from "@/hooks/useSkin";
 
 // import images
-import MobileLogo from "@/assets/images/logo/logo-c.svg";
-import MobileLogoWhite from "@/assets/images/logo/logo-c-white.svg";
+import MobileLogo from "@/assets/images/logo-img/logo.png";
+import MobileLogoWhite from "@/assets/images/logo-img/logo.png";
 
 const SidebarLogo = ({ menuHover }) => {
   const [isDark] = useDarkMode();
@@ -30,19 +30,22 @@ const SidebarLogo = ({ menuHover }) => {
       `}
     >
       <Link to="/dashboard">
-        <div className="flex items-center space-x-4">
+        {/* Change: Adjusted spacing from space-x-4 to space-x-3 */}
+        <div className="flex items-center space-x-3">
           <div className="logo-icon">
             {!isDark && !isSemiDark ? (
-              <img src={MobileLogo} alt="" />
+              // Change: Added size classes to the logo
+              <img src={MobileLogo} alt="" className="w-10 h-10" />
             ) : (
-              <img src={MobileLogoWhite} alt="" />
+              // Change: Added size classes to the logo
+              <img src={MobileLogoWhite} alt="" className="w-10 h-10" />
             )}
           </div>
 
           {(!collapsed || menuHover) && (
             <div>
-              <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Aentora
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Archilance LLC
               </h1>
             </div>
           )}

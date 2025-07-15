@@ -1,61 +1,59 @@
 // File: src/pages/auth/login.jsx
 
-import React, { useEffect } from "react"; // useEffect import karein
-import { Link, useNavigate } from "react-router-dom"; // useNavigate import karein
+import React, { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import LoginForm from "./common/login-form";
-// import Social from "./common/social"; // Isko comment kiya gaya hai aapke code mein
 import useDarkMode from "@/hooks/useDarkMode";
-import { useAuth } from "@/context/AuthContext"; // AuthContext import karein
-import Loading from "@/components/Loading"; // Loading spinner import karein
+import { useAuth } from "@/context/AuthContext";
+import Loading from "@/components/Loading";
 
 // image import
-import LogoWhite from "@/assets/images/logo/logo-white.svg";
-import Logo from "@/assets/images/logo/logo.svg";
+import LogoWhite from "@/assets/images/logo-img/logo.png";
+import Logo from "@/assets/images/logo-img/logo.png";
 import Illustration from "@/assets/images/auth/ils1.svg";
 
-// Component ka naam Capital 'L' se shuru hona chahiye
 const Login = () => {
   const [isDark] = useDarkMode();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  // <<<--- YAHAN NAYA LOGIC ADD HUA HAI ---<<<
   useEffect(() => {
-    // Agar user login hai, to usay login page mat dikhao, balkay redirect karo
     if (isAuthenticated && user) {
       switch (user.role) {
         case 'admin':
           navigate('/dashboard', { replace: true });
           break;
         case 'employee':
-          // Employee ko ab projects page par bhej rahe hain
           navigate('/dashboard', { replace: true });
           break;
         case 'customer':
           navigate('/dashboard', { replace: true });
           break;
         default:
-          // Fallback ke liye
           navigate('/profile', { replace: true });
       }
     }
   }, [isAuthenticated, user, navigate]);
 
-  // Agar user login hai, to redirection ke dauran loading dikhao
-  // Taake user ko ek second ke liye bhi login form na dikhe
   if (isAuthenticated) {
     return <Loading />;
   }
-  
-  // Agar user login nahi hai, to poora login page dikhao
+
   return (
     <div className="loginwrapper">
       <div className="lg-inner-column">
         <div className="left-column relative z-1">
           <div className="max-w-[520px] pt-20 ltr:pl-20 rtl:pr-20">
-            <Link to="/">
-              <img src={isDark ? LogoWhite : Logo} alt="" className="mb-10" />
+            {/* Change: Logo aur Text ko ek saath dikhane ke liye flex container banaya gaya hai */}
+            <Link to="/" className="mb-10 block">
+              <div className="flex items-center space-x-4">
+                <img src={isDark ? LogoWhite : Logo} alt="logo" className="h-16 w-auto" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                  Archilance LLC
+                </h2>
+              </div>
             </Link>
+
             <h4>
               Unlock your Project
               <span className="text-slate-800 dark:text-slate-400 font-bold">
@@ -74,19 +72,23 @@ const Login = () => {
         <div className="right-column relative">
           <div className="inner-content h-full flex flex-col bg-white dark:bg-slate-800">
             <div className="auth-box h-full flex flex-col justify-center">
-              <div className="mobile-logo text-center mb-6 lg:hidden block">
-                <Link to="/">
+              {/* Change: Mobile view ke liye bhi logo aur text ko ek saath dikhaya gaya hai */}
+              <div className="mobile-logo mb-6 lg:hidden block">
+                <Link to="/" className="flex items-center justify-center space-x-4">
                   <img
                     src={isDark ? LogoWhite : Logo}
-                    alt=""
-                    className="mx-auto"
+                    alt="logo"
+                    className="h-16 w-auto"
                   />
+                   <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                    Archilance LLC
+                  </h2>
                 </Link>
               </div>
               <div className="text-center 2xl:mb-10 mb-4">
                 <h4 className="font-medium">Sign in</h4>
                 <div className="text-slate-500 text-base">
-                  Sign in to your account to start using Dashcode
+                  Sign in to your account to start using Archilance LLC
                 </div>
               </div>
               <LoginForm />

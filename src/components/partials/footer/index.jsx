@@ -19,16 +19,16 @@ const Footer = ({ className = "custom-class" }) => {
       <div className="site-footer px-6 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 py-4">
         <div className="grid md:grid-cols-2 grid-cols-1 md:gap-5">
           <div className="text-center md:ltr:text-start md:rtl:text-right text-sm">
-            COPYRIGHT &copy; {date.getFullYear()} Aentora, All rights Reserved
+            COPYRIGHT &copy; {date.getFullYear()} Archilance LLC, All rights Reserved
           </div>
           <div className="md:ltr:text-right md:rtl:text-end text-center text-sm">
             Hand-crafted & Made by{" "}
             <a
-              href="https://codeshaper.net"
+              href="https://5techsol.com/"
               target="_blank"
               className="text-primary-500 font-semibold"
             >
-              Codeshaper
+             5techsol
             </a>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import useDarkMode from "@/hooks/useDarkMode";
-import LogoWhite from "@/assets/images/logo/logo-white.svg";
-import Logo from "@/assets/images/logo/logo.svg";
+import LogoWhite from "@/assets/images/logo-img/logo.png";
+import Logo from "@/assets/images/logo-img/logo.png";
 import { useSelector } from "react-redux";
 
 const Loading = () => {
@@ -12,11 +12,18 @@ const Loading = () => {
 
   return (
     <div className="flex flex-col items-center justify-center app_height">
+      {/* This block is shown when the user is NOT authenticated (e.g., initial app load) */}
       {!isAuth && (
-        <div className="mb-3">
-          <img src={isDark ? LogoWhite : Logo} alt="Logo" />
+        // Change: Wrapped the logo and new text in a flex container
+        <div className="mb-3 flex items-center space-x-4">
+          <img src={isDark ? LogoWhite : Logo} alt="Logo" className="h-16 w-auto" />
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+            Archilance LLC
+          </h2>
         </div>
       )}
+
+      {/* The spinner logic remains the same */}
       <svg
         className={`animate-spin ltr:-ml-1 ltr:mr-3 rtl:-mr-1 rtl:ml-3 ${
           isAuth ? "h-6 w-6" : "h-12 w-12"
@@ -39,6 +46,8 @@ const Loading = () => {
           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
         ></path>
       </svg>
+
+      {/* This text is shown when the user IS authenticated */}
       {isAuth && (
         <span className="inline-block mt-1 font-medium text-sm">
           Loading...
