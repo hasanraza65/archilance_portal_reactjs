@@ -9,15 +9,22 @@ import LogoWhite from "@/assets/images/logo-img/logo.png";
 import Logo from "@/assets/images/logo-img/logo.png";
 import Illustration from "@/assets/images/auth/ils1.svg";
 
-const register = () => {
+// Component name updated to start with a capital letter
+const Register = () => {
   const [isDark] = useDarkMode();
   return (
     <div className="loginwrapper">
       <div className="lg-inner-column">
         <div className="left-column relative z-1">
           <div className="max-w-[520px] pt-20 ltr:pl-20 rtl:pr-20">
-            <Link to="/">
-              <img src={isDark ? LogoWhite : Logo} alt="" className="mb-10" />
+            {/* Change: Wrapped logo and text in a flex container */}
+            <Link to="/" className="mb-10 block">
+              <div className="flex items-center space-x-4">
+                <img src={isDark ? LogoWhite : Logo} alt="logo" className="h-16 w-auto" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                  Archilance LLC
+                </h2>
+              </div>
             </Link>
 
             <h4>
@@ -38,13 +45,17 @@ const register = () => {
         <div className="right-column relative bg-white dark:bg-slate-800">
           <div className="inner-content h-full flex flex-col bg-white dark:bg-slate-800">
             <div className="auth-box h-full flex flex-col justify-center">
-              <div className="mobile-logo text-center mb-6 lg:hidden block">
-                <Link to="/">
+              {/* Change: Updated mobile logo to include text */}
+              <div className="mobile-logo mb-6 lg:hidden block">
+                <Link to="/" className="flex items-center justify-center space-x-4">
                   <img
                     src={isDark ? LogoWhite : Logo}
-                    alt=""
-                    className="mx-auto"
+                    alt="logo"
+                    className="h-16 w-auto"
                   />
+                   <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                    Archilance LLC
+                  </h2>
                 </Link>
               </div>
               <div className="text-center 2xl:mb-10 mb-5">
@@ -90,4 +101,5 @@ const register = () => {
   );
 };
 
-export default register;
+// Component export updated to match the new name
+export default Register;
