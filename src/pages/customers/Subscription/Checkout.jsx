@@ -45,9 +45,6 @@ const Checkout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // --- State Management ---
-  // IMPORTANT: Ensure the `plan` object you pass in `location.state` includes the plan's ID.
-  // For example: navigate('/checkout', { state: { plan: { id: 12, name: 'Standard', price: '2500.00' }, billingCycle: 'Monthly' } })
   const { plan, billingCycle } = location.state || {};
 
   const [step, setStep] = useState(1);
@@ -72,14 +69,12 @@ const Checkout = () => {
     country: "Canada",
   });
 
-  // --- Redirection and Initial Setup ---
   useEffect(() => {
     if (!plan) {
       navigate("/upgrade-plan");
     }
   }, [plan, navigate]);
 
-  // --- API Call to Fetch Saved Cards ---
   const fetchCards = useCallback(async () => {
     setIsLoadingCards(true);
     setApiError(null);
@@ -125,43 +120,22 @@ const Checkout = () => {
     if (step === 2) fetchCards();
   }, [step, fetchCards]);
 
-  // --- API Call to Create a Payment Intent (for adding a new card) ---
   useEffect(() => {
     if (step === 2 && paymentView === "add" && !clientSecret) {
       const dummyClientSecret =
-        "pi_1GszdG2eZvKYlo2CSB1f5s5g_secret_9n0zS3Y0Pz1B5c6e8G7h9j1K3"; // Using mock for testing
+        "pi_1GszdG2eZvKYlo2CSB1f5s5g_secret_9n0zS3Y0Pz1B5c6e8G7h9j1K3";
       setTimeout(() => setClientSecret(dummyClientSecret), 500);
     }
   }, [step, paymentView, clientSecret]);
 
   // --- Payment Execution ---
   const executeSubscriptionCreation = async (paymentMethodId) => {
-    // **ERROR FIX**: Check for all required information before making the API call.
-    if (!plan?.id) {
+    if (!plan?.id || !billingCycle || !paymentMethodId) {
       Swal.fire(
         "Error",
-        "The Plan ID is missing. Please go back and select a plan again.",
+        "Required information (Plan, Billing Cycle, or Payment Method) is missing. Please try again.",
         "error"
       );
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (!billingCycle) {
-      Swal.fire(
-        "Error",
-        "Billing cycle is not specified. Please try again.",
-        "error"
-      );
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (!paymentMethodId) {
-      Swal.fire(
-        "Error",
-        "Payment method is not specified. Please try again.",
-        "error"
-      );
-      setIsProcessingPayment(false);
       return;
     }
 
@@ -188,24 +162,38 @@ const Checkout = () => {
       );
 
       const result = await response.json();
-      if (!response.ok)
+      
+      if (response.status === 409) {
+        Swal.fire({
+          title: "Already Subscribed",
+          text: result.error || "You already have an active subscription.",
+          icon: "info",
+        });
+        throw new Error(result.error || "You already have an active subscription.");
+      }
+      
+      if (!response.ok) {
         throw new Error(
           result.message || "An error occurred while creating the subscription."
         );
-
+      }
+      
       Swal.fire({
         title: "Payment Successful!",
         text: "Your subscription has been activated.",
         icon: "success",
       });
-      navigate("/subscriptions"); // Navigate to a relevant success page
+      navigate("/subscriptions");
     } catch (err) {
-      Swal.fire("Payment Failed", err.message, "error");
+      if (err.message !== "You already have an active subscription.") {
+          Swal.fire("Payment Failed", err.message, "error");
+      }
       throw err;
     } finally {
       setIsProcessingPayment(false);
     }
   };
+
 
   const handlePaymentWithSavedCard = () => {
     if (selectedCardId) executeSubscriptionCreation(selectedCardId);
@@ -214,16 +202,88 @@ const Checkout = () => {
   const handlePayWithNewCard = (newPaymentMethodId) => {
     executeSubscriptionCreation(newPaymentMethodId);
   };
-
-  // Other card handlers (delete, set default) remain the same
+    
+  // ✅ --- START: IMPLEMENTED CARD MANAGEMENT FUNCTIONS ---
   const handleDeleteCard = async (cardId) => {
-    // ... (no changes to this function)
-  };
-  const handleSetDefault = async (cardId) => {
-    // ... (no changes to this function)
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = Cookies.get("token");
+        if (!token) throw new Error("Authentication token not found.");
+
+        const response = await fetch(
+          `https://demo.aentora.com/backend/public/api/customer/payment-method/delete/${cardId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to delete the card.");
+        }
+
+        Swal.fire("Deleted!", "The card has been removed.", "success");
+        await fetchCards(); // Refresh the card list
+      } catch (err) {
+        Swal.fire("Error", err.message, "error");
+      }
+    }
   };
 
-  // --- Form and UI Variables ---
+  const handleSetDefault = async (cardId) => {
+    try {
+      const token = Cookies.get("token");
+      if (!token) throw new Error("Authentication token not found.");
+
+      const response = await fetch(
+        `https://demo.aentora.com/backend/public/api/customer/payment-method/set-default`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ payment_method_id: cardId }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to set the default card.");
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: "Card set as default!",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+      });
+
+      await fetchCards(); // Refresh the card list to show the new default
+    } catch (err) {
+      Swal.fire("Error", err.message, "error");
+    }
+  };
+  // ✅ --- END: IMPLEMENTED CARD MANAGEMENT FUNCTIONS ---
+
   const handleInputChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   const subtotal = plan ? parseFloat(plan.price) : 0;
@@ -267,7 +327,6 @@ const Checkout = () => {
           <span>Total</span>
           <span>${total.toFixed(2)}</span>
         </div>
-        {/* The main pay button has been moved out of the summary for better UX */}
       </div>
     </div>
   );
@@ -306,7 +365,7 @@ const Checkout = () => {
               ) : (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); // Prevent the card selection from firing
                     handleSetDefault(card.id);
                   }}
                   className="text-sm font-medium text-blue-600 hover:underline"
@@ -316,7 +375,7 @@ const Checkout = () => {
               )}
               <button
                 onClick={(e) => {
-                  e.stopPropagation();
+                  e.stopPropagation(); // Prevent the card selection from firing
                   handleDeleteCard(card.id);
                 }}
               >
@@ -326,7 +385,6 @@ const Checkout = () => {
           </div>
         ))}
       </div>
-      {/* --- UI CHANGE: New Button Layout --- */}
       <div className="mt-8 flex flex-col sm:flex-row gap-4">
         <button
           onClick={handlePaymentWithSavedCard}
@@ -372,7 +430,6 @@ const Checkout = () => {
     );
   };
 
-  // --- Main Render ---
   if (!plan) return <div className="p-8 text-center">Loading...</div>;
 
   return (

@@ -18,9 +18,10 @@ const FeatureCheckIcon = () => (
   </svg>
 );
 
-// Naya Data (archilance.net se)
+// Naya Data (archilance.net se) - UPDATED with static IDs
 const pricingData = [
   {
+    id: 2, // <-- UPDATED: Static ID for Basic Plan
     name: "Basic",
     price: "1895",
     unit: "/mo",
@@ -40,6 +41,7 @@ const pricingData = [
     isPopular: false,
   },
   {
+    id: 1, // <-- UPDATED: Static ID for Standard Plan
     name: "Standard",
     price: "2500",
     unit: "/mo",
@@ -61,6 +63,7 @@ const pricingData = [
     isPopular: true, // Is se default selection hoga
   },
   {
+    id: 3, // <-- UPDATED: Static ID for Hourly Plan
     name: "Hourly",
     price: "28",
     unit: "/hr",
@@ -200,7 +203,6 @@ const UpgradePlan = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-gray-100">
       <div className="max-w-7xl mx-auto">
-       
         {/* Monthly/Annual toggle barkarar hai */}
         {/* <div className="flex justify-center mt-8">
           <div className="relative bg-gray-200 p-1 rounded-full flex items-center">
@@ -237,6 +239,7 @@ const UpgradePlan = () => {
               isCurrentPlan={plan.name === currentPlan}
               isSelected={plan.name === selectedPlan}
               onSelectPlan={handleSelectPlan}
+              isAnnual={isAnnual}
             />
           ))}
         </div>
