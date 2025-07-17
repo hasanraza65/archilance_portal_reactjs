@@ -107,13 +107,13 @@ const ProjectPostPage = () => {
             iconClass="text-lg"
             onClick={() => toggleView("grid")}
           />
-          <Button
+          {/* <Button
             icon="heroicons-outline:filter"
             text="On going"
             className="bg-white dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-900 hover:text-white btn-md h-min text-sm font-normal"
             iconClass="text-lg"
             disabled={anyOperationPending}
-          />
+          /> */}
           {userRole !== "employee" && userRole !== "customer" && (
             <Button
               icon="heroicons-outline:plus"
