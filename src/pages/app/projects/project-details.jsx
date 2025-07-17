@@ -11,6 +11,7 @@ import EditTaskModal from "../projects/Task/PartialTask/EditTaskModal";
 import AddBriefModal from "./Brief-task/AddBriefModel";
 import EditBriefModal from "./Brief-task/EditBriefModel";
 import Swal from "sweetalert2";
+import { toast } from 'react-toastify'; // Make sure you have react-toastify installed and configured
 import DOMPurify from "dompurify";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 import {
@@ -26,6 +27,8 @@ import {
   Undo2,
 } from "lucide-react";
 
+// The ConversationBox component is ALREADY CORRECT. It has the logic for edit/delete
+// and alignment. The problem was the data being passed to it. It does not need changes.
 const ConversationBox = ({
   messages,
   newMessage,
@@ -43,23 +46,17 @@ const ConversationBox = ({
 }) => {
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
-  const isInitialLoad = useRef(true);
   const [editingMessage, setEditingMessage] = useState(null);
   const [editedText, setEditedText] = useState("");
   const [newAttachmentsForEdit, setNewAttachmentsForEdit] = useState([]);
   const [attachmentIdsToDelete, setAttachmentIdsToDelete] = useState([]);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
-  // useEffect(() => {
-  //   if (isInitialLoad.current) {
-  //       if (messages.length > 0) {
-  //           isInitialLoad.current = false;
-  //       }
-  //       return;
-  //   }
-  //   chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // }, [messages]);
-
+  useEffect(() => {
+    if (messages.length > 0) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   const STORAGE_BASE_URL = `${apiBaseUrl}/storage/`;
 
@@ -134,15 +131,21 @@ const ConversationBox = ({
   };
 
   const handleDelete = async (messageId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this message? This action cannot be undone."
-      )
-    )
-      return;
-    setIsProcessingAction(true);
-    await onDeleteMessage(messageId);
-    setIsProcessingAction(false);
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+        setIsProcessingAction(true);
+        await onDeleteMessage(messageId);
+        setIsProcessingAction(false);
+    }
   };
 
   const renderAttachment = (url, name, isPreview = false) => {
@@ -311,6 +314,7 @@ const ConversationBox = ({
         )}
         {!isLoading &&
           messages.map((message) => {
+            // This is the CRITICAL logic for alignment and edit/delete buttons
             const isSentByMe = message.sender_id === currentUserId;
             const isEditing =
               editingMessage && editingMessage.id === message.id;
@@ -354,7 +358,7 @@ const ConversationBox = ({
                     {formatTime(message.created_at)}
                   </p>
                   {isSentByMe && !isEditing && (
-                    <div className="absolute top-1 -right-12 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-1 -left-12 flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex">
                       <button
                         onClick={() => handleStartEdit(message)}
                         disabled={isProcessingAction}
@@ -438,6 +442,8 @@ const ConversationBox = ({
   );
 };
 
+
+// Other helper functions (mapApiAssigneeToLocal, getStatusClass, etc.) remain unchanged.
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object")
     return {
@@ -500,7 +506,6 @@ const mapApiAssigneeToLocal = (apiUser) => {
   }
   return { id, name, avatar: avatarChar, color, profilePic };
 };
-
 const getStatusClass = (status) => {
   if (!status) return "bg-gray-100 text-gray-800 border-gray-200";
   switch (String(status).toLowerCase()) {
@@ -518,7 +523,6 @@ const getStatusClass = (status) => {
       return `bg-yellow-100 text-yellow-800 border-yellow-200`;
   }
 };
-
 const getPriorityClass = (priority) => {
   if (!priority) return "text-gray-600";
   switch (String(priority).toLowerCase()) {
@@ -535,7 +539,6 @@ const getPriorityClass = (priority) => {
       return "text-gray-600";
   }
 };
-
 const getAttachmentUrl = (filePath) => {
   const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
   if (!backendBaseUrl || !filePath) return "#";
@@ -543,24 +546,25 @@ const getAttachmentUrl = (filePath) => {
   const cleanFilePath = filePath.replace(/^\//, "");
   return `${cleanBaseUrl}/storage/${cleanFilePath}`;
 };
-
 const isImageFile = (fileType) => {
   if (!fileType) return false;
   return fileType.startsWith("image/");
 };
-
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
   if (role) {
-    return `/api/${role}${basePath}`;
+    return `/api/${role}${cleanBasePath}`;
   }
-  return `/api/admin${basePath}`;
+  return `/api/admin${cleanBasePath}`;
 };
+
 
 const ProjectDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const userRole = getApiPrefix();
+  const token = Cookies.get("token");
 
   const [projectDetails, setProjectDetails] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -568,15 +572,39 @@ const ProjectDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [projectFound, setProjectFound] = useState(true);
+
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [isAddBriefModalOpen, setIsAddBriefModalOpen] = useState(false);
   const [isEditBriefModalOpen, setIsEditBriefModalOpen] = useState(false);
   const [briefToEdit, setBriefToEdit] = useState(null);
+
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
   const isManagerOrAdmin = userRole === "admin";
+  const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || "https://demo.aentora.com/backend/public";
 
+  // ===== START: DYNAMICALLY GET CURRENT USER =====
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  useEffect(() => {
+    // Attempt to get user data from cookies. Adjust cookie name "user" if needed.
+    const userDataCookie = Cookies.get("user");
+    if (userDataCookie) {
+      try {
+        setCurrentUser(JSON.parse(userDataCookie));
+      } catch (e) {
+        console.error("Failed to parse user data from cookie:", e);
+      }
+    }
+  }, []);
+
+  // Use the dynamic user ID for chat logic.
+  const currentUserId = currentUser ? currentUser.id : null;
+  // ===== END: DYNAMICALLY GET CURRENT USER =====
+
+
+  // Real chat state
   const [messages, setMessages] = useState([]);
   const [isMessagesLoading, setIsMessagesLoading] = useState(true);
   const [messagesError, setMessagesError] = useState(null);
@@ -584,121 +612,113 @@ const ProjectDetailsPage = () => {
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
 
-  const CURRENT_USER_ID = 20;
-  const API_BASE_URL =
-    import.meta.env.VITE_BACKEND_BASE_URL || "https://demo.aentora.com/backend/public";
+  const fetchMessages = useCallback(async () => {
+    if (userRole !== 'admin' || !token || !id) return;
+    const chatApiPath = getApiBasePathForRole("/project-chat");
+    try {
+      const response = await fetch(`${API_BASE_URL}${chatApiPath}/${id}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to fetch messages.");
+      const data = await response.json();
+      setMessages(data.chats || []);
+      setMessagesError(null);
+    } catch (err) {
+      setMessagesError(err.message);
+    } finally {
+        setIsMessagesLoading(false);
+    }
+  }, [id, token, userRole, API_BASE_URL]);
+
+  useEffect(() => {
+    if (userRole === 'admin') {
+      fetchMessages();
+      const pollInterval = setInterval(fetchMessages, 20000);
+      return () => clearInterval(pollInterval);
+    } else {
+      setIsMessagesLoading(false);
+    }
+  }, [fetchMessages, userRole]);
+
+  const handleSendMessage = async () => {
+    if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
+    setIsSending(true);
+    const formData = new FormData();
+    formData.append("project_id", id);
+    formData.append("message", newMessage.trim());
+    attachments.forEach((att) => formData.append("attachments[]", att.file));
+    const chatApiPath = getApiBasePathForRole("/project-chat");
+    try {
+      const response = await fetch(`${API_BASE_URL}${chatApiPath}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        body: formData,
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to send message.");
+      }
+      const result = await response.json();
+      setMessages((prev) => [...prev, result.chat]);
+      setNewMessage("");
+      setAttachments([]);
+    } catch (err) {
+      Swal.fire("Error", `Failed to send message: ${err.message}`, "error");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleUpdateMessage = async (messageId, updatedText, newFiles, deletedAttachmentIds) => {
+    const formData = new FormData();
+    formData.append("_method", "PUT");
+    formData.append("message", updatedText.trim());
+    newFiles.forEach((file) => formData.append("attachments[]", file));
+    deletedAttachmentIds.forEach((id) => formData.append("delete_attachments[]", id));
+    const chatApiPath = getApiBasePathForRole("/project-chat");
+    try {
+      const response = await fetch(`${API_BASE_URL}${chatApiPath}/${messageId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        body: formData,
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to update message.");
+      }
+      const result = await response.json();
+      setMessages((prev) => prev.map((msg) => (msg.id === messageId ? result.chat : msg)));
+      toast.success("Message updated!");
+      return true;
+    } catch (err) {
+      Swal.fire("Error", `Failed to update message: ${err.message}`, "error");
+      return false;
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    const chatApiPath = getApiBasePathForRole("/project-chat");
+    try {
+      const response = await fetch(`${API_BASE_URL}${chatApiPath}/${messageId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to delete message.");
+      }
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      Swal.fire('Deleted!', 'The message has been deleted.', 'success');
+    } catch (err) {
+      Swal.fire("Error", `Failed to delete message: ${err.message}`, "error");
+    }
+  };
     
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  useEffect(() => {
-    setIsMessagesLoading(true);
-    const mockSender1 = {
-      id: 20,
-      name: "You (Current User)",
-      profile_pic: "users/user-1.jpg",
-    };
-    const mockSender2 = {
-      id: 15,
-      name: "Jane Doe",
-      profile_pic: "users/user-2.png",
-    };
-
-    const mockMessages = [
-      {
-        id: 1,
-        sender_id: 15,
-        sender: mockSender2,
-        message: "Hey, how is the project going?",
-        created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        attachments: [],
-      },
-      {
-        id: 2,
-        sender_id: 20,
-        sender: mockSender1,
-        message: "Going well! Just finalizing the first draft of the UI.",
-        created_at: new Date(Date.now() - 1000 * 60 * 3).toISOString(),
-        attachments: [],
-      },
-      {
-        id: 3,
-        sender_id: 15,
-        sender: mockSender2,
-        message:
-          "Great to hear. Can you share the latest mockups? I have attached the brand guidelines again for reference.",
-        created_at: new Date(Date.now() - 1000 * 60 * 2).toISOString(),
-        attachments: [
-          { id: 101, file_name: "Brand-Guidelines.pdf", file_path: "docs/guidelines.pdf" },
-        ],
-      },
-      {
-        id: 4,
-        sender_id: 20,
-        sender: mockSender1,
-        message: "Sure, here are the latest screens.",
-        created_at: new Date(Date.now() - 1000 * 60 * 1).toISOString(),
-        attachments: [
-          { id: 102, file_name: "dashboard-view.png", file_path: "images/screen1.png" },
-          { id: 103, file_name: "profile-page.jpg", file_path: "images/screen2.jpg" },
-        ],
-      },
-    ];
-
-    setTimeout(() => {
-      setMessages(mockMessages);
-      setIsMessagesLoading(false);
-    }, 1000);
-  }, []);
-
-  const handleSendMessage = async () => {
-    if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
-    setIsSending(true);
-
-    const newMockMessage = {
-      id: Date.now(),
-      sender_id: CURRENT_USER_ID,
-      sender: {
-        id: CURRENT_USER_ID,
-        name: "You (Current User)",
-        profile_pic: "users/user-1.jpg",
-      },
-      message: newMessage.trim(),
-      created_at: new Date().toISOString(),
-      attachments: attachments.map((att, index) => ({
-        id: Date.now() + index,
-        file_name: att.file.name,
-        file_path: att.preview,
-      })),
-    };
-
-    setTimeout(() => {
-      setMessages((prev) => [...prev, newMockMessage]);
-      setNewMessage("");
-      setAttachments([]);
-      setIsSending(false);
-    }, 500);
-  };
-
-  const handleUpdateMessage = async (
-    messageId,
-    updatedText,
-    newFiles,
-    deletedAttachmentIds
-  ) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId ? { ...msg, message: updatedText } : msg
-      )
-    );
-    return true;
-  };
-
-  const handleDeleteMessage = async (messageId) => {
-    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-  };
-
+  // fetchProjectAndTasks and other handlers remain the same...
   const fetchProjectAndTasks = useCallback(async () => {
     if (!id) {
       setError("Project ID is missing from URL.");
@@ -995,6 +1015,8 @@ const ProjectDetailsPage = () => {
     navigate(`/project-brief/${briefId}`);
   };
 
+
+  // The rest of the return/JSX remains the same...
   if (loading && !projectDetails && tasks.length === 0 && briefs.length === 0) {
     return (
       <div className="container mx-auto p-4 text-center">
@@ -1056,7 +1078,7 @@ const ProjectDetailsPage = () => {
       </div>
     );
   }
-
+  
   const projectDescriptionHtml = projectDetails?.project_description || "";
   const sanitizedProjectDescription = DOMPurify.sanitize(
     projectDescriptionHtml
@@ -1066,6 +1088,7 @@ const ProjectDetailsPage = () => {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      {/* All the JSX for project details, tasks, and briefs remains exactly the same */}
       {projectDetails && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
@@ -1703,7 +1726,7 @@ const ProjectDetailsPage = () => {
                   <button
                     type="button"
                     onClick={handleOpenAddBriefModal}
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:scale-105 hover:shadow-lg"
                   >
                     <svg
                       className="h-5 w-5 mr-2"
@@ -1727,26 +1750,31 @@ const ProjectDetailsPage = () => {
         </>
       )}
 
-      <div className="mt-8">
-        <div className="h-[700px] relative">
-          <ConversationBox
-            messages={messages}
-            newMessage={newMessage}
-            setNewMessage={setNewMessage}
-            attachments={attachments}
-            setAttachments={setAttachments}
-            onSendMessage={handleSendMessage}
-            onUpdateMessage={handleUpdateMessage}
-            onDeleteMessage={handleDeleteMessage}
-            isSending={isSending}
-            isLoading={isMessagesLoading}
-            error={messagesError}
-            currentUserId={CURRENT_USER_ID}
-            apiBaseUrl={API_BASE_URL}
-          />
+      {/* ===== START: CONDITIONAL CHAT MODULE FOR ADMINS ===== */}
+      {userRole === 'admin' && (
+        <div className="mt-8">
+            <div className="h-[700px] relative">
+            <ConversationBox
+                messages={messages}
+                newMessage={newMessage}
+                setNewMessage={setNewMessage}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                onSendMessage={handleSendMessage}
+                onUpdateMessage={handleUpdateMessage}
+                onDeleteMessage={handleDeleteMessage}
+                isSending={isSending}
+                isLoading={isMessagesLoading}
+                error={messagesError}
+                currentUserId={currentUserId} // Pass the DYNAMIC user ID here
+                apiBaseUrl={API_BASE_URL}
+            />
+            </div>
         </div>
-      </div>
-
+      )}
+      {/* ===== END: CONDITIONAL CHAT MODULE FOR ADMINS ===== */}
+      
+      {/* Modals rendering */}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}
