@@ -7,6 +7,7 @@ import {
   sort,
   fetchKanbanData,
   updateTaskStatusInBackend,
+  updateTaskOrderInBackend,
   STATUS_TO_COLUMN_MAP,
 } from "./store";
 
@@ -23,7 +24,6 @@ import { useParams } from "react-router-dom";
 const KanbanPage = () => {
   const {
     columns,
-
     isLoading,
     error,
   } = useSelector((state) => state.kanban);
@@ -45,79 +45,63 @@ const KanbanPage = () => {
     const { destination, source, draggableId, type } = result;
 
     if (!destination) return;
+
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
-    )
+    ) {
       return;
-
+    }
+    
     let taskBeingMovedApiData = null;
     if (type === "task") {
       const sourceColFromState = columns.find(
         (col) => String(col.id) === String(source.droppableId)
       );
       if (
-        sourceColFromState &&
-        sourceColFromState.tasks &&
-        sourceColFromState.tasks[source.index] &&
-        sourceColFromState.tasks[source.index].apiData
+        sourceColFromState?.tasks?.[source.index]?.apiData
       ) {
-        taskBeingMovedApiData = {
-          ...sourceColFromState.tasks[source.index].apiData,
-        };
+        taskBeingMovedApiData = { ...sourceColFromState.tasks[source.index].apiData };
       } else {
         console.warn(
-          `KanbanPage (onDragEnd): Could not find task's apiData prior to sort. DraggableId: ${draggableId}`
+          `KanbanPage (onDragEnd): Could not find task's apiData prior to move. DraggableId: ${draggableId}. Cannot call API.`
         );
+        return;
       }
     }
 
     dispatch(sort({ source, destination, draggableId, type }));
 
-    if (
-      type === "task" &&
-      String(source.droppableId) !== String(destination.droppableId)
-    ) {
-      if (taskBeingMovedApiData && taskBeingMovedApiData.id) {
-        let latestGlobalState;
-        try {
-          if (!store || typeof store.getState !== "function") {
-            console.error(
-              "KanbanPage (onDragEnd): CRITICAL - 'store' is undefined or not a valid store object."
-            );
-            toast.error(
-              "Application error: Cannot access state. Please check console and refresh."
-            );
-            return;
-          }
-          latestGlobalState = store.getState();
-        } catch (e) {
-          console.error(
-            "KanbanPage (onDragEnd): CRITICAL ERROR during store.getState() call.",
-            e
-          );
-          toast.error(
-            "Critical error: Could not access application state for update. Please refresh."
-          );
-          return;
-        }
+    if (type === "task" && taskBeingMovedApiData?.id) {
+      const taskId = taskBeingMovedApiData.id;
+      
+      // === THE FIX IS HERE ===
+      // The drag-and-drop library gives a 0-based index.
+      // Your API likely expects a 1-based order. So, we add 1.
+      const newBoardOrder = destination.index + 1;
 
-        const latestColumnsFromStore = latestGlobalState.kanban?.columns;
-        if (!latestColumnsFromStore) {
-          console.error(
-            "KanbanPage (onDragEnd): Could not get latest columns from store after sort."
-          );
-          toast.error(
-            "Error: Could not verify destination column for update after sort."
-          );
-          return;
-        }
-
-        const destColumnDefinition = latestColumnsFromStore.find(
+      if (String(source.droppableId) === String(destination.droppableId)) {
+        console.log(
+          `Task ${taskId} reordered. Sending order: ${newBoardOrder}.`
+        );
+        dispatch(
+          updateTaskOrderInBackend({
+            taskId: taskId,
+            boardOrder: newBoardOrder,
+          })
+        );
+      }
+      else {
+        console.log(
+          `Task ${taskId} moved to new column. Sending order: ${newBoardOrder}.`
+        );
+        
+        const latestGlobalState = store.getState();
+        const destColumnDefinition = latestGlobalState.kanban?.columns?.find(
           (col) => String(col.id) === String(destination.droppableId)
         );
 
-        if (destColumnDefinition && destColumnDefinition.name) {
+        if (destColumnDefinition?.name) {
           const newStatusKey = Object.keys(STATUS_TO_COLUMN_MAP).find(
             (key) =>
               STATUS_TO_COLUMN_MAP[key].name === destColumnDefinition.name
@@ -126,31 +110,31 @@ const KanbanPage = () => {
           if (newStatusKey) {
             dispatch(
               updateTaskStatusInBackend({
-                taskId: taskBeingMovedApiData.id,
+                taskId: taskId,
                 taskData: taskBeingMovedApiData,
                 newStatus: newStatusKey,
               })
             );
+            dispatch(
+              updateTaskOrderInBackend({
+                taskId: taskId,
+                boardOrder: newBoardOrder,
+              })
+            );
           } else {
             console.warn(
-              `KanbanPage (onDragEnd): No status key found for column name '${destColumnDefinition.name}'.`
-            );
-            toast.warn(
-              `Configuration issue: No status mapping for column '${destColumnDefinition.name}'.`
+              `Configuration issue: No status key for column '${destColumnDefinition.name}'.`
             );
           }
         } else {
           console.warn(
-            `KanbanPage (onDragEnd): Destination column definition not found or has no name. Dest ID: ${destination.droppableId}`
+            `Could not find dest column definition. Dest ID: ${destination.droppableId}`
           );
         }
-      } else {
-        console.warn(
-          `KanbanPage (onDragEnd): Task moved columns, but taskBeingMovedApiData was not available. Backend update skipped. DraggableId: ${draggableId}`
-        );
       }
     }
   };
+
 
   const handleOpenEditTaskModal = useCallback((taskFromCard) => {
     if (

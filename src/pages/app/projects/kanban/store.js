@@ -75,7 +75,13 @@ export const fetchKanbanData = createAsyncThunk(
         : [];
 
       if (Array.isArray(tasksToProcess) && tasksToProcess.length > 0) {
-        tasksToProcess.forEach((task) => {
+        // === YAHAN TABDEELI KI GAYI HAI ===
+        // API se anay walay tasks ko unke board_order ke hisab se sort karein.
+        // Agar board_order mojood nahin hai, to 0 istemal hoga.
+        const sortedTasks = tasksToProcess.sort((a, b) => (a.board_order || 0) - (b.board_order || 0));
+
+        // Ab sortedTasks ka istemal karein
+        sortedTasks.forEach((task) => {
           const status = task.task_status;
           if (columnsMap[status]) {
             columnsMap[status].tasks.push({
@@ -87,7 +93,7 @@ export const fetchKanbanData = createAsyncThunk(
               progress: task.progress || 0,
               assignee: task.assignees || [],
               category: task.categories || [],
-              apiData: task,
+              apiData: task, // Poora task object save karein
             });
           } else {
             console.warn(
@@ -190,6 +196,53 @@ export const updateTaskStatusInBackend = createAsyncThunk(
     }
   }
 );
+
+export const updateTaskOrderInBackend = createAsyncThunk(
+  "kanban/updateTaskOrderInBackend",
+  async ({ taskId, boardOrder }, { rejectWithValue }) => {
+    const token = Cookies.get("token");
+    if (!token) {
+      return rejectWithValue("No token found");
+    }
+
+    const apiPrefix = getApiPrefixByRole();
+    if (!apiPrefix) {
+      return rejectWithValue("User role not found, cannot update task order.");
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/${apiPrefix}/change-project-task-order`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            task_id: taskId,
+            board_order: boardOrder,
+          }),
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.message || `Failed to update task order (${response.status})`);
+      }
+
+      toast.success(responseData.message || "Task order updated!");
+      return { taskId, boardOrder };
+    } catch (error) {
+      console.error("updateTaskOrderInBackend: Error:", error);
+      toast.error(`Order update failed: ${error.message}`);
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 
 export const deleteTaskFromBackend = createAsyncThunk(
   "kanban/deleteTaskFromBackend",
@@ -435,6 +488,12 @@ export const appKanbanSlice = createSlice({
       })
       .addCase(updateTaskStatusInBackend.rejected, (state, action) => {
         console.error("updateTaskStatusInBackend.rejected:", action.payload, `For Task API ID: ${action.meta.arg.taskId}`);
+      })
+      .addCase(updateTaskOrderInBackend.fulfilled, (state, action) => {
+        console.log(`Task order successfully updated for task ID: ${action.payload.taskId}`);
+      })
+      .addCase(updateTaskOrderInBackend.rejected, (state, action) => {
+        console.error("updateTaskOrderInBackend.rejected:", action.payload, `For Task API ID: ${action.meta.arg.taskId}`);
       })
       .addCase(deleteTaskFromBackend.fulfilled, (state, action) => {
         const { frontendTaskId } = action.payload;
