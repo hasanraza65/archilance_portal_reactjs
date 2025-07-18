@@ -2,17 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
-import CheckoutForm from "./StripeCheckoutForm"; // Your existing Stripe form
+import CheckoutForm from "./StripeCheckoutForm";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 
-// --- Load Stripe Key (Best practice: define outside the component) ---
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-
-// ===================================================================
-// ===== Helper Icons & Components
-// ===================================================================
-
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -36,10 +30,6 @@ const getCardLogo = (cardType) => {
   if (type.includes("amex")) return "/card-brands/amex.svg";
   return "/card-brands/default.svg";
 };
-
-// ===================================================================
-// ===== Main Checkout Component
-// ===================================================================
 
 const Checkout = () => {
   const location = useLocation();
@@ -66,7 +56,7 @@ const Checkout = () => {
     zip: "",
     city: "",
     state: "",
-    country: "Canada",
+    country: "",
   });
 
   useEffect(() => {
@@ -128,7 +118,6 @@ const Checkout = () => {
     }
   }, [step, paymentView, clientSecret]);
 
-  // --- Payment Execution ---
   const executeSubscriptionCreation = async (paymentMethodId) => {
     if (!plan?.id || !billingCycle || !paymentMethodId) {
       Swal.fire(
@@ -157,27 +146,39 @@ const Checkout = () => {
             plan_id: plan.id,
             billing_cycle: billingCycle,
             payment_method_id: paymentMethodId,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            company: formData.company,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+            country: formData.country,
           }),
         }
       );
 
       const result = await response.json();
-      
+
       if (response.status === 409) {
         Swal.fire({
           title: "Already Subscribed",
           text: result.error || "You already have an active subscription.",
           icon: "info",
         });
-        throw new Error(result.error || "You already have an active subscription.");
+        throw new Error(
+          result.error || "You already have an active subscription."
+        );
       }
-      
+
       if (!response.ok) {
         throw new Error(
           result.message || "An error occurred while creating the subscription."
         );
       }
-      
+
       Swal.fire({
         title: "Payment Successful!",
         text: "Your subscription has been activated.",
@@ -186,14 +187,13 @@ const Checkout = () => {
       navigate("/subscriptions");
     } catch (err) {
       if (err.message !== "You already have an active subscription.") {
-          Swal.fire("Payment Failed", err.message, "error");
+        Swal.fire("Payment Failed", err.message, "error");
       }
       throw err;
     } finally {
       setIsProcessingPayment(false);
     }
   };
-
 
   const handlePaymentWithSavedCard = () => {
     if (selectedCardId) executeSubscriptionCreation(selectedCardId);
@@ -202,8 +202,7 @@ const Checkout = () => {
   const handlePayWithNewCard = (newPaymentMethodId) => {
     executeSubscriptionCreation(newPaymentMethodId);
   };
-    
-  // ✅ --- START: IMPLEMENTED CARD MANAGEMENT FUNCTIONS ---
+
   const handleDeleteCard = async (cardId) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -237,7 +236,7 @@ const Checkout = () => {
         }
 
         Swal.fire("Deleted!", "The card has been removed.", "success");
-        await fetchCards(); // Refresh the card list
+        await fetchCards();
       } catch (err) {
         Swal.fire("Error", err.message, "error");
       }
@@ -277,22 +276,47 @@ const Checkout = () => {
         timerProgressBar: true,
       });
 
-      await fetchCards(); // Refresh the card list to show the new default
+      await fetchCards();
     } catch (err) {
       Swal.fire("Error", err.message, "error");
     }
   };
-  // ✅ --- END: IMPLEMENTED CARD MANAGEMENT FUNCTIONS ---
 
   const handleInputChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleNextStep = () => {
+    const requiredFields = {
+      firstName: "First name",
+      lastName: "Last name",
+      email: "Email address",
+      phone: "Phone Number",
+      company: "Company name",
+      address: "Street Address",
+      city: "City",
+      state: "State / Province",
+      zip: "ZIP / Postcode",
+    };
+
+    for (const key in requiredFields) {
+      if (!formData[key]?.trim()) {
+        Swal.fire({
+          title: "Incomplete Information",
+          text: `Please fill out the "${requiredFields[key]}" field.`,
+          icon: "warning",
+        });
+        return;
+      }
+    }
+    setStep(2);
+  };
+
   const subtotal = plan ? parseFloat(plan.price) : 0;
   const total = subtotal;
   const inputClasses =
     "block w-full px-4 py-3 border border-gray-300 bg-gray-50 rounded-lg shadow-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-600 transition-shadow";
   const labelClasses = "block text-sm font-semibold text-gray-600 mb-2";
 
-  // --- Render Functions ---
   const OrderSummary = () => (
     <div className="lg:col-span-1">
       <div className="bg-white p-6 rounded-2xl shadow-sm sticky top-24">
@@ -365,7 +389,7 @@ const Checkout = () => {
               ) : (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Prevent the card selection from firing
+                    e.stopPropagation();
                     handleSetDefault(card.id);
                   }}
                   className="text-sm font-medium text-blue-600 hover:underline"
@@ -375,7 +399,7 @@ const Checkout = () => {
               )}
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevent the card selection from firing
+                  e.stopPropagation();
                   handleDeleteCard(card.id);
                 }}
               >
@@ -624,7 +648,7 @@ const Checkout = () => {
                 </form>
                 <div className="mt-10 flex justify-end">
                   <button
-                    onClick={() => setStep(2)}
+                    onClick={handleNextStep}
                     className="w-auto text-center px-8 py-3 bg-gray-800 text-white rounded-lg text-sm font-semibold hover:bg-gray-900 transition shadow-sm"
                   >
                     Next

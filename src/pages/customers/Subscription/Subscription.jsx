@@ -2,21 +2,11 @@ import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import ManageCardsModal from "./ManageCardsModal";
 import BillingHistoryModal from "./BillingHistoryModal";
+import ManageBillingInfoModal from "./ManageBillingInfoModal";
 import { Link, useNavigate } from "react-router-dom";
 import { format, formatDistanceToNow } from "date-fns";
 import Cookies from "js-cookie";
 
-// --- DUMMY DATA & ICONS (Koi tabdeeli nahi) ---
-const initialCards = [
-  { id: 1, type: "Visa", last4: "7830", expiry: "06/24", isDefault: true },
-  {
-    id: 2,
-    type: "Mastercard",
-    last4: "1075",
-    expiry: "02/25",
-    isDefault: false,
-  },
-];
 const initialHistory = [
   {
     id: 1,
@@ -43,6 +33,7 @@ const initialHistory = [
     downloadUrl: "#",
   },
 ];
+
 const InfoIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -57,20 +48,20 @@ const InfoIcon = () => (
     />
   </svg>
 );
+
 const SummaryCard = ({ title, value, subtext, bgColor }) => (
   <div className={`p-6 rounded-xl border ${bgColor}`}>
-    {" "}
-    <h3 className="text-sm font-medium text-gray-600">{title}</h3>{" "}
-    <p className="text-3xl font-bold mt-1 text-gray-800">{value}</p>{" "}
-    <p className="text-sm text-gray-500 mt-1">{subtext}</p>{" "}
+    <h3 className="text-sm font-medium text-gray-600">{title}</h3>
+    <p className="text-3xl font-bold mt-1 text-gray-800">{value}</p>
+    <p className="text-sm text-gray-500 mt-1">{subtext}</p>
   </div>
 );
 
 const Subscription = () => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [cards, setCards] = useState(initialCards); // Yeh ab ManageCardsModal khud handle karega
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isBillingInfoModalOpen, setIsBillingInfoModalOpen] = useState(false);
   const [billingHistory, setBillingHistory] = useState(initialHistory);
   const [subscriptionData, setSubscriptionData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,12 +112,13 @@ const Subscription = () => {
   }, [navigate]);
 
   useEffect(() => {
-    const isAnyModalOpen = isModalOpen || isHistoryModalOpen;
+    const isAnyModalOpen =
+      isModalOpen || isHistoryModalOpen || isBillingInfoModalOpen;
     document.body.style.overflow = isAnyModalOpen ? "hidden" : "auto";
     return () => {
       document.body.style.overflow = "auto";
     };
-  }, [isModalOpen, isHistoryModalOpen]);
+  }, [isModalOpen, isHistoryModalOpen, isBillingInfoModalOpen]);
 
   const handleCancelSubscription = () => {
     Swal.fire({
@@ -167,6 +159,25 @@ const Subscription = () => {
           <strong className="font-bold">Error:</strong>
           <span className="block sm:inline"> {error}</span>
         </div>
+      </div>
+    );
+  }
+
+  if (!subscriptionData) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen text-center">
+        <h2 className="text-2xl font-semibold text-gray-700">
+          No Active Subscription
+        </h2>
+        <p className="mt-2 text-gray-500">
+          You do not currently have an active subscription.
+        </p>
+        <Link
+          to="/pricing"
+          className="mt-6 px-6 py-2 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-900 transition"
+        >
+          View Plans
+        </Link>
       </div>
     );
   }
@@ -232,17 +243,17 @@ const Subscription = () => {
             <div>
               <p className="font-semibold text-gray-700">Billing Information</p>
               <p className="text-sm text-gray-500 mt-1">
-                View and update your billing information.
+                View your current billing information.
               </p>
             </div>
-            <a
-              href="#"
+            <button
+              onClick={() => setIsBillingInfoModalOpen(true)}
               className="text-sm font-medium text-blue-600 hover:underline shrink-0"
             >
-              Edit Billing Information
-            </a>
+              Manage Billing Information
+            </button>
           </div>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-2">
+          {/* <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-2">
             <div>
               <p className="font-semibold text-gray-700">Billing History</p>
               <p className="text-sm text-gray-500">
@@ -255,7 +266,7 @@ const Subscription = () => {
             >
               View History
             </button>
-          </div>
+          </div> */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-2">
             <div>
               <p className="font-semibold text-gray-700">Payment Method</p>
@@ -286,6 +297,7 @@ const Subscription = () => {
           </button>
         </div>
       </div>
+
       <ManageCardsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -294,6 +306,10 @@ const Subscription = () => {
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
         history={billingHistory}
+      />
+      <ManageBillingInfoModal
+        isOpen={isBillingInfoModalOpen}
+        onClose={() => setIsBillingInfoModalOpen(false)}
       />
     </div>
   );

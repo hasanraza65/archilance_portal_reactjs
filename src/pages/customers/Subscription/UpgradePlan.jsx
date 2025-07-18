@@ -158,23 +158,23 @@ const PricingCard = ({
         </ul>
       </div>
       <div className="border-t border-gray-200 my-8"></div>
-      <div className="mt-6 space-y-3">
-        <Link
-          to="/checkout"
-          state={{ plan: plan, billingCycle: isAnnual ? "Yearly" : "Monthly" }}
-          className={`block w-full text-center py-3 font-semibold rounded-full 
-                        ${
-                          isSelected
-                            ? "bg-gray-900 text-white"
-                            : "bg-gray-200 text-gray-800"
-                        }`}
-        >
-          {isCurrentPlan ? "Current Plan" : "Subscribe"}
-        </Link>
-        {/* <button className="w-full py-3 font-semibold border border-gray-300 rounded-full text-gray-800">
-                    {secondaryButtonText}
-                </button> */}
-      </div>
+    <div className="mt-6 space-y-3">
+  <Link
+    to="/checkout"
+    state={{ plan: plan, billingCycle: "Monthly" }}
+    className={`block w-full text-center py-3 font-semibold rounded-full 
+                  ${
+                    isSelected
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-200 text-gray-800"
+                  }`}
+  >
+    {isCurrentPlan ? "Current Plan" : "Subscribe"}
+  </Link>
+  <button className="w-full py-3 font-semibold border border-gray-300 rounded-full text-gray-800">
+              {secondaryButtonText}
+          </button>
+</div>
     </div>
   );
 };
