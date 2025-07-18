@@ -9,6 +9,7 @@ import Layout from "./layout/Layout";
 import AuthLayout from "./layout/AuthLayout";
 import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
+import AdminSubscription from "./pages/admin/AdminSubscription";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
 const WorkSession = lazy(() =>
@@ -164,6 +165,16 @@ function App() {
               <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
                 <Suspense fallback={<Loading />}>
                   <EditProfile />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="subscription"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <Suspense fallback={<Loading />}>
+                  <AdminSubscription />
                 </Suspense>
               </ProtectedRoute>
             }

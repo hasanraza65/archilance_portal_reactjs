@@ -112,7 +112,14 @@ export const menuItems = [
     isHide: true,
     icon: "heroicons-outline:receipt-refund",
     link: "subscriptions",
-    allowedRoles: ["customer"], // Sirf customer ko
+    allowedRoles: ["customer",], // Sirf customer ko
+  },
+  {
+    title: "Subscription",
+    isHide: true,
+    icon: "heroicons-outline:receipt-refund",
+    link: "subscription",
+    allowedRoles: ["admin",], // Sirf customer ko
   },
 ];
 
