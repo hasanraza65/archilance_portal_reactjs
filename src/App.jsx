@@ -1,35 +1,47 @@
-// src/App.jsx
-
 import React, { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useSelector, useDispatch } from "react-redux";
-
-// Our new central socket service
 import { connectSocket, disconnectSocket } from "./socket";
 
-// Layouts
 import Layout from "./layout/Layout";
 import AuthLayout from "./layout/AuthLayout";
-
-// Components
 import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
-import ChatPage from "./pages/app/chat";
-import WorkSession from "./pages/employees/WorkSession/WorkSession";
-import AdminEmployeeWorkSession from "./pages/employees/WorkSession/AdminEmployeeWorkSession";
-import OrderDetailsPage from "./pages/customers/OrderPage/OrderDetailPage";
-import Subscription from "./pages/customers/Subscription/Subscription";
-import UpgradePlan from "./pages/customers/Subscription/UpgradePlan";
-import Checkout from "./pages/customers/Subscription/Checkout";
-import WorkDiaryPage from "./pages/customers/WorkDiaryPage/WorkDiaryPage";
-import CustomerKanbanPage from "./pages/customers/CustomerKanbanPage/CustomerKanbanPage";
-import EmployeeDashboard from "./pages/employees/Leave/EmployeeDashboard";
-import LeaveManagementPage from "./pages/AdminLeave/LeaveManagementPage";
-import PaymentStatusPage from "./pages/customers/Subscription/PaymentMethod";
 
-// Pages (lazy loaded)
+const ChatPage = lazy(() => import("./pages/app/chat"));
+const WorkSession = lazy(() =>
+  import("./pages/employees/WorkSession/WorkSession")
+);
+const AdminEmployeeWorkSession = lazy(() =>
+  import("./pages/employees/WorkSession/AdminEmployeeWorkSession")
+);
+const OrderDetailsPage = lazy(() =>
+  import("./pages/customers/OrderPage/OrderDetailPage")
+);
+const Subscription = lazy(() =>
+  import("./pages/customers/Subscription/Subscription")
+);
+const UpgradePlan = lazy(() =>
+  import("./pages/customers/Subscription/UpgradePlan")
+);
+const Checkout = lazy(() => import("./pages/customers/Subscription/Checkout"));
+const WorkDiaryPage = lazy(() =>
+  import("./pages/customers/WorkDiaryPage/WorkDiaryPage")
+);
+const CustomerKanbanPage = lazy(() =>
+  import("./pages/customers/CustomerKanbanPage/CustomerKanbanPage")
+);
+const EmployeeDashboard = lazy(() =>
+  import("./pages/employees/Leave/EmployeeDashboard")
+);
+const LeaveManagementPage = lazy(() =>
+  import("./pages/AdminLeave/LeaveManagementPage")
+);
+const PaymentStatusPage = lazy(() =>
+  import("./pages/customers/Subscription/PaymentMethod")
+);
 const Dashboard = lazy(() => import("./pages/dashboard"));
 const Ecommerce = lazy(() => import("./pages/dashboard/ecommerce"));
 const Login = lazy(() => import("./pages/auth/login"));
@@ -115,95 +127,252 @@ function App() {
           />
         </Route>
 
-        <Route element={<ProtectedRoute />}>
-          <Route element={<Layout />}>
-            <Route
-              path="dashboard"
-              element={
+        <Route element={<Layout />}>
+          <Route
+            path="dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "customer"]}>
                 <Suspense fallback={<Loading />}>
                   <Dashboard />
                 </Suspense>
-              }
-            />
-            <Route
-              path="ecommerce"
-              element={
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="ecommerce"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
                 <Suspense fallback={<Loading />}>
                   <Ecommerce />
                 </Suspense>
-              }
-            />
-            <Route
-              path="profile"
-              element={
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="profile"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
                 <Suspense fallback={<Loading />}>
                   <Profile />
                 </Suspense>
-              }
-            />
-            <Route
-              path="profile/edit"
-              element={
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="profile/edit"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
                 <Suspense fallback={<Loading />}>
                   <EditProfile />
                 </Suspense>
-              }
-            />
-            <Route path="projects" element={<ProjectPostPage />} />
-            <Route path="projects/:id" element={<ProjectDetailsPage />} />
-            <Route path="/task/:taskId" element={<TaskDetailsPage />} />
-            <Route path="/project/:id/kanban" element={<KanbanPage />} />
-            <Route path="leaves" element={<LeaveManagementPage />} />
-            <Route
-              path="/project-brief/:briefId"
-              element={<ProjectBriefDetailPage />}
-            />
-            <Route path="employees" element={<Allemployees />} />
-            <Route
-              path="/employees/view/:employeeId"
-              element={<ShowEmployee />}
-            />
-            <Route path="employees/add" element={<AddEmployee />} />
-            <Route
-              path="/employees/edit/:employeeId"
-              element={<EditEmployee />}
-            />
-            <Route path="work-session" element={<WorkSession />} />
-            <Route
-              path="/employees/work-sessions/:employeeId"
-              element={<AdminEmployeeWorkSession />}
-            />
-            <Route path="employeeleaves" element={<EmployeeDashboard />} />
-            {/* --- Customers Routes --- */}
-            <Route path="customers" element={<AllCustomers />} />
-            <Route
-              path="/customers/view/:customerId"
-              element={<CustomerView />}
-            />
-            <Route path="customers/add" element={<AddCustomers />} />
-            <Route
-              path="/customers/edit/:customerId"
-              element={<UpdateCustomer />}
-            />
-            
-            {/* =================================================================== */}
-            <Route
-              path="/customer/order-details/:id"
-              element={<OrderDetailsPage />}
-            />
-            <Route path="/work-diary/:projectId" element={<WorkDiaryPage />} />
-            <Route path="/kanban/:projectId" element={<CustomerKanbanPage />} />
-            {/* =================================================================== */}
-              
-            <Route path="subscriptions" element={<Subscription />} />
-            <Route path="/upgrade-plan" element={<UpgradePlan />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/payment-status" element={<PaymentStatusPage />} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="projects"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+                <ProjectPostPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="projects/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+                <ProjectDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/task/:taskId"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+                <TaskDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project/:id/kanban"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee"]}>
+                <KanbanPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project-brief/:briefId"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+                <ProjectBriefDetailPage />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="leaves"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <LeaveManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="employees"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <Allemployees />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employees/view/:employeeId"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <ShowEmployee />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="employees/add"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AddEmployee />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employees/edit/:employeeId"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <EditEmployee />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employees/work-sessions/:employeeId"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminEmployeeWorkSession />
+              </ProtectedRoute>
+            }
+          />
 
-            <Route path="chat" element={<ChatPage />} />
-            <Route path="*" element={<Navigate to="/404" replace />} />
-          </Route>
+          <Route
+            path="work-session"
+            element={
+              <ProtectedRoute allowedRoles={["employee"]}>
+                <WorkSession />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="employeeleaves"
+            element={
+              <ProtectedRoute allowedRoles={["employee"]}>
+                <EmployeeDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="customers"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AllCustomers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers/view/:customerId"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <CustomerView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="customers/add"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AddCustomers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers/edit/:customerId"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <UpdateCustomer />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/customer/order-details/:id"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <OrderDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/work-diary/:projectId"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <WorkDiaryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kanban/:projectId"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <CustomerKanbanPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="subscriptions"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <Subscription />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/upgrade-plan"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <UpgradePlan />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment-status"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <PaymentStatusPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="chat"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "employee"]}>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         <Route

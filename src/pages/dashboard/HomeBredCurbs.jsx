@@ -30,7 +30,7 @@ const HomeBredCurbs = ({ title }) => {
       <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 inline-block ltr:pr-4 rtl:pl-4">
         {title}
       </h4>
-      <div className="flex sm:space-x-4 space-x-2 sm:justify-end items-center rtl:space-x-reverse">
+      {/* <div className="flex sm:space-x-4 space-x-2 sm:justify-end items-center rtl:space-x-reverse">
         <Popover>
           <PopoverButton className="flex items-center gap-1.5 text-sm/relaxed text-slate-900 bg-white dark:bg-slate-800 dark:text-white px-7 py-2.5 w-full rounded focus:outline-none">
             <Icon icon="heroicons-outline:calendar" />
@@ -60,7 +60,7 @@ const HomeBredCurbs = ({ title }) => {
             <Calendar date={selectedDate} onChange={singleSelect} />
           </PopoverPanel>
         </Popover>
-      </div>
+      </div> */}
     </div>
   );
 };

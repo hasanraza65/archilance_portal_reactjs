@@ -1,20 +1,20 @@
-
 import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import Cookies from 'js-cookie';
+import { Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
-const ProtectedRoute = () => {
-  const token = Cookies.get('token'); // Check for the authentication token in cookies
-  const location = useLocation();
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const user = useSelector((state) => state.auth.user);
 
-  if (!token) {
-    // If no token, redirect the user to the login page (which is '/' in your App.jsx)
-    // Pass the current location in state so after login, user can be redirected back
-    return <Navigate to="/" state={{ from: location }} replace />;
+  if (!user) {
+    return <Navigate to="/" replace />;
   }
 
-  // If token exists, render the child routes
-  return <Outlet />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    const defaultPath = user.role === 'employee' ? '/projects' : '/dashboard';
+    return <Navigate to={defaultPath} replace />;
+  }
+  
+  return children;
 };
 
 export default ProtectedRoute;

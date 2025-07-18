@@ -38,7 +38,6 @@ export const AuthProvider = ({ children }) => {
   const login = (apiResponse, rememberMe = false) => {
     if (apiResponse && apiResponse.user && apiResponse.access_token) {
       const userData = apiResponse.user;
-      
       const userRoleString = ROLE_MAP[userData.user_role] || 'unknown';
 
       const userToSave = {
@@ -63,6 +62,12 @@ export const AuthProvider = ({ children }) => {
       Cookies.set("userRole", userRoleString, cookieOptions);
 
       dispatch(setReduxUser(userToSave));
+
+      if (userRoleString === 'employee') {
+        navigate("/projects", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
 
       return userToSave;
     } else {

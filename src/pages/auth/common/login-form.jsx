@@ -1,11 +1,9 @@
-// File: src/pages/auth/common/login-form.jsx
-
 import React, { useState } from "react";
 import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import Checkbox from "@/components/ui/Checkbox";
 import Button from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
@@ -25,7 +23,6 @@ const LOGIN_URL = `${BACKEND_BASE_URL}/api/login`;
 
 const LoginForm = () => {
   const [rememberMe, setRememberMe] = useState(false);
-  const navigate = useNavigate();
   const { login: authLogin } = useAuth();
 
   const {
@@ -50,19 +47,15 @@ const LoginForm = () => {
       const loggedInUser = authLogin(responseData, rememberMe);
 
       if (loggedInUser) {
-        toast.success("Login Successful");
-        // <<<--- YAHAN CHANGE HAI ---<<<
-        // Ab hamesha root (/) par redirect karein.
-        // Baaqi logic aapka main login page sambhalega.
-        navigate('/', { replace: true });
-      } else {
-        toast.error("Login failed: Could not process user data.");
+        toast.success("Login Successful! Redirecting...");
       }
     },
     onError: (error) => {
       let errorMsg = "Login failed. Please check your credentials.";
       if (axios.isAxiosError(error) && error.response) {
-        errorMsg = error.response.data.message || `Server error: ${error.response.status}`;
+        errorMsg =
+          error.response.data.message ||
+          `Server error: ${error.response.status}`;
       } else if (error instanceof Error) {
         errorMsg = error.message;
       }
