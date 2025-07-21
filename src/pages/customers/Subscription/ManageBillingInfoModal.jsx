@@ -124,12 +124,12 @@ const BillingInfoListView = ({
         </div>
       </div>
     ))}
-    <button
+    {/* <button
       onClick={() => setView("add")}
       className="mt-4 w-full border border-gray-300 text-gray-700 font-semibold py-2.5 px-4 rounded-lg hover:bg-gray-100 transition"
     >
       Add New Address
-    </button>
+    </button> */}
   </div>
 );
 
