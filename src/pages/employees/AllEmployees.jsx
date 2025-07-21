@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react"; // Added useCallback
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -12,12 +12,11 @@ import {
   usePagination,
 } from "react-table";
 import GlobalFilter from "../table/react-table/GlobalFilter";
-import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal"; // Import the modal
-import Alert from "@/components/ui/Alert"; // For success/error messages
+import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
+import Alert from "@/components/ui/Alert";
 
-const PFP_BASE_URL = "https://demo.aentora.com/backend/public/storage/";
+const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
-// Renamed and modified to accept openDeleteModalHandler
 const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
   {
     Header: "Id",
@@ -88,21 +87,17 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
     Header: "Action",
     accessor: "action",
     Cell: ({ row }) => {
-      // Removed useNavigate from here, it's available in AllEmployees scope
       const handleView = () => {
         navigate(`/employees/view/${row.original.id}`);
       };
-      // *** START: NEW CODE FOR WORK SESSION BUTTON ***
       const handleWorkSessionView = () => {
-        // Navigate to the work sessions page for this employee
         navigate(`/employees/work-sessions/${row.original.id}`);
       };
-      // *** END: NEW CODE FOR WORK SESSION BUTTON ***
       const handleEdit = () => {
         navigate(`/employees/edit/${row.original.id}`);
       };
       const handleDeleteClick = () => {
-        openDeleteModalHandler(row.original); // Call the passed handler
+        openDeleteModalHandler(row.original);
       };
 
       return (
@@ -114,8 +109,6 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
           >
             <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
           </button>
-
-          {/* *** START: NEW WORK SESSION BUTTON *** */}
           <button
             onClick={handleWorkSessionView}
             className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-100 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-green-200 dark:hover:border-green-700"
@@ -123,8 +116,6 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
           >
             <Icon icon="heroicons-outline:briefcase" className="w-4 h-4" />
           </button>
-          {/* *** END: NEW WORK SESSION BUTTON *** */}
-
           <button
             onClick={handleEdit}
             className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
@@ -145,7 +136,6 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
   },
 ];
 
-// IndeterminateCheckbox remains the same
 const IndeterminateCheckbox = React.forwardRef(
   ({ indeterminate, ...rest }, ref) => {
     const defaultRef = React.useRef();
@@ -172,7 +162,6 @@ const Allemployees = () => {
   const [fetchError, setFetchError] = useState(null);
   const navigate = useNavigate();
 
-  // State for delete functionality
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -180,10 +169,9 @@ const Allemployees = () => {
   const [deleteSuccess, setDeleteSuccess] = useState(null);
 
   const fetchEmployees = useCallback(async () => {
-    // Wrapped in useCallback
     setLoading(true);
     setFetchError(null);
-    setDeleteSuccess(null); // Clear messages on new fetch
+    setDeleteSuccess(null);
     setDeleteError(null);
     const token = Cookies.get("token");
     if (!token) {
@@ -193,7 +181,7 @@ const Allemployees = () => {
     }
     try {
       const response = await axios.get(
-        "https://demo.aentora.com/backend/public/api/admin/employee-user",
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -219,24 +207,23 @@ const Allemployees = () => {
     } finally {
       setLoading(false);
     }
-  }, []); // Empty dependency array as fetchEmployees doesn't depend on props/state that change it
+  }, []);
 
   useEffect(() => {
     fetchEmployees();
-  }, [fetchEmployees]); // fetchEmployees is now a stable dependency
+  }, [fetchEmployees]);
 
-  // ---- Delete Functionality Handlers ----
   const handleOpenDeleteModal = useCallback((employee) => {
     setEmployeeToDelete(employee);
     setIsDeleteModalOpen(true);
     setDeleteError(null);
     setDeleteSuccess(null);
-  }, []); // Empty dependency, setState functions are stable
+  }, []);
 
   const handleCloseDeleteModal = useCallback(() => {
     setIsDeleteModalOpen(false);
     setEmployeeToDelete(null);
-  }, []); // Empty dependency
+  }, []);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!employeeToDelete) return;
@@ -252,7 +239,7 @@ const Allemployees = () => {
     }
     try {
       await axios.delete(
-        `https://demo.aentora.com/backend/public/api/admin/employee-user/${employeeToDelete.id}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user/${employeeToDelete.id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -266,8 +253,8 @@ const Allemployees = () => {
       setDeleteSuccess(
         `Employee "${employeeToDelete.name}" deleted successfully!`
       );
-      handleCloseDeleteModal(); // Close modal on success
-      setTimeout(() => setDeleteSuccess(null), 4000); // Auto-dismiss success
+      handleCloseDeleteModal();
+      setTimeout(() => setDeleteSuccess(null), 4000);
     } catch (err) {
       setDeleteError(
         err.response?.data?.message ||
@@ -277,12 +264,11 @@ const Allemployees = () => {
     } finally {
       setDeleteLoading(false);
     }
-  }, [employeeToDelete, handleCloseDeleteModal]); // Dependencies for handleConfirmDelete
-  // ---- End Delete Functionality Handlers ----
+  }, [employeeToDelete, handleCloseDeleteModal]);
 
   const columns = useMemo(
     () => EMPLOYEE_API_COLUMNS_CONFIG(navigate, handleOpenDeleteModal),
-    [navigate, handleOpenDeleteModal] // Added handleOpenDeleteModal as dependency
+    [navigate, handleOpenDeleteModal]
   );
   const data = useMemo(() => employeeData, [employeeData]);
 
@@ -313,7 +299,6 @@ const Allemployees = () => {
   } = tableInstance;
   const { globalFilter, pageIndex, pageSize } = state;
 
-  // Loading and Error States (similar to previous logic)
   if (loading && !employeeData.length) {
     return (
       <Card>
@@ -340,8 +325,6 @@ const Allemployees = () => {
         <div className="md:flex justify-between items-center mb-6">
           <h4 className="card-title">Employee List</h4>
           <div className="flex flex-wrap space-x-3 items-center">
-            {" "}
-            {/* flex-wrap for responsiveness */}
             <GlobalFilter
               filter={globalFilter || ""}
               setFilter={setGlobalFilter}

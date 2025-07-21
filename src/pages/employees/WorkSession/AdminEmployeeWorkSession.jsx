@@ -1,5 +1,3 @@
-// src/pages/admin/AdminEmployeeWorkSession.js
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -9,7 +7,6 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 
-// Helper Icons and Functions
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -66,8 +63,8 @@ const AdminEmployeeWorkSession = () => {
   const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState([]);
 
-  const API_BASE_URL = "https://demo.aentora.com/backend/public/api/admin";
-  const STORAGE_URL = "https://demo.aentora.com/backend/public/storage";
+  const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin`;
+  const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
   useEffect(() => {
     if (!isAuthenticated || !employeeId) return;
@@ -85,15 +82,13 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchEmployeeDetails();
-  }, [isAuthenticated, token, employeeId]);
+  }, [isAuthenticated, token, employeeId, API_BASE_URL]);
 
-  // *** FIX: Fetch projects using ADMIN API endpoint ***
   useEffect(() => {
     if (!isAuthenticated) return;
     const fetchProjects = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/project`, {
-          // Changed to admin endpoint
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error("Could not fetch projects.");
@@ -104,9 +99,8 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchProjects();
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, API_BASE_URL]);
 
-  // *** FIX: Fetch tasks using ADMIN API endpoint ***
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
@@ -117,7 +111,6 @@ const AdminEmployeeWorkSession = () => {
       setTasksLoading(true);
       try {
         const res = await fetch(`${API_BASE_URL}/project/${selectedProject}`, {
-          // Changed to admin endpoint
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok)
@@ -134,9 +127,8 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchTasksForProject();
-  }, [selectedProject, token]);
+  }, [selectedProject, token, API_BASE_URL]);
 
-  // Fetch work sessions for the specific employee (This was already correct)
   const fetchWorkSessions = useCallback(async () => {
     if (!employeeId) return;
     setLoading(true);
@@ -183,6 +175,7 @@ const AdminEmployeeWorkSession = () => {
     token,
     isAuthenticated,
     logout,
+    API_BASE_URL
   ]);
 
   useEffect(() => {

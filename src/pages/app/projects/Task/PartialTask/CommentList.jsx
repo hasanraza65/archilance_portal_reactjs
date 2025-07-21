@@ -1,11 +1,10 @@
-// src/components/TaskDetails/PartialTask/CommentList.jsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import { mapApiUserToLocal, formatCommentTimestamp } from "./taskDetailsUtils";
 
-const STORAGE_BASE_PATH = "https://demo.aentora.com/backend/public/storage/";
+const STORAGE_BASE_PATH = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
 const DropdownMenu = ({ options, onSelect, onClose }) => {
   const dropdownRef = useRef(null);
@@ -45,38 +44,27 @@ const DropdownMenu = ({ options, onSelect, onClose }) => {
 
 const buildCommentTree = (commentsList) => {
   if (!commentsList || commentsList.length === 0) return [];
-
-  // <<< FIX: Filter out any null or undefined entries to prevent crashes. >>>
   const validComments = commentsList.filter(c => c && typeof c === 'object' && c.id !== undefined);
-
   const commentsMap = new Map();
-  
-  // Step 1: Har comment ko map mein daalein aur uske liye ek 'children' array banayein.
   validComments.forEach(comment => {
-    // Purane children ko discard karke naya array banayein, taake har re-render pe sahi bane.
     commentsMap.set(comment.id, { ...comment, children: [] });
   });
 
   const rootComments = [];
 
-  // Step 2: Har comment ke liye, check karein ke uska parent hai ya nahi.
   for (const comment of commentsMap.values()) {
     if (comment.reply_to && commentsMap.has(comment.reply_to)) {
-      // Agar parent hai, to uske 'children' array mein is comment ko daal dein.
       const parent = commentsMap.get(comment.reply_to);
       if (parent) {
-        // Duplicate add karne se bachne ke liye check.
         if (!parent.children.some(c => c.id === comment.id)) {
             parent.children.push(comment);
         }
       }
     } else {
-      // Agar parent nahi hai, to yeh ek root comment hai.
       rootComments.push(comment);
     }
   }
 
-  // Step 3: Har comment ke children ko date ke hisaab se sort karein.
   const sortComments = (arr) => arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   for (const node of commentsMap.values()) {
     if (node.children.length > 0) {
@@ -84,10 +72,8 @@ const buildCommentTree = (commentsList) => {
     }
   }
 
-  // Step 4: Root comments ko sort karke return karein.
   return sortComments(rootComments);
 };
-
 
 const CommentList = ({
   comments,
@@ -670,6 +656,5 @@ const CommentList = ({
     </div>
   );
 };
-
 
 export default CommentList;

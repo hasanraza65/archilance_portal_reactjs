@@ -85,7 +85,7 @@ const AddCustomer = () => {
 
     try {
       const response = await axios.post(
-        'https://demo.aentora.com/backend/public/api/admin/customer-user',
+         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user`,
         payload,
         {
           headers: {

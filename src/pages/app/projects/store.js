@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
-const API_ROOT = "https://demo.aentora.com/backend/public/api";
+const API_ROOT = `${import.meta.env.VITE_BACKEND_BASE_URL}/api`;
 
 const getProjectPath = () => {
   const role = getApiPrefix();
@@ -24,10 +24,7 @@ const formatProjectFromAPI = (project) => ({
   des: project.project_description || "",
   startDate: project.start_date || new Date().toISOString().split("T")[0],
   endDate: project.due_date,
-  progress:
-    typeof project.progress === "number"
-      ? project.progress
-      : project.project_progress || 0,
+  progress: typeof project.progress === "number" ? project.progress : project.project_progress || 0,
   customer_id: project.customer_id || null,
   status: project.status?.toLowerCase() || "ongoing",
   assignee: project.members || [],
@@ -63,10 +60,7 @@ export const fetchProjectsAPI = createAsyncThunk(
         },
       };
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Failed to load projects.";
+      const errorMessage = err.response?.data?.message || err.message || "Failed to load projects.";
       return rejectWithValue(errorMessage);
     }
   }
@@ -87,10 +81,7 @@ export const addProjectAPI = createAsyncThunk(
         },
       });
 
-      if (
-        response.data &&
-        (response.status === 201 || response.status === 200)
-      ) {
+      if (response.data && (response.status === 201 || response.status === 200)) {
         toast.success("Project added successfully!");
         dispatch(fetchProjectsAPI(1));
         if (response.data.data && typeof response.data.data === "object") {
@@ -103,10 +94,7 @@ export const addProjectAPI = createAsyncThunk(
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Could not add project.";
+      const errorMessage = error.response?.data?.message || error.message || "Could not add project.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -121,16 +109,12 @@ export const saveEditedProjectAPI = createAsyncThunk(
       if (!token) return rejectWithValue("Authentication token not found.");
 
       const path = getProjectPath();
-      const response = await axios.put(
-        `${API_ROOT}${path}/${projectData.id}`,
-        projectData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
+      const response = await axios.put(`${API_ROOT}${path}/${projectData.id}`, projectData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
 
       if (response.data && response.status === 200) {
         toast.success("Project updated successfully!");
@@ -146,10 +130,7 @@ export const saveEditedProjectAPI = createAsyncThunk(
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Could not update project.";
+      const errorMessage = error.response?.data?.message || error.message || "Could not update project.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -186,10 +167,7 @@ export const deleteProjectAPI = createAsyncThunk(
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to delete project.";
+      const errorMessage = error.response?.data?.message || error.message || "Failed to delete project.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }

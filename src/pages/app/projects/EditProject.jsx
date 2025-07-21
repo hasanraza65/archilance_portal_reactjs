@@ -17,22 +17,38 @@ import 'react-quill/dist/quill.snow.css';
 
 const selectStyles = {
   control: (base) => ({...base, borderColor: '#e2e8f0', borderRadius: '0.375rem', minHeight: '38px', '&:hover': {borderColor: '#cbd5e1',}, boxShadow: 'none', }),
-  valueContainer: (base) => ({...base, padding: '2px 8px',}), input: (base) => ({...base, margin: '0px', padding: '0px',}),
-  indicatorSeparator: () => ({display: 'none',}), indicatorsContainer: (base) => ({...base, height: '38px',}),
+  valueContainer: (base) => ({...base, padding: '2px 8px',}),
+  input: (base) => ({...base, margin: '0px', padding: '0px',}),
+  indicatorSeparator: () => ({display: 'none',}),
+  indicatorsContainer: (base) => ({...base, height: '38px',}),
   option: (provided, state) => ({...provided, fontSize: "14px", backgroundColor: state.isSelected ? '#0f172a' : state.isFocused ? '#f1f5f9' : null, color: state.isSelected ? 'white' : '#0f172a', ':active': {backgroundColor: '#e2e8f0',},}),
   multiValue: (base) => ({ ...base, backgroundColor: '#e2e8f0', }),
   multiValueLabel: (base) => ({ ...base, color: '#0f172a', }),
   multiValueRemove: (base) => ({ ...base, color: '#0f172a', ':hover': { backgroundColor: '#ef4444', color: 'white',}, }),
 };
+
 const OptionComponent = ({ data, ...props }) => {
-  return (<components.Option {...props}><span className="flex items-center space-x-4">{data.image && (<div className="flex-none"><div className="h-7 w-7 rounded-full"><img src={data.image} alt="" className="w-full h-full rounded-full"/></div></div>)}<span className="flex-1">{data.label}</span></span></components.Option>);
+  return (
+    <components.Option {...props}>
+      <span className="flex items-center space-x-4">
+        {data.image && (
+          <div className="flex-none">
+            <div className="h-7 w-7 rounded-full">
+              <img src={data.image} alt="" className="w-full h-full rounded-full"/>
+            </div>
+          </div>
+        )}
+        <span className="flex-1">{data.label}</span>
+      </span>
+    </components.Option>
+  );
 };
 
 const EditProject = () => {
   const { editModal, editItem, isUpdating: projectIsUpdating } = useSelector((state) => state.project);
   const dispatch = useDispatch();
 
-  const [currentProjectId, setCurrentProjectId] = useState(null); // <-- FIX: State to hold the ID
+  const [currentProjectId, setCurrentProjectId] = useState(null);
   const [localIsLoading, setLocalIsLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
@@ -41,20 +57,14 @@ const EditProject = () => {
   const FormValidationSchema = yup
     .object({
       project_name: yup.string().required("Project name is required"),
-      project_description: yup.string()
-        .required("Description is required.")
-        .test(
-          'has-content',
-          'Description cannot be empty or just spaces.',
-          (value) => {
-            if (!value) return false;
-            const textContent = value.replace(/<[^>]*>/g, '').trim();
-            return textContent.length > 0;
-          }
-        ),
+      project_description: yup.string().required("Description is required.").test('has-content', 'Description cannot be empty or just spaces.', (value) => {
+          if (!value) return false;
+          const textContent = value.replace(/<[^>]*>/g, '').trim();
+          return textContent.length > 0;
+        }
+      ),
       start_date: yup.date().required("Start date is required").typeError("Invalid date format"),
-      due_date: yup.date().required("Due date is required").typeError("Invalid date format")
-                 .min(yup.ref('start_date'), "Due date can't be before start date"),
+      due_date: yup.date().required("Due date is required").typeError("Invalid date format").min(yup.ref('start_date'), "Due date can't be before start date"),
       customer_id: yup.object().shape({
           label: yup.string().required(),
           value: yup.string().required(),
@@ -88,20 +98,24 @@ const EditProject = () => {
         const token = Cookies.get("token");
         if (!token) {
           toast.error("Authentication required to load customers.");
-          setLoadingCustomers(false); return;
+          setLoadingCustomers(false);
+          return;
         }
         const response = await axios.get(
-          `${import.meta.env.VITE_BACKEND_BASE_URL || 'https://demo.aentora.com/backend/public'}/api/admin/customer-user`,
+          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user`,
           { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
         );
         const customerOptions = response.data.map((customer) => ({
-          value: customer.id.toString(), label: customer.name,
+          value: customer.id.toString(),
+          label: customer.name,
         }));
         setCustomers(customerOptions);
       } catch (error) {
         console.error("Error fetching customers:", error);
         toast.error(error.response?.data?.message || "Failed to load customers");
-      } finally { setLoadingCustomers(false); }
+      } finally {
+        setLoadingCustomers(false);
+      }
     };
     if (editModal) {
       fetchCustomers();
@@ -110,7 +124,7 @@ const EditProject = () => {
 
   useEffect(() => {
     if (editModal && editItem?.id) {
-        setCurrentProjectId(editItem.id); // <-- FIX: Capture the ID
+        setCurrentProjectId(editItem.id);
         const effectiveEndDate = editItem.endDate || editItem.due_date;
         const selectedCustomer = customers.find(c => c.value === String(editItem.customer_id));
         
@@ -127,21 +141,20 @@ const EditProject = () => {
     } else {
         reset({});
         setQuillDescription("");
-        setCurrentProjectId(null); // <-- FIX: Clear the ID
+        setCurrentProjectId(null);
     }
   }, [editItem, editModal, customers, reset]);
 
   const onSubmit = async (data) => {
     setLocalIsLoading(true);
     try {
-      // <-- FIX: Use the stable state ID, not the one from Redux
       if (!currentProjectId) {
         toast.error("Project ID is missing. Cannot update.");
         setLocalIsLoading(false);
         return;
       }
       const payload = {
-        id: currentProjectId, // <-- FIX: Use the captured ID
+        id: currentProjectId,
         project_name: data.project_name,
         project_description: data.project_description,
         start_date: new Date(data.start_date).toISOString().split("T")[0],
@@ -151,7 +164,6 @@ const EditProject = () => {
 
       await dispatch(saveEditedProjectAPI(payload)).unwrap();
     } catch (error) {
-      // The thunk already shows a toast on failure, but you can log here
       console.error("Update failed:", error);
     } finally {
       setLocalIsLoading(false);

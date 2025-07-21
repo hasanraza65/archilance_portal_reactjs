@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -72,7 +73,7 @@ const Checkout = () => {
       const token = Cookies.get("token");
       if (!token) throw new Error("Authentication token not found.");
       const response = await fetch(
-        "https://demo.aentora.com/backend/public/api/customer/payment-method/list",
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer/payment-method/list`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -112,8 +113,7 @@ const Checkout = () => {
 
   useEffect(() => {
     if (step === 2 && paymentView === "add" && !clientSecret) {
-      const dummyClientSecret =
-        "pi_1GszdG2eZvKYlo2CSB1f5s5g_secret_9n0zS3Y0Pz1B5c6e8G7h9j1K3";
+      const dummyClientSecret = "pi_1GszdG2eZvKYlo2CSB1f5s5g_secret_9n0zS3Y0Pz1B5c6e8G7h9j1K3";
       setTimeout(() => setClientSecret(dummyClientSecret), 500);
     }
   }, [step, paymentView, clientSecret]);
@@ -134,7 +134,7 @@ const Checkout = () => {
       if (!token) throw new Error("Authentication token not found.");
 
       const response = await fetch(
-        "https://demo.aentora.com/backend/public/api/customer/subscription/create",
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer/subscription/create`,
         {
           method: "POST",
           headers: {
@@ -220,7 +220,7 @@ const Checkout = () => {
         if (!token) throw new Error("Authentication token not found.");
 
         const response = await fetch(
-          `https://demo.aentora.com/backend/public/api/customer/payment-method/delete/${cardId}`,
+          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer/payment-method/delete/${cardId}`,
           {
             method: "DELETE",
             headers: {
@@ -249,7 +249,7 @@ const Checkout = () => {
       if (!token) throw new Error("Authentication token not found.");
 
       const response = await fetch(
-        `https://demo.aentora.com/backend/public/api/customer/payment-method/set-default`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer/payment-method/set-default`,
         {
           method: "POST",
           headers: {

@@ -2,15 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { useForm } from "react-hook-form"; // Import useForm
+import { useForm } from "react-hook-form";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Textinput from "@/components/ui/Textinput";
-// import Fileinput from "@/components/ui/Fileinput"; // If you have a custom one
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 
-const PFP_BASE_URL = "https://demo.aentora.com/backend/public/storage/";
+const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
 const UpdateCustomer = () => {
   const { customerId } = useParams();
@@ -24,7 +23,7 @@ const UpdateCustomer = () => {
     watch,
     reset,
   } = useForm({
-    mode: "onChange", // Validate on change for better UX
+    mode: "onChange",
   });
 
   const [currentProfilePicUrl, setCurrentProfilePicUrl] = useState("");
@@ -35,9 +34,7 @@ const UpdateCustomer = () => {
   const [submitError, setSubmitError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // Watch for changes in the profile_pic input for live preview
   const watchedProfilePicFile = watch("profile_pic");
-  // Watch for changes in the password field for conditional validation
   const passwordValue = watch("password");
 
   useEffect(() => {
@@ -51,14 +48,12 @@ const UpdateCustomer = () => {
     } else {
       setProfilePicPreview(null);
     }
-    // Cleanup object URL on component unmount or when file changes
     return () => {
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
     };
   }, [watchedProfilePicFile, currentProfilePicUrl]);
-
 
   const fetchCustomerData = useCallback(async () => {
     setLoading(true);
@@ -73,7 +68,7 @@ const UpdateCustomer = () => {
 
     try {
       const response = await axios.get(
-        `https://demo.aentora.com/backend/public/api/admin/customer-user/${customerId}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user/${customerId}`,
         {
           headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         }
@@ -81,20 +76,20 @@ const UpdateCustomer = () => {
 
       if (response.data && typeof response.data === 'object' && response.data.id) {
         const customer = response.data;
-        reset({ // Use reset to populate form fields with react-hook-form
+        reset({
           name: customer.name || "",
           email: customer.email || "",
           username: customer.username || "",
           phone: customer.phone ? String(customer.phone).replace(/[\r\n]+/g, '') : "",
           user_role: customer.user_role || "",
-          password: "", // Keep password fields empty by default on edit
+          password: "",
           password_confirmation: "",
         });
 
         if (customer.profile_pic) {
           const picUrl = `${PFP_BASE_URL}${customer.profile_pic}`;
-          setCurrentProfilePicUrl(picUrl); // Store the original URL
-          setProfilePicPreview(picUrl);   // Set initial preview to original
+          setCurrentProfilePicUrl(picUrl);
+          setProfilePicPreview(picUrl);
         } else {
           setCurrentProfilePicUrl("");
           setProfilePicPreview(null);
@@ -114,7 +109,7 @@ const UpdateCustomer = () => {
     fetchCustomerData();
   }, [fetchCustomerData]);
 
-  const onSubmit = async (formData) => { // formData is now the validated data from react-hook-form
+  const onSubmit = async (formData) => {
     setSubmitting(true);
     setSubmitError(null);
     setSuccessMessage(null);
@@ -130,42 +125,37 @@ const UpdateCustomer = () => {
     dataToSubmit.append("name", formData.name);
     dataToSubmit.append("email", formData.email);
     dataToSubmit.append("username", formData.username);
-    dataToSubmit.append("phone", formData.phone || ""); // Ensure phone is not undefined
+    dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("user_role", formData.user_role);
     dataToSubmit.append("_method", "PUT");
 
-    if (formData.profile_pic && formData.profile_pic[0]) { // react-hook-form returns FileList
+    if (formData.profile_pic && formData.profile_pic[0]) {
       dataToSubmit.append("profile_pic", formData.profile_pic[0]);
     }
 
-    if (formData.password) { // Only send password if provided
+    if (formData.password) {
       dataToSubmit.append("password", formData.password);
       dataToSubmit.append("password_confirmation", formData.password_confirmation);
     }
     
     try {
       const response = await axios.post(
-        `https://demo.aentora.com/backend/public/api/admin/customer-user/${customerId}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user/${customerId}`,
         dataToSubmit,
         { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
       );
 
       setSuccessMessage("Customer updated successfully!");
-      // Optionally, refetch to show updated image if backend doesn't return new URL
-      // fetchCustomerData(); // or update currentProfilePicUrl if API returns it
       setTimeout(() => navigate(`/customers/view/${customerId}`), 2000);
     } catch (err) {
       console.error("Error updating customer:", err.response);
       if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
-        // Attempt to set specific field errors if your backend provides them
         Object.keys(errors).forEach((field) => {
-            // This is a basic way, might need more robust error mapping for RHF
             if (formErrors[field]) {
-                formErrors[field].message = errors[field][0]; // This might not work directly, RHF needs setError
+                formErrors[field].message = errors[field][0];
             }
         });
-        // For a general error message:
         const firstErrorKey = Object.keys(errors)[0];
         setSubmitError(`${firstErrorKey}: ${errors[firstErrorKey][0]}`);
       } else {
@@ -236,7 +226,6 @@ const UpdateCustomer = () => {
             type="tel"
             placeholder="Enter phone number"
             register={register}
-            // No specific validation here, add if needed
             error={formErrors.phone}
           />
         </div>
@@ -252,14 +241,14 @@ const UpdateCustomer = () => {
         />
 
         <div>
-          <label className="form-label" htmlFor="profile_pic_input_update"> {/* Unique ID */}
+          <label className="form-label" htmlFor="profile_pic_input_update">
             Profile Picture
           </label>
           <input
             type="file"
-            id="profile_pic_input_update" // Unique ID
-            className="form-control py-2 px-3" // Style as needed
-            {...register("profile_pic")} // Register file input with RHF
+            id="profile_pic_input_update"
+            className="form-control py-2 px-3"
+            {...register("profile_pic")}
             accept="image/png, image/jpeg, image/gif"
           />
           {profilePicPreview && (
@@ -282,7 +271,7 @@ const UpdateCustomer = () => {
               placeholder="Leave blank to keep current"
               register={register}
               validate={{
-                minLength: passwordValue // Apply minLength only if password field has a value
+                minLength: passwordValue
                   ? { value: 6, message: "Password must be at least 6 characters" }
                   : undefined,
               }}
@@ -296,10 +285,10 @@ const UpdateCustomer = () => {
               register={register}
               validate={{
                 validate: value => {
-                  if (passwordValue) { // Only validate if a new password is being entered
+                  if (passwordValue) {
                     return value === passwordValue || "The passwords do not match";
                   }
-                  return true; // If no new password, this validation passes
+                  return true;
                 }
               }}
               error={formErrors.password_confirmation}
@@ -311,10 +300,9 @@ const UpdateCustomer = () => {
           <Button
             text="Cancel"
             className="btn-outline-secondary"
-            // UPDATED: Navigate to the AllCustomers page
             onClick={() => navigate("/customers")}
             disabled={submitting}
-            type="button" // Good practice to specify type for non-submit buttons in a form
+            type="button"
           />
           <Button
             text={submitting ? "Updating..." : "Update Customer"}

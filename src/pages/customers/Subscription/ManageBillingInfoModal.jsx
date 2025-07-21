@@ -120,16 +120,9 @@ const BillingInfoListView = ({
           <button onClick={() => handleEdit(detail)} title="Edit Address">
             <EditIcon />
           </button>
-         
         </div>
       </div>
     ))}
-    {/* <button
-      onClick={() => setView("add")}
-      className="mt-4 w-full border border-gray-300 text-gray-700 font-semibold py-2.5 px-4 rounded-lg hover:bg-gray-100 transition"
-    >
-      Add New Address
-    </button> */}
   </div>
 );
 
@@ -482,72 +475,76 @@ const ManageBillingInfoModal = ({ isOpen, onClose }) => {
     }
   };
 
-    const handleFormSubmit = async (event) => {
-        event.preventDefault();
-        setIsSaving(true);
+  const handleFormSubmit = async (event) => {
+    event.preventDefault();
+    setIsSaving(true);
 
-        const formData = new FormData(event.target);
-        const data = Object.fromEntries(formData.entries());
-        
-        const isEditing = view === 'edit';
-        let url;
-        let method;
-        let payload;
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData.entries());
 
-        if (isEditing) {
-            url = 'https://demo.aentora.com/backend/public/api/customer/subscription/update-billing-detail';
-            // YAHAN PAR BADLAV KIYA GAYA HAI: 'PUT' se 'POST' kar diya gaya hai
-            method = 'POST'; 
-            payload = { ...data, id: currentDetail.id };
-        } else {
-            url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer/subscription/billing-detail/create`;
-            method = 'POST';
-            payload = data;
-        }
+    const isEditing = view === "edit";
+    let url;
+    let method;
+    let payload;
 
-        try {
-            const token = Cookies.get("token");
-            if (!token) throw new Error("Authentication token not found.");
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                // 405 error aane par bhi yahan error message aayega
-                throw new Error(errorData.message || `Request failed with status ${response.status}`);
-            }
-            
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: `Billing address ${isEditing ? 'updated' : 'added'}!`,
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-            });
-            
-            await fetchBillingDetails();
-            setView('list');
-            setCurrentDetail(null);
-        } catch(err) {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'error',
-                title: err.message,
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-            });
-        } finally {
-            setIsSaving(false);
-        }
-    };
+    if (isEditing) {
+      url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer/subscription/update-billing-detail`;
+      method = "POST";
+      payload = { ...data, id: currentDetail.id };
+    } else {
+      url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer/subscription/billing-detail/create`;
+      method = "POST";
+      payload = data;
+    }
+
+    try {
+      const token = Cookies.get("token");
+      if (!token) throw new Error("Authentication token not found.");
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Request failed with status ${response.status}`
+        );
+      }
+
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: `Billing address ${isEditing ? "updated" : "added"}!`,
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+      });
+
+      await fetchBillingDetails();
+      setView("list");
+      setCurrentDetail(null);
+    } catch (err) {
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "error",
+        title: err.message,
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleCancel = () => {
     setView("list");

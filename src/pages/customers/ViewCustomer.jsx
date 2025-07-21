@@ -5,9 +5,8 @@ import Cookies from "js-cookie";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 
-const PFP_BASE_URL = "https://demo.aentora.com/backend/public/storage/";
+const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
-// New DetailItem component styled to mimic table rows/cells from AllCustomers.jsx
 const DetailItem = ({ label, value }) => {
   let displayValue = value;
   if (value === null || value === undefined || String(value).trim() === "") {
@@ -15,23 +14,16 @@ const DetailItem = ({ label, value }) => {
   }
 
   return (
-    // Each item is a "row"
-    // Applies bottom border, hover effect similar to table rows
     <div className="flex flex-col sm:flex-row border-b border-slate-100 dark:border-slate-700 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-      {/* Label part - styled to be distinct, like a th or a key cell */}
-      {/* Uses padding similar to table-th/table-td. Background similar to thead. */}
       <div className="w-full sm:w-1/3 px-6 py-4 font-medium text-sm text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-slate-700 sm:border-r sm:border-slate-200 sm:dark:border-slate-600">
         {label}
       </div>
-      {/* Value part - styled like a td */}
-      {/* Uses padding similar to table-td. */}
       <div className="w-full sm:w-2/3 px-6 py-4 text-sm text-slate-700 dark:text-slate-200 break-words">
         {String(displayValue).replace(/[\r\n]+/g, " ")}
       </div>
     </div>
   );
 };
-
 
 const CustomerView = () => {
   const { customerId } = useParams();
@@ -53,7 +45,7 @@ const CustomerView = () => {
 
     try {
       const response = await axios.get(
-        `https://demo.aentora.com/backend/public/api/admin/customer-user/${customerId}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user/${customerId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -90,7 +82,6 @@ const CustomerView = () => {
     if (customerId) {
       fetchCustomerDetails();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
   const renderProfilePic = (currentCustomer) => {
@@ -208,7 +199,6 @@ const CustomerView = () => {
             </button>
             <button
               type="button"
-              // UPDATED: Navigate to the edit page for the current customer
               onClick={() => navigate(`/customers/edit/${customer.id}`)}
               className="btn btn-primary w-full sm:w-auto"
             >

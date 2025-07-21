@@ -1,5 +1,3 @@
-// src/pages/WorkSession.js
-
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
@@ -7,7 +5,6 @@ import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
-// Helper Icons and Functions (No Change)
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -61,12 +58,11 @@ const WorkSession = () => {
   const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [fetchTrigger, setFetchTrigger] = useState(0);
-  const [hasSearched, setHasSearched] = useState(false); // *** NEW: Track if a search has been made
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const API_BASE_URL = "https://demo.aentora.com/backend/public/api/employee";
-  const STORAGE_URL = "https://demo.aentora.com/backend/public/storage";
+  const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
+  const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // Fetch projects
   useEffect(() => {
     if (!isAuthenticated) return;
     const fetchProjects = async () => {
@@ -82,9 +78,8 @@ const WorkSession = () => {
       }
     };
     fetchProjects();
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, API_BASE_URL]);
 
-  // Fetch tasks
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
@@ -111,15 +106,13 @@ const WorkSession = () => {
       }
     };
     fetchTasksForProject();
-  }, [selectedProject, token]);
+  }, [selectedProject, token, API_BASE_URL]);
 
-  // Centralized Fetch Logic
   useEffect(() => {
     const performFetch = async () => {
-      // *** MODIFICATION: Only fetch if a search has been triggered by the user
       if (!isAuthenticated || !hasSearched) {
         setLoading(false);
-        setSessions([]); // Ensure sessions are empty on initial load
+        setSessions([]);
         return;
       }
       setLoading(true);
@@ -154,10 +147,10 @@ const WorkSession = () => {
       }
     };
     performFetch();
-  }, [fetchTrigger, currentPage, isAuthenticated, token, logout, hasSearched]);
+  }, [fetchTrigger, currentPage, isAuthenticated, token, hasSearched, API_BASE_URL, dateRange, selectedTask]);
 
   const handleSearch = () => {
-    setHasSearched(true); // Mark that a search has been initiated
+    setHasSearched(true);
     if (currentPage !== 1) {
       setCurrentPage(1);
     } else {
@@ -170,8 +163,8 @@ const WorkSession = () => {
     setSelectedTask("");
     setTasks([]);
     setDateRange([]);
-    setHasSearched(false); // Reset search state, so the initial message appears
-    setSessions([]); // Clear sessions from display
+    setHasSearched(false);
+    setSessions([]);
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
@@ -224,9 +217,7 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-6">
           Work Diary
         </h1>
-        {/* Filters Section (No Change in JSX) */}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
-          {/* ... Your Filter UI JSX ... */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <svg
@@ -324,15 +315,12 @@ const WorkSession = () => {
             </div>
           </div>
         </div>
-
-        {/* Main Content with Better User Messages */}
         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
           {loading ? (
             <div className="text-center py-16">
               <p>Loading diary entries...</p>
             </div>
           ) : sessions.length > 0 ? (
-            // Data Display Logic (same as before)
             <div>
               {sessions.map((session, index) => (
                 <div
@@ -409,14 +397,12 @@ const WorkSession = () => {
               ))}
             </div>
           ) : hasSearched ? (
-            // Message when a search was made but found nothing
             <div className="text-center py-16">
               <p className="text-slate-500">
                 No work sessions found matching your criteria.
               </p>
             </div>
           ) : (
-            // *** NEW: Initial message before any search ***
             <div className="text-center py-16">
               <svg
                 className="mx-auto h-12 w-12 text-slate-400"

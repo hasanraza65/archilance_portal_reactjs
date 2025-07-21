@@ -83,7 +83,7 @@ const AddEmployee = () => {
 
     try {
       const response = await axios.post(
-        'https://demo.aentora.com/backend/public/api/admin/employee-user',
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user`,
         payload,
         {
           headers: {

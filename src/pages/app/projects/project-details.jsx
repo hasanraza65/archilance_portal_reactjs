@@ -582,7 +582,7 @@ const ProjectDetailsPage = () => {
 
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
   const isManagerOrAdmin = userRole === "admin";
-  const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || "https://demo.aentora.com/backend/public";
+  const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL ;
 
   // ===== START: DYNAMICALLY GET CURRENT USER =====
   const [currentUser, setCurrentUser] = useState(null);

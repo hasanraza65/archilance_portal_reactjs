@@ -1,20 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, User, CreditCard, AlertCircle, CheckCircle, XCircle, RefreshCw, TrendingUp, Users } from 'lucide-react';
 
-// Base URL for profile picture storage
-const PFP_BASE_URL = "https://demo.aentora.com/backend/public/storage/";
+const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
-// A dedicated component to handle user avatar logic (image, fallback, errors)
 const UserAvatar = ({ user }) => {
   const [hasError, setHasError] = useState(false);
   const { name, profile_pic } = user;
 
-  // Reset the error state if the user or profile picture changes
   useEffect(() => {
     setHasError(false);
   }, [profile_pic]);
 
-  // Generate initials for the fallback avatar
   const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
 
   const shouldUseImage = profile_pic && !hasError;
@@ -25,19 +21,17 @@ const UserAvatar = ({ user }) => {
         src={`${PFP_BASE_URL}${profile_pic}`}
         alt={name || 'Profile'}
         className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-lg flex-shrink-0"
-        onError={() => setHasError(true)} // Set error state if image fails to load
+        onError={() => setHasError(true)}
       />
     );
   }
 
-  // Fallback to a div with initials if no image or if image load fails
   return (
     <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center shadow-lg flex-shrink-0">
       <span className="font-bold text-white text-sm">{initials}</span>
     </div>
   );
 };
-
 
 const AdminSubscription = () => {
   const [subscriptions, setSubscriptions] = useState([]);
@@ -68,7 +62,7 @@ const AdminSubscription = () => {
         throw new Error('Authorization token not found in cookies');
       }
 
-      const response = await fetch(`https://demo.aentora.com/backend/public/api/admin/all_subscriptions?page=${page}`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/all_subscriptions?page=${page}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

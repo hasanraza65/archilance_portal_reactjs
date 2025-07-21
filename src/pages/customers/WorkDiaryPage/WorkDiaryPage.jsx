@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import Cookies from "js-cookie";
-import { toast } from "react-toastify"; // You might need to install: npm install react-toastify
+import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import { Loader2, AlertCircle, ArrowLeft, BookOpenCheck } from "lucide-react";
 
-// Helper Icons and Functions
 const TrashIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -42,10 +41,9 @@ const WorkDiaryPage = () => {
   const [dateRange, setDateRange] = useState([]);
   const [fetchTrigger, setFetchTrigger] = useState(0);
 
-  const API_BASE_URL = "https://demo.aentora.com/backend/public/api/customer";
-  const STORAGE_URL = "https://demo.aentora.com/backend/public/storage";
+  const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/customer`;
+  const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // Centralized Fetch Logic for Customer's Work Diary
   useEffect(() => {
     const performFetch = async () => {
       if (!token || !projectId) {
@@ -58,7 +56,7 @@ const WorkDiaryPage = () => {
 
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        project_id: projectId, // Always include the project ID
+        project_id: projectId,
       });
 
       if (dateRange[0]) params.append("start_date", formatDateForAPI(dateRange[0]));
@@ -85,7 +83,7 @@ const WorkDiaryPage = () => {
       }
     };
     performFetch();
-  }, [fetchTrigger, currentPage, token, projectId, dateRange]);
+  }, [fetchTrigger, currentPage, token, projectId, dateRange, API_BASE_URL]);
 
   const handleSearch = () => {
     if (currentPage !== 1) {
@@ -100,7 +98,6 @@ const WorkDiaryPage = () => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     } else {
-        // If already on page 1, we still need to re-trigger the fetch
         setFetchTrigger(t => t + 1);
     }
   };
@@ -147,7 +144,6 @@ const WorkDiaryPage = () => {
             Work Diary for Project #{projectId}
         </h1>
         
-        {/* Simplified Filters Section for Customer */}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-4">
             Filter by Date
@@ -183,7 +179,6 @@ const WorkDiaryPage = () => {
           </div>
         </div>
 
-        {/* Main Content Display */}
         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
           {loading ? (
             <div className="text-center py-16 flex justify-center items-center">
@@ -206,7 +201,6 @@ const WorkDiaryPage = () => {
                           {calculateDuration(session.start_time, session.end_time)}
                         </span>
                       </p>
-                      {/* Customer cannot delete, so the button can be hidden or disabled */}
                       <button
                         onClick={() => handleDelete(session.id)}
                         title="Delete action is disabled for customers"

@@ -35,14 +35,12 @@ import {
   Undo2,
 } from "lucide-react";
 
-// Helper to remove HTML tags for truncation
 const stripHtml = (html) => {
   if (!html) return "";
   const doc = new DOMParser().parseFromString(html, "text/html");
   return doc.body.textContent || "";
 };
 
-// Animated Background Component
 const AnimatedBackground = () => (
   <div className="fixed inset-0 -z-10 overflow-hidden">
     {" "}
@@ -52,7 +50,6 @@ const AnimatedBackground = () => (
   </div>
 );
 
-// OrderRequirements Component
 const OrderRequirements = ({ htmlContent }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const textContent = stripHtml(htmlContent);
@@ -93,7 +90,6 @@ const OrderRequirements = ({ htmlContent }) => {
   );
 };
 
-// OrderStatusStep Component
 const OrderStatusStep = ({ status, text, isLast = false }) => {
   const statusConfig = {
     done: {
@@ -142,7 +138,6 @@ const OrderStatusStep = ({ status, text, isLast = false }) => {
   );
 };
 
-// ProjectTasksList Component
 const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 4;
@@ -235,26 +230,39 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
               <div
                 className="flex items-center -space-x-2"
                 title={`Assigned to: ${task.assignees
-                  .map((a) => a.user.name)
+                  .map((a) => a.user?.name || "Unassigned User")
                   .join(", ")}`}
               >
-                {task.assignees.map((assignee) =>
-                  assignee.user.profile_pic ? (
+                {task.assignees.map((assignee) => {
+                  if (!assignee.user) {
+                    return (
+                      <div
+                        key={assignee.id}
+                        title="User not found"
+                        className="w-8 h-8 rounded-full border-2 border-white bg-gray-400 flex items-center justify-center text-sm font-bold text-white shadow-md"
+                      >
+                        ?
+                      </div>
+                    );
+                  }
+                  return assignee.user.profile_pic ? (
                     <img
                       key={assignee.id}
                       src={`${apiBaseUrl}/storage/${assignee.user.profile_pic}`}
                       alt={assignee.user.name}
+                      title={assignee.user.name}
                       className="w-8 h-8 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform duration-300"
                     />
                   ) : (
                     <div
                       key={assignee.id}
+                      title={assignee.user.name}
                       className="w-8 h-8 rounded-full border-2 border-white bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white shadow-md hover:scale-110 transition-transform duration-300"
                     >
-                      {assignee.user.name.charAt(0)}
+                      {assignee.user.name.charAt(0).toUpperCase()}
                     </div>
-                  )
-                )}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -289,9 +297,6 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
   );
 };
 
-// ===============================================
-//         ADVANCED ConversationBox Component
-// ===============================================
 const ConversationBox = ({
   messages,
   newMessage,
@@ -314,10 +319,6 @@ const ConversationBox = ({
   const [newAttachmentsForEdit, setNewAttachmentsForEdit] = useState([]);
   const [attachmentIdsToDelete, setAttachmentIdsToDelete] = useState([]);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
-
-  // useEffect(() => {
-  //   chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // }, [messages]);
 
   const STORAGE_BASE_URL = `${apiBaseUrl}/storage/`;
 
@@ -583,7 +584,7 @@ const ConversationBox = ({
                   {message.sender?.profile_pic ? (
                     <img
                       src={`${STORAGE_BASE_URL}${message.sender.profile_pic}`}
-                      alt={message.sender.name}
+                      alt={message.sender?.name || "Unknown User"}
                       className="w-full h-full rounded-full object-cover border-2 border-white shadow-md"
                     />
                   ) : (
@@ -696,7 +697,6 @@ const ConversationBox = ({
   );
 };
 
-// Helper function for timer
 const calculateTimeLeft = (dueDate) => {
   if (!dueDate) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   const difference = +new Date(dueDate) - +new Date();
@@ -709,18 +709,12 @@ const calculateTimeLeft = (dueDate) => {
   };
 };
 
-// ===============================================
-//           MAIN OrderDetailsPage Component
-// ===============================================
 const OrderDetailsPage = () => {
   const navigate = useNavigate();
   const { id: projectId } = useParams();
-  const API_BASE_URL = "https://demo.aentora.com/backend/public";
+  const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const token = Cookies.get("token");
 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // !! IMPORTANT: Replace '20' with the actual logged-in user's ID.    !!
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   const CURRENT_USER_ID = 20;
 
   const [projectData, setProjectData] = useState(null);
