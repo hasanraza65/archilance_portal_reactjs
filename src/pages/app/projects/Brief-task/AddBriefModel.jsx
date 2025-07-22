@@ -7,7 +7,7 @@ import Textinput from "@/components/ui/Textinput";
 import FormGroup from "@/components/ui/FormGroup";
 import Flatpickr from "react-flatpickr";
 import Button from "@/components/ui/Button";
-
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -37,7 +37,15 @@ const getFileIcon = (fileType) => {
         );
     }
 };
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -156,8 +164,8 @@ const AddBriefModal = ({ isOpen, onClose, onBriefAdded, projectId }) => {
             attachments.forEach((file, index) => {
                 formData.append(`attachments[${index}]`, file);
             });
-
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-brief`, {
+              const apiPath = getApiBasePathForRole("/project-brief");
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

@@ -8,7 +8,7 @@ import Textinput from "@/components/ui/Textinput";
 import Flatpickr from "react-flatpickr";
 import FormGroup from "@/components/ui/FormGroup";
 import Button from "@/components/ui/Button"; // Assuming a Button component
-
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -30,7 +30,15 @@ const getFileIcon = (fileType) => { /* ... your existing function ... */
 const formatFileSize = (bytes) => { /* ... your existing function ... */
     if (bytes === 0) return '0 Bytes'; const k = 1024; const sizes = ['Bytes', 'KB', 'MB', 'GB']; const i = Math.floor(Math.log(bytes) / Math.log(k)); return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) => {
   const [currentAttachments, setCurrentAttachments] = useState([]); // For existing attachments
   const [newAttachments, setNewAttachments] = useState([]);       // For newly added files
@@ -162,8 +170,9 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
     }
 
     try {
+        const apiPath = getApiBasePathForRole("/project-brief");
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-task/${taskData.id}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${taskData.id}`,
         {
           method: 'POST', // Using POST with _method: 'PUT'
           headers: { 'Authorization': `Bearer ${token}` },

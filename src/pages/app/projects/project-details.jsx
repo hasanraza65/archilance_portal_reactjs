@@ -1301,7 +1301,9 @@ const ProjectDetailsPage = () => {
                             />
                           </svg>
                         </button>
-                        {isManagerOrAdmin && (
+                        {/* ===== MODIFICATION START ===== */}
+                        {/* Allow both admins and employees to see the delete button for tasks */}
+                        {(userRole === 'admin' || userRole === 'employee') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1324,6 +1326,7 @@ const ProjectDetailsPage = () => {
                             </svg>
                           </button>
                         )}
+                        {/* ===== MODIFICATION END ===== */}
                       </div>
                     </div>
                   );

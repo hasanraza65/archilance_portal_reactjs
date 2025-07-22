@@ -8,7 +8,7 @@ import Modal from "@/components/ui/Modal";
 import FormGroup from "@/components/ui/FormGroup";
 import Flatpickr from "react-flatpickr";
 import Button from "@/components/ui/Button";
-
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -37,7 +37,15 @@ const getFileIcon = (fileType, isSmall = false) => {
         </svg>
     );
 };
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const formatFileSize = (bytes) => {
     if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -216,7 +224,8 @@ const EditBriefModal = ({ isOpen, onClose, onBriefUpdated, briefData, projectId,
             }
 
             // This is line ~208 where the error was reported
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-brief/${briefData.id}`, {
+              const apiPath = getApiBasePathForRole("/project-brief");
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${briefData.id}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
                 body: formData,
