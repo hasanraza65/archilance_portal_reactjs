@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 // Helper functions
 const getAttachmentUrl = (filePath) => {
@@ -17,6 +18,15 @@ const getAttachmentUrl = (filePath) => {
 const isImageFile = (fileType) => {
     if (!fileType) return false;
     return fileType.startsWith("image/");
+};
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
 };
 
 const getFileIcon = (fileType, isSmall = false) => {
@@ -32,6 +42,7 @@ const getFileIcon = (fileType, isSmall = false) => {
             </div>
         );
     }
+    
     return (
         <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/30 rounded-lg">
             <svg className={`${iconSizeClass} text-blue-500`} fill="currentColor" viewBox="0 0 20 20">
@@ -62,7 +73,8 @@ const ProjectBriefDetailPage = () => {
         }
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/project-brief/${briefId}`, {
+            const apiPath = getApiBasePathForRole("/project-brief");
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${briefId}`, {
                 method: "GET",
                 headers: {
                     Authorization: `Bearer ${token}`,

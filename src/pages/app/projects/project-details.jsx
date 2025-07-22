@@ -553,6 +553,7 @@ const isImageFile = (fileType) => {
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
   if (role) {
     return `/api/${role}${cleanBasePath}`;
   }
@@ -1008,6 +1009,7 @@ const ProjectDetailsPage = () => {
   };
 
   const handleViewBriefDetails = (briefId) => {
+    
     if (!briefId) {
       Swal.fire("Error", "Brief ID is missing.", "error");
       return;
