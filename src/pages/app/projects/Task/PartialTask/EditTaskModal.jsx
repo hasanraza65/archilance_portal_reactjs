@@ -170,7 +170,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
     }
 
     try {
-        const apiPath = getApiBasePathForRole("/project-brief");
+        const apiPath = getApiBasePathForRole("/project-task");
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${taskData.id}`,
         {

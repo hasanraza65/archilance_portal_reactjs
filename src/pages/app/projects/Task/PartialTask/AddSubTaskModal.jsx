@@ -1,4 +1,3 @@
-// src/components/TaskDetails/PartialTask/AddSubTaskModal.jsx
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
@@ -16,12 +15,11 @@ import * as yup from "yup";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
-// Helper functions (getFileIcon, formatFileSize) - keep them as they are
+// Helper functions (getFileIcon, formatFileSize)
 const getFileIcon = (fileType) => {
-  /* ... your existing function ... */
   if (fileType.startsWith("image/")) {
     return (
-      /* ... image svg ... */ <svg
+      <svg
         className="w-5 h-5 text-green-500"
         fill="currentColor"
         viewBox="0 0 20 20"
@@ -35,7 +33,7 @@ const getFileIcon = (fileType) => {
     );
   } else if (fileType === "application/pdf") {
     return (
-      /* ... pdf svg ... */ <svg
+      <svg
         className="w-5 h-5 text-red-500"
         fill="currentColor"
         viewBox="0 0 20 20"
@@ -49,7 +47,7 @@ const getFileIcon = (fileType) => {
     );
   } else {
     return (
-      /* ... default file svg ... */ <svg
+      <svg
         className="w-5 h-5 text-blue-500"
         fill="currentColor"
         viewBox="0 0 20 20"
@@ -64,7 +62,6 @@ const getFileIcon = (fileType) => {
   }
 };
 const formatFileSize = (bytes) => {
-  /* ... your existing function ... */
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB"];
@@ -73,8 +70,7 @@ const formatFileSize = (bytes) => {
 };
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
-  console.log(role);
+  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
   if (role) {
     return `/api/${role}${cleanBasePath}`;
   }
@@ -91,13 +87,11 @@ const AddSubTaskModal = ({
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- React Hook Form Setup ---
   const FormValidationSchema = yup
     .object({
       task_title: yup.string().required("Title is required"),
-      task_description: yup.string().nullable(), // Quill content, can be empty
+      task_description: yup.string().nullable(),
       due_date: yup.date().nullable().typeError("Invalid date format"),
-      // Add other fields like priority if needed for sub-tasks
     })
     .required();
 
@@ -107,6 +101,7 @@ const AddSubTaskModal = ({
     handleSubmit,
     setValue,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(FormValidationSchema),
@@ -118,7 +113,6 @@ const AddSubTaskModal = ({
     },
   });
 
-  // Sync Quill with React Hook Form
   useEffect(() => {
     setValue("task_description", quillDescription, {
       shouldValidate: true,
@@ -126,12 +120,11 @@ const AddSubTaskModal = ({
     });
   }, [quillDescription, setValue]);
 
-  // Reset form and Quill when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      reset(); // Reset RHF to default values
-      setQuillDescription(""); // Clear Quill editor
-      setAttachments([]); // Clear attachments
+      reset();
+      setQuillDescription("");
+      setAttachments([]);
     }
   }, [isOpen, reset]);
 
@@ -139,7 +132,7 @@ const AddSubTaskModal = ({
     const files = Array.from(e.target.files);
     const maxSize = 10 * 1024 * 1024; // 10MB
     const allowedTypes = [
-      /* ... your allowed types ... */ "image/jpeg",
+      "image/jpeg",
       "image/png",
       "image/gif",
       "image/webp",
@@ -171,13 +164,7 @@ const AddSubTaskModal = ({
   };
 
   const onSubmitRHF = async (data) => {
-    // Renamed to avoid conflict
-    // Validation for projectId and parentTaskId (if applicable)
-    if (
-      projectId === undefined ||
-      projectId === null ||
-      String(projectId).trim() === ""
-    ) {
+    if (!projectId) {
       toast.error("Project ID is missing or invalid.");
       return;
     }
@@ -187,11 +174,7 @@ const AddSubTaskModal = ({
       return;
     }
     let numericParentTaskId = null;
-    if (
-      parentTaskId !== undefined &&
-      parentTaskId !== null &&
-      String(parentTaskId).trim() !== ""
-    ) {
+    if (parentTaskId) {
       numericParentTaskId = parseInt(String(parentTaskId), 10);
       if (isNaN(numericParentTaskId)) {
         toast.error("Invalid Parent Task ID format.");
@@ -210,7 +193,7 @@ const AddSubTaskModal = ({
     try {
       const formDataPayload = new FormData();
       formDataPayload.append("task_title", data.task_title);
-      formDataPayload.append("task_description", data.task_description); // From RHF (synced with Quill)
+      formDataPayload.append("task_description", data.task_description);
       formDataPayload.append("project_id", numericProjectId.toString());
 
       if (numericParentTaskId !== null) {
@@ -225,12 +208,12 @@ const AddSubTaskModal = ({
           new Date(data.due_date).toISOString().split("T")[0]
         );
       }
-      // Append other fields like priority if you add them to the form
 
       attachments.forEach((file, index) => {
         formDataPayload.append(`attachments[${index}]`, file);
       });
-        const apiPath = getApiBasePathForRole("/project-task");
+
+      const apiPath = getApiBasePathForRole("/project-task");
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         {
@@ -243,7 +226,7 @@ const AddSubTaskModal = ({
         }
       );
 
-      const responseData = await response.json().catch(() => ({})); // Graceful JSON parsing
+      const responseData = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         let detailedMessage =
@@ -262,23 +245,30 @@ const AddSubTaskModal = ({
         responseData.message ||
           (numericParentTaskId ? "Sub-task added!" : "Task added!")
       );
-      if (onSubTaskAdded) onSubTaskAdded();
-      onClose(); // This will trigger the useEffect to reset the form
+
+      // --- FIX: DELAY CLOSING THE MODAL TO ALLOW TOAST TO BE SEEN ---
+      setTimeout(() => {
+        if (onSubTaskAdded) {
+          onSubTaskAdded();
+        }
+        onClose();
+      }, 300); // 300ms delay
     } catch (error) {
       toast.error(error.message || "An unexpected error occurred.");
       console.error("Error during task submission:", error);
     } finally {
-      setIsSubmitting(false);
+      // We don't set isSubmitting to false here anymore because the component will unmount.
+      // If there's an error, it will be set to false below.
+      if (!isSubmitting) setIsSubmitting(false);
     }
   };
 
-  // ReactQuill modules and formats
   const quillModules = {
     toolbar: [
-      [{ header: [1, 2, false] }], // Simplified header options
+      [{ header: [1, 2, false] }],
       ["bold", "italic", "underline"],
       [{ list: "ordered" }, { list: "bullet" }],
-      ["link", "clean"], // Clean formatting button
+      ["link", "clean"],
     ],
   };
   const quillFormats = [
@@ -296,7 +286,7 @@ const AddSubTaskModal = ({
       title={parentTaskId ? "Add New Sub-Task" : "Add New Task"}
       activeModal={isOpen}
       onClose={onClose}
-      unmountOnClose={true} // Resets RHF state and Quill on close
+      unmountOnClose={true}
     >
       <form onSubmit={handleSubmit(onSubmitRHF)} className="space-y-4">
         <Textinput
@@ -306,7 +296,7 @@ const AddSubTaskModal = ({
           register={register}
           error={errors.task_title}
           placeholder="Enter task title"
-          className="h-[48px]" // Consistent height
+          className="h-[48px]"
           disabled={isSubmitting}
         />
 
@@ -329,7 +319,6 @@ const AddSubTaskModal = ({
             }`}
             readOnly={isSubmitting}
           />
-          {/* RHF error message will be displayed by FormGroup if configured, or add manually */}
         </FormGroup>
 
         <FormGroup
@@ -358,7 +347,6 @@ const AddSubTaskModal = ({
           />
         </FormGroup>
 
-        {/* File Attachment Section - Themed */}
         <FormGroup label="Attachments (Optional)">
           <div className="mb-2">
             <label className="flex items-center justify-center w-full px-3 py-4 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-md cursor-pointer bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
@@ -446,7 +434,7 @@ const AddSubTaskModal = ({
           <Button
             text="Cancel"
             type="button"
-            className="btn-outline-secondary" // Assuming this class exists for styling
+            className="btn-outline-secondary"
             onClick={onClose}
             disabled={isSubmitting}
           />
@@ -461,7 +449,7 @@ const AddSubTaskModal = ({
             type="submit"
             className="btn-dark"
             isLoading={isSubmitting}
-            disabled={isSubmitting || !control._formValues.task_title?.trim()} // Disable if title is empty
+            disabled={isSubmitting || !watch("task_title")?.trim()}
           />
         </div>
       </form>
