@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { format, formatDistanceToNow } from "date-fns";
 import Cookies from "js-cookie";
 
+// Placeholder data for billing history modal
 const initialHistory = [
   {
     id: 1,
@@ -34,6 +35,7 @@ const initialHistory = [
   },
 ];
 
+// Helper component for info icon
 const InfoIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -49,6 +51,7 @@ const InfoIcon = () => (
   </svg>
 );
 
+// Helper component for summary cards
 const SummaryCard = ({ title, value, subtext, bgColor }) => (
   <div className={`p-6 rounded-xl border ${bgColor}`}>
     <h3 className="text-sm font-medium text-gray-600">{title}</h3>
@@ -69,6 +72,8 @@ const Subscription = () => {
 
   useEffect(() => {
     const fetchSubscriptionData = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
         const token = Cookies.get("token");
         if (!token) {
@@ -89,19 +94,31 @@ const Subscription = () => {
             },
           }
         );
+
         if (response.status === 401) {
           navigate("/login");
           throw new Error(
             "You are not authorized. Your session may have expired."
           );
         }
+
+        // Specifically handle the 404 error, which means the user has no active subscription.
+        if (response.status === 404) {
+          setSubscriptionData(null); // This will trigger the redirection logic.
+          return; // Stop processing further.
+        }
+
+        // For any other non-2xx response, treat it as a general error.
         if (!response.ok) {
           throw new Error(
             "Failed to fetch subscription data. Please try again later."
           );
         }
+        
         const data = await response.json();
-        setSubscriptionData(data);
+        // Ensure the data structure is as expected before setting it.
+        setSubscriptionData(data && data.subscription ? data : null);
+
       } catch (err) {
         setError(err.message);
       } finally {
@@ -111,6 +128,22 @@ const Subscription = () => {
     fetchSubscriptionData();
   }, [navigate]);
 
+  // This effect handles redirection if no subscription is found after the API call.
+  useEffect(() => {
+    if (!isLoading && !error && !subscriptionData) {
+      Swal.fire({
+        title: "No Active Subscription",
+        text: "You do not have an active subscription. Please choose a plan to continue.",
+        icon: "info",
+        confirmButtonText: "Choose a Plan",
+        allowOutsideClick: false, // User must interact with the dialog
+      }).then(() => {
+        navigate("/upgrade-plan");
+      });
+    }
+  }, [isLoading, error, subscriptionData, navigate]);
+
+  // This effect manages body overflow when modals are open.
   useEffect(() => {
     const isAnyModalOpen =
       isModalOpen || isHistoryModalOpen || isBillingInfoModalOpen;
@@ -131,14 +164,19 @@ const Subscription = () => {
       confirmButtonText: "Yes, cancel it!",
     }).then((result) => {
       if (result.isConfirmed) {
+        // TODO: Add your API call to the backend to cancel the subscription here.
         Swal.fire(
           "Cancelled!",
           "Your subscription has been cancelled.",
           "success"
         );
+        // After successful cancellation, you might want to refetch the data or redirect.
+        setSubscriptionData(null); // This will trigger the redirection logic again.
       }
     });
   };
+
+  // --- Conditional Rendering ---
 
   if (isLoading) {
     return (
@@ -149,6 +187,7 @@ const Subscription = () => {
       </div>
     );
   }
+
   if (error) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -163,43 +202,36 @@ const Subscription = () => {
     );
   }
 
+  // If there's no data, show a temporary message. The useEffect will handle the redirection.
   if (!subscriptionData) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen text-center">
-        <h2 className="text-2xl font-semibold text-gray-700">
-          No Active Subscription
-        </h2>
-        <p className="mt-2 text-gray-500">
-          You do not currently have an active subscription.
-        </p>
-        <Link
-          to="/pricing"
-          className="mt-6 px-6 py-2 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-900 transition"
-        >
-          View Plans
-        </Link>
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-xl font-medium text-gray-600">
+          Checking subscription status...
+        </div>
       </div>
     );
   }
 
+  // --- Main Component Render (only if subscriptionData exists) ---
   const renewalDate = new Date(subscriptionData.subscription.ends_at);
   const renewalIn = formatDistanceToNow(renewalDate, { addSuffix: true });
   const renewalDateFormatted = format(renewalDate, "MM/dd/yyyy");
-
+  
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-8">Billing</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         <SummaryCard
           title="Billing Cycle"
-          value="Annual"
-          subtext="Paid on 03/12/2025"
+          value={subscriptionData.plan.interval === 'year' ? 'Annual' : 'Monthly'}
+          subtext={`Paid on ${format(new Date(subscriptionData.subscription.created_at), 'MM/dd/yyyy')}`}
           bgColor="bg-green-50 border-green-200"
         />
         <SummaryCard
           title="Current Plan"
-          value="Pro Plan"
-          subtext="$300 Per Year"
+          value={subscriptionData.plan.name}
+          subtext={`$${subscriptionData.plan.price / 100} Per ${subscriptionData.plan.interval}`}
           bgColor="bg-blue-50 border-blue-200"
         />
         <SummaryCard
@@ -214,7 +246,7 @@ const Subscription = () => {
           <span className="text-gray-400">
             <InfoIcon />
           </span>
-          <h2 className="text-lg font-semibold text-gray-800">Pro Plan</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{subscriptionData.plan.name}</h2>
         </div>
         <div className="space-y-4">
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -223,7 +255,7 @@ const Subscription = () => {
           </div>
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-gray-500">Current Billing</span>
-            <span className="font-medium text-gray-800">$300 / Year</span>
+            <span className="font-medium text-gray-800">${subscriptionData.plan.price / 100} / {subscriptionData.plan.interval}</span>
           </div>
           <div className="flex justify-between items-center py-2">
             <span className="text-gray-500">Upgrade</span>
@@ -253,20 +285,6 @@ const Subscription = () => {
               Manage Billing Information
             </button>
           </div>
-          {/* <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-2">
-            <div>
-              <p className="font-semibold text-gray-700">Billing History</p>
-              <p className="text-sm text-gray-500">
-                Access and download your billing history if needed.
-              </p>
-            </div>
-            <button
-              onClick={() => setIsHistoryModalOpen(true)}
-              className="text-sm font-medium text-blue-600 hover:underline shrink-0"
-            >
-              View History
-            </button>
-          </div> */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-2">
             <div>
               <p className="font-semibold text-gray-700">Payment Method</p>
