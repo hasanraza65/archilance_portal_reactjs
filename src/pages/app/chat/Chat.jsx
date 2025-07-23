@@ -19,24 +19,41 @@ import Swal from "sweetalert2";
 import { getSocket } from "@/socket";
 import MessageContextMenu from "./MessageContextMenu";
 import { toast } from "react-toastify";
+import AudioPlayer from "./AudioPlayer";
 
 const isImage = (attachment) => {
-  if (attachment.mime_type) {
-    return attachment.mime_type.startsWith("image/");
+  const mime = attachment.mime_type || "";
+  if (mime) {
+    return mime.startsWith("image/");
   }
-  if (attachment.file_name) {
-    const extension = attachment.file_name.split(".").pop().toLowerCase();
+  const name = attachment.file_name || "";
+  if (name) {
+    const extension = name.split(".").pop().toLowerCase();
     return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(extension);
   }
   return false;
 };
 
+// ✅ آڈیو فائل چیک کرنے کے لیے نیا فنکشن
+const isAudio = (attachment) => {
+  const mime = attachment.mime_type || "";
+  if (mime) {
+    return mime.startsWith("audio/");
+  }
+  const name = attachment.file_name || "";
+  if (name) {
+    const extension = name.split(".").pop().toLowerCase();
+    return ["mp3", "wav", "ogg", "webm", "m4a", "aac"].includes(extension);
+  }
+  return false;
+};
+
 const Chat = () => {
-  const { 
-    user, 
-    messFeed, 
-    openinfo, 
-    isMessagesLoading, 
+  const {
+    user,
+    messFeed,
+    openinfo,
+    isMessagesLoading,
     messagesError,
     nextPageUrl,
     isOlderMessagesLoading,
@@ -60,6 +77,15 @@ const Chat = () => {
   const scrollHeightBeforeLoad = useRef(0);
   const prevMessFeedLengthRef = useRef(messFeed.length);
 
+  // --- VOICE MESSAGE STATE AND REFS (START) ---
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const recordingIntervalRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  // --- VOICE MESSAGE STATE AND REFS (END) ---
+
   useEffect(() => {
     const chatContainer = chatheight.current;
     if (!chatContainer) return;
@@ -70,37 +96,47 @@ const Chat = () => {
     }
 
     if (scrollHeightBeforeLoad.current > 0) {
-      chatContainer.scrollTop = chatContainer.scrollHeight - scrollHeightBeforeLoad.current;
+      chatContainer.scrollTop =
+        chatContainer.scrollHeight - scrollHeightBeforeLoad.current;
       scrollHeightBeforeLoad.current = 0;
       prevMessFeedLengthRef.current = messFeed.length;
       return;
     }
 
     if (messFeed.length > prevMessFeedLengthRef.current) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-    
+
     prevMessFeedLengthRef.current = messFeed.length;
   }, [messFeed, isOlderMessagesLoading]);
 
-  const handleScroll = useCallback(() => {
-      const chatContainer = chatheight.current;
-      if (
-          chatContainer &&
-          chatContainer.scrollTop === 0 &&
-          !isOlderMessagesLoading &&
-          nextPageUrl
-      ) {
-          dispatch(fetchOlderConversation(nextPageUrl));
+  // Cleanup timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
       }
+    };
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const chatContainer = chatheight.current;
+    if (
+      chatContainer &&
+      chatContainer.scrollTop === 0 &&
+      !isOlderMessagesLoading &&
+      nextPageUrl
+    ) {
+      dispatch(fetchOlderConversation(nextPageUrl));
+    }
   }, [isOlderMessagesLoading, nextPageUrl, dispatch]);
 
   useEffect(() => {
-      const chatContainer = chatheight.current;
-      chatContainer?.addEventListener("scroll", handleScroll);
-      return () => {
-          chatContainer?.removeEventListener("scroll", handleScroll);
-      };
+    const chatContainer = chatheight.current;
+    chatContainer?.addEventListener("scroll", handleScroll);
+    return () => {
+      chatContainer?.removeEventListener("scroll", handleScroll);
+    };
   }, [handleScroll]);
 
   const handleFileSelect = (e) => {
@@ -117,10 +153,10 @@ const Chat = () => {
     setCaption("");
   };
   const handleSendMessage = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const basePayload = {
-        receiverId: user.id,
-        replyTo: replyingTo ? replyingTo.id : null,
+      receiverId: user.id,
+      replyTo: replyingTo ? replyingTo.id : null,
     };
 
     if (attachment && user?.id) {
@@ -130,7 +166,9 @@ const Chat = () => {
           caption: caption,
           attachments: [attachment],
         })
-      ).unwrap().then((result) => {
+      )
+        .unwrap()
+        .then((result) => {
           const socket = getSocket();
           if (socket?.connected && result.originalMessage) {
             socket.emit("chat-message", result.originalMessage);
@@ -145,7 +183,9 @@ const Chat = () => {
           content: message.trim(),
           attachments: [],
         })
-      ).unwrap().then((result) => {
+      )
+        .unwrap()
+        .then((result) => {
           const socket = getSocket();
           if (socket?.connected && result.originalMessage) {
             socket.emit("chat-message", result.originalMessage);
@@ -156,7 +196,7 @@ const Chat = () => {
     setReplyingTo(null);
   };
   const handleRightClick = (event, message) => {
-    if (message.status === 'pending') {
+    if (message.status === "pending") {
       event.preventDefault();
       return;
     }
@@ -169,26 +209,23 @@ const Chat = () => {
     });
   };
 
-  // ✅ CHANGE #1: Wrapped in useCallback for performance and stable reference
   const handleCloseMenu = useCallback(() => {
     if (menuState.visible) {
       setMenuState((prev) => ({ ...prev, visible: false }));
     }
   }, [menuState.visible]);
 
-  // ✅ CHANGE #2: New useEffect to close menu on scroll
   useEffect(() => {
     const chatContainer = chatheight.current;
     if (chatContainer) {
-      chatContainer.addEventListener('scroll', handleCloseMenu);
+      chatContainer.addEventListener("scroll", handleCloseMenu);
     }
-    // Cleanup function to remove the event listener
     return () => {
       if (chatContainer) {
-        chatContainer.removeEventListener('scroll', handleCloseMenu);
+        chatContainer.removeEventListener("scroll", handleCloseMenu);
       }
     };
-  }, [handleCloseMenu]); // Dependency ensures the effect is managed correctly
+  }, [handleCloseMenu]);
 
   const handleDeleteMessage = (messageId) => {
     Swal.fire({
@@ -255,17 +292,20 @@ const Chat = () => {
         handleDeleteMessage(currentMessage.id);
         break;
       case "react": {
-        const myReaction = currentMessage.reactions.find(r => r.user_id === loggedInUser.id);
-        
-        const actionToDispatch = (myReaction && myReaction.reaction === data)
-          ? removeReaction({ messageId: currentMessage.id })
-          : addReaction({ messageId: currentMessage.id, emoji: data });
+        const myReaction = currentMessage.reactions.find(
+          (r) => r.user_id === loggedInUser.id
+        );
+
+        const actionToDispatch =
+          myReaction && myReaction.reaction === data
+            ? removeReaction({ messageId: currentMessage.id })
+            : addReaction({ messageId: currentMessage.id, emoji: data });
 
         dispatch(actionToDispatch)
           .unwrap()
           .then((result) => {
             if (socket?.connected) {
-              if (actionToDispatch.type.includes('removeReaction')) {
+              if (actionToDispatch.type.includes("removeReaction")) {
                 socket.emit("message-reacted", {
                   messageId: result.messageId,
                   userId: result.userId,
@@ -273,7 +313,10 @@ const Chat = () => {
                   receiverId: user.id,
                 });
               } else {
-                const reactionData = result.response.reaction || result.response.data || result.response;
+                const reactionData =
+                  result.response.reaction ||
+                  result.response.data ||
+                  result.response;
                 if (reactionData) {
                   socket.emit("message-reacted", {
                     messageId: currentMessage.id,
@@ -295,14 +338,151 @@ const Chat = () => {
     handleCloseMenu();
   };
 
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      }); // ✅ MimeType سیٹ کریں
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (audioChunksRef.current.length === 0) {
+          return;
+        }
+
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+        const audioFile = new File(
+          [audioBlob],
+          `voice-message-${Date.now()}.webm`,
+          { type: "audio/webm" }
+        );
+
+        const basePayload = {
+          receiverId: user.id,
+          replyTo: replyingTo ? replyingTo.id : null,
+        };
+
+        dispatch(
+          sendMessageToServer({
+            ...basePayload,
+            caption: "",
+            attachments: [audioFile],
+          })
+        )
+          .unwrap()
+          .then((result) => {
+            const socket = getSocket();
+            if (socket?.connected && result.originalMessage) {
+              socket.emit("chat-message", result.originalMessage);
+            }
+          });
+
+        if (replyingTo) {
+          setReplyingTo(null);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime((prevTime) => prevTime + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      toast.error("Could not access microphone. Please check permissions.");
+    }
+  };
+
+  const resetRecordingState = () => {
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+    }
+    setIsRecording(false);
+    setIsPaused(false);
+    setRecordingTime(0);
+    mediaRecorderRef.current = null;
+    recordingIntervalRef.current = null;
+  };
+
+  const handleStopAndSend = () => {
+    if (
+      mediaRecorderRef.current &&
+      (mediaRecorderRef.current.state === "recording" ||
+        mediaRecorderRef.current.state === "paused")
+    ) {
+      mediaRecorderRef.current.stop();
+    }
+    resetRecordingState();
+  };
+
+  const handleCancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.onstop = () => {
+        mediaRecorderRef.current.stream
+          .getTracks()
+          .forEach((track) => track.stop());
+      };
+      mediaRecorderRef.current.stop();
+    }
+    resetRecordingState();
+  };
+
+  const handleTogglePauseResume = () => {
+    if (isPaused) {
+      mediaRecorderRef.current.resume();
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime((prevTime) => prevTime + 1);
+      }, 1000);
+    } else {
+      mediaRecorderRef.current.pause();
+      clearInterval(recordingIntervalRef.current);
+    }
+    setIsPaused(!isPaused);
+  };
+
+  const formatTime = (timeInSeconds) => {
+    const minutes = Math.floor(timeInSeconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const seconds = (timeInSeconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  };
+
   const MessageStatus = ({ status, time }) => {
-    if (status === 'pending') {
+    if (status === "pending") {
       return (
         <div className="text-xs text-right mt-1 flex items-center justify-end space-x-1 text-slate-400">
           <span>Sending</span>
-          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          <svg
+            className="animate-spin h-3 w-3"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
           </svg>
         </div>
       );
@@ -312,43 +492,48 @@ const Chat = () => {
 
   const ReplyPreview = () => (
     <div className="relative p-3 mb-3 bg-slate-100 dark:bg-slate-900 rounded-md border-l-4 border-blue-500">
-        <div className="flex justify-between items-center">
-            <div className="flex-1 min-w-0">
-                <div className="font-semibold text-blue-500 text-sm">
-                    Replying to {replyingTo.sender === 'me' ? 'Yourself' : replyingTo.senderFullName}
-                </div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-                    {replyingTo.content || "Attachment"}
-                </p>
-            </div>
-            <button
-                type="button"
-                onClick={() => setReplyingTo(null)}
-                className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
-            >
-                <Icon icon="heroicons-outline:x" />
-            </button>
+      <div className="flex justify-between items-center">
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-blue-500 text-sm">
+            Replying to{" "}
+            {replyingTo.sender === "me"
+              ? "Yourself"
+              : replyingTo.senderFullName}
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
+            {replyingTo.content || "Attachment"}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setReplyingTo(null)}
+          className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+        >
+          <Icon icon="heroicons-outline:x" />
+        </button>
+      </div>
     </div>
   );
-  
+
   const RepliedMessageBlock = ({ message }) => {
     if (!message.parent) return null;
-    
-    const parentSenderName = message.parent.sender?.name || (message.sender === 'me' ? user.fullName : 'Yourself');
+
+    const parentSenderName =
+      message.parent.sender?.name ||
+      (message.sender === "me" ? user.fullName : "Yourself");
 
     return (
-        <div className="p-2 mb-2 bg-black/5 dark:bg-white/10 rounded-lg border-l-4 border-blue-500">
-            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                {parentSenderName}
-            </div>
-            <p className="text-xs text-slate-300 dark:text-white truncate mt-1">
-                {message.parent.message || "Attachment"}
-            </p>
+      <div className="p-2 mb-2 bg-black/5 dark:bg-white/10 rounded-lg border-l-4 border-blue-500">
+        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+          {parentSenderName}
         </div>
+        <p className="text-xs text-slate-300 dark:text-white truncate mt-1">
+          {message.parent.message || "Attachment"}
+        </p>
+      </div>
     );
   };
-  
+
   return (
     <div className="h-full flex flex-col" onClick={handleCloseMenu}>
       <header className="border-b border-slate-100 dark:border-slate-700">
@@ -389,12 +574,6 @@ const Chat = () => {
             </div>
           </div>
           <div className="flex-none flex md:space-x-3 space-x-1 items-center rtl:space-x-reverse">
-            <div className="msg-action-btn cursor-pointer">
-              <Icon icon="heroicons-outline:phone" />
-            </div>
-            <div className="msg-action-btn cursor-pointer">
-              <Icon icon="heroicons-outline:video-camera" />
-            </div>
             <div
               onClick={() => dispatch(infoToggle(!openinfo))}
               className="msg-action-btn cursor-pointer"
@@ -412,28 +591,34 @@ const Chat = () => {
         >
           {isMessagesLoading && (
             <div className="flex justify-center items-center h-full">
-                <Icon icon="eos-icons:loading" className="text-4xl text-slate-500" />
+              <Icon
+                icon="eos-icons:loading"
+                className="text-4xl text-slate-500"
+              />
             </div>
           )}
 
           {isOlderMessagesLoading && (
-              <div className="flex justify-center py-2">
-                  <Icon icon="eos-icons:loading" className="text-2xl text-slate-500" />
-              </div>
+            <div className="flex justify-center py-2">
+              <Icon
+                icon="eos-icons:loading"
+                className="text-2xl text-slate-500"
+              />
+            </div>
           )}
 
-          {!isMessagesLoading && messFeed.length === 0 && !messagesError &&(
-             <div className="text-center text-slate-500 h-full flex flex-col justify-center">
-                No messages yet. Start the conversation!
-             </div>
+          {!isMessagesLoading && messFeed.length === 0 && !messagesError && (
+            <div className="text-center text-slate-500 h-full flex flex-col justify-center">
+              No messages yet. Start the conversation!
+            </div>
           )}
 
           {messagesError && !isMessagesLoading && (
-             <div className="text-center text-danger-500 h-full flex flex-col justify-center">
-                Error: {messagesError}
-             </div>
+            <div className="text-center text-danger-500 h-full flex flex-col justify-center">
+              Error: {messagesError}
+            </div>
           )}
-          
+
           {!isMessagesLoading &&
             messFeed.map((item) => (
               <div
@@ -506,17 +691,34 @@ const Chat = () => {
                           </form>
                         </div>
                       ) : (
-                        <div className="p-3">
+                        <div
+                          className={
+                            item.attachments.length > 0 &&
+                            (isAudio(item.attachments[0]) ||
+                              isImage(item.attachments[0]))
+                              ? "p-1"
+                              : "p-3"
+                          }
+                        >
                           <RepliedMessageBlock message={item} />
                           {item.attachments && item.attachments.length > 0 ? (
                             item.attachments.map((att, index) => (
-                              <div key={att.is_local ? `local-${index}`: att.id || index} className="pt-1">
+                              <div
+                                key={
+                                  att.is_local
+                                    ? `local-${index}`
+                                    : att.id || index
+                                }
+                                className="pt-1"
+                              >
                                 {isImage(att) ? (
                                   <img
                                     src={att.url}
                                     alt={att.file_name}
                                     className="max-w-[250px] h-auto rounded-md object-cover"
                                   />
+                                ) : isAudio(att) ? ( // ✅ آڈیو پلیئر کے لیے چیک کریں
+                                  <AudioPlayer src={att.url} />
                                 ) : (
                                   <a
                                     href={att.url}
@@ -534,18 +736,23 @@ const Chat = () => {
                                   </a>
                                 )}
                                 {item.content && (
-                                  <div className="pt-2">{item.content}</div>
+                                  <div className="p-2">{item.content}</div>
                                 )}
                               </div>
                             ))
                           ) : (
                             <div>{item.content}</div>
                           )}
-                          <MessageStatus status={item.status} time={item.time} />
+                          <div className="px-2 pb-1">
+                            <MessageStatus
+                              status={item.status}
+                              time={item.time}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
-                    
+
                     {item.reactions && item.reactions.length > 0 && (
                       <div className="flex space-x-1 -mt-2 z-10">
                         {item.reactions.slice(0, 2).map((reaction) => (
@@ -560,30 +767,32 @@ const Chat = () => {
                     )}
                   </div>
 
-                  {item.sender === "me" && !editingMessageId && item.status !== 'pending' && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-2 self-center">
-                      {item.content && (
+                  {item.sender === "me" &&
+                    !editingMessageId &&
+                    item.status !== "pending" && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-2 self-center">
+                        {item.content && (
+                          <div
+                            onClick={() => handleEditClick(item)}
+                            className="cursor-pointer"
+                          >
+                            <Icon
+                              icon="heroicons-outline:pencil"
+                              className="text-slate-400 hover:text-blue-500"
+                            />
+                          </div>
+                        )}
                         <div
-                          onClick={() => handleEditClick(item)}
+                          onClick={() => handleDeleteMessage(item.id)}
                           className="cursor-pointer"
                         >
                           <Icon
-                            icon="heroicons-outline:pencil"
-                            className="text-slate-400 hover:text-blue-500"
+                            icon="heroicons-outline:trash"
+                            className="text-slate-400 hover:text-danger-500"
                           />
                         </div>
-                      )}
-                      <div
-                        onClick={() => handleDeleteMessage(item.id)}
-                        className="cursor-pointer"
-                      >
-                        <Icon
-                          icon="heroicons-outline:trash"
-                          className="text-slate-400 hover:text-danger-500"
-                        />
                       </div>
-                    </div>
-                  )}
+                    )}
                   {item.sender === "me" && (
                     <div className="flex-none self-end">
                       <UserAvatar
@@ -602,7 +811,7 @@ const Chat = () => {
       <footer className="md:px-6 px-4 border-t pt-4 border-slate-100 dark:border-slate-700">
         {replyingTo && <ReplyPreview />}
         <form onSubmit={handleSendMessage} className="flex-1">
-          {attachment && (
+          {attachment && !isRecording && (
             <div className="relative p-3 mb-3 bg-slate-100 dark:bg-slate-900 rounded-md">
               <button
                 type="button"
@@ -648,25 +857,56 @@ const Chat = () => {
           )}
 
           <div className="flex items-center space-x-3 pb-2">
-            <div className="flex-none">
-              <button
-                type="button"
-                onClick={triggerFileSelect}
-                className="h-8 w-8 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex flex-col justify-center items-center text-lg rounded-full hover:bg-slate-200 dark:hover:bg-slate-600"
-              >
-                <Icon icon="heroicons-outline:paper-clip" />
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                className="hidden"
-                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
-              />
-            </div>
+            {!isRecording && (
+              <div className="flex-none">
+                <button
+                  type="button"
+                  onClick={triggerFileSelect}
+                  className="h-8 w-8 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex flex-col justify-center items-center text-lg rounded-full hover:bg-slate-200 dark:hover:bg-slate-600"
+                >
+                  <Icon icon="heroicons-outline:paper-clip" />
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept="image/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
+                />
+              </div>
+            )}
 
             <div className="flex-1">
-              {!attachment && (
+              {isRecording ? (
+                <div className="flex items-center justify-between w-full">
+                  <button
+                    type="button"
+                    onClick={handleCancelRecording}
+                    className="h-8 w-8 text-danger-500 flex flex-col justify-center items-center text-lg rounded-full hover:bg-danger-500/10"
+                  >
+                    <Icon icon="heroicons-outline:trash" />
+                  </button>
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleTogglePauseResume}
+                      className="h-8 w-8 text-slate-600 dark:text-slate-300 flex flex-col justify-center items-center text-lg rounded-full"
+                    >
+                      <Icon
+                        icon={
+                          isPaused
+                            ? "heroicons-outline:play"
+                            : "heroicons-outline:pause"
+                        }
+                      />
+                    </button>
+                    <div className="text-slate-500 dark:text-slate-400 font-medium">
+                      {formatTime(recordingTime)}
+                    </div>
+                  </div>
+                </div>
+              ) : !attachment ? (
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -678,23 +918,46 @@ const Chat = () => {
                   placeholder="Type your message..."
                   className="focus:ring-0 focus:outline-0 block w-full bg-transparent dark:text-white resize-none"
                 />
-              )}
-              {attachment && (
+              ) : (
                 <div className="text-sm text-slate-400">
-                  Press Enter to send
+                  Press Enter to send the attachment
                 </div>
               )}
             </div>
+
             <div className="flex-none md:pr-0 pr-3">
-              <button
-                type="submit"
-                className="h-8 w-8 bg-slate-900 text-white flex flex-col justify-center items-center text-lg rounded-full"
-              >
-                <Icon
-                  icon="heroicons-outline:paper-airplane"
-                  className="transform rotate-[60deg]"
-                />
-              </button>
+              {message.trim() === "" && !attachment ? (
+                isRecording ? (
+                  <button
+                    type="button"
+                    onClick={handleStopAndSend}
+                    className="h-8 w-8 bg-success-500 text-white flex flex-col justify-center items-center text-lg rounded-full"
+                  >
+                    <Icon
+                      icon="heroicons-outline:paper-airplane"
+                      className="transform rotate-[60deg]"
+                    />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStartRecording}
+                    className="h-8 w-8 bg-slate-900 text-white flex flex-col justify-center items-center text-lg rounded-full"
+                  >
+                    <Icon icon="heroicons-outline:microphone" />
+                  </button>
+                )
+              ) : (
+                <button
+                  type="submit"
+                  className="h-8 w-8 bg-slate-900 text-white flex flex-col justify-center items-center text-lg rounded-full"
+                >
+                  <Icon
+                    icon="heroicons-outline:paper-airplane"
+                    className="transform rotate-[60deg]"
+                  />
+                </button>
+              )}
             </div>
           </div>
         </form>
