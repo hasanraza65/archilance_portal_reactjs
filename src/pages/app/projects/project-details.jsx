@@ -26,6 +26,9 @@ import {
   Undo2,
 } from "lucide-react";
 
+// +++ IMPORT THE NEW COMPONENT +++
+import EditableProjectStatus from "./EditableProjectStatus";
+
 const ConversationBox = ({
   messages,
   newMessage,
@@ -753,11 +756,9 @@ const ProjectDetailsPage = () => {
           setProjectFound(false);
           setError(`Project with ID ${id} not found.`);
         } else {
-          const errorData = await response
-            .json()
-            .catch(() => ({
-              message: "Failed to parse error response from server.",
-            }));
+          const errorData = await response.json().catch(() => ({
+            message: "Failed to parse error response from server.",
+          }));
           setError(
             `Error ${response.status}: ${
               errorData.message || response.statusText
@@ -818,22 +819,7 @@ const ProjectDetailsPage = () => {
       toggleUpdateAssigneesModal({ open: true, project: projectDetails })
     );
   };
-  const getProjectStatusClass = (status) => {
-    const s = String(status).toLowerCase();
-    if (s === "completed" || s === "done") {
-      return "bg-green-500 text-white";
-    }
-    if (s.includes("progress")) {
-      return "bg-blue-500 text-white";
-    }
-    if (s.includes("hold") || s.includes("paused")) {
-      return "bg-yellow-500 text-white";
-    }
-    if (s.includes("cancel")) {
-      return "bg-red-500 text-white";
-    }
-    return "bg-slate-400 text-white";
-  };
+
   const handleOpenAddTaskModal = () => setIsAddTaskModalOpen(true);
   const handleCloseAddTaskModal = () => setIsAddTaskModalOpen(false);
   const handleTaskAdded = () => {
@@ -981,11 +967,9 @@ const ProjectDetailsPage = () => {
             }
           );
           if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({
-                message: "Server error during brief deletion.",
-              }));
+            const errorData = await response.json().catch(() => ({
+              message: "Server error during brief deletion.",
+            }));
             Swal.fire(
               "Deletion Failed",
               errorData.message ||
@@ -1099,13 +1083,16 @@ const ProjectDetailsPage = () => {
               Project #{projectDetails.id}
             </p>
           </div>
-          <div
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap ${getProjectStatusClass(
-              projectDetails.status
-            )}`}
-          >
-            {projectDetails.status || "Unknown"}
-          </div>
+          {/* +++ UPDATED SECTION FOR EDITABLE STATUS +++ */}
+          <EditableProjectStatus
+            projectId={projectDetails.id}
+            currentStatus={projectDetails.status}
+            onStatusUpdate={fetchProjectAndTasks}
+            isEditable={userRole === "admin"}
+            apiBaseUrl={API_BASE_URL}
+            apiPath={getApiBasePathForRole("/update-project-status")}
+            token={token}
+          />
         </div>
 
         <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
