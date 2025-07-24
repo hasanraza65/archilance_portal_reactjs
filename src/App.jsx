@@ -108,8 +108,8 @@ function App() {
               </Suspense>
             }
           />
-          {/* <Route path="login" element={<Navigate to="/" replace />} />
-          <Route
+          <Route path="login" element={<Navigate to="/" replace />} />
+          {/* <Route
             path="register"
             element={
               <Suspense fallback={<Loading />}>

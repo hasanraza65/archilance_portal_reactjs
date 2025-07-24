@@ -4,35 +4,89 @@ import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import { deleteProjectAPI, setEditModalAndItem } from "./store";
 import { useNavigate } from "react-router-dom";
-import { useTable, useRowSelect, useSortBy, useGlobalFilter, usePagination } from "react-table";
-import Swal from 'sweetalert2';
+import {
+  useTable,
+  useRowSelect,
+  useSortBy,
+  useGlobalFilter,
+  usePagination,
+} from "react-table";
+import Swal from "sweetalert2";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+
+const AvatarStack = ({ assignees }) => {
+  if (!assignees || assignees.length === 0) {
+    return <span className="text-slate-400">N/A</span>;
+  }
+
+  const getInitials = (name) => (name ? name.charAt(0).toUpperCase() : "U");
+
+  return (
+    <div className="flex items-center -space-x-2">
+      {assignees.slice(0, 3).map(({ id, user }) => {
+        if (!user) return null;
+        const avatarUrl = user.profile_pic
+          ? `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${
+              user.profile_pic
+            }`
+          : null;
+        return (
+          <div
+            key={id}
+            title={user.name}
+            className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-xs font-bold"
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={user.name}
+                className="w-full h-full object-cover rounded-full"
+              />
+            ) : (
+              <span className="text-slate-600 dark:text-slate-300">
+                {getInitials(user.name)}
+              </span>
+            )}
+          </div>
+        );
+      })}
+      {assignees.length > 3 && (
+        <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
+          +{assignees.length - 3}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ProjectList = ({ projects }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isDeleting, isUpdating } = useSelector(state => state.project);
+  const { isDeleting, isUpdating } = useSelector((state) => state.project);
   const userRole = getApiPrefix();
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     try {
       const d = new Date(dateString);
-      return isNaN(d.getTime()) ? "Invalid Date" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+      return isNaN(d.getTime())
+        ? "Invalid Date"
+        : d.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          });
     } catch (e) {
       return "Invalid Date";
     }
   };
-  
-  // **MODIFICATION**: This function now handles navigation based on user role.
+
   const handleRowNavigation = (projectId) => {
     if (!projectId) return;
 
     if (userRole === "customer") {
-      // For customers, navigate to the specific order details page.
       navigate(`/customer/order-details/${projectId}`);
     } else {
-      // For admin and employees, navigate to the general project details page.
       navigate(`/projects/${projectId}`);
     }
   };
@@ -45,28 +99,47 @@ const ProjectList = ({ projects }) => {
   const handleDelete = (item, e) => {
     e.stopPropagation();
     Swal.fire({
-      title: 'Are you sure?',
-      text: `You are about to delete the project "${item.name || 'this project'}". This action cannot be undone!`,
-      icon: 'warning',
+      title: "Are you sure?",
+      text: `You are about to delete the project "${
+        item.name || "this project"
+      }". This action cannot be undone!`,
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        dispatch(deleteProjectAPI(item.id)).unwrap()
-          .then(() => Swal.fire('Deleted!', `Project "${item.name || 'this project'}" has been deleted.`, 'success'))
-          .catch(error => Swal.fire('Failed!', `Could not delete project. ${error || 'Please try again.'}`, 'error'));
+        dispatch(deleteProjectAPI(item.id))
+          .unwrap()
+          .then(() =>
+            Swal.fire(
+              "Deleted!",
+              `Project "${item.name || "this project"}" has been deleted.`,
+              "success"
+            )
+          )
+          .catch((error) =>
+            Swal.fire(
+              "Failed!",
+              `Could not delete project. ${error || "Please try again."}`,
+              "error"
+            )
+          );
       }
     });
   };
 
-  // **MODIFICATION**: Columns are now conditionally generated based on userRole.
   const COLUMNS = useMemo(() => {
     const baseColumns = [
-      { Header: "Name", accessor: "name", Cell: ({ cell: { value } }) => {
-          const initials = value ? (value.charAt(0) + (value.charAt(1) || "")).toUpperCase() : "NA";
+      {
+        Header: "Name",
+        accessor: "name",
+        Cell: ({ cell: { value } }) => {
+          const initials = value
+            ? (value.charAt(0) + (value.charAt(1) || "")).toUpperCase()
+            : "NA";
           return (
             <div className="flex space-x-3 items-center text-left rtl:space-x-reverse">
               <div className="flex-none">
@@ -75,17 +148,32 @@ const ProjectList = ({ projects }) => {
                 </div>
               </div>
               <div className="flex-1 font-medium text-sm leading-4 whitespace-nowrap">
-                {value && value.length > 25 ? value.substring(0, 25) + "..." : value || "N/A"}
+                {value && value.length > 25
+                  ? value.substring(0, 25) + "..."
+                  : value || "N/A"}
               </div>
             </div>
           );
-      }},
-      { Header: "Start Date", accessor: "startDate", Cell: ({ cell: { value } }) => (<span>{formatDate(value)}</span>) },
-      { Header: "End Date", accessor: "endDate", Cell: ({ cell: { value } }) => (<div>{formatDate(value)}</div>) },
+        },
+      },
+      {
+        Header: "Assigned To",
+        accessor: "project_assignees",
+        Cell: ({ cell: { value } }) => <AvatarStack assignees={value} />,
+      },
+      {
+        Header: "Start Date",
+        accessor: "startDate",
+        Cell: ({ cell: { value } }) => <span>{formatDate(value)}</span>,
+      },
+      {
+        Header: "End Date",
+        accessor: "endDate",
+        Cell: ({ cell: { value } }) => <div>{formatDate(value)}</div>,
+      },
     ];
-    
-    // The "Action" column is only added if the user is NOT a customer.
-    if (userRole !== 'customer') {
+
+    if (userRole !== "customer") {
       baseColumns.push({
         Header: "Action",
         accessor: "action",
@@ -94,20 +182,30 @@ const ProjectList = ({ projects }) => {
           const actionsDisabled = isDeleting || isUpdating;
 
           return (
-            <div className="flex items-center justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="flex items-center justify-center space-x-2"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
-                onClick={(e) => { e.stopPropagation(); handleRowNavigation(projectItem.id); }} // Re-use main nav logic for view
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRowNavigation(projectItem.id);
+                }}
                 className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors duration-200"
                 title="View Project"
               >
                 <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
               </button>
-              {userRole === 'admin' && (
+              {userRole === "admin" && (
                 <>
                   <button
                     onClick={(e) => handleEdit(projectItem, e)}
                     disabled={actionsDisabled}
-                    className={`p-2 rounded-full transition-colors duration-200 ${actionsDisabled ? 'opacity-50 cursor-not-allowed text-gray-400' : 'hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'}`}
+                    className={`p-2 rounded-full transition-colors duration-200 ${
+                      actionsDisabled
+                        ? "opacity-50 cursor-not-allowed text-gray-400"
+                        : "hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
+                    }`}
                     title="Edit Project"
                   >
                     <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
@@ -115,7 +213,11 @@ const ProjectList = ({ projects }) => {
                   <button
                     onClick={(e) => handleDelete(projectItem, e)}
                     disabled={actionsDisabled}
-                    className={`p-2 rounded-full transition-colors duration-200 ${actionsDisabled ? 'opacity-50 cursor-not-allowed text-gray-400' : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'}`}
+                    className={`p-2 rounded-full transition-colors duration-200 ${
+                      actionsDisabled
+                        ? "opacity-50 cursor-not-allowed text-gray-400"
+                        : "hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                    }`}
                     title="Delete Project"
                   >
                     <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
@@ -124,7 +226,7 @@ const ProjectList = ({ projects }) => {
               )}
             </div>
           );
-        }
+        },
       });
     }
 
@@ -132,8 +234,28 @@ const ProjectList = ({ projects }) => {
   }, [isDeleting, isUpdating, userRole]);
 
   const data = useMemo(() => projects || [], [projects]);
-  const tableInstance = useTable({ columns: COLUMNS, data, initialState: { pageSize: 10 } }, useGlobalFilter, useSortBy, usePagination, useRowSelect);
-  const { getTableProps, getTableBodyProps, headerGroups, page, nextPage, previousPage, canNextPage, canPreviousPage, pageOptions, state, gotoPage, setPageSize, prepareRow } = tableInstance;
+  const tableInstance = useTable(
+    { columns: COLUMNS, data, initialState: { pageSize: 10 } },
+    useGlobalFilter,
+    useSortBy,
+    usePagination,
+    useRowSelect
+  );
+  const {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    page,
+    nextPage,
+    previousPage,
+    canNextPage,
+    canPreviousPage,
+    pageOptions,
+    state,
+    gotoPage,
+    setPageSize,
+    prepareRow,
+  } = tableInstance;
   const { pageIndex, pageSize } = state;
 
   if (!projects || projects.length === 0) {
@@ -158,13 +280,19 @@ const ProjectList = ({ projects }) => {
                     <tr {...headerGroup.getHeaderGroupProps()}>
                       {headerGroup.headers.map((column) => (
                         <th
-                          {...column.getHeaderProps(column.getSortByToggleProps())}
+                          {...column.getHeaderProps(
+                            column.getSortByToggleProps()
+                          )}
                           scope="col"
                           className="table-th"
                         >
                           {column.render("Header")}
                           <span>
-                            {column.isSorted ? (column.isSortedDesc ? " 🔽" : " 🔼") : ""}
+                            {column.isSorted
+                              ? column.isSortedDesc
+                                ? " 🔽"
+                                : " 🔼"
+                              : ""}
                           </span>
                         </th>
                       ))}
@@ -184,7 +312,7 @@ const ProjectList = ({ projects }) => {
                         className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
                         onClick={() => handleRowNavigation(projectItem.id)}
                       >
-                        {row.cells.map(cell => (
+                        {row.cells.map((cell) => (
                           <td {...cell.getCellProps()} className="table-td">
                             {cell.render("Cell")}
                           </td>
@@ -203,20 +331,27 @@ const ProjectList = ({ projects }) => {
               <select
                 className="form-control py-2 w-max dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"
                 value={pageSize}
-                onChange={e => setPageSize(Number(e.target.value))}
+                onChange={(e) => setPageSize(Number(e.target.value))}
               >
-                {[10, 25, 50].map(size => (
-                  <option key={size} value={size}>Show {size}</option>
+                {[10, 25, 50].map((size) => (
+                  <option key={size} value={size}>
+                    Show {size}
+                  </option>
                 ))}
               </select>
               <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                Page{" "}<span>{pageIndex + 1} of {pageOptions.length}</span>
+                Page{" "}
+                <span>
+                  {pageIndex + 1} of {pageOptions.length}
+                </span>
               </span>
             </div>
             <ul className="flex items-center space-x-3 rtl:space-x-reverse">
               <li className="text-xl leading-4 text-slate-900 dark:text-white rtl:rotate-180">
                 <button
-                  className={`p-1 flex items-center justify-center h-8 w-8 rounded hover:bg-slate-100 dark:hover:bg-slate-700 ${!canPreviousPage ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`p-1 flex items-center justify-center h-8 w-8 rounded hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                    !canPreviousPage ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                   onClick={() => previousPage()}
                   disabled={!canPreviousPage}
                 >
@@ -228,10 +363,11 @@ const ProjectList = ({ projects }) => {
                   <button
                     aria-current="page"
                     className={`text-sm flex h-8 w-8 items-center justify-center rounded transition-all duration-150
-                      ${pageIdx === pageIndex
-                        ? "bg-slate-900 dark:bg-slate-600 text-white font-medium"
-                        : "bg-slate-100 dark:bg-slate-700 dark:text-slate-400 text-slate-900 font-normal hover:bg-slate-200 dark:hover:bg-slate-600"
-                    }`}
+                      ${
+                        pageIdx === pageIndex
+                          ? "bg-slate-900 dark:bg-slate-600 text-white font-medium"
+                          : "bg-slate-100 dark:bg-slate-700 dark:text-slate-400 text-slate-900 font-normal hover:bg-slate-200 dark:hover:bg-slate-600"
+                      }`}
                     onClick={() => gotoPage(pageIdx)}
                   >
                     {pageIdx + 1}
@@ -240,7 +376,9 @@ const ProjectList = ({ projects }) => {
               ))}
               <li className="text-xl leading-4 text-slate-900 dark:text-white rtl:rotate-180">
                 <button
-                  className={`p-1 flex items-center justify-center h-8 w-8 rounded hover:bg-slate-100 dark:hover:bg-slate-700 ${!canNextPage ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`p-1 flex items-center justify-center h-8 w-8 rounded hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                    !canNextPage ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                   onClick={() => nextPage()}
                   disabled={!canNextPage}
                 >

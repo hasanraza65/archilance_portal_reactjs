@@ -18,7 +18,6 @@ const ProjectPostPage = () => {
   const [filler, setFiller] = useState("grid");
   const { width, breakpoints } = useWidth();
   const [isViewLoading, setIsViewLoading] = useState(false);
-  // This userRole will be passed down to child components
   const userRole = getApiPrefix();
 
   const dispatch = useDispatch();
@@ -107,13 +106,6 @@ const ProjectPostPage = () => {
             iconClass="text-lg"
             onClick={() => toggleView("grid")}
           />
-          {/* <Button
-            icon="heroicons-outline:filter"
-            text="On going"
-            className="bg-white dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-900 hover:text-white btn-md h-min text-sm font-normal"
-            iconClass="text-lg"
-            disabled={anyOperationPending}
-          /> */}
           {userRole !== "employee" && userRole !== "customer" && (
             <Button
               icon="heroicons-outline:plus"
@@ -148,7 +140,6 @@ const ProjectPostPage = () => {
         <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
           {projects && projects.length > 0
             ? projects.map((project) => (
-                // *** KEY CHANGE 1: Pass userRole to ProjectGrid ***
                 <ProjectGrid
                   project={project}
                   key={project.id}
@@ -165,7 +156,6 @@ const ProjectPostPage = () => {
       {!projectsDataLoading && !isViewLoading && filler === "list" && (
         <div>
           {projects && projects.length > 0 ? (
-            // *** KEY CHANGE 2: Pass userRole to ProjectList ***
             <ProjectList projects={projects} userRole={userRole} />
           ) : (
             !projectsError && (

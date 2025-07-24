@@ -27,8 +27,8 @@ const formatProjectFromAPI = (project) => ({
   progress: typeof project.progress === "number" ? project.progress : project.project_progress || 0,
   customer_id: project.customer_id || null,
   status: project.status?.toLowerCase() || "ongoing",
-  assignee: project.members || [],
-  members: project.members || [],
+  project_assignees: project.project_assignees || project.members || [],
+  members: project.project_assignees || project.members || [],
 });
 
 export const fetchProjectsAPI = createAsyncThunk(
