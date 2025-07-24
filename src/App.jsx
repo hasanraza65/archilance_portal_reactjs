@@ -46,7 +46,6 @@ const PaymentStatusPage = lazy(() =>
 const Dashboard = lazy(() => import("./pages/dashboard"));
 const Ecommerce = lazy(() => import("./pages/dashboard/ecommerce"));
 const Login = lazy(() => import("./pages/auth/login"));
-const Register = lazy(() => import("./pages/auth/register"));
 const ForgotPass = lazy(() => import("./pages/auth/forgot-password"));
 const Profile = lazy(() => import("./pages/utility/profile"));
 const EditProfile = lazy(() => import("./pages/utility/edit-profile"));
@@ -109,7 +108,7 @@ function App() {
               </Suspense>
             }
           />
-          <Route path="login" element={<Navigate to="/" replace />} />
+          {/* <Route path="login" element={<Navigate to="/" replace />} />
           <Route
             path="register"
             element={
@@ -117,7 +116,7 @@ function App() {
                 <Register />
               </Suspense>
             }
-          />
+          /> */}
           <Route
             path="forgot-password"
             element={
