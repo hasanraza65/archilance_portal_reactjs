@@ -8,7 +8,6 @@ const API_ROOT = `${import.meta.env.VITE_BACKEND_BASE_URL}/api`;
 
 const getProjectPath = () => {
   const role = getApiPrefix();
-
   if (role === "employee") {
     return "/employee/project";
   }
@@ -27,8 +26,7 @@ const formatProjectFromAPI = (project) => ({
   progress: typeof project.progress === "number" ? project.progress : project.project_progress || 0,
   customer_id: project.customer_id || null,
   status: project.status?.toLowerCase() || "ongoing",
-  project_assignees: project.project_assignees || project.members || [],
-  members: project.project_assignees || project.members || [],
+  project_assignees: project.project_assignees || [],
 });
 
 export const fetchProjectsAPI = createAsyncThunk(
@@ -174,6 +172,32 @@ export const deleteProjectAPI = createAsyncThunk(
   }
 );
 
+export const updateProjectAssigneesAPI = createAsyncThunk(
+  "project/updateAssignees",
+  async ({ project_id, employee_ids }, { dispatch, getState, rejectWithValue }) => {
+    try {
+      const token = Cookies.get("token");
+      if (!token) return rejectWithValue("Authentication token not found.");
+      
+      const payload = { project_id, employee_ids };
+
+      await axios.post(`${API_ROOT}/admin/update-project-assignees`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      const { currentPage } = getState().project;
+      dispatch(fetchProjectsAPI(currentPage));
+      return { projectId: project_id, employeeIds: employee_ids };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || "Could not update assignees.";
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {
@@ -189,20 +213,20 @@ export const appProjectSlice = createSlice({
     openProjectModal: false,
     editModal: false,
     editItem: {},
+    updateAssigneesModal: false,
+    projectToUpdateAssignees: null,
   },
   reducers: {
     toggleAddModal: (state, action) => {
       state.openProjectModal = action.payload;
-      if (!action.payload) state.error = null;
     },
     setEditModalAndItem: (state, action) => {
       state.editModal = action.payload.open;
-      if (action.payload.open && action.payload.project) {
-        state.editItem = action.payload.project;
-      } else {
-        state.editItem = {};
-      }
-      if (!action.payload.open) state.error = null;
+      state.editItem = action.payload.open ? action.payload.project : {};
+    },
+    toggleUpdateAssigneesModal: (state, action) => {
+      state.updateAssigneesModal = action.payload.open;
+      state.projectToUpdateAssignees = action.payload.open ? action.payload.project : null;
     },
   },
   extraReducers: (builder) => {
@@ -257,10 +281,22 @@ export const appProjectSlice = createSlice({
       .addCase(deleteProjectAPI.rejected, (state, action) => {
         state.isDeleting = false;
         state.error = action.payload;
+      })
+      .addCase(updateProjectAssigneesAPI.pending, (state) => {
+        state.isUpdating = true;
+      })
+      .addCase(updateProjectAssigneesAPI.fulfilled, (state) => {
+        state.isUpdating = false;
+        state.updateAssigneesModal = false;
+        state.projectToUpdateAssignees = null;
+      })
+      .addCase(updateProjectAssigneesAPI.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload;
       });
   },
 });
 
-export const { toggleAddModal, setEditModalAndItem } = appProjectSlice.actions;
+export const { toggleAddModal, setEditModalAndItem, toggleUpdateAssigneesModal } = appProjectSlice.actions;
 
 export default appProjectSlice.reducer;

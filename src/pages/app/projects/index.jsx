@@ -13,6 +13,7 @@ import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+import UpdateAssigneesModal from "./UpdateAssigneesModal";
 
 const ProjectPostPage = () => {
   const [filler, setFiller] = useState("grid");
@@ -180,6 +181,7 @@ const ProjectPostPage = () => {
 
       <AddProject />
       <EditProject />
+      <UpdateAssigneesModal />
     </div>
   );
 };

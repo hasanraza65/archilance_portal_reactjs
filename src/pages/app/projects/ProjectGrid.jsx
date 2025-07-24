@@ -5,7 +5,11 @@ import { MenuItem } from "@headlessui/react";
 import Icon from "@/components/ui/Icon";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { deleteProjectAPI, setEditModalAndItem } from "./store";
+import {
+  deleteProjectAPI,
+  setEditModalAndItem,
+  toggleUpdateAssigneesModal,
+} from "./store";
 import Swal from "sweetalert2";
 import DOMPurify from "dompurify";
 
@@ -46,6 +50,11 @@ const ProjectGrid = ({ project, userRole }) => {
     } else {
       navigate(`/projects/${id}`);
     }
+  };
+
+  const handleOpenAssigneesModal = (e) => {
+    e.stopPropagation();
+    dispatch(toggleUpdateAssigneesModal({ open: true, project }));
   };
 
   const handleEditClick = (proj) => {
@@ -249,7 +258,10 @@ const ProjectGrid = ({ project, userRole }) => {
       </div>
 
       {project_assignees && project_assignees.length > 0 && (
-        <div className="absolute bottom-4 right-4 flex items-center">
+        <div
+          className="absolute bottom-4 right-4 flex items-center cursor-pointer"
+          onClick={handleOpenAssigneesModal}
+        >
           {project_assignees
             .slice(0, 3)
             .map(

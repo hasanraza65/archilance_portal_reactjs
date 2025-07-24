@@ -2,7 +2,11 @@ import React, { useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
-import { deleteProjectAPI, setEditModalAndItem } from "./store";
+import {
+  deleteProjectAPI,
+  setEditModalAndItem,
+  toggleUpdateAssigneesModal,
+} from "./store";
 import { useNavigate } from "react-router-dom";
 import {
   useTable,
@@ -64,6 +68,11 @@ const ProjectList = ({ projects }) => {
   const navigate = useNavigate();
   const { isDeleting, isUpdating } = useSelector((state) => state.project);
   const userRole = getApiPrefix();
+
+  const handleOpenAssigneesModal = (project, e) => {
+    e.stopPropagation();
+    dispatch(toggleUpdateAssigneesModal({ open: true, project }));
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -159,7 +168,14 @@ const ProjectList = ({ projects }) => {
       {
         Header: "Assigned To",
         accessor: "project_assignees",
-        Cell: ({ cell: { value } }) => <AvatarStack assignees={value} />,
+        Cell: ({ cell: { value }, row }) => (
+          <div
+            className="cursor-pointer"
+            onClick={(e) => handleOpenAssigneesModal(row.original, e)}
+          >
+            <AvatarStack assignees={value} />
+          </div>
+        ),
       },
       {
         Header: "Start Date",
