@@ -588,36 +588,35 @@ const ProjectDetailsPage = () => {
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
 
-  const fetchMessages = useCallback(async () => {
-    if (userRole !== "admin" || !token || !id) return;
+const fetchMessages = useCallback(async () => {
+    if ((userRole !== "admin" && userRole !== "employee") || !token || !id) return;
     const chatApiPath = getApiBasePathForRole("/project-chat");
     try {
-      const response = await fetch(`${API_BASE_URL}${chatApiPath}/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch messages.");
-      const data = await response.json();
-      setMessages(data.chats || []);
-      setMessagesError(null);
+        const response = await fetch(`${API_BASE_URL}${chatApiPath}/${id}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+            },
+        });
+        if (!response.ok) throw new Error("Failed to fetch messages.");
+        const data = await response.json();
+        setMessages(data.chats || []);
+        setMessagesError(null);
     } catch (err) {
-      setMessagesError(err.message);
+        setMessagesError(err.message);
     } finally {
-      setIsMessagesLoading(false);
+        setIsMessagesLoading(false);
     }
-  }, [id, token, userRole, API_BASE_URL]);
-
-  useEffect(() => {
-    if (userRole === "admin") {
-      fetchMessages();
-      const pollInterval = setInterval(fetchMessages, 20000);
-      return () => clearInterval(pollInterval);
+}, [id, token, userRole, API_BASE_URL]);
+ useEffect(() => {
+    if (userRole === "admin" || userRole === "employee") {
+        fetchMessages();
+        const pollInterval = setInterval(fetchMessages, 20000);
+        return () => clearInterval(pollInterval);
     } else {
-      setIsMessagesLoading(false);
+        setIsMessagesLoading(false);
     }
-  }, [fetchMessages, userRole]);
+}, [fetchMessages, userRole]);
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
@@ -1741,27 +1740,27 @@ const ProjectDetailsPage = () => {
           </div>
         </div>
       )}
-      {userRole === "admin" && (
-        <div className="mt-8">
-          <div className="h-[700px] relative">
+    {(userRole === "admin" || userRole === "employee") && (
+    <div className="mt-8">
+        <div className="h-[700px] relative">
             <ConversationBox
-              messages={messages}
-              newMessage={newMessage}
-              setNewMessage={setNewMessage}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              onSendMessage={handleSendMessage}
-              onUpdateMessage={handleUpdateMessage}
-              onDeleteMessage={handleDeleteMessage}
-              isSending={isSending}
-              isLoading={isMessagesLoading}
-              error={messagesError}
-              currentUserId={currentUserId}
-              apiBaseUrl={API_BASE_URL}
+                messages={messages}
+                newMessage={newMessage}
+                setNewMessage={setNewMessage}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                onSendMessage={handleSendMessage}
+                onUpdateMessage={handleUpdateMessage}
+                onDeleteMessage={handleDeleteMessage}
+                isSending={isSending}
+                isLoading={isMessagesLoading}
+                error={messagesError}
+                currentUserId={currentUserId}
+                apiBaseUrl={API_BASE_URL}
             />
-          </div>
         </div>
-      )}
+    </div>
+)}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}
