@@ -18,7 +18,7 @@ const selectStyles = {
   option: (provided, state) => ({...provided, fontSize: "14px", backgroundColor: state.isSelected ? '#0f172a' : state.isFocused ? '#f1f5f9' : null, color: state.isSelected ? 'white' : '#0f172a', ':active': {backgroundColor: '#e2e8f0',},}),
 };
 
-const UpdateAssigneesModal = () => {
+const UpdateAssigneesModal = ({ showUpdateButton = true }) => {
   const { updateAssigneesModal, projectToUpdateAssignees, isUpdating } = useSelector((state) => state.project);
   const dispatch = useDispatch();
   const userRole = getApiPrefix();
@@ -95,7 +95,7 @@ const UpdateAssigneesModal = () => {
       {mode === 'view' && (
         <div>
           <div className="flex justify-end mb-4">
-            {userRole === 'admin' && (
+            {userRole === 'admin' && showUpdateButton && (
               <button
                 className="btn btn-outline-dark text-sm"
                 onClick={handleSwitchToEdit}
