@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Select, { components } from "react-select";
 import Modal from "@/components/ui/Modal";
 import { useSelector, useDispatch } from "react-redux";
-import { addProjectAPI, toggleAddModal } from "./store"; 
+import { addProjectAPI, toggleAddModal } from "./store";
 import Flatpickr from "react-flatpickr";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -83,11 +83,12 @@ const AddProject = ({ onProjectAdded }) => {
         .date()
         .required("Start date is required")
         .typeError("Invalid date format"),
+      // +++ CHANGE: Made due_date optional by removing .required() and adding .nullable()
       due_date: yup
         .date()
-        .required("Due date is required")
+        .nullable() // Allow the date to be null
         .typeError("Invalid date format")
-        .min(yup.ref("start_date"), "Due date can't be before start date"),
+        .min(yup.ref("start_date"), "Due date can't be before the start date"),
       customer_id: yup
         .object()
         .shape({
@@ -198,14 +199,17 @@ const AddProject = ({ onProjectAdded }) => {
     let finalDescription = data.project_description;
     const textContent = finalDescription?.replace(/<[^>]*>/g, "").trim();
     if (!textContent) {
-      finalDescription = ""; 
+      finalDescription = "";
     }
 
     const payload = {
       project_name: data.project_name,
       project_description: finalDescription,
       start_date: new Date(data.start_date).toISOString().split("T")[0],
-      due_date: new Date(data.due_date).toISOString().split("T")[0],
+      // +++ CHANGE: Safely handle optional due_date. If it's not set, send null.
+      due_date: data.due_date
+        ? new Date(data.due_date).toISOString().split("T")[0]
+        : null,
       customer_id: data.customer_id.value,
       employee_ids: data.employee_ids.map((emp) => emp.value),
     };
@@ -218,9 +222,9 @@ const AddProject = ({ onProjectAdded }) => {
         if (onProjectAdded) onProjectAdded();
       })
       .catch(() => {
-      
+        // Error is handled in the slice, so no action needed here
       })
-      .finally(() => setLocalIsLoading(false));
+      .finally(() => setLocalIsLoding(false));
   };
 
   const handleCloseModal = () => {
@@ -302,7 +306,8 @@ const AddProject = ({ onProjectAdded }) => {
               </div>
             )}
           </FormGroup>
-          <FormGroup label="Due Date" id="add-due-date-picker">
+          {/* +++ CHANGE: Updated label to indicate it's optional */}
+          <FormGroup label="Due Date (Optional)" id="add-due-date-picker">
             <Controller
               name="due_date"
               control={control}
