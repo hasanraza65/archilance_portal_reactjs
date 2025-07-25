@@ -36,11 +36,9 @@ const AddCustomer = () => {
         newErrors.email = "Email is invalid.";
     }
     if (!formData.username.trim()) newErrors.username = "Username is required.";
-    if (!formData.phone.trim()) {
-        newErrors.phone = "Phone number is required.";
-    } else if (!/^\+?[0-9\s-()]{10,}$/.test(formData.phone)) { 
-        newErrors.phone = "Phone number is invalid (e.g., +923001234567)."
-    }
+   if (formData.phone.trim() && !/^\+?[0-9\s-()]{10,}$/.test(formData.phone)) {
+    newErrors.phone = "Phone number is invalid (e.g., +923001234567).";
+}
     if (!formData.password) {
         newErrors.password = "Password is required.";
     } else if (formData.password.length < 8) {

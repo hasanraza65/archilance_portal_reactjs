@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import Cookies from 'js-cookie';
-import { toast } from 'react-toastify';
-import Card from '@/components/ui/Card';
-import Icon from '@/components/ui/Icon';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import Cookies from "js-cookie";
+import { toast } from "react-toastify";
+import Card from "@/components/ui/Card";
+import Icon from "@/components/ui/Icon";
 
 const AddEmployee = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    username: '',
-    phone: '',
-    password: '',
-    password_confirmation: '',
-    user_role: '3',
+    name: "",
+    email: "",
+    username: "",
+    phone: "",
+    password: "",
+    password_confirmation: "",
+    user_role: "3",
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -24,7 +24,7 @@ const AddEmployee = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
+      setErrors((prev) => ({ ...prev, [name]: null }));
     }
   };
 
@@ -37,9 +37,7 @@ const AddEmployee = () => {
       newErrors.email = "Email is invalid.";
     }
     if (!formData.username.trim()) newErrors.username = "Username is required.";
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required.";
-    } else if (!/^\+?[0-9\s-()]{10,}$/.test(formData.phone)) {
+    if (formData.phone.trim() && !/^\+?[0-9\s-()]{10,}$/.test(formData.phone)) {
       newErrors.phone = "Phone number is invalid (e.g., +923001234567).";
     }
     if (!formData.password) {
@@ -67,12 +65,12 @@ const AddEmployee = () => {
 
     setLoading(true);
     setErrors({});
-    const token = Cookies.get('token');
+    const token = Cookies.get("token");
 
     if (!token) {
-      toast.error('Authentication token not found. Please log in again.');
+      toast.error("Authentication token not found. Please log in again.");
       setLoading(false);
-      navigate('/login');
+      navigate("/login");
       return;
     }
 
@@ -88,13 +86,13 @@ const AddEmployee = () => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
+            "Content-Type": "application/json",
+            Accept: "application/json",
           },
         }
       );
-      toast.success('Employee added successfully!');
-      navigate('/employees');
+      toast.success("Employee added successfully!");
+      navigate("/employees");
     } catch (error) {
       if (error.response) {
         if (error.response.data && error.response.data.errors) {
@@ -104,14 +102,14 @@ const AddEmployee = () => {
             formattedErrors[key] = backendErrors[key][0];
           }
           setErrors(formattedErrors);
-          toast.error('Validation failed. Please check the form.');
+          toast.error("Validation failed. Please check the form.");
         } else if (error.response.data && error.response.data.message) {
           toast.error(error.response.data.message);
         } else {
-          toast.error('Failed to add employee. Server error.');
+          toast.error("Failed to add employee. Server error.");
         }
       } else if (error.request) {
-        toast.error('Failed to add employee. No response from server.');
+        toast.error("Failed to add employee. No response from server.");
       } else {
         toast.error(`Failed to add employee: ${error.message}`);
       }
@@ -128,12 +126,16 @@ const AddEmployee = () => {
     <Card title="Add New Employee">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className={labelClass}>Full Name</label>
+          <label htmlFor="name" className={labelClass}>
+            Full Name
+          </label>
           <input
             type="text"
             name="name"
             id="name"
-            className={`${inputClass} ${errors.name ? 'border-danger-500' : ''}`}
+            className={`${inputClass} ${
+              errors.name ? "border-danger-500" : ""
+            }`}
             value={formData.name}
             onChange={handleChange}
             placeholder="Enter full name"
@@ -142,12 +144,16 @@ const AddEmployee = () => {
         </div>
 
         <div>
-          <label htmlFor="email" className={labelClass}>Email Address</label>
+          <label htmlFor="email" className={labelClass}>
+            Email Address
+          </label>
           <input
             type="email"
             name="email"
             id="email"
-            className={`${inputClass} ${errors.email ? 'border-danger-500' : ''}`}
+            className={`${inputClass} ${
+              errors.email ? "border-danger-500" : ""
+            }`}
             value={formData.email}
             onChange={handleChange}
             placeholder="Enter email address"
@@ -156,12 +162,16 @@ const AddEmployee = () => {
         </div>
 
         <div>
-          <label htmlFor="username" className={labelClass}>Username</label>
+          <label htmlFor="username" className={labelClass}>
+            Username
+          </label>
           <input
             type="text"
             name="username"
             id="username"
-            className={`${inputClass} ${errors.username ? 'border-danger-500' : ''}`}
+            className={`${inputClass} ${
+              errors.username ? "border-danger-500" : ""
+            }`}
             value={formData.username}
             onChange={handleChange}
             placeholder="Enter username"
@@ -170,12 +180,16 @@ const AddEmployee = () => {
         </div>
 
         <div>
-          <label htmlFor="phone" className={labelClass}>Phone Number</label>
+          <label htmlFor="phone" className={labelClass}>
+            Phone Number
+          </label>
           <input
             type="tel"
             name="phone"
             id="phone"
-            className={`${inputClass} ${errors.phone ? 'border-danger-500' : ''}`}
+            className={`${inputClass} ${
+              errors.phone ? "border-danger-500" : ""
+            }`}
             value={formData.phone}
             onChange={handleChange}
             placeholder="+923001234567"
@@ -184,12 +198,16 @@ const AddEmployee = () => {
         </div>
 
         <div>
-          <label htmlFor="password" className={labelClass}>Password</label>
+          <label htmlFor="password" className={labelClass}>
+            Password
+          </label>
           <input
             type="password"
             name="password"
             id="password"
-            className={`${inputClass} ${errors.password ? 'border-danger-500' : ''}`}
+            className={`${inputClass} ${
+              errors.password ? "border-danger-500" : ""
+            }`}
             value={formData.password}
             onChange={handleChange}
             placeholder="Enter password"
@@ -198,25 +216,35 @@ const AddEmployee = () => {
         </div>
 
         <div>
-          <label htmlFor="password_confirmation" className={labelClass}>Confirm Password</label>
+          <label htmlFor="password_confirmation" className={labelClass}>
+            Confirm Password
+          </label>
           <input
             type="password"
             name="password_confirmation"
             id="password_confirmation"
-            className={`${inputClass} ${errors.password_confirmation ? 'border-danger-500' : ''}`}
+            className={`${inputClass} ${
+              errors.password_confirmation ? "border-danger-500" : ""
+            }`}
             value={formData.password_confirmation}
             onChange={handleChange}
             placeholder="Confirm password"
           />
-          {errors.password_confirmation && <p className={errorClass}>{errors.password_confirmation}</p>}
+          {errors.password_confirmation && (
+            <p className={errorClass}>{errors.password_confirmation}</p>
+          )}
         </div>
 
         <div>
-          <label htmlFor="user_role" className={labelClass}>User Role</label>
+          <label htmlFor="user_role" className={labelClass}>
+            User Role
+          </label>
           <select
             name="user_role"
             id="user_role"
-            className={`${inputClass} ${errors.user_role ? 'border-danger-500' : ''}`}
+            className={`${inputClass} ${
+              errors.user_role ? "border-danger-500" : ""
+            }`}
             value={formData.user_role}
             onChange={handleChange}
           >
@@ -229,7 +257,7 @@ const AddEmployee = () => {
           <button
             type="button"
             className="btn btn-light"
-            onClick={() => navigate('/employees')}
+            onClick={() => navigate("/employees")}
             disabled={loading}
           >
             Cancel
@@ -239,8 +267,13 @@ const AddEmployee = () => {
             className="btn btn-dark flex items-center"
             disabled={loading}
           >
-            {loading && <Icon icon="eos-icons:loading" className="animate-spin w-4 h-4 mr-2" />}
-            {loading ? 'Submitting...' : 'Add Employee'}
+            {loading && (
+              <Icon
+                icon="eos-icons:loading"
+                className="animate-spin w-4 h-4 mr-2"
+              />
+            )}
+            {loading ? "Submitting..." : "Add Employee"}
           </button>
         </div>
       </form>
