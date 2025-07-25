@@ -588,35 +588,36 @@ const ProjectDetailsPage = () => {
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
 
-const fetchMessages = useCallback(async () => {
-    if ((userRole !== "admin" && userRole !== "employee") || !token || !id) return;
+  const fetchMessages = useCallback(async () => {
+    if ((userRole !== "admin" && userRole !== "employee") || !token || !id)
+      return;
     const chatApiPath = getApiBasePathForRole("/project-chat");
     try {
-        const response = await fetch(`${API_BASE_URL}${chatApiPath}/${id}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json",
-            },
-        });
-        if (!response.ok) throw new Error("Failed to fetch messages.");
-        const data = await response.json();
-        setMessages(data.chats || []);
-        setMessagesError(null);
+      const response = await fetch(`${API_BASE_URL}${chatApiPath}/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch messages.");
+      const data = await response.json();
+      setMessages(data.chats || []);
+      setMessagesError(null);
     } catch (err) {
-        setMessagesError(err.message);
+      setMessagesError(err.message);
     } finally {
-        setIsMessagesLoading(false);
+      setIsMessagesLoading(false);
     }
-}, [id, token, userRole, API_BASE_URL]);
- useEffect(() => {
+  }, [id, token, userRole, API_BASE_URL]);
+  useEffect(() => {
     if (userRole === "admin" || userRole === "employee") {
-        fetchMessages();
-        const pollInterval = setInterval(fetchMessages, 20000);
-        return () => clearInterval(pollInterval);
+      fetchMessages();
+      const pollInterval = setInterval(fetchMessages, 20000);
+      return () => clearInterval(pollInterval);
     } else {
-        setIsMessagesLoading(false);
+      setIsMessagesLoading(false);
     }
-}, [fetchMessages, userRole]);
+  }, [fetchMessages, userRole]);
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
@@ -1070,6 +1071,9 @@ const fetchMessages = useCallback(async () => {
   const projectHasActualDescription =
     sanitizedProjectDescription.replace(/<[^>]*>/g, "").trim().length > 0;
 
+  // +++ FIX: Create a variable to determine if the user can see briefs.
+  const canViewBriefs = userRole === "admin" || userRole === "employee";
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
@@ -1438,7 +1442,9 @@ const fetchMessages = useCallback(async () => {
           </div>
         </div>
       )}
-      {projectDetails && briefs.length > 0 && (
+
+      {/* +++ FIX: WRAPPED THE ENTIRE BRIEFS SECTION IN A ROLE CHECK +++ */}
+      {projectDetails && canViewBriefs && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden backdrop-blur-sm">
           <div className="flex justify-between items-center p-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center space-x-3">
@@ -1484,283 +1490,293 @@ const fetchMessages = useCallback(async () => {
               <span>Add Brief</span>
             </button>
           </div>
-          <div className="grid grid-cols-12 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 border-b border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 sticky top-0 z-10">
-            <div className="col-span-12 sm:col-span-5 p-4 sm:p-5 flex items-center space-x-2">
-              <svg
-                className="h-4 w-4 text-slate-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h7"
-                />
-              </svg>
-              <span>Description</span>
-            </div>
-            <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center space-x-2">
-              <svg
-                className="h-4 w-4 text-slate-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-                />
-              </svg>
-              <span>Date</span>
-            </div>
-            <div className="col-span-6 sm:col-span-3 p-4 sm:p-5 flex items-center space-x-2">
-              <svg
-                className="h-4 w-4 text-slate-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                />
-              </svg>
-              <span>Attachments</span>
-            </div>
-            <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 text-center">
-              <span>Actions</span>
-            </div>
-          </div>
-          <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
-            {briefs.map((brief, index) => (
-              <div
-                key={brief.id || `brief-${index}`}
-                className={`grid grid-cols-12 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 text-xs sm:text-sm group ${
-                  index % 2 === 0
-                    ? "bg-white dark:bg-slate-800"
-                    : "bg-slate-50 dark:bg-slate-800/50"
-                }`}
-              >
-                <div className="col-span-12 sm:col-span-5 p-4 sm:p-5">
-                  <div className="relative">
-                    <div
-                      className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300 leading-relaxed"
-                      dangerouslySetInnerHTML={{
-                        __html: brief.sanitized_description || "N/A",
-                      }}
+          {/* +++ FIX: ADDED CONDITIONAL RENDERING FOR THE LIST VS EMPTY STATE +++ */}
+          {briefs.length > 0 ? (
+            <>
+              <div className="grid grid-cols-12 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 border-b border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 sticky top-0 z-10">
+                <div className="col-span-12 sm:col-span-5 p-4 sm:p-5 flex items-center space-x-2">
+                  <svg
+                    className="h-4 w-4 text-slate-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h7"
                     />
-                  </div>
+                  </svg>
+                  <span>Description</span>
                 </div>
-                <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors duration-300">
-                      <svg
-                        className="h-3 w-3 text-slate-500 dark:text-slate-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-                        />
-                      </svg>
-                    </div>
-                    <span className="text-slate-700 dark:text-slate-300 font-medium">
-                      {brief.brief_date
-                        ? new Date(brief.brief_date).toLocaleDateString()
-                        : "N/A"}
-                    </span>
-                  </div>
+                <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center space-x-2">
+                  <svg
+                    className="h-4 w-4 text-slate-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                    />
+                  </svg>
+                  <span>Date</span>
                 </div>
-                <div className="col-span-6 sm:col-span-3 p-4 sm:p-5">
-                  <div className="flex flex-wrap gap-3">
-                    {brief.attachments && brief.attachments.length > 0 ? (
-                      brief.attachments.map((att) => (
+                <div className="col-span-6 sm:col-span-3 p-4 sm:p-5 flex items-center space-x-2">
+                  <svg
+                    className="h-4 w-4 text-slate-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                    />
+                  </svg>
+                  <span>Attachments</span>
+                </div>
+                <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 text-center">
+                  <span>Actions</span>
+                </div>
+              </div>
+              <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
+                {briefs.map((brief, index) => (
+                  <div
+                    key={brief.id || `brief-${index}`}
+                    className={`grid grid-cols-12 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 text-xs sm:text-sm group ${
+                      index % 2 === 0
+                        ? "bg-white dark:bg-slate-800"
+                        : "bg-slate-50 dark:bg-slate-800/50"
+                    }`}
+                  >
+                    <div className="col-span-12 sm:col-span-5 p-4 sm:p-5">
+                      <div className="relative">
                         <div
-                          key={att.id}
-                          className="flex items-start space-x-3 group/attachment"
-                        >
-                          {isImageFile(att.file_type) ? (
-                            <a
-                              href={att.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={`View ${att.file_name}`}
-                              className="flex-shrink-0 relative overflow-hidden rounded-xl"
-                            >
-                              <img
-                                src={att.url}
-                                alt={att.file_name}
-                                className="w-14 h-14 sm:w-16 sm:h-16 object-cover border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-110 hover:shadow-lg"
-                              />
-                              <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
-                                <svg
-                                  className="h-5 w-5 text-white opacity-0 hover:opacity-100 transition-opacity duration-300"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                  />
-                                </svg>
-                              </div>
-                            </a>
-                          ) : (
-                            <div
-                              className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-105 hover:shadow-lg group-hover/attachment:from-blue-50 group-hover/attachment:to-indigo-100 dark:group-hover/attachment:from-slate-600 dark:group-hover/attachment:to-slate-700"
-                              title={att.file_type}
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-6 w-6 text-slate-500 dark:text-slate-400 group-hover/attachment:text-blue-600 dark:group-hover/attachment:text-blue-400 transition-colors duration-300"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth="2"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                                />
-                              </svg>
-                            </div>
-                          )}
+                          className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300 leading-relaxed"
+                          dangerouslySetInnerHTML={{
+                            __html: brief.sanitized_description || "N/A",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-6 sm:col-span-2 p-4 sm:p-5 flex items-center">
+                      <div className="flex items-center space-x-2">
+                        <div className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors duration-300">
+                          <svg
+                            className="h-3 w-3 text-slate-500 dark:text-slate-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 7V3a4 4 0 118 0v4M3 7h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                            />
+                          </svg>
                         </div>
-                      ))
-                    ) : (
-                      <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400 italic">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
+                          {brief.brief_date
+                            ? new Date(brief.brief_date).toLocaleDateString()
+                            : "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-span-6 sm:col-span-3 p-4 sm:p-5">
+                      <div className="flex flex-wrap gap-3">
+                        {brief.attachments && brief.attachments.length > 0 ? (
+                          brief.attachments.map((att) => (
+                            <div
+                              key={att.id}
+                              className="flex items-start space-x-3 group/attachment"
+                            >
+                              {isImageFile(att.file_type) ? (
+                                <a
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`View ${att.file_name}`}
+                                  className="flex-shrink-0 relative overflow-hidden rounded-xl"
+                                >
+                                  <img
+                                    src={att.url}
+                                    alt={att.file_name}
+                                    className="w-14 h-14 sm:w-16 sm:h-16 object-cover border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-110 hover:shadow-lg"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
+                                    <svg
+                                      className="h-5 w-5 text-white opacity-0 hover:opacity-100 transition-opacity duration-300"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                      />
+                                    </svg>
+                                  </div>
+                                </a>
+                              ) : (
+                                <div
+                                  className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:scale-105 hover:shadow-lg group-hover/attachment:from-blue-50 group-hover/attachment:to-indigo-100 dark:group-hover/attachment:from-slate-600 dark:group-hover/attachment:to-slate-700"
+                                  title={att.file_type}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6 text-slate-500 dark:text-slate-400 group-hover/attachment:text-blue-600 dark:group-hover/attachment:text-blue-400 transition-colors duration-300"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth="2"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400 italic">
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            <span>No attachments</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 flex items-center justify-center space-x-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewBriefDetails(brief.id);
+                        }}
+                        className="p-2 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-500 rounded-full hover:bg-green-50 dark:hover:bg-green-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
+                        title="View Brief Details"
+                      >
                         <svg
-                          className="h-4 w-4"
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
                           fill="none"
                           viewBox="0 0 24 24"
+                          strokeWidth={1.5}
                           stroke="currentColor"
                         >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
                           />
                         </svg>
-                        <span>No attachments</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="col-span-12 sm:col-span-2 p-4 sm:p-5 flex items-center justify-center space-x-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewBriefDetails(brief.id);
-                    }}
-                    className="p-2 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-500 rounded-full hover:bg-green-50 dark:hover:bg-green-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
-                    title="View Brief Details"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenEditBriefModal(brief);
-                    }}
-                    className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
-                    title="Edit Brief"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                      <path
-                        fillRule="evenodd"
-                        d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </button>
-                  {isManagerOrAdmin && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteBrief(brief.id);
-                      }}
-                      className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
-                      title="Delete Brief"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditBriefModal(brief);
+                        }}
+                        className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
+                        title="Edit Brief"
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                </div>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                          <path
+                            fillRule="evenodd"
+                            d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      {isManagerOrAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteBrief(brief.id);
+                          }}
+                          className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-110 hover:shadow-md"
+                          title="Delete Brief"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </>
+          ) : (
+            <div className="p-10 text-center text-slate-500 dark:text-slate-400">
+              No briefs have been added to this project yet.
+            </div>
+          )}
+        </div>
+      )}
+
+      {(userRole === "admin" || userRole === "employee") && (
+        <div className="mt-8">
+          <div className="h-[700px] relative">
+            <ConversationBox
+              messages={messages}
+              newMessage={newMessage}
+              setNewMessage={setNewMessage}
+              attachments={attachments}
+              setAttachments={setAttachments}
+              onSendMessage={handleSendMessage}
+              onUpdateMessage={handleUpdateMessage}
+              onDeleteMessage={handleDeleteMessage}
+              isSending={isSending}
+              isLoading={isMessagesLoading}
+              error={messagesError}
+              currentUserId={currentUserId}
+              apiBaseUrl={API_BASE_URL}
+            />
           </div>
         </div>
       )}
-    {(userRole === "admin" || userRole === "employee") && (
-    <div className="mt-8">
-        <div className="h-[700px] relative">
-            <ConversationBox
-                messages={messages}
-                newMessage={newMessage}
-                setNewMessage={setNewMessage}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                onSendMessage={handleSendMessage}
-                onUpdateMessage={handleUpdateMessage}
-                onDeleteMessage={handleDeleteMessage}
-                isSending={isSending}
-                isLoading={isMessagesLoading}
-                error={messagesError}
-                currentUserId={currentUserId}
-                apiBaseUrl={API_BASE_URL}
-            />
-        </div>
-    </div>
-)}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}
