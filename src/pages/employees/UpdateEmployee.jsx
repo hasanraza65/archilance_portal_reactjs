@@ -166,7 +166,7 @@ const EditEmployee = () => {
         }
       );
       setSuccessMessage("Employee updated successfully!");
-      setTimeout(() => navigate("/employees"), 2000);
+      setTimeout(() => navigate(`/employees/edit/${row.original.id}`), 2000);
     } catch (err) {
       if (err.response?.data?.errors) {
         const errors = err.response.data.errors;

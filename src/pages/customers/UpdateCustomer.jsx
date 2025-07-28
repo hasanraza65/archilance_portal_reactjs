@@ -146,7 +146,7 @@ const UpdateCustomer = () => {
       );
 
       setSuccessMessage("Customer updated successfully!");
-      setTimeout(() => navigate(`/customers/view/${customerId}`), 2000);
+      setTimeout(() => navigate(`/customers/edit/${row.original.id}`), 2000);
     } catch (err) {
       console.error("Error updating customer:", err.response);
       if (err.response?.data?.errors) {
