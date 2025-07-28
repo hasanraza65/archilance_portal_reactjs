@@ -312,7 +312,7 @@ const AddSubTaskModal = ({
             modules={quillModules}
             formats={quillFormats}
             placeholder="Enter task description..."
-            className={`h-32 ${
+            className={` ${
               errors.task_description
                 ? "ql-error border-danger-500"
                 : "dark:border-slate-600"
@@ -324,7 +324,7 @@ const AddSubTaskModal = ({
         <FormGroup
           label="Due Date (Optional)"
           error={errors.due_date}
-          className="mt-12"
+        x
         >
           <Controller
             name="due_date"

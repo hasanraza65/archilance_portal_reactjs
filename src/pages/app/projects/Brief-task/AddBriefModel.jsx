@@ -221,7 +221,8 @@ const AddBriefModal = ({ isOpen, onClose, onBriefAdded, projectId }) => {
             <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
                 
                 {/* Brief Description Field */}
-                <FormGroup label="Brief Description" error={errors.brief_description}>
+                {/* The mb-8 class on FormGroup ensures there is space below the rich text editor. */}
+                <FormGroup label="Brief Description" error={errors.brief_description} >
                     <input type="hidden" {...register("brief_description")} />
                     <ReactQuill
                         theme="snow"
@@ -230,13 +231,16 @@ const AddBriefModal = ({ isOpen, onClose, onBriefAdded, projectId }) => {
                         modules={quillModules}
                         formats={quillFormats}
                         placeholder="Enter the details of the project brief..."
-                        className={`h-32 ${errors.brief_description ? 'ql-error border-danger-500' : 'dark:border-slate-600'}`}
+                        // FIX: Removed the 'h-32' class that was causing the overlap.
+                        // The editor will now take its natural height. The content area can be controlled via CSS if needed.
+                        className={`${errors.brief_description ? 'ql-error border-danger-500' : 'dark:border-slate-600'}`}
                         readOnly={isSubmitting}
                     />
                 </FormGroup>
 
                 {/* Brief Date Field */}
-                <FormGroup label="Brief Date" error={errors.brief_date} className='mt-12'>
+                {/* FIX: Removed the 'mt-12' class as spacing is now handled by the FormGroup above. */}
+                <FormGroup label="Brief Date" error={errors.brief_date}>
                     <Controller
                         name="brief_date"
                         control={control}
