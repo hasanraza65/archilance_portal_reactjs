@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useWidth from "@/hooks/useWidth";
 import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import ProjectGrid from "./ProjectGrid";
 import ProjectList from "./ProjectList";
 import GridLoading from "@/components/skeleton/Grid";
@@ -14,13 +15,35 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
+import Icon from "@/components/ui/Icon";
+
+// Helper function and statuses from your file
+const STATUS_OPTIONS = [
+  "In Progress",
+  "Pending",
+  "Completed",
+  "Cancelled",
+  "Backlog",
+];
+const getStatusClass = (status) => {
+  const s = String(status || "").toLowerCase();
+  if (s === "completed" || s === "done")
+    return "bg-green-100 text-green-800 border-green-200";
+  if (s.includes("progress"))
+    return "bg-blue-100 text-blue-800 border-blue-200";
+  if (s.includes("pending"))
+    return "bg-yellow-100 text-yellow-800 border-yellow-200";
+  if (s.includes("cancel")) return "bg-red-100 text-red-800 border-red-200";
+  if (s.includes("backlog"))
+    return "bg-purple-100 text-purple-800 border-purple-200";
+  return "bg-slate-100 text-slate-800 border-slate-200";
+};
 
 const ProjectPostPage = () => {
   const [filler, setFiller] = useState(
     () => sessionStorage.getItem("projectView") || "grid"
   );
-  const { width, breakpoints } = useWidth();
-  const [isViewLoading, setIsViewLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
   const userRole = getApiPrefix();
 
   const dispatch = useDispatch();
@@ -42,10 +65,6 @@ const ProjectPostPage = () => {
   const toggleView = (view) => {
     sessionStorage.setItem("projectView", view);
     setFiller(view);
-    setIsViewLoading(true);
-    setTimeout(() => {
-      setIsViewLoading(false);
-    }, 300);
   };
 
   const handlePageChange = (page) => {
@@ -54,12 +73,19 @@ const ProjectPostPage = () => {
     }
   };
 
+  const filteredProjects = useMemo(() => {
+    if (statusFilter === "all") {
+      return projects;
+    }
+    return projects.filter(
+      (project) => project.status?.toLowerCase() === statusFilter.toLowerCase()
+    );
+  }, [projects, statusFilter]);
+
+  const statusFilterButtons = ["All", ...STATUS_OPTIONS];
+
   const anyOperationPending =
     projectsDataLoading || isDeleting || isAdding || isUpdating;
-  const showGridSkeleton =
-    (projectsDataLoading || isViewLoading) && filler === "grid";
-  const showListSkeleton =
-    (projectsDataLoading || isViewLoading) && filler === "list";
 
   return (
     <div>
@@ -75,61 +101,87 @@ const ProjectPostPage = () => {
         pauseOnHover
         theme="light"
       />
-      <div className="flex flex-wrap justify-between items-center mb-4">
-        <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 inline-block ltr:pr-4 rtl:pl-4">
-          Project
+
+      <div className="flex justify-between items-center mb-6">
+        <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
+          Projects
         </h4>
-        <div
-          className={`${
-            width < breakpoints.md ? "space-x-rb" : ""
-          } md:flex md:space-x-4 md:justify-end items-center rtl:space-x-reverse`}
-        >
+        {userRole !== "employee" && userRole !== "customer" && (
           <Button
-            icon="heroicons:list-bullet"
-            text="List view"
-            isLoading={isViewLoading && filler === "list"}
-            disabled={anyOperationPending}
-            className={`${
-              filler === "list"
-                ? "bg-slate-900 dark:bg-slate-700  text-white"
-                : " bg-white dark:bg-slate-800 dark:text-slate-300"
-            } h-min text-sm font-normal`}
-            iconClass="text-lg"
-            onClick={() => toggleView("list")}
+            icon="heroicons-outline:plus"
+            text="Add Project"
+            className="btn-dark dark:bg-slate-800"
+            onClick={() => dispatch(toggleAddModal(true))}
+            disabled={anyOperationPending || isAdding}
           />
-          <Button
-            icon="heroicons-outline:view-grid"
-            text="Grid view"
-            isLoading={isViewLoading && filler === "grid"}
-            disabled={anyOperationPending}
-            className={`${
-              filler === "grid"
-                ? "bg-slate-900 dark:bg-slate-700 text-white"
-                : " bg-white dark:bg-slate-800 dark:text-slate-300"
-            } h-min text-sm font-normal`}
-            iconClass="text-lg"
-            onClick={() => toggleView("grid")}
-          />
-          {userRole !== "employee" && userRole !== "customer" && (
-            <Button
-              icon="heroicons-outline:plus"
-              text="Add Project"
-              className="btn-dark dark:bg-slate-800 h-min text-sm font-normal"
-              iconClass="text-lg"
-              onClick={() => dispatch(toggleAddModal(true))}
-              disabled={anyOperationPending || isAdding}
-            />
-          )}
-        </div>
+        )}
       </div>
 
-      {projectsError && !projectsDataLoading && (
+      <Card className="mb-6">
+        <div className="md:flex justify-between items-center">
+          <div className="flex flex-wrap items-center gap-2 md:mb-0 mb-4">
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-300">
+              Filter by:
+            </span>
+            {statusFilterButtons.map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status.toLowerCase())}
+                disabled={anyOperationPending}
+                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full border transition-all duration-200 ${
+                  statusFilter.toLowerCase() === status.toLowerCase()
+                    ? `${getStatusClass(
+                        status
+                      )} ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800`
+                    : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+                }`}
+                style={{
+                  ringColor: status.toLowerCase() === "all" ? "#64748b" : "",
+                }}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            <Button
+              icon="heroicons:list-bullet"
+              disabled={anyOperationPending}
+              className={`p-2 transition-colors ${
+                filler === "list"
+                  ? "bg-slate-900 text-white"
+                  : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100"
+              }`}
+              onClick={() => toggleView("list")}
+            />
+            <Button
+              icon="heroicons-outline:view-grid"
+              disabled={anyOperationPending}
+              className={`p-2 transition-colors ${
+                filler === "grid"
+                  ? "bg-slate-900 text-white"
+                  : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100"
+              }`}
+              onClick={() => toggleView("grid")}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {projectsDataLoading &&
+        (filler === "grid" ? (
+          <GridLoading count={6} />
+        ) : (
+          <TableLoading count={6} />
+        ))}
+
+      {!projectsDataLoading && projectsError && (
         <div
           className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
           role="alert"
         >
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">
+          <strong>Error: </strong>
+          <span>
             {typeof projectsError === "string"
               ? projectsError
               : "An unknown error occurred."}
@@ -137,41 +189,47 @@ const ProjectPostPage = () => {
         </div>
       )}
 
-      {showGridSkeleton && <GridLoading count={6} />}
-      {showListSkeleton && <TableLoading count={6} />}
+      {!projectsDataLoading &&
+        !projectsError &&
+        filteredProjects.length === 0 && (
+          <div className="text-center py-16 transition-opacity duration-300">
+            <Icon
+              icon="heroicons-outline:inbox"
+              className="mx-auto h-16 w-16 text-slate-300 dark:text-slate-600"
+            />
+            <h4 className="mt-4 text-xl font-semibold text-slate-600 dark:text-slate-300">
+              No Projects Found
+            </h4>
+            <p className="mt-1 text-sm text-slate-500">
+              {statusFilter !== "all"
+                ? `No projects found with the status "${statusFilter}".`
+                : "There are no projects to display."}
+            </p>
+          </div>
+        )}
 
-      {!projectsDataLoading && !isViewLoading && filler === "grid" && (
-        <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
-          {projects && projects.length > 0
-            ? projects.map((project) => (
-                <ProjectGrid
-                  project={project}
-                  key={project.id}
-                  userRole={userRole}
-                />
-              ))
-            : !projectsError && (
-                <div className="col-span-full text-center py-10 text-slate-500">
-                  No projects found.
-                </div>
-              )}
-        </div>
-      )}
-      {!projectsDataLoading && !isViewLoading && filler === "list" && (
-        <div>
-          {projects && projects.length > 0 ? (
-            <ProjectList projects={projects} userRole={userRole} />
-          ) : (
-            !projectsError && (
-              <div className="text-center py-10 text-slate-500">
-                No projects found.
+      {!projectsDataLoading &&
+        !projectsError &&
+        filteredProjects.length > 0 && (
+          <>
+            {filler === "grid" && (
+              <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
+                {filteredProjects.map((project) => (
+                  <ProjectGrid
+                    project={project}
+                    key={project.id}
+                    userRole={userRole}
+                  />
+                ))}
               </div>
-            )
-          )}
-        </div>
-      )}
+            )}
+            {filler === "list" && (
+              <ProjectList projects={filteredProjects} userRole={userRole} />
+            )}
+          </>
+        )}
 
-      {!anyOperationPending && projects && projects.length > 0 && (
+      {!anyOperationPending && filteredProjects.length > 0 && (
         <div className="mt-8 flex justify-center">
           <Pagination
             className="bg-slate-100 dark:bg-slate-500 w-fit py-2 px-3 rounded-md"
