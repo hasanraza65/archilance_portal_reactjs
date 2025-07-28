@@ -10,33 +10,25 @@ import Cookies from "js-cookie";
 import { useQuery } from "@tanstack/react-query";
 
 import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
+import UpdatePassword from "./UpdatePassword";
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-const ASSETS_DOMAIN = import.meta.env.VITE_ASSETS_DOMAIN || `${BACKEND_BASE_URL}/storage`;
+const ASSETS_DOMAIN =
+  import.meta.env.VITE_ASSETS_DOMAIN || `${BACKEND_BASE_URL}/storage`;
 const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
 const PROFILE_API_URL = `${API_BASE_URL}/me`;
-
-
-// console.log("Environment Config:", {
-//   BACKEND_BASE_URL,
-//   ASSETS_DOMAIN,
-//   API_BASE_URL,
-//   PROFILE_API_URL
-// });
 
 const fetchProfileData = async () => {
   const token = Cookies.get("token");
   if (!token) {
     throw new Error("No authentication token found.");
   }
-  // console.log("Fetching profile data from:", PROFILE_API_URL);
   const response = await axios.get(PROFILE_API_URL, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
   });
-  // console.log("Fetched Profile Data:", response.data);
   return response.data;
 };
 
@@ -53,28 +45,17 @@ const Profile = () => {
     queryFn: fetchProfileData,
   });
 
-  
   let profilePicSrc = DefaultProfileImage;
 
   if (userProfile && userProfile.profile_pic) {
     const picPath = String(userProfile.profile_pic);
-    
-    
-    if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
+
+    if (picPath.startsWith("http://") || picPath.startsWith("https://")) {
       profilePicSrc = picPath;
-      console.log("Using full URL from API:", profilePicSrc);
-    } 
-    
-    else {
-      
-      const cleanPicPath = picPath.replace(/^\//, '');
-      
-      
+    } else {
+      const cleanPicPath = picPath.replace(/^\//, "");
       profilePicSrc = `${BACKEND_BASE_URL}/storage/${cleanPicPath}`;
-      // console.log("Constructed profile image URL:", profilePicSrc);
     }
-  } else if (userProfile) {
-    console.log("profile_pic is null or empty in API response. Using default image.");
   }
 
   if (isLoading) {
@@ -91,13 +72,15 @@ const Profile = () => {
       <div className="flex flex-col justify-center items-center h-screen text-red-500 p-4 text-center">
         <p className="text-xl font-semibold mb-2">Error Fetching Profile</p>
         <p>{error?.message || "An unknown error occurred."}</p>
-        {error?.response?.data?.message && <p>Server: {error.response.data.message}</p>}
+        {error?.response?.data?.message && (
+          <p>Server: {error.response.data.message}</p>
+        )}
       </div>
     );
   }
 
   const handleEditProfile = () => {
-    navigate("/profile/edit"); 
+    navigate("/profile/edit");
   };
 
   return (
@@ -114,7 +97,6 @@ const Profile = () => {
                     alt={userProfile?.name || "Profile"}
                     className="w-full h-full object-cover rounded-full"
                     onError={(e) => {
-                      console.error("Error loading image in <img> tag:", e.target.src, "Falling back to default.");
                       e.target.onerror = null; // prevent infinite loop
                       e.target.src = DefaultProfileImage;
                     }}
@@ -169,15 +151,21 @@ const Profile = () => {
 
         <div className="grid grid-cols-12 gap-6">
           <div className="lg:col-span-4 col-span-12">
-            <Card>
+            {/* --- THIS IS THE ONLY CHANGE --- */}
+            <Card className="h-full">
               <div className="flex justify-between items-center mb-4">
-                <h5 className="card-title text-slate-900 dark:text-white">Info</h5>
+                <h5 className="card-title text-slate-900 dark:text-white">
+                  Info
+                </h5>
                 <button
                   onClick={handleEditProfile}
                   className="flex items-center text-sm text-slate-600 dark:text-slate-300 hover:text-primary-500 dark:hover:text-primary-500 transition-colors duration-150"
                   aria-label="Edit Profile Information"
                 >
-                  <Icon icon="heroicons:pencil-square" className="w-4 h-4 mr-1" />
+                  <Icon
+                    icon="heroicons:pencil-square"
+                    className="w-4 h-4 mr-1"
+                  />
                   Edit
                 </button>
               </div>
@@ -191,7 +179,7 @@ const Profile = () => {
                       EMAIL
                     </div>
                     <a
-                      href={`mailto:${userProfile?.email || ''}`}
+                      href={`mailto:${userProfile?.email || ""}`}
                       className="text-base text-slate-600 dark:text-slate-50 break-all"
                     >
                       {userProfile?.email || "N/A"}
@@ -207,7 +195,7 @@ const Profile = () => {
                       PHONE
                     </div>
                     <a
-                      href={`tel:${userProfile?.phone || ''}`}
+                      href={`tel:${userProfile?.phone || ""}`}
                       className="text-base text-slate-600 dark:text-slate-50"
                     >
                       {userProfile?.phone || "N/A"}
@@ -232,9 +220,7 @@ const Profile = () => {
           </div>
 
           <div className="lg:col-span-8 col-span-12">
-            <Card title="User Overview">
-              <BasicArea height={190} />
-            </Card>
+            <UpdatePassword />
           </div>
         </div>
       </div>
