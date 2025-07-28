@@ -60,63 +60,63 @@ export const menuItems = [
   },
   {
     title: "Projects",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:document",
     link: "projects",
     allowedRoles: ["admin", "employee","customer"], // Sabko dikhega
   },
   {
     title: "Chat",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:chat",
     link: "chat",
     allowedRoles: ["admin", "employee"], // Sirf admin aur employee ko
   },
    {
     title: "Leaves",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "leaves",
     allowedRoles: ["admin"], // Sirf admin aur employee ko
   },
   {
     title: "Employees",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:user",
     link: "employees",
     allowedRoles: ["admin"], // Sirf admin ko
   },
   {
     title: "Customers",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:user",
     link: "customers",
     allowedRoles: ["admin"], // Sirf admin ko
   },
    {
     title: "Work Session",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:document",
     link: "work-session",
     allowedRoles: ["employee"], // Sirf admin ko
   },
    {
     title: "Leaves",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "employeeleaves",
     allowedRoles: ["employee"], 
   },
   {
     title: "Subscriptions",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:receipt-refund",
     link: "subscriptions",
     allowedRoles: ["customer",], // Sirf customer ko
   },
   {
     title: "Subscription",
-    isHide: true,
+    isHide: false,
     icon: "heroicons-outline:receipt-refund",
     link: "subscription",
     allowedRoles: ["admin",], // Sirf customer ko
