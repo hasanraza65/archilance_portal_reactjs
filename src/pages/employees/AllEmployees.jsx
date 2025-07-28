@@ -27,37 +27,39 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
     Header: "Name",
     accessor: "name",
     Cell: ({ row }) => {
-      const { name, profile_pic } = row.original;
+      const { name, profile_pic, id } = row.original;
       return (
-        <div>
-          <span className="inline-flex items-center">
-            <span className="w-7 h-7 rounded-full ltr:mr-3 rtl:ml-3 flex-none bg-slate-600">
-              {profile_pic ? (
-                <img
-                  src={`${PFP_BASE_URL}${profile_pic}`}
-                  alt={name || "Profile"}
-                  className="object-cover w-full h-full rounded-full"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    const initials = name
-                      ? name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                      : "?";
-                    e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
-                  }}
-                />
-              ) : (
-                <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
-                  {name ? name.charAt(0).toUpperCase() : "?"}
-                </span>
-              )}
-            </span>
-            <span className="text-sm text-slate-600 dark:text-slate-300 capitalize">
-              {name}
-            </span>
+        <div
+          className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer group"
+          onClick={() => navigate(`/employees/work-sessions/${id}`)}
+          title={`View work sessions for ${name}`}
+        >
+          <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
+            {profile_pic ? (
+              <img
+                src={`${PFP_BASE_URL}${profile_pic}`}
+                alt={name || "Profile"}
+                className="object-cover w-full h-full rounded-full"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  const initials = name
+                    ? name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                    : "?";
+                  e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
+                }}
+              />
+            ) : (
+              <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
+                {name ? name.charAt(0).toUpperCase() : "?"}
+              </span>
+            )}
+          </span>
+          <span className="text-sm text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
+            {name}
           </span>
         </div>
       );
@@ -90,9 +92,6 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
       const handleView = () => {
         navigate(`/employees/view/${row.original.id}`);
       };
-      const handleWorkSessionView = () => {
-        navigate(`/employees/work-sessions/${row.original.id}`);
-      };
       const handleEdit = () => {
         navigate(`/employees/edit/${row.original.id}`);
       };
@@ -105,16 +104,9 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
           <button
             onClick={handleView}
             className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700 rounded-md transition-all duration-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
-            title="View Employee"
+            title="View Employee Details"
           >
             <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleWorkSessionView}
-            className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-100 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-green-200 dark:hover:border-green-700"
-            title="View Work Sessions"
-          >
-            <Icon icon="heroicons-outline:briefcase" className="w-4 h-4" />
           </button>
           <button
             onClick={handleEdit}
@@ -239,7 +231,9 @@ const Allemployees = () => {
     }
     try {
       await axios.delete(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user/${employeeToDelete.id}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user/${
+          employeeToDelete.id
+        }`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -322,15 +316,18 @@ const Allemployees = () => {
   return (
     <>
       <Card noBorder>
-        <div className="md:flex justify-between items-center mb-6">
+        {/* =================== MODIFIED SECTION START =================== */}
+        <div className="md:flex justify-between items-end mb-6">
           <h4 className="card-title">Employee List</h4>
-          <div className="flex flex-wrap space-x-3 items-center">
+
+          <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3 mt-4 md:mt-0">
             <GlobalFilter
               filter={globalFilter || ""}
               setFilter={setGlobalFilter}
+              className="flex-grow"
             />
             <button
-              className="btn btn-dark flex items-center mt-2 md:mt-0"
+              className="btn btn-dark flex items-center justify-center"
               onClick={() => navigate("/employees/add")}
             >
               <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
@@ -338,6 +335,7 @@ const Allemployees = () => {
             </button>
           </div>
         </div>
+        {/* =================== MODIFIED SECTION END =================== */}
 
         {deleteSuccess && (
           <Alert
@@ -394,10 +392,7 @@ const Allemployees = () => {
                     page.map((row) => {
                       prepareRow(row);
                       return (
-                        <tr
-                          {...row.getRowProps()}
-                          className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150"
-                        >
+                        <tr {...row.getRowProps()}>
                           {row.cells.map((cell) => (
                             <td {...cell.getCellProps()} className="table-td">
                               {cell.render("Cell")}
