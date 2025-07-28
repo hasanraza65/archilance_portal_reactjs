@@ -132,7 +132,7 @@ const ProjectGrid = ({ project, userRole }) => {
           </div>
           <div className="font-medium text-base leading-6">
             <div
-              className="dark:text-slate-200 text-slate-900 max-w-[160px] truncate"
+              className="dark:text-slate-200 text-slate-900 max-w-[160px]"
               title={name}
             >
               {name || "Untitled Project"}

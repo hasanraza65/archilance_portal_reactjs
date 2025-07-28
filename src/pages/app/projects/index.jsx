@@ -16,7 +16,9 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 
 const ProjectPostPage = () => {
-  const [filler, setFiller] = useState("grid");
+  const [filler, setFiller] = useState(
+    () => sessionStorage.getItem("projectView") || "grid"
+  );
   const { width, breakpoints } = useWidth();
   const [isViewLoading, setIsViewLoading] = useState(false);
   const userRole = getApiPrefix();
@@ -38,6 +40,7 @@ const ProjectPostPage = () => {
   }, [dispatch]);
 
   const toggleView = (view) => {
+    sessionStorage.setItem("projectView", view);
     setFiller(view);
     setIsViewLoading(true);
     setTimeout(() => {
