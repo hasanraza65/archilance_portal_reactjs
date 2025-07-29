@@ -574,6 +574,20 @@ const Chat = () => {
             </div>
           </div>
           <div className="flex-none flex md:space-x-3 space-x-1 items-center rtl:space-x-reverse">
+            {/* --- نیا رنگین 'Schedule a meeting' بٹن --- */}
+            <a
+              href="https://outlook.office365.com/book/ArchilanceLLC@archilance.net/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 rtl:space-x-reverse text-white bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-1.5 rounded-full hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
+            >
+              <Icon icon="heroicons-outline:calendar" className="text-lg" />
+              <span className="text-sm font-medium hidden sm:block">
+                Schedule a meeting
+              </span>
+            </a>
+
+            {/* --- موجودہ تین نقطوں والا بٹن --- */}
             <div
               onClick={() => dispatch(infoToggle(!openinfo))}
               className="msg-action-btn cursor-pointer"

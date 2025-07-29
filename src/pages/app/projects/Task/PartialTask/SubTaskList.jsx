@@ -20,7 +20,6 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
           </p>
         </div>
         
-        {/* ***** SUDHAAR: Button sirf tabhi show hoga jab onAddSubTaskClick prop ho ***** */}
         {onAddSubTaskClick && (
           <button
             onClick={onAddSubTaskClick}
@@ -46,11 +45,11 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
       {subTasks.length > 0 ? (
         <div className="divide-y divide-slate-100">
           {subTasks.map((subTask, index) => {
+            // ***** SUDHAAR: Yahan creator ko fallback ke tor par use karna band kar diya hai *****
+            // Ab sirf assigned user hi show hoga. Agar koi assigned nahi hai to "Unassigned" show hoga.
             const assignee =
               subTask.assignees && subTask.assignees.length > 0
                 ? mapApiUserToLocal(subTask.assignees[0].user)
-                : subTask.creator
-                ? mapApiUserToLocal(subTask.creator, "creator")
                 : null;
             const subTaskPriority = getCurrentPriorityDetails(subTask.priority);
             return (
@@ -183,7 +182,6 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
             }
           </p>
           
-          {/* ***** SUDHAAR: Yahan bhi button sirf tabhi show hoga jab onAddSubTaskClick prop ho ***** */}
           {onAddSubTaskClick && (
             <button
               onClick={onAddSubTaskClick}
