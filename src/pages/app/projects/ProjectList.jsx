@@ -1,13 +1,7 @@
 import React, { useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import Card from "@/components/ui/Card";
-import Icon from "@/components/ui/Icon";
-import {
-  deleteProjectAPI,
-  setEditModalAndItem,
-  toggleUpdateAssigneesModal,
-} from "./store";
 import { useNavigate } from "react-router-dom";
+import Cookies from "js-cookie"; // === Naya Import ===
 import {
   useTable,
   useRowSelect,
@@ -16,23 +10,21 @@ import {
   usePagination,
 } from "react-table";
 import Swal from "sweetalert2";
+
+import Card from "@/components/ui/Card";
+import Icon from "@/components/ui/Icon";
+import {
+  deleteProjectAPI,
+  setEditModalAndItem,
+  toggleUpdateAssigneesModal,
+  fetchProjectsAPI, // === Naya Import (Refresh ke liye) ===
+} from "./store";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
-// Helper function from your file for consistent styling
-const getStatusClass = (status) => {
-  const s = String(status || "").toLowerCase();
-  if (s === "completed" || s === "done")
-    return "bg-green-100 text-green-800 border-green-200";
-  if (s.includes("progress"))
-    return "bg-blue-100 text-blue-800 border-blue-200";
-  if (s.includes("pending"))
-    return "bg-yellow-100 text-yellow-800 border-yellow-200";
-  if (s.includes("cancel")) return "bg-red-100 text-red-800 border-red-200";
-  if (s.includes("backlog"))
-    return "bg-purple-100 text-purple-800 border-purple-200";
-  return "bg-slate-100 text-slate-800 border-slate-200";
-};
+// === Puraane 'EditableStatusCell' ki jagah naye component ko import karein ===
+import EditableProjectStatus from "./EditableProjectStatus";
 
+// AvatarStack component mein koi badlav nahi
 const AvatarStack = ({ assignees }) => {
   if (!assignees || assignees.length === 0)
     return <span className="text-slate-400">N/A</span>;
@@ -42,9 +34,7 @@ const AvatarStack = ({ assignees }) => {
       {assignees.slice(0, 3).map(({ id, user }) => {
         if (!user) return null;
         const avatarUrl = user.profile_pic
-          ? `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${
-              user.profile_pic
-            }`
+          ? `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${user.profile_pic}`
           : null;
         return (
           <div
@@ -78,13 +68,26 @@ const AvatarStack = ({ assignees }) => {
 const ProjectList = ({ projects }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isDeleting, isUpdating } = useSelector((state) => state.project);
+  // === `currentPage` ko Redux state se lein ===
+  const { isDeleting, isUpdating, currentPage } = useSelector((state) => state.project);
   const userRole = getApiPrefix();
+
+  // === API ke liye zaroori variables ===
+  const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+  const token = Cookies.get("token");
+
+  // API path ke liye helper function
+  const getApiBasePathForRole = (basePath) => {
+    const role = getApiPrefix();
+    const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
+    return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
+  };
 
   const handleOpenAssigneesModal = (project, e) => {
     e.stopPropagation();
     dispatch(toggleUpdateAssigneesModal({ open: true, project }));
   };
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     try {
@@ -100,6 +103,7 @@ const ProjectList = ({ projects }) => {
       return "Invalid Date";
     }
   };
+
   const handleRowNavigation = (projectId) => {
     if (!projectId) return;
     if (userRole === "customer")
@@ -111,6 +115,7 @@ const ProjectList = ({ projects }) => {
     e.stopPropagation();
     dispatch(setEditModalAndItem({ open: true, project: item }));
   };
+
   const handleDelete = (item, e) => {
     e.stopPropagation();
     Swal.fire({
@@ -190,14 +195,17 @@ const ProjectList = ({ projects }) => {
       {
         Header: "Status",
         accessor: "status",
-        Cell: ({ cell: { value } }) => (
-          <span
-            className={`px-2 py-1 text-xs font-medium rounded-full border text-center whitespace-nowrap ${getStatusClass(
-              value
-            )}`}
-          >
-            {value || "N/A"}
-          </span>
+        // === FINAL FIX: Yahan naye component ka istemal karein ===
+        Cell: ({ cell: { value }, row }) => (
+          <EditableProjectStatus
+            projectId={row.original.id}
+            currentStatus={value}
+            onStatusUpdate={() => dispatch(fetchProjectsAPI(currentPage))}
+            isEditable={userRole === "admin"}
+            apiBaseUrl={API_BASE_URL}
+            apiPath={getApiBasePathForRole("/update-project-status")}
+            token={token}
+          />
         ),
       },
     ];
@@ -258,7 +266,8 @@ const ProjectList = ({ projects }) => {
       });
     }
     return baseColumns;
-  }, [isDeleting, isUpdating, userRole]);
+    // === Dependencies mein zaroori cheezein add karein ===
+  }, [isDeleting, isUpdating, userRole, dispatch, currentPage, token]);
 
   const data = useMemo(() => projects || [], [projects]);
   const { getTableProps, getTableBodyProps, headerGroups, page, prepareRow } =
@@ -314,11 +323,31 @@ const ProjectList = ({ projects }) => {
                   return (
                     <tr
                       {...row.getRowProps()}
-                      className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
-                      onClick={() => handleRowNavigation(row.original.id)}
+                      className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600"
                     >
                       {row.cells.map((cell) => (
-                        <td {...cell.getCellProps()} className="table-td">
+                        <td
+                          {...cell.getCellProps()}
+                          className="table-td"
+                          style={{
+                            cursor:
+                              userRole !== "customer" &&
+                              cell.column.id !== "action"
+                                ? "pointer"
+                                : "default",
+                          }}
+                          onClick={() => {
+                            const specialClickColumns = [
+                              "endDate",
+                              "status",
+                              "project_assignees",
+                              "action",
+                            ];
+                            if (!specialClickColumns.includes(cell.column.id)) {
+                              handleRowNavigation(row.original.id);
+                            }
+                          }}
+                        >
                           {cell.render("Cell")}
                         </td>
                       ))}

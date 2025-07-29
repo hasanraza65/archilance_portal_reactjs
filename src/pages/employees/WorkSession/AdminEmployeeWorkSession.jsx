@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
@@ -7,6 +7,59 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 
+// --- START: Helper functions and presets configuration ---
+const getWeekDateRange = (date = new Date()) => {
+  const current = new Date(date);
+  const day = current.getDay();
+  const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(current.setDate(diff));
+  const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
+  return [monday, sunday];
+};
+const getLastWeekDateRange = () => {
+  const today = new Date();
+  const lastWeekDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - 7
+  );
+  return getWeekDateRange(lastWeekDate);
+};
+const getCurrentMonthDateRange = () => {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  return [firstDay, lastDay];
+};
+const getLastMonthDateRange = () => {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+  return [firstDay, lastDay];
+};
+
+const PRESETS = [
+  { label: "Current week", func: getWeekDateRange },
+  { label: "Last week", func: getLastWeekDateRange },
+  { label: "Current month", func: getCurrentMonthDateRange },
+  { label: "Last month", func: getLastMonthDateRange },
+];
+// --- END: Helper functions and presets configuration ---
+
+const ChevronDownIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-5 w-5"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -50,22 +103,63 @@ const AdminEmployeeWorkSession = () => {
   const { employeeId } = useParams();
   const { token, logout, isAuthenticated } = useAuth();
 
+  // States
   const [employeeName, setEmployeeName] = useState("");
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
-  const [dateRange, setDateRange] = useState([]);
+  const [dateRange, setDateRange] = useState(getWeekDateRange());
+  const [totalDuration, setTotalDuration] = useState({ hours: 0, minutes: 0 });
+
+  // --- NEW: States for the new dropdown UI ---
+  const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
+  const [activePreset, setActivePreset] = useState("Current week");
+  const presetDropdownRef = useRef(null);
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        presetDropdownRef.current &&
+        !presetDropdownRef.current.contains(event.target)
+      ) {
+        setIsPresetDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Calculate total time
+  useEffect(() => {
+    if (sessions && sessions.length > 0) {
+      const totalMilliseconds = sessions.reduce((acc, session) => {
+        if (!session.start_time || !session.end_time) return acc;
+        const startTime = new Date(`1970-01-01T${session.start_time}Z`);
+        const endTime = new Date(`1970-01-01T${session.end_time}Z`);
+        if (isNaN(startTime) || isNaN(endTime) || endTime < startTime)
+          return acc;
+        return acc + (endTime - startTime);
+      }, 0);
+      const totalSeconds = totalMilliseconds / 1000;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      setTotalDuration({ hours, minutes });
+    } else {
+      setTotalDuration({ hours: 0, minutes: 0 });
+    }
+  }, [sessions]);
+
+  // Fetching logic (Employee, Projects, Tasks, Sessions)
   useEffect(() => {
     if (!isAuthenticated || !employeeId) return;
     const fetchEmployeeDetails = async () => {
@@ -82,7 +176,7 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchEmployeeDetails();
-  }, [isAuthenticated, token, employeeId, API_BASE_URL]);
+  }, [isAuthenticated, token, employeeId]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -99,7 +193,7 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchProjects();
-  }, [isAuthenticated, token, API_BASE_URL]);
+  }, [isAuthenticated, token]);
 
   useEffect(() => {
     if (!selectedProject) {
@@ -127,23 +221,21 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchTasksForProject();
-  }, [selectedProject, token, API_BASE_URL]);
+  }, [selectedProject, token]);
 
   const fetchWorkSessions = useCallback(async () => {
     if (!employeeId) return;
     setLoading(true);
     window.scrollTo(0, 0);
-
     const params = new URLSearchParams({
       page: currentPage.toString(),
       employee_id: employeeId,
     });
-
     if (selectedTask) params.append("task_id", selectedTask);
-    if (dateRange[0])
+    if (dateRange && dateRange[0])
       params.append("start_date", formatDateForAPI(dateRange[0]));
-    if (dateRange[1]) params.append("end_date", formatDateForAPI(dateRange[1]));
-
+    if (dateRange && dateRange[1])
+      params.append("end_date", formatDateForAPI(dateRange[1]));
     try {
       const response = await fetch(
         `${API_BASE_URL}/work-session?${params.toString()}`,
@@ -167,33 +259,24 @@ const AdminEmployeeWorkSession = () => {
     } finally {
       setLoading(false);
     }
-  }, [
-    employeeId,
-    currentPage,
-    selectedTask,
-    dateRange,
-    token,
-    isAuthenticated,
-    logout,
-    API_BASE_URL
-  ]);
+  }, [employeeId, currentPage, selectedTask, dateRange, token, logout]);
 
   useEffect(() => {
     if (isAuthenticated) fetchWorkSessions();
     else setLoading(false);
   }, [fetchWorkSessions, isAuthenticated]);
-
   useEffect(() => {
     if (currentPage !== 1) setCurrentPage(1);
   }, [selectedTask, dateRange, selectedProject]);
 
+  // Handlers
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
     setTasks([]);
-    setDateRange([]);
+    setDateRange(getWeekDateRange());
+    setActivePreset("Current week");
   };
-
   const handleDelete = (sessionId) => {
     Swal.fire({
       title: "Are you sure?",
@@ -219,13 +302,18 @@ const AdminEmployeeWorkSession = () => {
       }
     });
   };
-
   const handleNextPage = () => {
     if (paginationInfo?.currentPage < paginationInfo?.lastPage)
       setCurrentPage((p) => p + 1);
   };
   const handlePrevPage = () => {
     if (paginationInfo?.currentPage > 1) setCurrentPage((p) => p - 1);
+  };
+
+  const handlePresetSelect = (preset) => {
+    setDateRange(preset.func());
+    setActivePreset(preset.label);
+    setIsPresetDropdownOpen(false);
   };
 
   if (!isAuthenticated)
@@ -237,21 +325,31 @@ const AdminEmployeeWorkSession = () => {
 
   return (
     <Card>
-      <div className="flex justify-between items-center mb-6">
-        <h4 className="card-title">
-          Work Diary for{" "}
-          <span className="text-slate-800 dark:text-slate-200">
-            {employeeName || "Loading..."}
-          </span>
-        </h4>
-        <Link to="/employees" className="btn btn-sm btn-outline-dark">
+      <div className="flex justify-between items-start mb-6 gap-4">
+        <div>
+          <h4 className="card-title">
+            Work Diary for{" "}
+            <span className="text-slate-800 dark:text-slate-200">
+              {employeeName || "Loading..."}
+            </span>
+          </h4>
+          {!loading && sessions.length > 0 && (
+            <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg">
+              Total Time: {totalDuration.hours}h {totalDuration.minutes}m
+            </div>
+          )}
+        </div>
+        <Link
+          to="/employees"
+          className="btn btn-sm btn-outline-dark whitespace-nowrap"
+        >
           ← Back to Employee List
         </Link>
       </div>
 
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="flex flex-col">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
               Project
             </label>
@@ -271,7 +369,7 @@ const AdminEmployeeWorkSession = () => {
               ))}
             </select>
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
               Task
             </label>
@@ -293,29 +391,78 @@ const AdminEmployeeWorkSession = () => {
               )}
             </select>
           </div>
-          <div className="flex flex-col md:col-span-1">
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-              Date Range
-            </label>
-            <Flatpickr
-              value={dateRange}
-              onChange={setDateRange}
-              className="form-input w-full"
-              options={{ mode: "range", dateFormat: "Y-m-d" }}
-              placeholder="Select date range"
-            />
-          </div>
-          <div className="flex flex-col">
-            <button
-              onClick={handleResetFilters}
-              className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Reset Filters
-            </button>
+
+          {/* --- CHANGE: Date filter UI split into two parts --- */}
+          <div className="flex flex-col justify-end lg:col-span-3">
+            <div className="flex items-end gap-2">
+              {/* 1. Presets Dropdown */}
+              <div className="flex-shrink-0">
+                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Period
+                </label>
+                <div className="relative" ref={presetDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIsPresetDropdownOpen(!isPresetDropdownOpen)
+                    }
+                    className="form-input w-48 flex items-center justify-between text-left"
+                  >
+                    <span className="text-slate-800 dark:text-slate-300 truncate">
+                      {activePreset}
+                    </span>
+                    <ChevronDownIcon />
+                  </button>
+                  {isPresetDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 p-1">
+                      {PRESETS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => handlePresetSelect(preset)}
+                          className="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Custom Date Range Picker */}
+              <div className="flex-grow">
+                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Custom Date Range
+                </label>
+                <Flatpickr
+                  className="form-input w-full"
+                  value={dateRange}
+                  options={{ mode: "range", dateFormat: "M j, Y" }}
+                  onChange={(dates) => {
+                    if (dates.length === 2) {
+                      setDateRange(dates);
+                      setActivePreset("Custom"); // Set preset to custom on manual change
+                    }
+                  }}
+                />
+              </div>
+
+              {/* 3. Reset Button */}
+              <div className="flex-shrink-0">
+                <button
+                  onClick={handleResetFilters}
+                  className="btn bg-slate-800 hover:bg-slate-900 text-white font-bold whitespace-nowrap h-10"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* The rest of the component remains the same */}
       <div className="pt-6">
         {loading ? (
           <div className="text-center py-16">

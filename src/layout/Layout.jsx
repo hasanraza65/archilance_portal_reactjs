@@ -1,7 +1,5 @@
-// src/layout/Layout.js
-
 import React, { useEffect, Suspense, Fragment, useRef } from "react";
-import { Outlet, useLocation } from "react-router-dom"; // useLocation ko import karein
+import { Outlet, useLocation } from "react-router-dom";
 import Header from "@/components/partials/header";
 import Sidebar from "@/components/partials/sidebar";
 import Settings from "@/components/partials/settings";
@@ -19,10 +17,16 @@ import Loading from "@/components/Loading";
 import { motion, AnimatePresence } from "framer-motion";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
+// +++ STEP 1: Naye hook ko yahan import karein +++
+import useBodyScrollLock from "@/hooks/useBodyScrollLock";
+
 const Layout = () => {
   const { width, breakpoints } = useWidth();
   const [collapsed] = useSidebar();
-  const location = useLocation(); // location object hasil karein
+  const location = useLocation();
+  
+  // +++ STEP 2: Hook ko yahan component ke andar call karein +++
+  useBodyScrollLock();
 
   const switchHeaderClass = () => {
     if (menuType === "horizontal" || menuHidden) {
@@ -74,10 +78,8 @@ const Layout = () => {
           >
             <Suspense fallback={<Loading />}>
               <AnimatePresence>
-                {" "}
-                {/* Framer Motion ke liye AnimatePresence istemal karna behtar hai */}
                 <motion.div
-                  key={location.pathname} // `key` ko yahan set karein
+                  key={location.pathname}
                   initial="pageInitial"
                   animate="pageAnimate"
                   exit="pageExit"

@@ -193,6 +193,7 @@
   --border: hsl(215.3 25% 26.7%);
 
   font-family: "Inter", sans-serif;
+  scrollbar-gutter: "stable";
 }
 
 *,

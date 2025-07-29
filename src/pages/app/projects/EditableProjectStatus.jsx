@@ -1,37 +1,22 @@
-// src/pages/projects/EditableProjectStatus.js (Corrected File)
+// src/pages/projects/EditableProjectStatus.js (Final Corrected Code)
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "react-toastify";
 import Icon from "@/components/ui/Icon";
 import { FiLoader } from "react-icons/fi";
 
-// --- Utility Functions to match your TaskHeader style ---
-
-// 1. Status options from your API
+// --- Utility functions (No changes here) ---
 const STATUS_OPTIONS = ["In Progress", "Pending", "Completed", "Cancelled", "Backlog"];
-
-// 2. Function to get CSS classes for the status badges
 const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
-  if (s === "completed" || s === "done") {
-    return "bg-green-100 text-green-800 border-green-200";
-  }
-  if (s.includes("progress")) {
-    return "bg-blue-100 text-blue-800 border-blue-200";
-  }
-  if (s.includes("pending")) {
-    return "bg-yellow-100 text-yellow-800 border-yellow-200";
-  }
-  if (s.includes("cancel")) {
-    return "bg-red-100 text-red-800 border-red-200";
-  }
-  if (s.includes("backlog")) {
-    return "bg-purple-100 text-purple-800 border-purple-200";
-  }
+  if (s === "completed" || s === "done") return "bg-green-100 text-green-800 border-green-200";
+  if (s.includes("progress")) return "bg-blue-100 text-blue-800 border-blue-200";
+  if (s.includes("pending")) return "bg-yellow-100 text-yellow-800 border-yellow-200";
+  if (s.includes("cancel")) return "bg-red-100 text-red-800 border-red-200";
+  if (s.includes("backlog")) return "bg-purple-100 text-purple-800 border-purple-200";
   return "bg-slate-100 text-slate-800 border-slate-200";
 };
-
-// 3. Function to get the color for the selected item's side-bar
 const getStatusSelectedBarColor = (status) => {
   const s = String(status || "").toLowerCase();
   if (s === "completed" || s === "done") return "bg-green-500";
@@ -55,18 +40,58 @@ const EditableProjectStatus = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const buttonRef = useRef(null);
   const dropdownRef = useRef(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
-  // Close dropdown when clicking outside
+  // === YAHAN POSITION CALCULATION KO THEEK KIYA GAYA HAI ===
+  const calculatePosition = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const menuWidth = 224; // w-56
+      
+      let left = rect.left;
+      // Agar menu screen se bahar ja raha hai, to usko left side shift karo
+      if (rect.left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+      
+      // `position: fixed` ke liye, `getBoundingClientRect` ki values hi kaafi hain.
+      // ScrollY add karne ki zaroorat nahi hai.
+      setMenuPosition({
+        top: rect.bottom + 4, // Button ke 4px neeche
+        left: left,
+      });
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        isOpen &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+
+    if (isOpen) {
+      calculatePosition(); // Position calculate karein
+      document.addEventListener("mousedown", handleClickOutside);
+      window.addEventListener("resize", calculatePosition);
+      window.addEventListener("scroll", calculatePosition, true); // Scroll par bhi update karein
+    }
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("resize", calculatePosition);
+      window.removeEventListener("scroll", calculatePosition, true);
+    };
+  }, [isOpen]);
 
   const handleSelectOption = async (newStatus) => {
     if (newStatus === currentStatus || isSaving) {
@@ -91,7 +116,7 @@ const EditableProjectStatus = ({
       if (!response.ok) throw new Error(responseData.message || "Failed to update.");
       
       toast.success(responseData.message || "Status updated!");
-      onStatusUpdate(); // Refresh parent component's data
+      onStatusUpdate();
       
     } catch (error) {
       toast.error(error.message || "An error occurred.");
@@ -101,18 +126,18 @@ const EditableProjectStatus = ({
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       {isSaving ? (
         <div className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border flex items-center justify-center ${getStatusClass(currentStatus)}`}>
             <FiLoader className="animate-spin" />
         </div>
       ) : (
         isEditable ? (
-          // --- ADMIN / EMPLOYEE VIEW (Clickable Dropdown) ---
           <>
             <button
+              ref={buttonRef}
               onClick={() => setIsOpen((prev) => !prev)}
-              className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 flex items-center ${getStatusClass(currentStatus)}`}
+              className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border focus:outline-none focus:ring-2 focus:ring-offset-1  flex items-center ${getStatusClass(currentStatus)}`}
               aria-haspopup="true"
               aria-expanded={isOpen}
               disabled={isSaving}
@@ -122,8 +147,14 @@ const EditableProjectStatus = ({
                 <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"></path>
               </svg>
             </button>
-            {isOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-30 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 overflow-y-auto max-h-60 py-1">
+            
+            {isOpen && createPortal(
+              <div
+                ref={dropdownRef}
+                style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+                className="fixed w-56 bg-white rounded-lg shadow-xl z-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 overflow-y-auto max-h-60 py-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {STATUS_OPTIONS.map((option) => (
                   <button
                     key={option}
@@ -139,11 +170,11 @@ const EditableProjectStatus = ({
                     </span>
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </>
         ) : (
-          // --- CUSTOMER VIEW (Static Label) ---
           <div className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border ${getStatusClass(currentStatus)}`}>
             {(currentStatus || "Unknown").toUpperCase()}
           </div>

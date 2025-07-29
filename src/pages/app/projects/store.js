@@ -25,7 +25,7 @@ const formatProjectFromAPI = (project) => ({
   endDate: project.due_date,
   progress: typeof project.progress === "number" ? project.progress : project.project_progress || 0,
   customer_id: project.customer_id || null,
-  status: project.status?.toLowerCase() || "ongoing",
+  status: project.status || "ongoing",
   project_assignees: project.project_assignees || [],
 });
 
@@ -198,6 +198,39 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
   }
 );
 
+export const updateProjectFieldAPI = createAsyncThunk(
+  "project/updateField",
+  async ({ projectId, field, value }, { rejectWithValue }) => {
+    try {
+      const token = Cookies.get("token");
+      if (!token) return rejectWithValue("Authentication token not found.");
+
+      const path = getProjectPath();
+      const payload = { [field]: value };
+      
+      const response = await axios.patch(`${API_ROOT}${path}/${projectId}`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (response.data && response.status === 200) {
+        toast.success("Project updated successfully!");
+        return { projectId, field, value };
+      } else {
+        const errorMsg = response.data?.message || "Failed to update field.";
+        toast.error(errorMsg);
+        return rejectWithValue(errorMsg);
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || "An error occurred.";
+      toast.error(errorMessage);
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {
@@ -293,6 +326,13 @@ export const appProjectSlice = createSlice({
       .addCase(updateProjectAssigneesAPI.rejected, (state, action) => {
         state.isUpdating = false;
         state.error = action.payload;
+      })
+      .addCase(updateProjectFieldAPI.fulfilled, (state, action) => {
+        const { projectId, field, value } = action.payload;
+        const projectIndex = state.projects.findIndex(p => p.id === projectId);
+        if (projectIndex !== -1) {
+          state.projects[projectIndex][field] = value;
+        }
       });
   },
 });

@@ -280,15 +280,6 @@ const ConversationBox = ({
     </div>
   );
   return (
-  // Farz karein ke ye saare functions/state/props aapke component mein pehle se maujood hain:
-// isLoading, error, messages, currentUserId, editingMessage, handleStartEdit, handleDelete,
-// isProcessingAction, attachments, renderAttachment, removeAttachment, newMessage, setNewMessage,
-// onSendMessage, isSending, fileInputRef, handleFileSelect, formatTime, renderEditView,
-// renderMessageContent, STORAGE_BASE_URL, etc.
-
-// +++ NEW: Add state to manage which message's actions are shown on mobile +++
-
-
 <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/20 h-full flex flex-col overflow-hidden">
   {/* Header: Adjusted padding for mobile */}
   <div className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-900 flex-shrink-0">
