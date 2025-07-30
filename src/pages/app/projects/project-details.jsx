@@ -941,7 +941,7 @@ const ProjectDetailsPage = () => {
             });
             return;
           }
-          Swal.fire("Deleted!", "Your task has been deleted.", "success");
+          Swal.fire("Deleted!", "Your project has been deleted.", "success");
           setTasks((prevTasks) =>
             prevTasks.filter((task) => task.id !== taskId)
           );
@@ -1023,7 +1023,7 @@ const ProjectDetailsPage = () => {
           }
           Swal.fire(
             "Deleted!",
-            "The project brief has been deleted.",
+            "The job brief has been deleted.",
             "success"
           );
           setBriefs((prevBriefs) =>
@@ -1044,7 +1044,7 @@ const ProjectDetailsPage = () => {
       Swal.fire("Error", "Brief ID is missing.", "error");
       return;
     }
-    navigate(`/project-brief/${briefId}`);
+    navigate(`/job-brief/${briefId}`);
   };
 
   if (loading) {
@@ -1300,7 +1300,7 @@ const ProjectDetailsPage = () => {
                   <div className="hidden sm:grid grid-cols-12 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs sm:text-sm">
                     <div
                       className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center cursor-pointer"
-                      onClick={() => navigate(`/task/${task.id}`)}
+                      onClick={() => navigate(`/project/${task.id}`)}
                     >
                       <span className="text-slate-900 dark:text-slate-100 truncate">
                         {task.task_title || "N/A"}
@@ -1308,7 +1308,7 @@ const ProjectDetailsPage = () => {
                     </div>
                     <div
                       className="col-span-12 sm:col-span-2 p-3 sm:p-4 flex items-center"
-                      onClick={() => navigate(`/task/${task.id}`)}
+                      onClick={() => navigate(`/project/${task.id}`)}
                     >
                       {/* Assignee Avatars */}
                       {mappedTaskAssignees.length > 0 ? (

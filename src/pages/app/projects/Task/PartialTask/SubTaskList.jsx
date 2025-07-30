@@ -61,7 +61,7 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
                   <div className="flex-1 min-w-0">
                     <h3
                       className="text-lg font-semibold text-slate-800 mb-2 hover:text-blue-600 cursor-pointer"
-                      onClick={() => navigate(`/task/${subTask.id}`)}
+                      onClick={() => navigate(`/project/${subTask.id}`)}
                     >
                       {subTask.task_title || "Untitled Task"}
                     </h3>

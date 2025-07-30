@@ -257,7 +257,7 @@ const EditBriefModal = ({ isOpen, onClose, onBriefUpdated, briefData, projectId,
     const quillFormats = ['header', 'bold', 'italic', 'underline', 'list', 'bullet', 'link'];
 
     return (
-        <Modal title="Edit Project Brief" activeModal={isOpen} onClose={onClose} unmountOnClose={true}>
+        <Modal title="Edit Job Brief" activeModal={isOpen} onClose={onClose} unmountOnClose={true}>
             <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-5">
                 <FormGroup label="Brief Description" error={errors.brief_description}>
                      {/* Hidden input for react-hook-form to track quill's value */}

@@ -195,7 +195,7 @@ function App() {
             }
           />
           <Route
-            path="/task/:taskId"
+            path="/project/:taskId"
             element={
               <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
                 <TaskDetailsPage />
@@ -211,7 +211,7 @@ function App() {
             }
           />
           <Route
-            path="/project-brief/:briefId"
+            path="/job-brief/:briefId"
             element={
               <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
                 <ProjectBriefDetailPage />
