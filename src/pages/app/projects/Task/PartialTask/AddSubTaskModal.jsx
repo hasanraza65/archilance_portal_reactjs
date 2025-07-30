@@ -243,7 +243,7 @@ const AddSubTaskModal = ({
 
       toast.success(
         responseData.message ||
-          (numericParentTaskId ? "Sub-task added!" : "Task added!")
+          (numericParentTaskId ? "task added!" : "Task added!")
       );
 
       // --- FIX: DELAY CLOSING THE MODAL TO ALLOW TOAST TO BE SEEN ---
@@ -283,7 +283,7 @@ const AddSubTaskModal = ({
 
   return (
     <Modal
-      title={parentTaskId ? "Add New Sub-Task" : "Add New Task"}
+      title={parentTaskId ? "Add New Task" : "Add New Project"}
       activeModal={isOpen}
       onClose={onClose}
       unmountOnClose={true}
@@ -443,8 +443,8 @@ const AddSubTaskModal = ({
               isSubmitting
                 ? "Adding..."
                 : parentTaskId
-                ? "Add Sub-Task"
-                : "Add Task"
+                ? "Add Task"
+                : "Add Project"
             }
             type="submit"
             className="btn-dark"

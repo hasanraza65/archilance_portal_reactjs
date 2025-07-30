@@ -48,7 +48,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
 
   // --- React Hook Form Setup ---
   const FormValidationSchema = yup.object({
-    task_title: yup.string().required("Task title is required"),
+    task_title: yup.string().required("Project title is required"),
     task_description: yup.string().nullable(), // Quill content, can be empty
         // .test( // Optional: Add custom validation for Quill content if needed
         //   'has-content',
@@ -186,7 +186,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
       }
 
       await response.json();
-      toast.success("Task updated successfully!");
+      toast.success("Project updated successfully!");
       onTaskUpdated(); // Callback to parent
       onClose(); // Close the modal
 
@@ -211,15 +211,15 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
 
 
   return (
-    <Modal title="Edit Task" activeModal={isOpen} onClose={onClose} unmountOnClose={true}>
+    <Modal title="Edit Project" activeModal={isOpen} onClose={onClose} unmountOnClose={true}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Textinput
           name="task_title"
-          label="Task Title"
+          label="Project Title"
           type="text"
           register={register}
           error={errors.task_title}
-          placeholder="Enter task title"
+          placeholder="Enter project title"
           className="h-[48px]"
         />
 
@@ -232,7 +232,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
             onChange={setQuillDescription}
             modules={quillModules}
             formats={quillFormats}
-            placeholder="Enter task description..."
+            placeholder="Enter project description..."
             className={`h-32 ${errors.task_description ? 'ql-error border-danger-500' : ''}`}
             readOnly={isSubmitting}
           />

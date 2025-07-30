@@ -174,7 +174,7 @@ const Task = ({ task, onOpenEditModal }) => {
                       disabled={!onOpenEditModal || !task || frontendId === undefined}
                     >
                       <Icon icon="heroicons-outline:pencil-alt" className="h-5 w-5" />
-                      <span>Edit Task</span>
+                      <span>Edit Project</span>
                     </button>
                   )}
                 </Menu.Item>

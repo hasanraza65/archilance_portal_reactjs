@@ -881,8 +881,8 @@ const ProjectDetailsPage = () => {
     fetchProjectAndTasks();
     Swal.fire({
       icon: "success",
-      title: "Task Updated!",
-      text: "The task has been successfully updated.",
+      title: "Project Updated!",
+      text: "The project has been successfully updated.",
       timer: 1500,
       showConfirmButton: false,
     });
@@ -1264,7 +1264,7 @@ const ProjectDetailsPage = () => {
                     clipRule="evenodd"
                   />
                 </svg>
-                Add Task
+                Add Project
               </button>
             </div>
           </div>
@@ -1391,7 +1391,7 @@ const ProjectDetailsPage = () => {
                           handleOpenEditTaskModal(task);
                         }}
                         className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-600 p-1 rounded hover:bg-blue-100 dark:hover:bg-slate-700"
-                        title="Edit Task"
+                        title="Edit Project"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -1631,7 +1631,7 @@ const ProjectDetailsPage = () => {
                   clipRule="evenodd"
                 />
               </svg>
-              Add New Task
+              Add New Project
             </button>
           </div>
         </div>
