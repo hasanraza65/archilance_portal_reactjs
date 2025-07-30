@@ -80,7 +80,7 @@ export const addProjectAPI = createAsyncThunk(
       });
 
       if (response.data && (response.status === 201 || response.status === 200)) {
-        toast.success("Project added successfully!");
+        toast.success("Job added successfully!");
         dispatch(fetchProjectsAPI(1));
         if (response.data.data && typeof response.data.data === "object") {
           return formatProjectFromAPI(response.data.data);
@@ -115,7 +115,7 @@ export const saveEditedProjectAPI = createAsyncThunk(
       });
 
       if (response.data && response.status === 200) {
-        toast.success("Project updated successfully!");
+        toast.success("Job updated successfully!");
         const { currentPage } = getState().project;
         dispatch(fetchProjectsAPI(currentPage));
         if (response.data.data && typeof response.data.data === "object") {
@@ -216,7 +216,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
       });
 
       if (response.data && response.status === 200) {
-        toast.success("Project updated successfully!");
+        toast.success("Job updated successfully!");
         return { projectId, field, value };
       } else {
         const errorMsg = response.data?.message || "Failed to update field.";

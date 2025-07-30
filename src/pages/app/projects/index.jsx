@@ -124,12 +124,12 @@ const ProjectPostPage = () => {
 
       <div className="flex justify-between items-center mb-6">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
-          Projects
+          Jobs
         </h4>
         {userRole !== "employee" && userRole !== "customer" && (
           <Button
             icon="heroicons-outline:plus"
-            text="Add Project"
+            text="Add Job"
             className="btn-dark dark:bg-slate-800"
             onClick={() => dispatch(toggleAddModal(true))}
             disabled={anyOperationPending || isAdding}
@@ -218,12 +218,12 @@ const ProjectPostPage = () => {
               className="mx-auto h-16 w-16 text-slate-300 dark:text-slate-600"
             />
             <h4 className="mt-4 text-xl font-semibold text-slate-600 dark:text-slate-300">
-              No Projects Found
+              No Jobs Found
             </h4>
             <p className="mt-1 text-sm text-slate-500">
               {statusFilter !== "all"
-                ? `No projects found with the status "${statusFilter}".`
-                : "There are no projects to display."}
+                ? `No jobs found with the status "${statusFilter}".`
+                : "There are no Jobs to display."}
             </p>
           </div>
         )}

@@ -6,7 +6,7 @@ import "cleave.js/dist/addons/cleave-phone.us"; // Only if you use US phone form
 const Textinput = ({
   type,
   label,
-  placeholder = "Add Project",
+  placeholder = "Add Job",
   classLabel = "form-label",
   className = "",
   // classGroup = "", // classGroup was not used

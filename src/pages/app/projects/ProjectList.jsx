@@ -108,7 +108,7 @@ const ProjectList = ({ projects }) => {
     if (!projectId) return;
     if (userRole === "customer")
       navigate(`/customer/order-details/${projectId}`);
-    else navigate(`/projects/${projectId}`);
+    else navigate(`/jobs/${projectId}`);
   };
 
   const handleEdit = (item, e) => {

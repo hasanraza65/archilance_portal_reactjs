@@ -59,10 +59,10 @@ export const menuItems = [
     ],
   },
   {
-    title: "Projects",
+    title: "Jobs",
     isHide: false,
     icon: "heroicons-outline:document",
-    link: "projects",
+    link: "jobs",
     allowedRoles: ["admin", "employee","customer"], // Sabko dikhega
   },
   {

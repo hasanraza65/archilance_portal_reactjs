@@ -555,7 +555,7 @@ const ConversationBox = ({
             <MessageCircle className="w-6 h-6" />
           </div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-            Project Chat
+            Job Chat
           </h3>
         </div>
       </div>

@@ -37,7 +37,7 @@ const KanbanPage = () => {
     if (projectId) {
       dispatch(fetchKanbanData(projectId));
     } else {
-      console.warn("KanbanPage: No projectId, cannot fetch data.");
+      console.warn("KanbanPage: No JobId, cannot fetch data.");
     }
   }, [dispatch, projectId]);
 
@@ -210,13 +210,13 @@ const KanbanPage = () => {
       />
       <div className="flex flex-wrap justify-between items-center mb-4">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 dark:text-slate-200 inline-block ltr:pr-4 rtl:pl-4">
-          Kanban Board {projectId ? `(Project ${projectId})` : ""}
+          Kanban Board {projectId ? `(Job ${projectId})` : ""}
         </h4>
       </div>
 
       {(!columns || columns.length === 0) && !isLoading && !error && (
         <div className="text-center p-10 text-slate-500 dark:text-slate-400">
-          No columns to display for this project.
+          No columns to display for this Job.
           <br />
           Try adding a column or ensure `fetchKanbanData` correctly populates.
         </div>

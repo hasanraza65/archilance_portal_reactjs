@@ -85,7 +85,7 @@ const EditProject = () => {
 
   const FormValidationSchema = yup
     .object({
-      project_name: yup.string().required("Project name is required"),
+      project_name: yup.string().required("Job name is required"),
       // +++ CHANGE: Made project_description optional
       project_description: yup.string().nullable(),
       start_date: yup
@@ -197,7 +197,7 @@ const EditProject = () => {
     setLocalIsLoading(true);
     try {
       if (!currentProjectId) {
-        toast.error("Project ID is missing. Cannot update.");
+        toast.error("Job ID is missing. Cannot update.");
         setLocalIsLoading(false);
         return;
       }
@@ -251,15 +251,15 @@ const EditProject = () => {
 
   return (
     <Modal
-      title="Edit Project"
+      title="Edit Job"
       activeModal={editModal}
       onClose={handleCloseModal}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Textinput
           name="project_name"
-          label="Project Name"
-          placeholder="Enter project name"
+          label="Job Name"
+          placeholder="Enter Job name"
           register={register}
           error={errors.project_name}
           className="h-[48px]"
@@ -381,7 +381,7 @@ const EditProject = () => {
               onChange={setQuillDescription}
               modules={quillModules}
               formats={quillFormats}
-              placeholder="Enter project description..."
+              placeholder="Enter Job description..."
               className="h-32"
               readOnly={localIsLoading || projectIsUpdating}
             />
@@ -401,7 +401,7 @@ const EditProject = () => {
           >
             {localIsLoading || projectIsUpdating
               ? "Updating..."
-              : "Update Project"}
+              : "Update Job"}
           </button>
         </div>
       </form>

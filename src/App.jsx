@@ -179,7 +179,7 @@ function App() {
             }
           />
           <Route
-            path="projects"
+            path="jobs"
             element={
               <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
                 <ProjectPostPage />
@@ -187,7 +187,7 @@ function App() {
             }
           />
           <Route
-            path="projects/:id"
+            path="jobs/:id"
             element={
               <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
                 <ProjectDetailsPage />
@@ -203,7 +203,7 @@ function App() {
             }
           />
           <Route
-            path="/project/:id/kanban"
+            path="/job/:id/kanban"
             element={
               <ProtectedRoute allowedRoles={["admin", "employee"]}>
                 <KanbanPage />

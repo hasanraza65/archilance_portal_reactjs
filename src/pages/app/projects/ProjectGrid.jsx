@@ -68,7 +68,7 @@ const ProjectGrid = ({ project, userRole }) => {
   const handleCardClick = () => {
     if (!id) return;
     if (userRole === "customer") navigate(`/customer/order-details/${id}`);
-    else navigate(`/projects/${id}`);
+    else navigate(`/jobs/${id}`);
   };
 
   const handleOpenAssigneesModal = (e) => {

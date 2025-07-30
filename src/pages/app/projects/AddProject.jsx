@@ -75,7 +75,7 @@ const AddProject = ({ onProjectAdded }) => {
 
   const FormValidationSchema = yup
     .object({
-      project_name: yup.string().required("Project name is required"),
+      project_name: yup.string().required("Job name is required"),
 
       project_description: yup.string().nullable(),
 
@@ -268,14 +268,14 @@ const AddProject = ({ onProjectAdded }) => {
 
   return (
     <Modal
-      title="Add New Project"
+      title="Add New Job"
       activeModal={openProjectModal}
       onClose={handleCloseModal}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Textinput
           name="project_name"
-          label="Project Name"
+          label="Job Name"
           register={register}
           error={errors.project_name}
           className="h-[48px]"
@@ -419,7 +419,7 @@ const AddProject = ({ onProjectAdded }) => {
             onChange={setQuillDescription}
             modules={quillModules}
             formats={quillFormats}
-            placeholder="Enter project description..."
+            placeholder="Enter job description..."
             className={`h-32 ${
               errors.project_description ? "ql-error border-danger-500" : ""
             }`}
@@ -438,7 +438,7 @@ const AddProject = ({ onProjectAdded }) => {
             className="btn btn-dark text-center mt-4"
             disabled={localIsLoading || isAdding}
           >
-            {isAdding || localIsLoading ? "Adding..." : "Add Project"}
+            {isAdding || localIsLoading ? "Adding..." : "Add Job"}
           </button>
         </div>
       </form>
