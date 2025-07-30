@@ -10,7 +10,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    const defaultPath = user.role === 'employee' ? '/projects' : '/dashboard';
+    const defaultPath = user.role === 'employee' ? '/jobs' : '/dashboard';
     return <Navigate to={defaultPath} replace />;
   }
   

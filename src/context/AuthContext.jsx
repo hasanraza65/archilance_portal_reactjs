@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
       dispatch(setReduxUser(userToSave));
 
       if (userRoleString === 'employee') {
-        navigate("/projects", { replace: true });
+        navigate("/jobs", { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
       }

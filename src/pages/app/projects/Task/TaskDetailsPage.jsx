@@ -322,7 +322,7 @@ const TaskDetailsPage = () => {
       if (!response.ok)
         throw new Error(responseData.message || "Failed to update the task.");
       toast.success(
-        `Task ${fieldName.replace(/_/g, " ")} updated successfully!`
+        `Project ${fieldName.replace(/_/g, " ")} updated successfully!`
       );
       await fetchTaskData(false);
       if (fieldName === "priority") setIsPriorityDropdownOpen(false);
