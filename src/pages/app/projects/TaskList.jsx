@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useTable, useSortBy } from "react-table";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -16,6 +10,7 @@ import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
+import EditableTaskStatus from "./EditableTaskStatus";
 
 const getAuthToken = () => Cookies.get("token");
 
@@ -66,33 +61,13 @@ const AvatarStack = ({ assignees }) => {
     </div>
   );
 };
-const StatusBadge = ({ status }) => {
-  const getStatusClass = (s) => {
-    s = String(s).toLowerCase();
-    if (s.includes("progress")) return "bg-blue-100 text-blue-800";
-    if (s.includes("completed") || s.includes("done"))
-      return "bg-green-100 text-green-800";
-    if (s.includes("todo") || s.includes("pending"))
-      return "bg-yellow-100 text-yellow-800";
-    if (s.includes("cancel")) return "bg-red-100 text-red-800";
-    return "bg-slate-100 text-slate-800";
-  };
-  return (
-    <span
-      className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize whitespace-nowrap ${getStatusClass(
-        status
-      )}`}
-    >
-      {status.replace(/_/g, " ")}
-    </span>
-  );
-};
 
 const TaskList = ({ statusFilter, onLoadingChange }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const userRole = getApiPrefix();
 
   const [editTaskModal, setEditTaskModal] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
@@ -121,35 +96,26 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         Accept: "application/json",
       };
 
-      const firstPageParams = new URLSearchParams({ page: 1 });
+      const params = new URLSearchParams();
       if (filter && filter.toLowerCase() !== "all") {
-        firstPageParams.append("task_status", filter);
+        params.append("task_status", filter);
       }
 
-      const firstPageResponse = await axios.get(`${baseUrl}?${firstPageParams.toString()}`, { headers });
-      
-      const firstPageData = firstPageResponse.data.data || [];
-      const totalPages = firstPageResponse.data.last_page || 1;
-      
-      let allTasks = [...firstPageData];
+      let allTasks = [];
+      let currentPage = 1;
+      let lastPage = 1;
 
-      if (totalPages > 1) {
-        const pagePromises = [];
-        for (let page = 2; page <= totalPages; page++) {
-          const params = new URLSearchParams({ page: page });
-           if (filter && filter.toLowerCase() !== "all") {
-             params.append("task_status", filter);
-           }
-          pagePromises.push(axios.get(`${baseUrl}?${params.toString()}`, { headers }));
-        }
-
-        const otherPageResponses = await Promise.all(pagePromises);
-        const otherPagesData = otherPageResponses.flatMap(res => res.data.data || []);
-        allTasks = [...allTasks, ...otherPagesData];
-      }
+      do {
+        params.set("page", currentPage);
+        const response = await axios.get(`${baseUrl}?${params.toString()}`, {
+          headers,
+        });
+        allTasks.push(...(response.data.data || []));
+        lastPage = response.data.last_page || 1;
+        currentPage++;
+      } while (currentPage <= lastPage);
 
       setTasks(allTasks);
-
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
       if (err.response?.status === 404) {
@@ -166,13 +132,15 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
     fetchTasks(statusFilter);
   }, [statusFilter, fetchTasks]);
 
-  const handleOpenEditModal = useCallback((task) => {
+  const handleOpenEditModal = useCallback((task, e) => {
+    e.stopPropagation();
     setCurrentTask(task);
     setEditTaskModal(true);
   }, []);
 
   const handleDelete = useCallback(
-    (taskId, taskTitle) => {
+    (taskId, taskTitle, e) => {
+      e.stopPropagation();
       Swal.fire({
         title: "Are you sure?",
         text: `You are about to delete the task: "${taskTitle}". You won't be able to revert this!`,
@@ -261,30 +229,36 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
       {
         Header: "Status",
         accessor: "task_status",
-        Cell: ({ value }) => <StatusBadge status={value} />,
+        Cell: ({ row }) => (
+          <EditableTaskStatus
+            taskId={row.original.id}
+            currentStatus={row.original.task_status}
+            onStatusUpdate={() => fetchTasks(statusFilter)}
+            isEditable={userRole !== "customer"}
+          />
+        ),
       },
       {
         Header: "Action",
         accessor: "action",
         Cell: ({ row }) => (
-          <div className="flex items-center justify-center space-x-2">
+          <div
+            className="flex items-center justify-center space-x-2"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
               title="Edit Task"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenEditModal(row.original);
-              }}
+              onClick={(e) => handleOpenEditModal(row.original, e)}
             >
               <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
             </button>
             <button
               className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
               title="Delete Task"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(row.original.id, row.original.task_title);
-              }}
+              onClick={(e) =>
+                handleDelete(row.original.id, row.original.task_title, e)
+              }
             >
               <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
             </button>
@@ -292,7 +266,14 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         ),
       },
     ],
-    [navigate, handleOpenEditModal, handleDelete]
+    [
+      navigate,
+      handleOpenEditModal,
+      handleDelete,
+      userRole,
+      statusFilter,
+      fetchTasks,
+    ]
   );
 
   const data = useMemo(() => tasks, [tasks]);
@@ -305,6 +286,13 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
       },
       useSortBy
     );
+
+  const handleRowClick = (row) => {
+    if (userRole === "customer") {
+      return;
+    }
+    navigate(`/task/${row.original.id}`);
+  };
 
   if (isLoading) return <TableLoading count={10} />;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
@@ -367,9 +355,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
                   return (
                     <tr
                       {...row.getRowProps()}
-                      onClick={() =>
-                        navigate(`/project/${row.original.id}`)
-                      }
+                      onClick={() => handleRowClick(row)}
                       className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
                     >
                       {row.cells.map((cell) => (
