@@ -239,7 +239,7 @@ const WorkSession = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Project
+                Job
               </label>
               <select
                 value={selectedProject}
@@ -249,7 +249,7 @@ const WorkSession = () => {
                 }}
                 className="form-select w-full"
               >
-                <option value="">All Projects</option>
+                <option value="">All Jobs</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.project_name}
@@ -259,7 +259,7 @@ const WorkSession = () => {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Task
+                Project
               </label>
               <select
                 value={selectedTask}
@@ -268,7 +268,7 @@ const WorkSession = () => {
                 className="form-select w-full disabled:bg-slate-100"
               >
                 <option value="">
-                  {!selectedProject ? "Select project first" : "All Tasks"}
+                  {!selectedProject ? "Select job first" : "All Projects"}
                 </option>
                 {tasksLoading ? (
                   <option>Loading tasks...</option>
