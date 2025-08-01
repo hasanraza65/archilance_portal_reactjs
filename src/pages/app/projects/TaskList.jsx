@@ -5,31 +5,26 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { useTable, useSortBy, usePagination } from "react-table";
+import { useTable, useSortBy } from "react-table";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
-// UI Components
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
-import Pagination from "@/components/ui/Pagination";
 import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
 
-// Helper function to get the auth token
 const getAuthToken = () => Cookies.get("token");
 
-// Helper function to build API path based on user role
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
   return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
 };
 
-// Helper Components (AvatarStack, StatusBadge) remain the same...
 const AvatarStack = ({ assignees }) => {
   if (!assignees || assignees.length === 0)
     return <span className="text-slate-400">N/A</span>;
@@ -93,26 +88,22 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// === UPDATED: Accepts onLoadingChange prop and no longer renders a filter bar ===
 const TaskList = ({ statusFilter, onLoadingChange }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
   const [editTaskModal, setEditTaskModal] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
 
-  // === UPDATED: Report loading state changes to the parent component ===
   useEffect(() => {
     if (onLoadingChange) {
       onLoadingChange(isLoading);
     }
   }, [isLoading, onLoadingChange]);
 
-  const fetchTasks = useCallback(async (page, filter) => {
+  const fetchTasks = useCallback(async (filter) => {
     setIsLoading(true);
     setError(null);
     const token = getAuthToken();
@@ -121,31 +112,48 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
       setIsLoading(false);
       return;
     }
+
     try {
       const apiPath = getApiBasePathForRole("/projects-with-tasks");
-      let url = `${
-        import.meta.env.VITE_BACKEND_BASE_URL
-      }${apiPath}?page=${page}`;
+      const baseUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      };
 
+      const firstPageParams = new URLSearchParams({ page: 1 });
       if (filter && filter.toLowerCase() !== "all") {
-        url += `&task_status=${encodeURIComponent(filter)}`;
+        firstPageParams.append("task_status", filter);
       }
 
-      const response = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
+      const firstPageResponse = await axios.get(`${baseUrl}?${firstPageParams.toString()}`, { headers });
+      
+      const firstPageData = firstPageResponse.data.data || [];
+      const totalPages = firstPageResponse.data.last_page || 1;
+      
+      let allTasks = [...firstPageData];
 
-      setTasks(response.data.data || []);
-      setTotalPages(response.data.last_page || 1);
+      if (totalPages > 1) {
+        const pagePromises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          const params = new URLSearchParams({ page: page });
+           if (filter && filter.toLowerCase() !== "all") {
+             params.append("task_status", filter);
+           }
+          pagePromises.push(axios.get(`${baseUrl}?${params.toString()}`, { headers }));
+        }
+
+        const otherPageResponses = await Promise.all(pagePromises);
+        const otherPagesData = otherPageResponses.flatMap(res => res.data.data || []);
+        allTasks = [...allTasks, ...otherPagesData];
+      }
+
+      setTasks(allTasks);
+
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
       if (err.response?.status === 404) {
         setTasks([]);
-        setTotalPages(1);
-        setCurrentPage(1);
       } else {
         setError("Failed to load tasks. Please try again.");
       }
@@ -155,19 +163,8 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
   }, []);
 
   useEffect(() => {
-    fetchTasks(currentPage, statusFilter);
-  }, [currentPage, statusFilter, fetchTasks]);
-
-  const isInitialRender = useRef(true);
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  }, [statusFilter]);
+    fetchTasks(statusFilter);
+  }, [statusFilter, fetchTasks]);
 
   const handleOpenEditModal = useCallback((task) => {
     setCurrentTask(task);
@@ -203,11 +200,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
                 "The task has been successfully deleted.",
                 "success"
               );
-              if (tasks.length === 1 && currentPage > 1) {
-                setCurrentPage(currentPage - 1);
-              } else {
-                fetchTasks(currentPage, statusFilter);
-              }
+              fetchTasks(statusFilter);
             })
             .catch((error) => {
               Swal.fire(
@@ -220,7 +213,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         }
       });
     },
-    [tasks.length, currentPage, statusFilter, fetchTasks]
+    [statusFilter, fetchTasks]
   );
 
   const formatDate = (dateString) => {
@@ -234,7 +227,6 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
 
   const COLUMNS = useMemo(
     () => [
-      // ... your columns definition remains the same
       {
         Header: "Jobs",
         accessor: (row) => row.project?.project_name || "N/A",
@@ -277,16 +269,6 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         Cell: ({ row }) => (
           <div className="flex items-center justify-center space-x-2">
             <button
-              className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-              title="View Task Details"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/project/${row.original.project_id}`);
-              }}
-            >
-              <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
-            </button>
-            <button
               className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
               title="Edit Task"
               onClick={(e) => {
@@ -315,20 +297,14 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
 
   const data = useMemo(() => tasks, [tasks]);
 
-  const { getTableProps, getTableBodyProps, headerGroups, page, prepareRow } =
+  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable(
       {
         columns: COLUMNS,
         data,
-        manualPagination: true,
-        initialState: { pageIndex: currentPage - 1 },
-        pageCount: totalPages,
       },
-      useSortBy,
-      usePagination
+      useSortBy
     );
-
-  const handlePageChange = (page) => setCurrentPage(page);
 
   if (isLoading) return <TableLoading count={10} />;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
@@ -386,11 +362,14 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
                 className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
                 {...getTableBodyProps()}
               >
-                {page.map((row) => {
+                {rows.map((row) => {
                   prepareRow(row);
                   return (
                     <tr
                       {...row.getRowProps()}
+                      onClick={() =>
+                        navigate(`/project/${row.original.id}`)
+                      }
                       className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
                     >
                       {row.cells.map((cell) => (
@@ -407,22 +386,11 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         </div>
       </div>
 
-      {!isLoading && tasks.length > 0 && totalPages > 1 && (
-        <div className="mt-8 flex justify-center">
-          <Pagination
-            className="bg-slate-100 dark:bg-slate-500 w-fit py-2 px-3 rounded-md"
-            totalPages={totalPages}
-            currentPage={currentPage}
-            handlePageChange={handlePageChange}
-          />
-        </div>
-      )}
-
       <EditTask
         activeModal={editTaskModal}
         onClose={() => setEditTaskModal(false)}
         task={currentTask}
-        onUpdate={() => fetchTasks(currentPage, statusFilter)}
+        onUpdate={() => fetchTasks(statusFilter)}
       />
     </>
   );

@@ -17,7 +17,6 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
 
-// Reusable constants and functions
 export const STATUS_OPTIONS = [
   "In Progress",
   "Todo",
@@ -49,7 +48,6 @@ export const getStatusClass = (status) => {
   return "bg-slate-100 text-slate-800 border-slate-200";
 };
 
-// Reusable StatusFilterBar Component
 export const StatusFilterBar = ({
   statuses,
   activeFilter,
@@ -82,13 +80,14 @@ export const StatusFilterBar = ({
 );
 
 const ProjectPostPage = () => {
-  const [activeTab, setActiveTab] = useState("projects");
+  const [activeTab, setActiveTab] = useState(
+    () => sessionStorage.getItem("projectPageActiveTab") || "projects"
+  );
   const [filler, setFiller] = useState(
     () => sessionStorage.getItem("projectView") || "grid"
   );
   const [projectStatusFilter, setProjectStatusFilter] = useState("All");
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
-  // === UPDATED: State to track loading status from the TaskList child component ===
   const [isTaskListLoading, setTaskListLoading] = useState(true);
 
   const userRole = getApiPrefix();
@@ -107,6 +106,10 @@ const ProjectPostPage = () => {
   useEffect(() => {
     dispatch(fetchProjectsAPI(1));
   }, [dispatch]);
+
+  useEffect(() => {
+    sessionStorage.setItem("projectPageActiveTab", activeTab);
+  }, [activeTab]);
 
   const toggleView = (view) => {
     sessionStorage.setItem("projectView", view);
@@ -169,7 +172,7 @@ const ProjectPostPage = () => {
 
       <div className="flex justify-between items-center mb-6">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
-          {activeTab === "projects" ? "Jobs" : "Tasks"}
+          {activeTab === "projects" ? "Jobs" : "Projects"}
         </h4>
         {activeTab === "projects" &&
           userRole !== "employee" &&
@@ -293,10 +296,8 @@ const ProjectPostPage = () => {
         </>
       )}
 
-      {/* === UPDATED: This section now mirrors the project tab's structure === */}
       {activeTab === "tasks" && (
         <>
-          {/* Card for the filter bar */}
           <Card className="mb-6">
             <StatusFilterBar
               statuses={STATUS_OPTIONS}
@@ -306,7 +307,6 @@ const ProjectPostPage = () => {
             />
           </Card>
 
-          {/* Card for the task list table */}
           <Card noBorder>
             <TaskList
               statusFilter={taskStatusFilter}
