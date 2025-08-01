@@ -351,7 +351,7 @@ const AdminEmployeeWorkSession = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-              Project
+              Job
             </label>
             <select
               value={selectedProject}
@@ -361,7 +361,7 @@ const AdminEmployeeWorkSession = () => {
               }}
               className="form-select w-full"
             >
-              <option value="">All Projects</option>
+              <option value="">All Jobs</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.project_name}
@@ -371,7 +371,7 @@ const AdminEmployeeWorkSession = () => {
           </div>
           <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-              Task
+              Project
             </label>
             <select
               value={selectedTask}
@@ -379,7 +379,7 @@ const AdminEmployeeWorkSession = () => {
               disabled={!selectedProject || tasksLoading}
               className="form-select w-full disabled:bg-slate-100"
             >
-              <option value="">All Tasks</option>
+              <option value="">All Projects</option>
               {tasksLoading ? (
                 <option>Loading...</option>
               ) : (

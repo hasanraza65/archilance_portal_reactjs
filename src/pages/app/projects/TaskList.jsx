@@ -1,29 +1,35 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useTable, useSortBy, usePagination } from "react-table";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+
 // UI Components
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Pagination from "@/components/ui/Pagination";
 import TableLoading from "@/components/skeleton/Table";
-import EditTask from "./EditTask"; // Import the new modal component
+import EditTask from "./EditTask";
 
 // Helper function to get the auth token
 const getAuthToken = () => Cookies.get("token");
+
+// Helper function to build API path based on user role
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
-  console.log(role);
-  if (role) {
-    return `/api/${role}${cleanBasePath}`;
-  }
-  return `/api/admin${cleanBasePath}`;
+  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
 };
-// Helper Components
+
+// Helper Components (AvatarStack, StatusBadge) remain the same...
 const AvatarStack = ({ assignees }) => {
   if (!assignees || assignees.length === 0)
     return <span className="text-slate-400">N/A</span>;
@@ -77,33 +83,36 @@ const StatusBadge = ({ status }) => {
     return "bg-slate-100 text-slate-800";
   };
   return (
-    <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize whitespace-nowrap ${getStatusClass(status)}`}>
-      {status.replace("_", " ")}
+    <span
+      className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize whitespace-nowrap ${getStatusClass(
+        status
+      )}`}
+    >
+      {status.replace(/_/g, " ")}
     </span>
   );
 };
 
-const TaskList = () => {
+// === UPDATED: Accepts onLoadingChange prop and no longer renders a filter bar ===
+const TaskList = ({ statusFilter, onLoadingChange }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
-  // State for the Edit Modal
   const [editTaskModal, setEditTaskModal] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const [currentPage, setCurrentPage] = useState(() => {
-    const savedPage = sessionStorage.getItem("taskListPage");
-    return savedPage ? Number(savedPage) : 1;
-  });
-
+  // === UPDATED: Report loading state changes to the parent component ===
   useEffect(() => {
-    sessionStorage.setItem("taskListPage", String(currentPage));
-  }, [currentPage]);
+    if (onLoadingChange) {
+      onLoadingChange(isLoading);
+    }
+  }, [isLoading, onLoadingChange]);
 
-  const fetchTasks = useCallback(async (page) => {
+  const fetchTasks = useCallback(async (page, filter) => {
     setIsLoading(true);
     setError(null);
     const token = getAuthToken();
@@ -113,23 +122,29 @@ const TaskList = () => {
       return;
     }
     try {
-        const apiPath = getApiBasePathForRole("/");
-      const response = await axios.get(
-        `${
-          import.meta.env.VITE_BACKEND_BASE_URL
-        }${apiPath}projects-with-tasks?page=${page}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
+      const apiPath = getApiBasePathForRole("/projects-with-tasks");
+      let url = `${
+        import.meta.env.VITE_BACKEND_BASE_URL
+      }${apiPath}?page=${page}`;
+
+      if (filter && filter.toLowerCase() !== "all") {
+        url += `&task_status=${encodeURIComponent(filter)}`;
+      }
+
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
       setTasks(response.data.data || []);
       setTotalPages(response.data.last_page || 1);
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
       if (err.response?.status === 404) {
+        setTasks([]);
+        setTotalPages(1);
         setCurrentPage(1);
       } else {
         setError("Failed to load tasks. Please try again.");
@@ -140,58 +155,73 @@ const TaskList = () => {
   }, []);
 
   useEffect(() => {
-    fetchTasks(currentPage);
-  }, [currentPage, fetchTasks]);
+    fetchTasks(currentPage, statusFilter);
+  }, [currentPage, statusFilter, fetchTasks]);
 
-  // Handler to open the edit modal
-  const handleOpenEditModal = (task) => {
+  const isInitialRender = useRef(true);
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [statusFilter]);
+
+  const handleOpenEditModal = useCallback((task) => {
     setCurrentTask(task);
     setEditTaskModal(true);
-  };
+  }, []);
 
-  const handleDelete = (taskId, taskTitle) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: `You are about to delete the task: "${taskTitle}". You won't be able to revert this!`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6e7881",
-      confirmButtonText: "Yes, delete it!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const token = getAuthToken();
-        axios
-          .delete(
-            `${
-              import.meta.env.VITE_BACKEND_BASE_URL
-            }/api/admin/project-task/${taskId}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          )
-          .then(() => {
-            Swal.fire(
-              "Deleted!",
-              "The task has been successfully deleted.",
-              "success"
-            );
-            if (tasks.length === 1 && currentPage > 1) {
-              setCurrentPage(currentPage - 1);
-            } else {
-              fetchTasks(currentPage);
-            }
-          })
-          .catch((error) => {
-            Swal.fire(
-              "Failed!",
-              error.response?.data?.message || "The task could not be deleted.",
-              "error"
-            );
-          });
-      }
-    });
-  };
+  const handleDelete = useCallback(
+    (taskId, taskTitle) => {
+      Swal.fire({
+        title: "Are you sure?",
+        text: `You are about to delete the task: "${taskTitle}". You won't be able to revert this!`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#6e7881",
+        confirmButtonText: "Yes, delete it!",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const token = getAuthToken();
+          const deleteApiPath = getApiBasePathForRole(
+            `/project-task/${taskId}`
+          );
+          axios
+            .delete(
+              `${import.meta.env.VITE_BACKEND_BASE_URL}${deleteApiPath}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            )
+            .then(() => {
+              Swal.fire(
+                "Deleted!",
+                "The task has been successfully deleted.",
+                "success"
+              );
+              if (tasks.length === 1 && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+              } else {
+                fetchTasks(currentPage, statusFilter);
+              }
+            })
+            .catch((error) => {
+              Swal.fire(
+                "Failed!",
+                error.response?.data?.message ||
+                  "The task could not be deleted.",
+                "error"
+              );
+            });
+        }
+      });
+    },
+    [tasks.length, currentPage, statusFilter, fetchTasks]
+  );
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -204,8 +234,9 @@ const TaskList = () => {
 
   const COLUMNS = useMemo(
     () => [
+      // ... your columns definition remains the same
       {
-        Header: "Projects",
+        Header: "Jobs",
         accessor: (row) => row.project?.project_name || "N/A",
         Cell: ({ value }) => (
           <span className="font-medium text-slate-700 dark:text-slate-300">
@@ -214,10 +245,10 @@ const TaskList = () => {
         ),
       },
       {
-        Header: "Tasks",
+        Header: "Projects",
         accessor: "task_title",
         Cell: ({ value }) => (
-          <span className="font-medium text-red-500">{value}</span>
+          <span className="font-medium text-slate-600 capitalize">{value}</span>
         ),
       },
       {
@@ -247,15 +278,14 @@ const TaskList = () => {
           <div className="flex items-center justify-center space-x-2">
             <button
               className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-              title="View Task"
+              title="View Task Details"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/project/${row.original.id}`);
+                navigate(`/project/${row.original.project_id}`);
               }}
             >
               <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
             </button>
-
             <button
               className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
               title="Edit Task"
@@ -266,7 +296,6 @@ const TaskList = () => {
             >
               <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
             </button>
-
             <button
               className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
               title="Delete Task"
@@ -281,107 +310,104 @@ const TaskList = () => {
         ),
       },
     ],
-    [fetchTasks, currentPage, tasks.length, navigate]
+    [navigate, handleOpenEditModal, handleDelete]
   );
 
   const data = useMemo(() => tasks, [tasks]);
 
   const { getTableProps, getTableBodyProps, headerGroups, page, prepareRow } =
     useTable(
-      { columns: COLUMNS, data, manualPagination: true, pageCount: totalPages },
+      {
+        columns: COLUMNS,
+        data,
+        manualPagination: true,
+        initialState: { pageIndex: currentPage - 1 },
+        pageCount: totalPages,
+      },
       useSortBy,
       usePagination
     );
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
+  const handlePageChange = (page) => setCurrentPage(page);
 
-  if (isLoading) {
-    return <TableLoading count={10} />;
-  }
-  if (error) {
+  if (isLoading) return <TableLoading count={10} />;
+  if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
+  if (tasks.length === 0) {
     return (
-      <Card>
-        <div className="p-4 text-center text-red-500">{error}</div>
-      </Card>
-    );
-  }
-  if (!tasks.length && currentPage === 1) {
-    return (
-      <Card>
-        <div className="p-16 text-center text-slate-500">
-          <Icon icon="heroicons-outline:inbox" className="mx-auto h-12 w-12" />
-          <h4 className="mt-2 text-lg font-medium">No Tasks Found</h4>
+      <div className="p-16 text-center text-slate-500">
+        <Icon icon="heroicons-outline:inbox" className="mx-auto h-12 w-12" />
+        <h4 className="mt-2 text-lg font-medium">No Projects Found</h4>
+        {statusFilter.toLowerCase() !== "all" ? (
+          <p className="mt-1">
+            There are no projects with the status "
+            <span className="font-semibold capitalize">{statusFilter}</span>".
+          </p>
+        ) : (
           <p>There are currently no tasks to display.</p>
-        </div>
-      </Card>
+        )}
+      </div>
     );
   }
 
   return (
     <>
-      <Card noBorder>
-        <div className="overflow-x-auto -mx-6">
-          <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden">
-              <table
-                className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700"
-                {...getTableProps()}
+      <div className="overflow-x-auto -mx-6">
+        <div className="inline-block min-w-full align-middle">
+          <div className="overflow-hidden">
+            <table
+              className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700"
+              {...getTableProps()}
+            >
+              <thead className="bg-slate-50 dark:bg-slate-700">
+                {headerGroups.map((headerGroup) => (
+                  <tr {...headerGroup.getHeaderGroupProps()}>
+                    {headerGroup.headers.map((column) => (
+                      <th
+                        {...column.getHeaderProps(
+                          column.getSortByToggleProps()
+                        )}
+                        scope="col"
+                        className="table-th"
+                      >
+                        {column.render("Header")}
+                        <span>
+                          {column.isSorted
+                            ? column.isSortedDesc
+                              ? " 🔽"
+                              : " 🔼"
+                            : ""}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody
+                className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
+                {...getTableBodyProps()}
               >
-                <thead className="bg-slate-50 dark:bg-slate-700">
-                  {headerGroups.map((headerGroup) => (
-                    <tr {...headerGroup.getHeaderGroupProps()}>
-                      {headerGroup.headers.map((column) => (
-                        <th
-                          {...column.getHeaderProps(
-                            column.getSortByToggleProps()
-                          )}
-                          scope="col"
-                          className="table-th"
-                        >
-                          {column.render("Header")}
-                          <span>
-                            {column.isSorted
-                              ? column.isSortedDesc
-                                ? " 🔽"
-                                : " 🔼"
-                              : ""}
-                          </span>
-                        </th>
+                {page.map((row) => {
+                  prepareRow(row);
+                  return (
+                    <tr
+                      {...row.getRowProps()}
+                      className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
+                    >
+                      {row.cells.map((cell) => (
+                        <td {...cell.getCellProps()} className="table-td">
+                          {cell.render("Cell")}
+                        </td>
                       ))}
                     </tr>
-                  ))}
-                </thead>
-                <tbody
-                  className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
-                  {...getTableBodyProps()}
-                >
-                  {page.map((row) => {
-                    prepareRow(row);
-                    return (
-                      <tr
-                        {...row.getRowProps()}
-                        className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
-                      >
-                        {row.cells.map((cell) => {
-                          return (
-                            <td {...cell.getCellProps()} className="table-td">
-                              {cell.render("Cell")}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {!isLoading && tasks.length > 0 && (
+      {!isLoading && tasks.length > 0 && totalPages > 1 && (
         <div className="mt-8 flex justify-center">
           <Pagination
             className="bg-slate-100 dark:bg-slate-500 w-fit py-2 px-3 rounded-md"
@@ -396,7 +422,7 @@ const TaskList = () => {
         activeModal={editTaskModal}
         onClose={() => setEditTaskModal(false)}
         task={currentTask}
-        onUpdate={() => fetchTasks(currentPage)}
+        onUpdate={() => fetchTasks(currentPage, statusFilter)}
       />
     </>
   );
