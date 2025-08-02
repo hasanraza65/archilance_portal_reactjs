@@ -291,7 +291,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
     if (userRole === "customer") {
       return;
     }
-    navigate(`/task/${row.original.id}`);
+    navigate(`/project/${row.original.id}`);
   };
 
   if (isLoading) return <TableLoading count={10} />;
