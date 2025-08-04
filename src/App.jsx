@@ -10,6 +10,7 @@ import AuthLayout from "./layout/AuthLayout";
 import Loading from "@/components/Loading";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminSubscription from "./pages/admin/AdminSubscription";
+import CustomerTeam from "./pages/customers/CustomerTeam/CustomerTeam";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
 const WorkSession = lazy(() =>
@@ -383,8 +384,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+       
+             <Route
+            path="team"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <CustomerTeam />
+              </ProtectedRoute>
+            }
+          />
         </Route>
-
         <Route
           path="/404"
           element={

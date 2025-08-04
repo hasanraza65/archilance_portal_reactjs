@@ -121,6 +121,13 @@ export const menuItems = [
     link: "subscription",
     allowedRoles: ["admin",], // Sirf customer ko
   },
+  {
+    title: "Customer Team",
+    isHide: false,
+    icon: "heroicons-outline:receipt-refund",
+    link: "team",
+    allowedRoles: ["customer",], // Sirf customer ko
+  },
 ];
 
 
