@@ -60,6 +60,7 @@ const ChevronDownIcon = () => (
     />
   </svg>
 );
+
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -76,6 +77,7 @@ const TrashIcon = () => (
     />
   </svg>
 );
+
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
   const [h, m] = timeStr.split(":");
@@ -86,17 +88,7 @@ const formatTime = (timeStr) => {
     hour12: true,
   });
 };
-const calculateDuration = (start, end) => {
-  if (!start || !end) return "(N/A)";
-  const sT = new Date(`1970-01-01T${start}Z`),
-    eT = new Date(`1970-01-01T${end}Z`);
-  if (isNaN(sT) || isNaN(eT) || eT < sT) return "(N/A)";
-  let d = (eT - sT) / 1000;
-  const h = Math.floor(d / 3600);
-  d %= 3600;
-  const m = Math.floor(d / 60);
-  return `(${h > 0 ? `${h}h ` : ""}${m}m)`;
-};
+
 const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 
 const AdminEmployeeWorkSession = () => {
@@ -115,9 +107,8 @@ const AdminEmployeeWorkSession = () => {
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState(getWeekDateRange());
-  const [totalDuration, setTotalDuration] = useState({ hours: 0, minutes: 0 });
+  const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
 
-  // --- NEW: States for the new dropdown UI ---
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
   const [activePreset, setActivePreset] = useState("Current week");
   const presetDropdownRef = useRef(null);
@@ -139,27 +130,7 @@ const AdminEmployeeWorkSession = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Calculate total time
-  useEffect(() => {
-    if (sessions && sessions.length > 0) {
-      const totalMilliseconds = sessions.reduce((acc, session) => {
-        if (!session.start_time || !session.end_time) return acc;
-        const startTime = new Date(`1970-01-01T${session.start_time}Z`);
-        const endTime = new Date(`1970-01-01T${session.end_time}Z`);
-        if (isNaN(startTime) || isNaN(endTime) || endTime < startTime)
-          return acc;
-        return acc + (endTime - startTime);
-      }, 0);
-      const totalSeconds = totalMilliseconds / 1000;
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      setTotalDuration({ hours, minutes });
-    } else {
-      setTotalDuration({ hours: 0, minutes: 0 });
-    }
-  }, [sessions]);
-
-  // Fetching logic (Employee, Projects, Tasks, Sessions)
+  // Fetching logic
   useEffect(() => {
     if (!isAuthenticated || !employeeId) return;
     const fetchEmployeeDetails = async () => {
@@ -250,12 +221,14 @@ const AdminEmployeeWorkSession = () => {
       if (!response.ok)
         throw new Error(result.message || "Failed to fetch data");
       setSessions(result.data?.reverse() || []);
+      setOverallTotalTime(result.overall_total_time || "0h 0m");
       setPaginationInfo({
         currentPage: result.current_page,
         lastPage: result.last_page,
       });
     } catch (err) {
       toast.error(err.message);
+      setOverallTotalTime("0h 0m");
     } finally {
       setLoading(false);
     }
@@ -276,7 +249,9 @@ const AdminEmployeeWorkSession = () => {
     setTasks([]);
     setDateRange(getWeekDateRange());
     setActivePreset("Current week");
+    setOverallTotalTime("0h 0m");
   };
+
   const handleDelete = (sessionId) => {
     Swal.fire({
       title: "Are you sure?",
@@ -295,13 +270,14 @@ const AdminEmployeeWorkSession = () => {
           });
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
-          setSessions((p) => p.filter((s) => s.id !== sessionId));
+          fetchWorkSessions(); // Refetch to update list and total time
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
         }
       }
     });
   };
+
   const handleNextPage = () => {
     if (paginationInfo?.currentPage < paginationInfo?.lastPage)
       setCurrentPage((p) => p + 1);
@@ -333,9 +309,9 @@ const AdminEmployeeWorkSession = () => {
               {employeeName || "Loading..."}
             </span>
           </h4>
-          {!loading && sessions.length > 0 && (
+          {!loading && (
             <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg">
-              Total Time: {totalDuration.hours}h {totalDuration.minutes}m
+              Total Time: {overallTotalTime}
             </div>
           )}
         </div>
@@ -392,10 +368,8 @@ const AdminEmployeeWorkSession = () => {
             </select>
           </div>
 
-          {/* --- CHANGE: Date filter UI split into two parts --- */}
           <div className="flex flex-col justify-end lg:col-span-3">
             <div className="flex items-end gap-2">
-              {/* 1. Presets Dropdown */}
               <div className="flex-shrink-0">
                 <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Period
@@ -430,7 +404,6 @@ const AdminEmployeeWorkSession = () => {
                 </div>
               </div>
 
-              {/* 2. Custom Date Range Picker */}
               <div className="flex-grow">
                 <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Custom Date Range
@@ -442,13 +415,12 @@ const AdminEmployeeWorkSession = () => {
                   onChange={(dates) => {
                     if (dates.length === 2) {
                       setDateRange(dates);
-                      setActivePreset("Custom"); // Set preset to custom on manual change
+                      setActivePreset("Custom");
                     }
                   }}
                 />
               </div>
 
-              {/* 3. Reset Button */}
               <div className="flex-shrink-0">
                 <button
                   onClick={handleResetFilters}
@@ -462,7 +434,6 @@ const AdminEmployeeWorkSession = () => {
         </div>
       </div>
 
-      {/* The rest of the component remains the same */}
       <div className="pt-6">
         {loading ? (
           <div className="text-center py-16">
@@ -493,10 +464,7 @@ const AdminEmployeeWorkSession = () => {
                       {formatTime(session.start_time)} –{" "}
                       {formatTime(session.end_time)}
                       <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
-                        {calculateDuration(
-                          session.start_time,
-                          session.end_time
-                        )}
+                        ({session.total_time})
                       </span>
                     </p>
                     <button

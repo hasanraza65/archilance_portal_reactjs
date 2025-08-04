@@ -21,6 +21,7 @@ const TrashIcon = () => (
     />
   </svg>
 );
+
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
   const [h, m] = timeStr.split(":");
@@ -31,21 +32,11 @@ const formatTime = (timeStr) => {
     hour12: true,
   });
 };
-const calculateDuration = (start, end) => {
-  if (!start || !end) return "(N/A)";
-  const sT = new Date(`1970-01-01T${start}Z`),
-    eT = new Date(`1970-01-01T${end}Z`);
-  if (isNaN(sT) || isNaN(eT) || eT < sT) return "(N/A)";
-  let d = (eT - sT) / 1000;
-  const h = Math.floor(d / 3600);
-  d %= 3600;
-  const m = Math.floor(d / 60);
-  return `(${h > 0 ? `${h}h ` : ""}${m}m)`;
-};
+
 const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 
 const WorkSession = () => {
-  const { token, logout, isAuthenticated } = useAuth();
+  const { token, isAuthenticated } = useAuth();
 
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
@@ -59,6 +50,8 @@ const WorkSession = () => {
   const [dateRange, setDateRange] = useState([]);
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
+  const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
+  
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
@@ -135,19 +128,30 @@ const WorkSession = () => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || `Request failed`);
         setSessions(result.data?.reverse() || []);
+        setOverallTotalTime(result.overall_total_time || "0h 0m");
         setPaginationInfo({
           currentPage: result.current_page,
           lastPage: result.last_page,
         });
       } catch (err) {
         toast.error(err.message);
+        setOverallTotalTime("0h 0m");
         setSessions([]);
       } finally {
         setLoading(false);
       }
     };
     performFetch();
-  }, [fetchTrigger, currentPage, isAuthenticated, token, hasSearched, API_BASE_URL, dateRange, selectedTask]);
+  }, [
+    fetchTrigger,
+    currentPage,
+    isAuthenticated,
+    token,
+    hasSearched,
+    API_BASE_URL,
+    dateRange,
+    selectedTask,
+  ]);
 
   const handleSearch = () => {
     setHasSearched(true);
@@ -165,6 +169,7 @@ const WorkSession = () => {
     setDateRange([]);
     setHasSearched(false);
     setSessions([]);
+    setOverallTotalTime("0h 0m");
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
@@ -196,6 +201,50 @@ const WorkSession = () => {
     });
   };
 
+  const handleDeleteScreenshot = (sessionId, screenshotId) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/screenshot/${screenshotId}`,
+            {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(
+              errorData.message || "Failed to delete the screenshot."
+            );
+          }
+          Swal.fire("Deleted!", "The screenshot has been deleted.", "success");
+          setSessions((currentSessions) =>
+            currentSessions.map((session) => {
+              if (session.id === sessionId) {
+                const updatedScreenshots = session.screenshots.filter(
+                  (ss) => ss.id !== screenshotId
+                );
+                return { ...session, screenshots: updatedScreenshots };
+              }
+              return session;
+            })
+          );
+        } catch (e) {
+          Swal.fire("Error!", e.message, "error");
+        }
+      }
+    });
+  };
+
   const handleNextPage = () => {
     if (paginationInfo?.currentPage < paginationInfo?.lastPage)
       setCurrentPage((p) => p + 1);
@@ -214,9 +263,12 @@ const WorkSession = () => {
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-6">
+        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
           Work Diary
         </h1>
+        <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg mb-6">
+              Total Time: {overallTotalTime}
+            </div>
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -345,10 +397,7 @@ const WorkSession = () => {
                         {formatTime(session.start_time)} –{" "}
                         {formatTime(session.end_time)}
                         <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
-                          {calculateDuration(
-                            session.start_time,
-                            session.end_time
-                          )}
+                          ({session.total_time})
                         </span>
                       </p>
                       <button
@@ -368,7 +417,10 @@ const WorkSession = () => {
                       {session.screenshots.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                           {session.screenshots.map((ss) => (
-                            <div key={ss.id} className="text-center">
+                            <div
+                              key={ss.id}
+                              className="text-center group relative"
+                            >
                               <a
                                 href={`${STORAGE_URL}/${ss.screenshot_file}`}
                                 target="_blank"
@@ -380,6 +432,15 @@ const WorkSession = () => {
                                   className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
                                 />
                               </a>
+                              <button
+                                onClick={() =>
+                                  handleDeleteScreenshot(session.id, ss.id)
+                                }
+                                title="Delete Screenshot"
+                                className="absolute top-1 right-1 p-1 bg-red-600/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-700"
+                              >
+                                <TrashIcon />
+                              </button>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
                                 {formatTime(ss.created_at.split("T")[1])}
                               </p>
