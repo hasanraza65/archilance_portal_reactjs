@@ -1,8 +1,7 @@
-import React, { useEffect, Suspense, Fragment, useRef } from "react";
+import React, { useEffect, Suspense, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Header from "@/components/partials/header";
 import Sidebar from "@/components/partials/sidebar";
-import Settings from "@/components/partials/settings";
 import useWidth from "@/hooks/useWidth";
 import useSidebar from "@/hooks/useSidebar";
 import useContentWidth from "@/hooks/useContentWidth";
@@ -16,17 +15,27 @@ import { ToastContainer } from "react-toastify";
 import Loading from "@/components/Loading";
 import { motion, AnimatePresence } from "framer-motion";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
-
-// +++ STEP 1: Naye hook ko yahan import karein +++
 import useBodyScrollLock from "@/hooks/useBodyScrollLock";
 
 const Layout = () => {
   const { width, breakpoints } = useWidth();
   const [collapsed] = useSidebar();
   const location = useLocation();
-  
-  // +++ STEP 2: Hook ko yahan component ke andar call karein +++
+
   useBodyScrollLock();
+
+  const [isMobileChatView, setIsMobileChatView] = useState(false);
+
+  useEffect(() => {
+    const onChatPage = location.pathname.startsWith("/chat");
+    const isMobile = width < breakpoints.lg;
+
+    if (onChatPage && isMobile) {
+      setIsMobileChatView(true);
+    } else {
+      setIsMobileChatView(false);
+    }
+  }, [location, width, breakpoints]);
 
   const switchHeaderClass = () => {
     if (menuType === "horizontal" || menuHidden) {
@@ -42,6 +51,16 @@ const Layout = () => {
   const [menuType] = useMenulayout();
   const [menuHidden] = useMenuHidden();
   const [mobileMenu, setMobileMenu] = useMobileMenu();
+
+  if (isMobileChatView) {
+    return (
+      <div className="fixed inset-0 w-full h-full bg-white dark:bg-slate-800">
+        <Suspense fallback={<Loading />}>
+          <Outlet />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -84,18 +103,9 @@ const Layout = () => {
                   animate="pageAnimate"
                   exit="pageExit"
                   variants={{
-                    pageInitial: {
-                      opacity: 0,
-                      y: 50,
-                    },
-                    pageAnimate: {
-                      opacity: 1,
-                      y: 0,
-                    },
-                    pageExit: {
-                      opacity: 0,
-                      y: -50,
-                    },
+                    pageInitial: { opacity: 0, y: 50 },
+                    pageAnimate: { opacity: 1, y: 0 },
+                    pageExit: { opacity: 0, y: -50 },
                   }}
                   transition={{
                     type: "tween",

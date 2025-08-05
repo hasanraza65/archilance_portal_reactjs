@@ -1,12 +1,10 @@
-// src/pages/app/chat/Chat.jsx
-
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import useWidth from "@/hooks/useWidth";
 import Icon from "@/components/ui/Icon";
 import UserAvatar from "@/components/ui/UserAvatar";
 import {
-  toggleMobileChatSidebar,
+  goBackToChatList,
   infoToggle,
   sendMessageToServer,
   deleteMessage,
@@ -34,7 +32,6 @@ const isImage = (attachment) => {
   return false;
 };
 
-// ✅ آڈیو فائل چیک کرنے کے لیے نیا فنکشن
 const isAudio = (attachment) => {
   const mime = attachment.mime_type || "";
   if (mime) {
@@ -77,14 +74,12 @@ const Chat = () => {
   const scrollHeightBeforeLoad = useRef(0);
   const prevMessFeedLengthRef = useRef(messFeed.length);
 
-  // --- VOICE MESSAGE STATE AND REFS (START) ---
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
   const audioChunksRef = useRef([]);
-  // --- VOICE MESSAGE STATE AND REFS (END) ---
 
   useEffect(() => {
     const chatContainer = chatheight.current;
@@ -110,7 +105,6 @@ const Chat = () => {
     prevMessFeedLengthRef.current = messFeed.length;
   }, [messFeed, isOlderMessagesLoading]);
 
-  // Cleanup timer on component unmount
   useEffect(() => {
     return () => {
       if (recordingIntervalRef.current) {
@@ -216,16 +210,16 @@ const Chat = () => {
   }, [menuState.visible]);
 
   useEffect(() => {
-    const chatContainer = chatheight.current;
-    if (chatContainer) {
-      chatContainer.addEventListener("scroll", handleCloseMenu);
+    if (!menuState.visible) {
+      return;
     }
+
+    window.addEventListener("scroll", handleCloseMenu, true);
+
     return () => {
-      if (chatContainer) {
-        chatContainer.removeEventListener("scroll", handleCloseMenu);
-      }
+      window.removeEventListener("scroll", handleCloseMenu, true);
     };
-  }, [handleCloseMenu]);
+  }, [menuState.visible, handleCloseMenu]);
 
   const handleDeleteMessage = (messageId) => {
     Swal.fire({
@@ -343,7 +337,7 @@ const Chat = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm",
-      }); // ✅ MimeType سیٹ کریں
+      });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -535,17 +529,17 @@ const Chat = () => {
   };
 
   return (
-    <div className="h-full flex flex-col" onClick={handleCloseMenu}>
+    <div className="h-full flex flex-col">
       <header className="border-b border-slate-100 dark:border-slate-700">
         <div className="flex py-6 md:px-6 px-3 items-center">
           <div className="flex-1">
             <div className="flex space-x-3 rtl:space-x-reverse">
               {width <= breakpoints.lg && (
                 <span
-                  onClick={() => dispatch(toggleMobileChatSidebar(true))}
+                  onClick={() => dispatch(goBackToChatList())}
                   className="text-slate-900 dark:text-white cursor-pointer text-xl self-center ltr:mr-3 rtl:ml-3"
                 >
-                  <Icon icon="heroicons-outline:menu-alt-1" />
+                  <Icon icon="heroicons-outline:arrow-left" />
                 </span>
               )}
               <div className="flex-none">
@@ -574,7 +568,6 @@ const Chat = () => {
             </div>
           </div>
           <div className="flex-none flex md:space-x-3 space-x-1 items-center rtl:space-x-reverse">
-            {/* --- نیا رنگین 'Schedule a meeting' بٹن --- */}
             <a
               href="https://outlook.office365.com/book/ArchilanceLLC@archilance.net/"
               target="_blank"
@@ -586,14 +579,14 @@ const Chat = () => {
                 Schedule a meeting
               </span>
             </a>
-
-            {/* --- موجودہ تین نقطوں والا بٹن --- */}
-            <div
-              onClick={() => dispatch(infoToggle(!openinfo))}
-              className="msg-action-btn cursor-pointer"
-            >
-              <Icon icon="heroicons-outline:dots-horizontal" />
-            </div>
+            {width > breakpoints.lg && (
+                <div
+                onClick={() => dispatch(infoToggle(!openinfo))}
+                className="msg-action-btn cursor-pointer"
+                >
+                <Icon icon="heroicons-outline:dots-horizontal" />
+                </div>
+            )}
           </div>
         </div>
       </header>
@@ -731,7 +724,7 @@ const Chat = () => {
                                     alt={att.file_name}
                                     className="max-w-[250px] h-auto rounded-md object-cover"
                                   />
-                                ) : isAudio(att) ? ( // ✅ آڈیو پلیئر کے لیے چیک کریں
+                                ) : isAudio(att) ? (
                                   <AudioPlayer src={att.url} />
                                 ) : (
                                   <a
@@ -768,20 +761,22 @@ const Chat = () => {
                     </div>
 
                     {item.reactions && item.reactions.length > 0 && (
-                      <div className="flex space-x-1 -mt-2 z-10">
-                        {item.reactions.slice(0, 2).map((reaction) => (
-                          <div
-                            key={reaction.id}
-                            className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded-full text-xs shadow-md border border-slate-200 dark:border-slate-600"
-                          >
-                            {reaction.reaction}
-                          </div>
-                        ))}
-                      </div>
+                        <div className="-mt-3 z-10">
+                            <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] scrollbar-hide py-1">
+                                {item.reactions.map((reaction) => (
+                                    <div
+                                    key={reaction.id}
+                                    className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded-full text-xs shadow-md border border-slate-200 dark:border-slate-600 flex-shrink-0"
+                                    >
+                                    {reaction.reaction}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
                   </div>
-
-                  {item.sender === "me" &&
+                  {width > breakpoints.lg &&
+                    item.sender === "me" &&
                     !editingMessageId &&
                     item.status !== "pending" && (
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-2 self-center">
