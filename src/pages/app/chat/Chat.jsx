@@ -67,7 +67,7 @@ const Chat = () => {
   const [editedText, setEditedText] = useState("");
   const [menuState, setMenuState] = useState({
     visible: false,
-    position: { x: 0, y: 0 },
+    anchorEl: null,
     message: null,
   });
   const [replyingTo, setReplyingTo] = useState(null);
@@ -80,6 +80,8 @@ const Chat = () => {
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
   const audioChunksRef = useRef([]);
+
+  const longPressTimerRef = useRef();
 
   useEffect(() => {
     const chatContainer = chatheight.current;
@@ -196,30 +198,38 @@ const Chat = () => {
     }
     event.preventDefault();
     event.stopPropagation();
+
     setMenuState({
       visible: true,
-      position: { x: event.clientX, y: event.clientY },
+      anchorEl: event.currentTarget,
       message: message,
     });
   };
 
   const handleCloseMenu = useCallback(() => {
     if (menuState.visible) {
-      setMenuState((prev) => ({ ...prev, visible: false }));
+      setMenuState({ visible: false, anchorEl: null, message: null });
     }
   }, [menuState.visible]);
 
   useEffect(() => {
-    if (!menuState.visible) {
-      return;
-    }
-
+    if (!menuState.visible) return;
     window.addEventListener("scroll", handleCloseMenu, true);
-
     return () => {
       window.removeEventListener("scroll", handleCloseMenu, true);
     };
   }, [menuState.visible, handleCloseMenu]);
+
+  const handleTouchStart = (event, message) => {
+    if (width >= breakpoints.lg) return;
+    longPressTimerRef.current = setTimeout(() => {
+      handleRightClick(event, message);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    clearTimeout(longPressTimerRef.current);
+  };
 
   const handleDeleteMessage = (messageId) => {
     Swal.fire({
@@ -284,6 +294,9 @@ const Chat = () => {
         break;
       case "delete-for-me":
         handleDeleteMessage(currentMessage.id);
+        break;
+      case "edit":
+        handleEditClick(currentMessage);
         break;
       case "react": {
         const myReaction = currentMessage.reactions.find(
@@ -632,6 +645,10 @@ const Chat = () => {
                 className="block md:px-6 px-4"
                 key={item.id}
                 onContextMenu={(e) => handleRightClick(e, item)}
+                onDoubleClick={(e) => { if (width < breakpoints.lg) handleRightClick(e, item); }}
+                onTouchStart={(e) => handleTouchStart(e, item)}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchEnd}
               >
                 <div
                   className={`flex space-x-2 items-start group rtl:space-x-reverse ${
@@ -973,7 +990,7 @@ const Chat = () => {
       </footer>
       <MessageContextMenu
         visible={menuState.visible}
-        position={menuState.position}
+        anchorEl={menuState.anchorEl}
         message={menuState.message}
         onClose={handleCloseMenu}
         onAction={handleMenuAction}

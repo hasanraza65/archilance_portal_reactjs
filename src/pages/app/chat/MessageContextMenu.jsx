@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import Icon from "@/components/ui/Icon";
-import ScrollContainer from "react-indiana-drag-scroll"; // <-- IMPORT THE NEW LIBRARY
+import ScrollContainer from "react-indiana-drag-scroll";
 
 const EMOJI_REACTIONS = ["👍", "❤️", "😂", "😯", "😢", "🙏", "🔥", "😡"];
 
 const MessageContextMenu = ({
   visible,
-  position,
+  anchorEl, // Expecting anchorEl, NOT position
   message,
   onClose,
   onAction,
@@ -30,28 +30,28 @@ const MessageContextMenu = ({
     };
   }, [visible, onClose]);
 
+  // This effect now correctly uses anchorEl to calculate position
   useEffect(() => {
-    if (visible && menuRef.current) {
-      const menuWidth = menuRef.current.offsetWidth;
-      const menuHeight = menuRef.current.offsetHeight;
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
+    if (visible && anchorEl && menuRef.current) {
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const anchorRect = anchorEl.getBoundingClientRect();
 
-      let left = position.x;
-      let top = position.y;
+      let top = anchorRect.bottom + 5; // Position below the message
+      let left = anchorRect.left;
 
-      if (left + menuWidth > windowWidth) {
-        left = windowWidth - menuWidth - 10;
+      // Adjust if it goes off-screen
+      if (left + menuRect.width > window.innerWidth) {
+        left = window.innerWidth - menuRect.width - 10;
       }
-      if (top + menuHeight > windowHeight) {
-        top = windowHeight - menuHeight - 10;
+      if (top + menuRect.height > window.innerHeight) {
+        top = anchorRect.top - menuRect.height - 5; // Position above if no space below
       }
       if (top < 10) top = 10;
       if (left < 10) left = 10;
 
       setFinalPosition({ top, left });
     }
-  }, [visible, position]);
+  }, [visible, anchorEl]);
 
   if (!visible || !message) return null;
 
@@ -69,6 +69,12 @@ const MessageContextMenu = ({
       action: "copy",
       condition: !!message.content
     },
+    {
+      name: "Edit",
+      icon: "heroicons-outline:pencil-square",
+      action: "edit",
+      condition: message.sender === 'me' && !!message.content
+    },
     { 
       name: "Delete for me", 
       icon: "heroicons-outline:trash", 
@@ -81,7 +87,7 @@ const MessageContextMenu = ({
   const menuContent = (
     <div
       ref={menuRef}
-      className="fixed z-[9999] w-48 rounded-xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none border border-slate-200 dark:border-slate-700 overflow-hidden"
+      className={`fixed z-[9999] w-48 rounded-xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none border border-slate-200 dark:border-slate-700 overflow-hidden transition-opacity duration-150 ${visible ? 'opacity-100' : 'opacity-0'}`}
       style={{ top: `${finalPosition.top}px`, left: `${finalPosition.left}px` }}
     >
       <ul className="py-1">
@@ -105,7 +111,6 @@ const MessageContextMenu = ({
           )
         ))}
       </ul>
-      {/* WRAP THE EMOJI BAR WITH ScrollContainer */}
        <ScrollContainer className="flex justify-around items-center p-2 bg-slate-50 dark:bg-slate-700/50 cursor-grab">
         {EMOJI_REACTIONS.map((emoji) => (
           <button
