@@ -63,7 +63,7 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:document",
     link: "jobs",
-    allowedRoles: ["admin", "employee","customer"], // Sabko dikhega
+    allowedRoles: ["admin", "employee","customer","member"], // Sabko dikhega
   },
   {
     title: "Chat",

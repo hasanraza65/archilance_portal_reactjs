@@ -132,7 +132,7 @@ function App() {
           <Route
             path="dashboard"
             element={
-              <ProtectedRoute allowedRoles={["admin", "customer"]}>
+              <ProtectedRoute allowedRoles={["admin", "customer","member"]}>
                 <Suspense fallback={<Loading />}>
                   <Dashboard />
                 </Suspense>
@@ -182,7 +182,7 @@ function App() {
           <Route
             path="jobs"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
                 <ProjectPostPage />
               </ProtectedRoute>
             }
@@ -190,7 +190,7 @@ function App() {
           <Route
             path="jobs/:id"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
                 <ProjectDetailsPage />
               </ProtectedRoute>
             }
@@ -198,7 +198,7 @@ function App() {
           <Route
             path="/project/:taskId"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
                 <TaskDetailsPage />
               </ProtectedRoute>
             }
@@ -206,7 +206,7 @@ function App() {
           <Route
             path="/job/:id/kanban"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee","member"]}>
                 <KanbanPage />
               </ProtectedRoute>
             }
@@ -214,7 +214,7 @@ function App() {
           <Route
             path="/job-brief/:briefId"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
                 <ProjectBriefDetailPage />
               </ProtectedRoute>
             }

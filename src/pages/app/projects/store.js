@@ -6,15 +6,23 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const API_ROOT = `${import.meta.env.VITE_BACKEND_BASE_URL}/api`;
 
+// ====================================================================
+// CHANGE #1: getProjectPath function ko update kiya gaya hai
+// ====================================================================
 const getProjectPath = () => {
-  const role = getApiPrefix();
-  if (role === "employee") {
-    return "/employee/project";
+  const role = getApiPrefix(); // Ye 'admin', 'employee', 'customer', ya 'member' return karega
+
+  switch (role) {
+    case "employee":
+      return "/employee/project";
+    case "customer":
+      return "/customer/project";
+    case "member": // 'member' role ke liye naya path add kiya gaya
+      return "/member/project";
+    case "admin":
+    default: // Agar koi role match na ho to default 'admin' path istemal hoga
+      return "/admin/project";
   }
-  if (role === "customer") {
-    return "/customer/project";
-  }
-  return "/admin/project";
 };
 
 const formatProjectFromAPI = (project) => ({
@@ -36,7 +44,7 @@ export const fetchProjectsAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath();
+      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
       const response = await axios.get(`${API_ROOT}${path}?page=${page}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -71,7 +79,7 @@ export const addProjectAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath();
+      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
       const response = await axios.post(`${API_ROOT}${path}`, projectData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -106,7 +114,7 @@ export const saveEditedProjectAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath();
+      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
       const response = await axios.put(`${API_ROOT}${path}/${projectData.id}`, projectData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -142,7 +150,7 @@ export const deleteProjectAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found");
 
-      const path = getProjectPath();
+      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
       const response = await axios.delete(`${API_ROOT}${path}/${projectId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -180,8 +188,19 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
       if (!token) return rejectWithValue("Authentication token not found.");
       
       const payload = { project_id, employee_ids };
+      
+      // ====================================================================
+      // CHANGE #2: Hardcoded 'admin' path ko dynamic banaya gaya hai
+      // ====================================================================
+      const role = getApiPrefix();
+      if (!role) {
+        return rejectWithValue("User role could not be determined.");
+      }
 
-      await axios.post(`${API_ROOT}/admin/update-project-assignees`, payload, {
+      // Role ke hisab se dynamic path banaya ja raha hai
+      const updatePath = `/${role}/update-project-assignees`;
+
+      await axios.post(`${API_ROOT}${updatePath}`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
@@ -205,7 +224,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath();
+      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
       const payload = { [field]: value };
       
       const response = await axios.patch(`${API_ROOT}${path}/${projectId}`, payload, {
@@ -231,6 +250,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
   }
 );
 
+// Slice reducers mein koi change ki zaroorat nahi hai
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {
