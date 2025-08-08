@@ -62,7 +62,10 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
-const TaskList = ({ statusFilter, onLoadingChange }) => {
+// ====================================================================
+// CHANGE #1: 'searchQuery' prop ko accept karein
+// ====================================================================
+const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -78,7 +81,8 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
     }
   }, [isLoading, onLoadingChange]);
 
-  const fetchTasks = useCallback(async (filter) => {
+  const fetchTasks = useCallback(async () => {
+    // Ab statusFilter yahan se hat gaya kyunki filtering client-side par hogi
     setIsLoading(true);
     setError(null);
     const token = getAuthToken();
@@ -96,18 +100,12 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         Accept: "application/json",
       };
 
-      const params = new URLSearchParams();
-      if (filter && filter.toLowerCase() !== "all") {
-        params.append("task_status", filter);
-      }
-
       let allTasks = [];
       let currentPage = 1;
       let lastPage = 1;
 
       do {
-        params.set("page", currentPage);
-        const response = await axios.get(`${baseUrl}?${params.toString()}`, {
+        const response = await axios.get(`${baseUrl}?page=${currentPage}`, {
           headers,
         });
         allTasks.push(...(response.data.data || []));
@@ -126,11 +124,37 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []); // dependency array se statusFilter hata diya
 
   useEffect(() => {
-    fetchTasks(statusFilter);
-  }, [statusFilter, fetchTasks]);
+    fetchTasks();
+  }, [fetchTasks]); // Ye sirf component load hone par chalega
+
+  // ====================================================================
+  // CHANGE #2: Filtering ke liye useMemo hook ka istemal karein
+  // ====================================================================
+  const filteredTasks = useMemo(() => {
+    let tasksToFilter = tasks;
+
+    // 1. Status se filter karein
+    if (statusFilter && statusFilter.toLowerCase() !== "all") {
+      tasksToFilter = tasksToFilter.filter(
+        (task) => task.task_status?.toLowerCase() === statusFilter.toLowerCase()
+      );
+    }
+
+    // 2. Search query se filter karein
+    if (searchQuery && searchQuery.trim() !== "") {
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      tasksToFilter = tasksToFilter.filter(
+        (task) =>
+          task.task_title?.toLowerCase().includes(lowerCaseQuery) ||
+          task.project?.project_name?.toLowerCase().includes(lowerCaseQuery)
+      );
+    }
+
+    return tasksToFilter;
+  }, [tasks, statusFilter, searchQuery]);
 
   const handleOpenEditModal = useCallback((task, e) => {
     e.stopPropagation();
@@ -168,7 +192,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
                 "The task has been successfully deleted.",
                 "success"
               );
-              fetchTasks(statusFilter);
+              fetchTasks(); // statusFilter ki zaroorat nahi
             })
             .catch((error) => {
               Swal.fire(
@@ -181,7 +205,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         }
       });
     },
-    [statusFilter, fetchTasks]
+    [fetchTasks] // statusFilter yahan se bhi hata diya
   );
 
   const formatDate = (dateString) => {
@@ -233,7 +257,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
           <EditableTaskStatus
             taskId={row.original.id}
             currentStatus={row.original.task_status}
-            onStatusUpdate={() => fetchTasks(statusFilter)}
+            onStatusUpdate={() => fetchTasks()} // statusFilter yahan se bhi hata diya
             isEditable={userRole !== "customer"}
           />
         ),
@@ -271,12 +295,14 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
       handleOpenEditModal,
       handleDelete,
       userRole,
-      statusFilter,
       fetchTasks,
     ]
   );
-
-  const data = useMemo(() => tasks, [tasks]);
+  
+  // ====================================================================
+  // CHANGE #3: Ab data ke liye 'filteredTasks' ka istemal karein
+  // ====================================================================
+  const data = useMemo(() => filteredTasks, [filteredTasks]);
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable(
@@ -296,12 +322,18 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
 
   if (isLoading) return <TableLoading count={10} />;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
-  if (tasks.length === 0) {
+
+  // ====================================================================
+  // CHANGE #4: 'No Projects Found' message ko update karein
+  // ====================================================================
+  if (data.length === 0) {
     return (
       <div className="p-16 text-center text-slate-500">
         <Icon icon="heroicons-outline:inbox" className="mx-auto h-12 w-12" />
         <h4 className="mt-2 text-lg font-medium">No Projects Found</h4>
-        {statusFilter.toLowerCase() !== "all" ? (
+        {searchQuery ? (
+           <p className="mt-1">No projects match your search for "<span className="font-semibold">{searchQuery}</span>".</p>
+        ) : statusFilter.toLowerCase() !== "all" ? (
           <p className="mt-1">
             There are no projects with the status "
             <span className="font-semibold capitalize">{statusFilter}</span>".
@@ -376,7 +408,7 @@ const TaskList = ({ statusFilter, onLoadingChange }) => {
         activeModal={editTaskModal}
         onClose={() => setEditTaskModal(false)}
         task={currentTask}
-        onUpdate={() => fetchTasks(statusFilter)}
+        onUpdate={() => fetchTasks()} // statusFilter ki zaroorat nahi
       />
     </>
   );

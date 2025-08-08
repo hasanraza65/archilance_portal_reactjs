@@ -103,11 +103,6 @@ const ProjectList = ({ projects, userRole }) => {
 
   const handleRowNavigation = (projectId) => {
     if (!projectId) return;
-    // ====================================================================
-    // CHANGE #2: 'userRole' prop ke hisab se redirect karein.
-    // Agar parent se 'member' ke liye 'customer' role aa raha hai,
-    // to ye logic bilkul theek kaam karegi.
-    // ====================================================================
     if (userRole === "customer")
       navigate(`/order-details/${projectId}`);
     else navigate(`/jobs/${projectId}`);
@@ -210,11 +205,6 @@ const ProjectList = ({ projects, userRole }) => {
         ),
       },
     ];
-
-    // ====================================================================
-    // CHANGE #3: Action column dikhane ki logic ab 'userRole' prop par depend karegi.
-    // Agar parent 'member' ke liye 'customer' role bhej raha hai, to ye column nahi dikhega.
-    // ====================================================================
     if (userRole !== "customer") {
       baseColumns.push({
         Header: "Action",
@@ -333,9 +323,6 @@ const ProjectList = ({ projects, userRole }) => {
                         <td
                           {...cell.getCellProps()}
                           className="table-td"
-                          // ====================================================================
-                          // CHANGE #4: Clickable row ki logic ko update karein
-                          // ====================================================================
                           style={{
                             cursor:
                               userRole !== "customer" &&

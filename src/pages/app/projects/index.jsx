@@ -12,9 +12,6 @@ import AddProject from "./AddProject";
 import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// ====================================================================
-// CHANGE #1: getApiPrefix ke bajaye getUserRole ko import kiya gaya hai
-// ====================================================================
 import { getUserRole } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
@@ -88,18 +85,16 @@ const ProjectPostPage = () => {
   const [filler, setFiller] = useState(
     () => sessionStorage.getItem("projectView") || "grid"
   );
+  
+  // Har tab ke liye alag state
   const [projectStatusFilter, setProjectStatusFilter] = useState("All");
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
+  const [projectSearchQuery, setProjectSearchQuery] = useState("");
+  const [taskSearchQuery, setTaskSearchQuery] = useState("");
+
   const [isTaskListLoading, setTaskListLoading] = useState(true);
 
-  // ====================================================================
-  // CHANGE #2: User ka asal role hasil karein
-  // ====================================================================
   const actualUserRole = getUserRole(); 
-  
-  // ====================================================================
-  // CHANGE #3: UI ke liye role ko tayyar karein ('member' ko 'customer' banayein)
-  // ====================================================================
   const uiRole = actualUserRole === 'member' ? 'customer' : actualUserRole;
 
   const dispatch = useDispatch();
@@ -125,13 +120,28 @@ const ProjectPostPage = () => {
     setFiller(view);
   };
 
+  // Search aur Status ke hisab se Jobs ko filter karein
   const filteredProjects = useMemo(() => {
-    if (projectStatusFilter.toLowerCase() === "all") return projects;
-    return projects.filter(
-      (project) =>
-        project.status?.toLowerCase() === projectStatusFilter.toLowerCase()
-    );
-  }, [projects, projectStatusFilter]);
+    let projectsToFilter = projects;
+
+    if (projectStatusFilter.toLowerCase() !== "all") {
+      projectsToFilter = projectsToFilter.filter(
+        (project) =>
+          project.status?.toLowerCase() === projectStatusFilter.toLowerCase()
+      );
+    }
+
+    if (projectSearchQuery.trim() !== "") {
+      const lowerCaseQuery = projectSearchQuery.toLowerCase();
+      projectsToFilter = projectsToFilter.filter(
+        (project) =>
+          project.name?.toLowerCase().includes(lowerCaseQuery) ||
+          project.des?.toLowerCase().includes(lowerCaseQuery)
+      );
+    }
+
+    return projectsToFilter;
+  }, [projects, projectStatusFilter, projectSearchQuery]);
 
   const anyOperationPending =
     projectsDataLoading || isDeleting || isAdding || isUpdating;
@@ -178,9 +188,6 @@ const ProjectPostPage = () => {
           {activeTab === "projects" ? "Jobs" : "Projects"}
         </h4>
         
-        {/* ==================================================================== */}
-        {/* CHANGE #4: "Add Job" button ki logic mein 'uiRole' istemal karein */}
-        {/* ==================================================================== */}
         {activeTab === "projects" &&
           uiRole !== "employee" &&
           uiRole !== "customer" && (
@@ -197,15 +204,22 @@ const ProjectPostPage = () => {
       {activeTab === "projects" && (
         <>
           <Card className="mb-6">
-            <div className="md:flex justify-between items-center">
-              <StatusFilterBar
-                statuses={STATUS_OPTIONS}
-                activeFilter={projectStatusFilter}
-                onFilterChange={setProjectStatusFilter}
-                disabled={anyOperationPending}
-                className="md:mb-0 mb-4"
-              />
-              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            <div className="md:flex justify-between items-center space-y-4 md:space-y-0">
+              <div className="relative md:w-1/3">
+                  <input
+                    type="text"
+                    value={projectSearchQuery}
+                    onChange={(e) => setProjectSearchQuery(e.target.value)}
+                    placeholder="Search jobs by name or description..."
+                    className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
+                    disabled={anyOperationPending}
+                  />
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <Icon icon="heroicons-outline:search" className="w-5 h-5 text-slate-400" />
+                  </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
                 <Button
                   icon="heroicons:list-bullet"
                   disabled={anyOperationPending}
@@ -228,6 +242,13 @@ const ProjectPostPage = () => {
                 />
               </div>
             </div>
+            <hr className="my-4 border-slate-200 dark:border-slate-700" />
+            <StatusFilterBar
+                statuses={STATUS_OPTIONS}
+                activeFilter={projectStatusFilter}
+                onFilterChange={setProjectStatusFilter}
+                disabled={anyOperationPending}
+              />
           </Card>
 
           {projectsDataLoading &&
@@ -261,9 +282,6 @@ const ProjectPostPage = () => {
                       <ProjectGrid
                         project={project}
                         key={project.id}
-                        // ====================================================================
-                        // CHANGE #5: Child component ko 'uiRole' pass karein
-                        // ====================================================================
                         userRole={uiRole}
                       />
                     ))}
@@ -272,9 +290,6 @@ const ProjectPostPage = () => {
                 {filler === "list" && (
                   <ProjectList
                     projects={filteredProjects}
-                    // ====================================================================
-                    // CHANGE #6: Child component ko 'uiRole' pass karein
-                    // ====================================================================
                     userRole={uiRole}
                   />
                 )}
@@ -289,7 +304,8 @@ const ProjectPostPage = () => {
                   No Jobs Found
                 </h4>
                 <p className="mt-1 text-sm text-slate-500">
-                  {projectStatusFilter.toLowerCase() !== "all"
+                  {projectSearchQuery ? `No jobs match your search for "${projectSearchQuery}".`
+                   : projectStatusFilter.toLowerCase() !== "all"
                     ? `No jobs found with the status "${projectStatusFilter}".`
                     : "There are no Jobs to display."}
                 </p>
@@ -301,6 +317,22 @@ const ProjectPostPage = () => {
       {activeTab === "tasks" && (
         <>
           <Card className="mb-6">
+            <div className="md:flex justify-between items-center space-y-4 md:space-y-0">
+                <div className="relative md:w-1/3">
+                    <input
+                      type="text"
+                      value={taskSearchQuery}
+                      onChange={(e) => setTaskSearchQuery(e.target.value)}
+                      placeholder="Search projects by title..."
+                      className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
+                      disabled={isTaskListLoading}
+                    />
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <Icon icon="heroicons-outline:search" className="w-5 h-5 text-slate-400" />
+                    </div>
+                </div>
+            </div>
+            <hr className="my-4 border-slate-200 dark:border-slate-700" />
             <StatusFilterBar
               statuses={STATUS_OPTIONS}
               activeFilter={taskStatusFilter}
@@ -312,6 +344,7 @@ const ProjectPostPage = () => {
           <Card noBorder>
             <TaskList
               statusFilter={taskStatusFilter}
+              searchQuery={taskSearchQuery}
               onLoadingChange={setTaskListLoading}
             />
           </Card>
