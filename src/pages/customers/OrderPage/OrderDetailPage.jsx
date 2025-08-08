@@ -35,6 +35,9 @@ import {
   Undo2,
 } from "lucide-react";
 
+// === CHANGE #1: Hamara helper function import kiya gaya hai ===
+import { getApiPrefix } from "@/pages/utility/apiHelper";
+
 const stripHtml = (html) => {
   if (!html) return "";
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -42,6 +45,7 @@ const stripHtml = (html) => {
 };
 
 const AnimatedBackground = () => (
+  // ... is component mein koi change nahi ...
   <div className="fixed inset-0 -z-10 overflow-hidden">
     {" "}
     <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse" />{" "}
@@ -51,6 +55,7 @@ const AnimatedBackground = () => (
 );
 
 const OrderRequirements = ({ htmlContent }) => {
+  // ... is component mein koi change nahi ...
   const [isExpanded, setIsExpanded] = useState(false);
   const textContent = stripHtml(htmlContent);
   const maxLength = 200;
@@ -91,6 +96,7 @@ const OrderRequirements = ({ htmlContent }) => {
 };
 
 const OrderStatusStep = ({ status, text, isLast = false }) => {
+  // ... is component mein koi change nahi ...
   const statusConfig = {
     done: {
       Icon: <CheckCircle className="w-8 h-8 text-emerald-500" />,
@@ -139,6 +145,7 @@ const OrderStatusStep = ({ status, text, isLast = false }) => {
 };
 
 const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
+  // ... is component mein koi change nahi ...
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 4;
   if (!tasks || tasks.length === 0) {
@@ -312,6 +319,7 @@ const ConversationBox = ({
   currentUserId,
   apiBaseUrl,
 }) => {
+  // ... is component mein koi change nahi ...
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
   const [editingMessage, setEditingMessage] = useState(null);
@@ -698,6 +706,7 @@ const ConversationBox = ({
 };
 
 const calculateTimeLeft = (dueDate) => {
+  // ... is function mein koi change nahi ...
   if (!dueDate) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   const difference = +new Date(dueDate) - +new Date();
   if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
@@ -714,6 +723,9 @@ const OrderDetailsPage = () => {
   const { id: projectId } = useParams();
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const token = Cookies.get("token");
+
+  // === CHANGE #2: Role prefix ko yahan hasil karein ===
+  const rolePrefix = getApiPrefix();
 
   const CURRENT_USER_ID = 20;
 
@@ -732,8 +744,9 @@ const OrderDetailsPage = () => {
   const fetchMessages = async () => {
     if (!token || !projectId) return;
     try {
+      // === CHANGE #3: Hardcoded 'customer' ko dynamic rolePrefix se badlein ===
       const response = await fetch(
-        `${API_BASE_URL}/api/customer/project-chat/${projectId}`,
+        `${API_BASE_URL}/api/${rolePrefix}/project-chat/${projectId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -758,8 +771,9 @@ const OrderDetailsPage = () => {
     formData.append("message", newMessage.trim());
     attachments.forEach((att) => formData.append("attachments[]", att.file));
     try {
+      // === CHANGE #4: Hardcoded 'customer' ko dynamic rolePrefix se badlein ===
       const response = await fetch(
-        `${API_BASE_URL}/api/customer/project-chat`,
+        `${API_BASE_URL}/api/${rolePrefix}/project-chat`,
         {
           method: "POST",
           headers: {
@@ -798,8 +812,9 @@ const OrderDetailsPage = () => {
       formData.append("delete_attachments[]", id)
     );
     try {
+      // === CHANGE #5: Hardcoded 'customer' ko dynamic rolePrefix se badlein ===
       const response = await fetch(
-        `${API_BASE_URL}/api/customer/project-chat/${messageId}`,
+        `${API_BASE_URL}/api/${rolePrefix}/project-chat/${messageId}`,
         {
           method: "POST",
           headers: {
@@ -826,8 +841,9 @@ const OrderDetailsPage = () => {
 
   const handleDeleteMessage = async (messageId) => {
     try {
+      // === CHANGE #6: Hardcoded 'customer' ko dynamic rolePrefix se badlein ===
       const response = await fetch(
-        `${API_BASE_URL}/api/customer/project-chat/${messageId}`,
+        `${API_BASE_URL}/api/${rolePrefix}/project-chat/${messageId}`,
         {
           method: "DELETE",
           headers: {
@@ -861,8 +877,9 @@ const OrderDetailsPage = () => {
       setIsLoading(true);
       setIsMessagesLoading(true);
       try {
+        // === CHANGE #7: Hardcoded 'customer' ko dynamic rolePrefix se badlein ===
         const projectResponse = await fetch(
-          `${API_BASE_URL}/api/customer/project/${projectId}`,
+          `${API_BASE_URL}/api/${rolePrefix}/project/${projectId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -893,7 +910,7 @@ const OrderDetailsPage = () => {
     fetchInitialData();
     const pollInterval = setInterval(fetchMessages, 20000);
     return () => clearInterval(pollInterval);
-  }, [projectId, token]);
+  }, [projectId, token, rolePrefix]); // rolePrefix ko dependency array mein add karein
 
   useEffect(() => {
     if (!projectData) return;
@@ -905,6 +922,7 @@ const OrderDetailsPage = () => {
   }, [projectData]);
 
   const getStatusSteps = (status) => {
+    // ... is function mein koi change nahi ...
     const steps = {
       placed: "pending",
       requirements: "pending",
@@ -939,6 +957,7 @@ const OrderDetailsPage = () => {
 
   if (isLoading) {
     return (
+      // ... is JSX mein koi change nahi ...
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex justify-center items-center relative">
         <AnimatedBackground />
         <div className="text-center">
@@ -957,6 +976,7 @@ const OrderDetailsPage = () => {
   }
   if (error) {
     return (
+      // ... is JSX mein koi change nahi ...
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex justify-center items-center relative">
         <AnimatedBackground />
         <div className="text-center p-8 max-w-md">
@@ -982,6 +1002,7 @@ const OrderDetailsPage = () => {
   if (!projectData) return null;
 
   return (
+    // ... is JSX mein koi change nahi ...
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative">
       <AnimatedBackground />
       <div className="relative z-10 py-8">

@@ -7,13 +7,15 @@ import ProjectList from "./ProjectList";
 import TaskList from "./TaskList";
 import GridLoading from "@/components/skeleton/Grid";
 import TableLoading from "@/components/skeleton/Table";
-import Pagination from "@/components/ui/Pagination";
 import { toggleAddModal, fetchProjectsAPI } from "./store";
 import AddProject from "./AddProject";
 import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
+// ====================================================================
+// CHANGE #1: getApiPrefix ke bajaye getUserRole ko import kiya gaya hai
+// ====================================================================
+import { getUserRole } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
 
@@ -90,7 +92,16 @@ const ProjectPostPage = () => {
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
 
-  const userRole = getApiPrefix();
+  // ====================================================================
+  // CHANGE #2: User ka asal role hasil karein
+  // ====================================================================
+  const actualUserRole = getUserRole(); 
+  
+  // ====================================================================
+  // CHANGE #3: UI ke liye role ko tayyar karein ('member' ko 'customer' banayein)
+  // ====================================================================
+  const uiRole = actualUserRole === 'member' ? 'customer' : actualUserRole;
+
   const dispatch = useDispatch();
   const {
     projects,
@@ -99,12 +110,10 @@ const ProjectPostPage = () => {
     isAdding,
     isUpdating,
     error: projectsError,
-    currentPage,
-    totalPages,
   } = useSelector((state) => state.project);
 
   useEffect(() => {
-    dispatch(fetchProjectsAPI(1));
+    dispatch(fetchProjectsAPI());
   }, [dispatch]);
 
   useEffect(() => {
@@ -114,12 +123,6 @@ const ProjectPostPage = () => {
   const toggleView = (view) => {
     sessionStorage.setItem("projectView", view);
     setFiller(view);
-  };
-
-  const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      dispatch(fetchProjectsAPI(page));
-    }
   };
 
   const filteredProjects = useMemo(() => {
@@ -174,9 +177,13 @@ const ProjectPostPage = () => {
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
           {activeTab === "projects" ? "Jobs" : "Projects"}
         </h4>
+        
+        {/* ==================================================================== */}
+        {/* CHANGE #4: "Add Job" button ki logic mein 'uiRole' istemal karein */}
+        {/* ==================================================================== */}
         {activeTab === "projects" &&
-          userRole !== "employee" &&
-          userRole !== "customer" && (
+          uiRole !== "employee" &&
+          uiRole !== "customer" && (
             <Button
               icon="heroicons-outline:plus"
               text="Add Job"
@@ -254,7 +261,10 @@ const ProjectPostPage = () => {
                       <ProjectGrid
                         project={project}
                         key={project.id}
-                        userRole={userRole}
+                        // ====================================================================
+                        // CHANGE #5: Child component ko 'uiRole' pass karein
+                        // ====================================================================
+                        userRole={uiRole}
                       />
                     ))}
                   </div>
@@ -262,7 +272,10 @@ const ProjectPostPage = () => {
                 {filler === "list" && (
                   <ProjectList
                     projects={filteredProjects}
-                    userRole={userRole}
+                    // ====================================================================
+                    // CHANGE #6: Child component ko 'uiRole' pass karein
+                    // ====================================================================
+                    userRole={uiRole}
                   />
                 )}
               </>
@@ -282,17 +295,6 @@ const ProjectPostPage = () => {
                 </p>
               </div>
             ))}
-
-          {!anyOperationPending && filteredProjects.length > 0 && (
-            <div className="mt-8 flex justify-center">
-              <Pagination
-                className="bg-slate-100 dark:bg-slate-500 w-fit py-2 px-3 rounded-md"
-                totalPages={totalPages}
-                currentPage={currentPage}
-                handlePageChange={handlePageChange}
-              />
-            </div>
-          )}
         </>
       )}
 

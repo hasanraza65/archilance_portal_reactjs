@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import Cookies from "js-cookie"; // === Naya Import ===
+import Cookies from "js-cookie";
 import {
   useTable,
   useRowSelect,
@@ -17,11 +17,8 @@ import {
   deleteProjectAPI,
   setEditModalAndItem,
   toggleUpdateAssigneesModal,
-  fetchProjectsAPI, // === Naya Import (Refresh ke liye) ===
+  fetchProjectsAPI,
 } from "./store";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
-
-// === Puraane 'EditableStatusCell' ki jagah naye component ko import karein ===
 import EditableProjectStatus from "./EditableProjectStatus";
 
 // AvatarStack component mein koi badlav nahi
@@ -65,22 +62,22 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
-const ProjectList = ({ projects }) => {
+// ====================================================================
+// CHANGE #1: 'userRole' prop ko accept karein, jo parent se ayega
+// ====================================================================
+const ProjectList = ({ projects, userRole }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  // === `currentPage` ko Redux state se lein ===
   const { isDeleting, isUpdating, currentPage } = useSelector((state) => state.project);
-  const userRole = getApiPrefix();
-
-  // === API ke liye zaroori variables ===
+  
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const token = Cookies.get("token");
 
   // API path ke liye helper function
   const getApiBasePathForRole = (basePath) => {
-    const role = getApiPrefix();
+    // Ye function ab parent se anay walay 'userRole' ko istemal karega
     const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-    return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
+    return userRole ? `/api/${userRole}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
   };
 
   const handleOpenAssigneesModal = (project, e) => {
@@ -106,8 +103,13 @@ const ProjectList = ({ projects }) => {
 
   const handleRowNavigation = (projectId) => {
     if (!projectId) return;
+    // ====================================================================
+    // CHANGE #2: 'userRole' prop ke hisab se redirect karein.
+    // Agar parent se 'member' ke liye 'customer' role aa raha hai,
+    // to ye logic bilkul theek kaam karegi.
+    // ====================================================================
     if (userRole === "customer")
-      navigate(`/customer/order-details/${projectId}`);
+      navigate(`/order-details/${projectId}`);
     else navigate(`/jobs/${projectId}`);
   };
 
@@ -195,7 +197,6 @@ const ProjectList = ({ projects }) => {
       {
         Header: "Status",
         accessor: "status",
-        // === FINAL FIX: Yahan naye component ka istemal karein ===
         Cell: ({ cell: { value }, row }) => (
           <EditableProjectStatus
             projectId={row.original.id}
@@ -210,6 +211,10 @@ const ProjectList = ({ projects }) => {
       },
     ];
 
+    // ====================================================================
+    // CHANGE #3: Action column dikhane ki logic ab 'userRole' prop par depend karegi.
+    // Agar parent 'member' ke liye 'customer' role bhej raha hai, to ye column nahi dikhega.
+    // ====================================================================
     if (userRole !== "customer") {
       baseColumns.push({
         Header: "Action",
@@ -266,7 +271,6 @@ const ProjectList = ({ projects }) => {
       });
     }
     return baseColumns;
-    // === Dependencies mein zaroori cheezein add karein ===
   }, [isDeleting, isUpdating, userRole, dispatch, currentPage, token]);
 
   const data = useMemo(() => projects || [], [projects]);
@@ -329,6 +333,9 @@ const ProjectList = ({ projects }) => {
                         <td
                           {...cell.getCellProps()}
                           className="table-td"
+                          // ====================================================================
+                          // CHANGE #4: Clickable row ki logic ko update karein
+                          // ====================================================================
                           style={{
                             cursor:
                               userRole !== "customer" &&

@@ -320,9 +320,9 @@ function App() {
           />
 
           <Route
-            path="/customer/order-details/:id"
+            path="/order-details/:id"
             element={
-              <ProtectedRoute allowedRoles={["customer"]}>
+              <ProtectedRoute allowedRoles={["customer","member"]}>
                 <OrderDetailsPage />
               </ProtectedRoute>
             }
