@@ -152,7 +152,7 @@ function App() {
           <Route
             path="profile"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
                 <Suspense fallback={<Loading />}>
                   <Profile />
                 </Suspense>
@@ -162,7 +162,7 @@ function App() {
           <Route
             path="profile/edit"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
                 <Suspense fallback={<Loading />}>
                   <EditProfile />
                 </Suspense>
