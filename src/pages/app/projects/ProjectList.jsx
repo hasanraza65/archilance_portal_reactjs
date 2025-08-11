@@ -7,7 +7,7 @@ import {
   useRowSelect,
   useSortBy,
   useGlobalFilter,
-} from "react-table"; // CHANGE #1: usePagination hook is removed from imports
+} from "react-table";
 import Swal from "sweetalert2";
 
 import Card from "@/components/ui/Card";
@@ -109,9 +109,11 @@ const ProjectList = ({ projects, userRole }) => {
 
   const handleDelete = (item, e) => {
     e.stopPropagation();
+    // Use customer name if available, otherwise project name
+    const displayName = item.customer?.name || item.name || "this project";
     Swal.fire({
       title: "Are you sure?",
-      text: `You are about to delete "${item.name || "this project"}".`,
+      text: `You are about to delete "${displayName}".`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -124,7 +126,7 @@ const ProjectList = ({ projects, userRole }) => {
           .then(() =>
             Swal.fire(
               "Deleted!",
-              `Project "${item.name}" has been deleted.`,
+              `Project "${displayName}" has been deleted.`,
               "success"
             )
           )
@@ -144,19 +146,31 @@ const ProjectList = ({ projects, userRole }) => {
       {
         Header: "Name",
         accessor: "name",
-        Cell: ({ cell: { value } }) => (
+        // ====================================================================
+        // CHANGE: Update the Cell to show project name and customer name
+        // ====================================================================
+        Cell: ({ row }) => (
           <div className="flex space-x-3 items-center text-left rtl:space-x-reverse">
             <div className="flex-none">
               <div className="h-10 w-10 rounded-full text-sm bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-medium -tracking-[1px]">
-                {value
-                  ? (value.charAt(0) + (value.charAt(1) || "")).toUpperCase()
+                {row.original.name
+                  ? (row.original.name.charAt(0) + (row.original.name.charAt(1) || "")).toUpperCase()
                   : "NA"}
               </div>
             </div>
-            <div className="flex-1 font-medium text-sm leading-4 whitespace-nowrap">
-              {value && value.length > 25
-                ? value.substring(0, 25) + "..."
-                : value || "N/A"}
+            <div className="flex-1">
+              {/* Project Name */}
+              <div className="font-medium text-sm leading-4 whitespace-nowrap">
+                {row.original.name && row.original.name.length > 25
+                  ? row.original.name.substring(0, 25) + "..."
+                  : row.original.name || "N/A"}
+              </div>
+              {/* Customer Name (below project name) */}
+              {row.original.customer?.name && (
+                <div className="text-slate-500 dark:text-slate-400 text-xs mt-1 whitespace-nowrap">
+                  {row.original.customer.name}
+                </div>
+              )}
             </div>
           </div>
         ),
@@ -259,16 +273,11 @@ const ProjectList = ({ projects, userRole }) => {
 
   const data = useMemo(() => projects || [], [projects]);
 
-  // ====================================================================
-  // CHANGE #2: Remove usePagination hook, initialState, and 'page' from destructuring.
-  // We now get 'rows' which contains all the projects.
-  // ====================================================================
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable(
-      { columns: COLUMNS, data }, // 'initialState' object is removed
+      { columns: COLUMNS, data }, 
       useGlobalFilter,
       useSortBy,
-      // 'usePagination' hook is removed from here
       useRowSelect
     );
 
@@ -311,9 +320,6 @@ const ProjectList = ({ projects, userRole }) => {
                 className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
                 {...getTableBodyProps()}
               >
-                {/* ==================================================================== */}
-                {/* CHANGE #3: Map over 'rows' instead of 'page' to display all items. */}
-                {/* ==================================================================== */}
                 {rows.map((row) => {
                   prepareRow(row);
                   return (

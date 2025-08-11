@@ -124,9 +124,23 @@ export const menuItems = [
   {
     title: "Customer Team",
     isHide: false,
-    icon: "heroicons-outline:receipt-refund",
+    icon: "heroicons-outline:user-group",
     link: "team",
     allowedRoles: ["customer",], // Sirf customer ko
+  },
+  {
+    title: "My Team Access",
+    isHide: false,
+    icon: "heroicons-outline:user-group",
+    link: "teamaccess",
+    allowedRoles: ["member",], // Sirf customer ko
+  },
+  {
+    title: "All Customer Team Access",
+    isHide: false,
+    icon: "heroicons-outline:user-group",
+    link: "customerteam",
+    allowedRoles: ["admin",], // Sirf customer ko
   },
 ];
 

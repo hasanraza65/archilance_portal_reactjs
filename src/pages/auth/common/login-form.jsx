@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -25,6 +25,24 @@ const LoginForm = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const { login: authLogin } = useAuth();
 
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const fcmToken = event.data;
+
+      // Sirf yeh check karein ke data string hai aur khali nahi hai
+      if (fcmToken && typeof fcmToken === 'string' && fcmToken.length > 20) {
+        // Sirf ek final alert dikhayein
+        alert(`FCM Token Received: ${fcmToken}`);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -45,7 +63,6 @@ const LoginForm = () => {
     },
     onSuccess: (responseData) => {
       const loggedInUser = authLogin(responseData, rememberMe);
-
       if (loggedInUser) {
         toast.success("Login Successful! Redirecting...");
       }

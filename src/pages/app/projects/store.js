@@ -22,6 +22,9 @@ const getProjectPath = () => {
   }
 };
 
+// ====================================================================
+// CHANGE: Customer object ko project data ke sath store karein
+// ====================================================================
 const formatProjectFromAPI = (project) => ({
   id: project.id,
   name: project.project_name || "Unnamed Project",
@@ -32,7 +35,9 @@ const formatProjectFromAPI = (project) => ({
   customer_id: project.customer_id || null,
   status: project.status || "ongoing",
   project_assignees: project.project_assignees || [],
+  customer: project.customer || null, // Yeh line customer object ko save karegi
 });
+
 
 export const fetchProjectsAPI = createAsyncThunk(
   "project/fetchProjects",
@@ -54,26 +59,18 @@ export const fetchProjectsAPI = createAsyncThunk(
       const responseData = response.data;
       let projectsArray;
 
-      // ====================================================================
-      // FIX: Check if the response is a direct array (pagination removed).
-      // This makes the code robust enough to handle both the new and old API structures.
-      // ====================================================================
       if (Array.isArray(responseData)) {
-        // New structure: API returns a flat array of projects
         projectsArray = responseData;
       } 
       else if (responseData && Array.isArray(responseData.data)) {
-        // Old structure: API returns a paginated object with a 'data' array
         projectsArray = responseData.data;
       }
       else {
-        // If the structure is neither, it's invalid. This will trigger the error message.
         return rejectWithValue("Invalid project data structure from API.");
       }
 
       const formattedProjects = projectsArray.map(formatProjectFromAPI);
       
-      // Since pagination is removed, we return a static meta object to satisfy the reducer.
       return {
         projects: formattedProjects,
         meta: {

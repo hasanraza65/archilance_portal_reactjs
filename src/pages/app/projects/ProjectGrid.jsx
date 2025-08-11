@@ -55,6 +55,7 @@ const ProjectGrid = ({ project, userRole }) => {
   const {
     id,
     name,
+    customer, // Customer object yahan se milega
     des,
     startDate,
     endDate,
@@ -148,13 +149,24 @@ const ProjectGrid = ({ project, userRole }) => {
                 : "NA"}
             </div>
           </div>
-          <div className="font-medium text-base leading-6">
-            <div
-              className="dark:text-slate-200 text-slate-900 max-w-[160px] truncate"
-              title={name}
-            >
-              {name || "Untitled Project"}
+          <div className="flex-1">
+            {/* Project Name (Title) */}
+            <div className="font-medium text-base leading-6">
+              <div
+                className="dark:text-slate-200 text-slate-900 max-w-[160px] "
+                title={name}
+              >
+                {name || "Untitled Project"}
+              </div>
             </div>
+            {/* ==================================================================== */}
+            {/* CHANGE: Customer name ko project name ke neeche add karein */}
+            {/* ==================================================================== */}
+            {customer?.name && (
+              <div className="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-[160px]">
+                {customer.name}
+              </div>
+            )}
           </div>
         </div>
         {userRole !== "customer" && (
