@@ -7,8 +7,7 @@ import {
   useRowSelect,
   useSortBy,
   useGlobalFilter,
-  usePagination,
-} from "react-table";
+} from "react-table"; // CHANGE #1: usePagination hook is removed from imports
 import Swal from "sweetalert2";
 
 import Card from "@/components/ui/Card";
@@ -21,7 +20,7 @@ import {
 } from "./store";
 import EditableProjectStatus from "./EditableProjectStatus";
 
-// AvatarStack component mein koi badlav nahi
+// AvatarStack component remains unchanged
 const AvatarStack = ({ assignees }) => {
   if (!assignees || assignees.length === 0)
     return <span className="text-slate-400">N/A</span>;
@@ -62,9 +61,6 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
-// ====================================================================
-// CHANGE #1: 'userRole' prop ko accept karein, jo parent se ayega
-// ====================================================================
 const ProjectList = ({ projects, userRole }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -73,9 +69,7 @@ const ProjectList = ({ projects, userRole }) => {
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const token = Cookies.get("token");
 
-  // API path ke liye helper function
   const getApiBasePathForRole = (basePath) => {
-    // Ye function ab parent se anay walay 'userRole' ko istemal karega
     const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
     return userRole ? `/api/${userRole}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
   };
@@ -264,12 +258,17 @@ const ProjectList = ({ projects, userRole }) => {
   }, [isDeleting, isUpdating, userRole, dispatch, currentPage, token]);
 
   const data = useMemo(() => projects || [], [projects]);
-  const { getTableProps, getTableBodyProps, headerGroups, page, prepareRow } =
+
+  // ====================================================================
+  // CHANGE #2: Remove usePagination hook, initialState, and 'page' from destructuring.
+  // We now get 'rows' which contains all the projects.
+  // ====================================================================
+  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable(
-      { columns: COLUMNS, data, initialState: { pageSize: 10 } },
+      { columns: COLUMNS, data }, // 'initialState' object is removed
       useGlobalFilter,
       useSortBy,
-      usePagination,
+      // 'usePagination' hook is removed from here
       useRowSelect
     );
 
@@ -312,7 +311,10 @@ const ProjectList = ({ projects, userRole }) => {
                 className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
                 {...getTableBodyProps()}
               >
-                {page.map((row) => {
+                {/* ==================================================================== */}
+                {/* CHANGE #3: Map over 'rows' instead of 'page' to display all items. */}
+                {/* ==================================================================== */}
+                {rows.map((row) => {
                   prepareRow(row);
                   return (
                     <tr

@@ -62,9 +62,6 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
-// ====================================================================
-// CHANGE #1: 'searchQuery' prop ko accept karein
-// ====================================================================
 const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,8 +78,11 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
     }
   }, [isLoading, onLoadingChange]);
 
+  // ====================================================================
+  // CHANGE #1: Updated fetchTasks to remove pagination loop.
+  // It now makes a single API call and expects a direct array response.
+  // ====================================================================
   const fetchTasks = useCallback(async () => {
-    // Ab statusFilter yahan se hat gaya kyunki filtering client-side par hogi
     setIsLoading(true);
     setError(null);
     const token = getAuthToken();
@@ -100,50 +100,43 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
         Accept: "application/json",
       };
 
-      let allTasks = [];
-      let currentPage = 1;
-      let lastPage = 1;
+      // Make a single request to get all tasks, no more looping.
+      const response = await axios.get(baseUrl, { headers });
 
-      do {
-        const response = await axios.get(`${baseUrl}?page=${currentPage}`, {
-          headers,
-        });
-        allTasks.push(...(response.data.data || []));
-        lastPage = response.data.last_page || 1;
-        currentPage++;
-      } while (currentPage <= lastPage);
-
-      setTasks(allTasks);
+      // The API now returns a direct array. Check if the response data is an array.
+      if (Array.isArray(response.data)) {
+        setTasks(response.data);
+      } else {
+        // If the API format is not an array, handle it as an error.
+        console.error("API did not return an array:", response.data);
+        setError("Invalid data format received from the server.");
+        setTasks([]); // Set tasks to empty array to prevent crashes
+      }
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
       if (err.response?.status === 404) {
-        setTasks([]);
+        setTasks([]); // If not found, there are no tasks. This is not an error.
       } else {
         setError("Failed to load tasks. Please try again.");
       }
     } finally {
       setIsLoading(false);
     }
-  }, []); // dependency array se statusFilter hata diya
+  }, []); // Dependency array is empty, this runs once on mount.
 
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]); // Ye sirf component load hone par chalega
+  }, [fetchTasks]);
 
-  // ====================================================================
-  // CHANGE #2: Filtering ke liye useMemo hook ka istemal karein
-  // ====================================================================
   const filteredTasks = useMemo(() => {
     let tasksToFilter = tasks;
 
-    // 1. Status se filter karein
     if (statusFilter && statusFilter.toLowerCase() !== "all") {
       tasksToFilter = tasksToFilter.filter(
         (task) => task.task_status?.toLowerCase() === statusFilter.toLowerCase()
       );
     }
 
-    // 2. Search query se filter karein
     if (searchQuery && searchQuery.trim() !== "") {
       const lowerCaseQuery = searchQuery.toLowerCase();
       tasksToFilter = tasksToFilter.filter(
@@ -192,7 +185,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
                 "The task has been successfully deleted.",
                 "success"
               );
-              fetchTasks(); // statusFilter ki zaroorat nahi
+              fetchTasks();
             })
             .catch((error) => {
               Swal.fire(
@@ -205,7 +198,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
         }
       });
     },
-    [fetchTasks] // statusFilter yahan se bhi hata diya
+    [fetchTasks]
   );
 
   const formatDate = (dateString) => {
@@ -257,7 +250,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
           <EditableTaskStatus
             taskId={row.original.id}
             currentStatus={row.original.task_status}
-            onStatusUpdate={() => fetchTasks()} // statusFilter yahan se bhi hata diya
+            onStatusUpdate={() => fetchTasks()}
             isEditable={userRole !== "customer"}
           />
         ),
@@ -299,9 +292,6 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
     ]
   );
   
-  // ====================================================================
-  // CHANGE #3: Ab data ke liye 'filteredTasks' ka istemal karein
-  // ====================================================================
   const data = useMemo(() => filteredTasks, [filteredTasks]);
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
@@ -323,9 +313,6 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
   if (isLoading) return <TableLoading count={10} />;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
 
-  // ====================================================================
-  // CHANGE #4: 'No Projects Found' message ko update karein
-  // ====================================================================
   if (data.length === 0) {
     return (
       <div className="p-16 text-center text-slate-500">
@@ -408,7 +395,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
         activeModal={editTaskModal}
         onClose={() => setEditTaskModal(false)}
         task={currentTask}
-        onUpdate={() => fetchTasks()} // statusFilter ki zaroorat nahi
+        onUpdate={() => fetchTasks()}
       />
     </>
   );

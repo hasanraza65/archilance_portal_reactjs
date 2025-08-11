@@ -6,9 +6,6 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const API_ROOT = `${import.meta.env.VITE_BACKEND_BASE_URL}/api`;
 
-// ====================================================================
-// CHANGE #1: getProjectPath function ko update kiya gaya hai
-// ====================================================================
 const getProjectPath = () => {
   const role = getApiPrefix(); // Ye 'admin', 'employee', 'customer', ya 'member' return karega
 
@@ -39,13 +36,15 @@ const formatProjectFromAPI = (project) => ({
 
 export const fetchProjectsAPI = createAsyncThunk(
   "project/fetchProjects",
+  // The 'page' argument is kept to avoid breaking other parts of the code, but it's not used in the API call.
   async (page = 1, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
-      const response = await axios.get(`${API_ROOT}${path}?page=${page}`, {
+      const path = getProjectPath();
+      // API call now fetches all projects without pagination query params
+      const response = await axios.get(`${API_ROOT}${path}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
@@ -53,16 +52,34 @@ export const fetchProjectsAPI = createAsyncThunk(
       });
 
       const responseData = response.data;
-      if (!responseData || !Array.isArray(responseData.data)) {
+      let projectsArray;
+
+      // ====================================================================
+      // FIX: Check if the response is a direct array (pagination removed).
+      // This makes the code robust enough to handle both the new and old API structures.
+      // ====================================================================
+      if (Array.isArray(responseData)) {
+        // New structure: API returns a flat array of projects
+        projectsArray = responseData;
+      } 
+      else if (responseData && Array.isArray(responseData.data)) {
+        // Old structure: API returns a paginated object with a 'data' array
+        projectsArray = responseData.data;
+      }
+      else {
+        // If the structure is neither, it's invalid. This will trigger the error message.
         return rejectWithValue("Invalid project data structure from API.");
       }
-      const formattedProjects = responseData.data.map(formatProjectFromAPI);
+
+      const formattedProjects = projectsArray.map(formatProjectFromAPI);
+      
+      // Since pagination is removed, we return a static meta object to satisfy the reducer.
       return {
         projects: formattedProjects,
         meta: {
-          currentPage: responseData.current_page,
-          totalPages: responseData.last_page,
-          totalProjects: responseData.total,
+          currentPage: 1,
+          totalPages: 1,
+          totalProjects: formattedProjects.length,
         },
       };
     } catch (err) {
@@ -79,7 +96,7 @@ export const addProjectAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
+      const path = getProjectPath();
       const response = await axios.post(`${API_ROOT}${path}`, projectData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -114,7 +131,7 @@ export const saveEditedProjectAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
+      const path = getProjectPath();
       const response = await axios.put(`${API_ROOT}${path}/${projectData.id}`, projectData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -150,7 +167,7 @@ export const deleteProjectAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found");
 
-      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
+      const path = getProjectPath();
       const response = await axios.delete(`${API_ROOT}${path}/${projectId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -160,12 +177,8 @@ export const deleteProjectAPI = createAsyncThunk(
 
       if (response.status === 200 || response.status === 204) {
         toast.success("Project deleted successfully!");
-        const { currentPage, projects } = getState().project;
-        if (projects.length === 1 && currentPage > 1) {
-          dispatch(fetchProjectsAPI(currentPage - 1));
-        } else {
-          dispatch(fetchProjectsAPI(currentPage));
-        }
+        const { currentPage } = getState().project;
+        dispatch(fetchProjectsAPI(currentPage));
         return projectId;
       } else {
         const errorMsg = response.data?.message || "Failed to delete project.";
@@ -189,15 +202,11 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
       
       const payload = { project_id, employee_ids };
       
-      // ====================================================================
-      // CHANGE #2: Hardcoded 'admin' path ko dynamic banaya gaya hai
-      // ====================================================================
       const role = getApiPrefix();
       if (!role) {
         return rejectWithValue("User role could not be determined.");
       }
 
-      // Role ke hisab se dynamic path banaya ja raha hai
       const updatePath = `/${role}/update-project-assignees`;
 
       await axios.post(`${API_ROOT}${updatePath}`, payload, {
@@ -224,7 +233,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
-      const path = getProjectPath(); // Ye ab 'member' ke liye sahi path return karega
+      const path = getProjectPath();
       const payload = { [field]: value };
       
       const response = await axios.patch(`${API_ROOT}${path}/${projectId}`, payload, {
@@ -250,7 +259,6 @@ export const updateProjectFieldAPI = createAsyncThunk(
   }
 );
 
-// Slice reducers mein koi change ki zaroorat nahi hai
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {
