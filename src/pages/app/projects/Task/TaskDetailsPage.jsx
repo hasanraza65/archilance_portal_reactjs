@@ -1,8 +1,11 @@
+// src/pages/TaskDetailsPage.jsx
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Swal from "sweetalert2"; // +++ ADDED: For delete confirmation
 
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 
@@ -15,6 +18,7 @@ import ErrorState from "./PartialTask/ErrorState";
 import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 import AssigneeModal from "./PartialTask/AssigneeModal";
 import TaskAttachments from "./PartialTask/TaskAttachments";
+import EditTaskModal from "./PartialTask/EditTaskModal"; // +++ ADDED: Import the Edit modal
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
@@ -42,6 +46,10 @@ const TaskDetailsPage = () => {
   const [allEmployees, setAllEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [isUpdatingAssignees, setIsUpdatingAssignees] = useState(false);
+
+  // +++ ADDED: State for editing a subtask
+  const [isEditSubTaskModalOpen, setIsEditSubTaskModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState(null);
 
   const priorityDropdownRef = useRef(null);
   const statusDropdownRef = useRef(null);
@@ -553,6 +561,59 @@ const TaskDetailsPage = () => {
     }
   };
 
+  // +++ ADDED: Functions to handle subtask edit modal
+  const handleOpenEditSubTaskModal = (subTask) => {
+    setTaskToEdit(subTask);
+    setIsEditSubTaskModalOpen(true);
+  };
+  const handleCloseEditSubTaskModal = () => {
+    setTaskToEdit(null);
+    setIsEditSubTaskModalOpen(false);
+  };
+  const handleSubTaskUpdated = async () => {
+    handleCloseEditSubTaskModal();
+    toast.success("Task updated successfully!");
+    await fetchTaskData(false);
+  };
+
+  // +++ ADDED: Function to handle subtask deletion
+  const handleDeleteSubTask = async (subTaskId) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this task!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (result.isConfirmed) {
+      const token = getAuthToken();
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}${taskApiPath}/${subTaskId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to delete the task.");
+        }
+
+        Swal.fire("Deleted!", "The task has been deleted.", "success");
+        await fetchTaskData(false); // Refresh the list
+      } catch (err) {
+        Swal.fire("Error!", err.message, "error");
+      }
+    }
+  };
+
   if (loading) return <LoadingState />;
   if (error || !taskFound || !parentTaskDetails)
     return (
@@ -619,13 +680,14 @@ const TaskDetailsPage = () => {
                 isEditable={canEditTaskDetails}
               />
             </div>
+            {/* +++ MODIFIED: Pass new handlers to SubTaskList +++ */}
             <SubTaskList
               subTasks={subTasks}
               onAddSubTaskClick={
                 canManageSubtasks ? () => setIsAddSubTaskModalOpen(true) : null
               }
-              parentTaskId={taskId}
-              onSubTaskUpdated={async () => await fetchTaskData(false)}
+              onEditSubTask={handleOpenEditSubTaskModal}
+              onDeleteSubTask={handleDeleteSubTask}
               isEditable={canManageSubtasks}
             />
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
@@ -676,6 +738,19 @@ const TaskDetailsPage = () => {
             onSaveAssignees={handleUpdateTaskAssignees}
             taskId={parentTaskDetails.id}
             isUpdating={isUpdatingAssignees}
+          />
+        )}
+      {/* +++ ADDED: The Edit Task Modal for sub-tasks +++ */}
+      {canManageSubtasks &&
+        isEditSubTaskModalOpen &&
+        taskToEdit &&
+        parentTaskDetails && (
+          <EditTaskModal
+            isOpen={isEditSubTaskModalOpen}
+            onClose={handleCloseEditSubTaskModal}
+            onTaskUpdated={handleSubTaskUpdated}
+            taskData={taskToEdit}
+            projectId={parentTaskDetails.project_id}
           />
         )}
     </div>

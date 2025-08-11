@@ -1,4 +1,5 @@
 // src/components/TaskDetails/SubTaskList.jsx
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -7,7 +8,14 @@ import {
   getStatusClass,
 } from "./taskDetailsUtils";
 
-const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
+// +++ MODIFIED: Receive new props for edit and delete actions
+const SubTaskList = ({
+  subTasks,
+  onAddSubTaskClick,
+  onEditSubTask,
+  onDeleteSubTask,
+  isEditable,
+}) => {
   const navigate = useNavigate();
 
   return (
@@ -19,7 +27,7 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
             {subTasks.length} task{subTasks.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        
+
         {onAddSubTaskClick && (
           <button
             onClick={onAddSubTaskClick}
@@ -45,8 +53,6 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
       {subTasks.length > 0 ? (
         <div className="divide-y divide-slate-100">
           {subTasks.map((subTask, index) => {
-            // ***** SUDHAAR: Yahan creator ko fallback ke tor par use karna band kar diya hai *****
-            // Ab sirf assigned user hi show hoga. Agar koi assigned nahi hai to "Unassigned" show hoga.
             const assignee =
               subTask.assignees && subTask.assignees.length > 0
                 ? mapApiUserToLocal(subTask.assignees[0].user)
@@ -55,7 +61,7 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
             return (
               <div
                 key={subTask.id || `subtask-${index}`}
-                className="p-6 hover:bg-slate-50/70 transition-colors"
+                className="p-6 hover:bg-slate-50/70 transition-colors group" // Added 'group' for hover effects on actions
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -149,6 +155,46 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
                         </svg>
                       </div>
                     )}
+                    {/* +++ ADDED: Action buttons for Edit and Delete +++ */}
+                    {isEditable && (
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => onEditSubTask(subTask)}
+                          title="Edit Task"
+                          className="p-1.5 rounded-full text-blue-600 hover:bg-blue-100"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => onDeleteSubTask(subTask.id)}
+                          title="Delete Task"
+                          className="p-1.5 rounded-full text-red-600 hover:bg-red-100"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -176,12 +222,11 @@ const SubTaskList = ({ subTasks, onAddSubTaskClick }) => {
             No tasks yet
           </h3>
           <p className="text-slate-500 mb-4 text-sm">
-            {onAddSubTaskClick 
-              ? "Break down this task into smaller, manageable pieces." 
-              : "There are no sub-tasks for this item."
-            }
+            {onAddSubTaskClick
+              ? "Break down this task into smaller, manageable pieces."
+              : "There are no sub-tasks for this item."}
           </p>
-          
+
           {onAddSubTaskClick && (
             <button
               onClick={onAddSubTaskClick}

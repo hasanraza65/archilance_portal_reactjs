@@ -1021,11 +1021,7 @@ const ProjectDetailsPage = () => {
             );
             return;
           }
-          Swal.fire(
-            "Deleted!",
-            "The job brief has been deleted.",
-            "success"
-          );
+          Swal.fire("Deleted!", "The job brief has been deleted.", "success");
           setBriefs((prevBriefs) =>
             prevBriefs.filter((brief) => brief.id !== briefId)
           );
@@ -1223,16 +1219,12 @@ const ProjectDetailsPage = () => {
       </div>
 
       {tasks.length > 0 ? (
-        // Farz karein ke ye saari cheezein aapke component mein pehle se import/define hain:
-        // navigate, tasks, userRole, handleKanbanBoard, handleOpenAddTaskModal, etc.
-
         <div className="bg-white dark:bg-slate-700/50 rounded-lg shadow-lg overflow-hidden">
-          {/* === SECTION HEADER: Title and Action Buttons (Responsive) === */}
+          {/* === SECTION HEADER: Title and Action Buttons (Unchanged) === */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border-b border-gray-200 dark:border-slate-600 gap-4">
             <h2 className="text-xl font-semibold text-slate-700 dark:text-white">
               Project for this Job
             </h2>
-            {/* Buttons: Stack on mobile, row on desktop */}
             <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
               <button
                 onClick={handleKanbanBoard}
@@ -1269,7 +1261,7 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
 
-          {/* === DESKTOP TABLE HEADER (Hidden on mobile) === */}
+          {/* === DESKTOP TABLE HEADER (Unchanged) === */}
           <div className="hidden sm:grid grid-cols-12 bg-slate-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-300 sticky top-0 z-10">
             <div className="col-span-12 sm:col-span-4 p-3 sm:p-4">Name</div>
             <div className="col-span-12 sm:col-span-2 p-3 sm:p-4">
@@ -1283,7 +1275,7 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
 
-          {/* === SCROLLABLE TASKS CONTAINER === */}
+          {/* === SCROLLABLE TASKS CONTAINER (Unchanged) === */}
           <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
             {tasks.map((task, index) => {
               const mappedTaskAssignees = (task.assignees || [])
@@ -1296,20 +1288,19 @@ const ProjectDetailsPage = () => {
                   key={task.id || `task-${index}`}
                   className="border-b border-gray-200 dark:border-slate-600 last:border-b-0"
                 >
-                  {/* --- DESKTOP VIEW (Visible on sm screens and up) --- */}
-                  <div className="hidden sm:grid grid-cols-12 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs sm:text-sm">
-                    <div
-                      className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center cursor-pointer"
-                      onClick={() => navigate(`/project/${task.id}`)}
-                    >
+                  {/* --- DESKTOP VIEW (Corrected) --- */}
+                  <div
+                    // +++ 1. ADD a single onClick for the entire row and a cursor pointer +++
+                    className="hidden sm:grid grid-cols-12 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs sm:text-sm cursor-pointer"
+                    onClick={() => navigate(`/project/${task.id}`)}
+                  >
+                    {/* +++ 2. REMOVE onClick from individual cells +++ */}
+                    <div className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center">
                       <span className="text-slate-900 dark:text-slate-100 truncate">
                         {task.task_title || "N/A"}
                       </span>
                     </div>
-                    <div
-                      className="col-span-12 sm:col-span-2 p-3 sm:p-4 flex items-center"
-                      onClick={() => navigate(`/project/${task.id}`)}
-                    >
+                    <div className="col-span-12 sm:col-span-2 p-3 sm:p-4 flex items-center">
                       {/* Assignee Avatars */}
                       {mappedTaskAssignees.length > 0 ? (
                         <div className="flex -space-x-2 overflow-hidden items-center">
@@ -1349,10 +1340,7 @@ const ProjectDetailsPage = () => {
                         </span>
                       )}
                     </div>
-                    <div
-                      className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center cursor-pointer"
-                      onClick={() => navigate(`/task/${task.id}`)}
-                    >
+                    <div className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center">
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass(
                           task.task_status
@@ -1361,20 +1349,14 @@ const ProjectDetailsPage = () => {
                         {String(task.task_status || "N/A").toUpperCase()}
                       </span>
                     </div>
-                    <div
-                      className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center cursor-pointer"
-                      onClick={() => navigate(`/task/${task.id}`)}
-                    >
+                    <div className="col-span-6 sm:col-span-2 p-3 sm:p-4 flex items-center">
                       <span className="text-slate-700 dark:text-slate-300">
                         {task.due_date
                           ? new Date(task.due_date).toLocaleDateString()
                           : "N/A"}
                       </span>
                     </div>
-                    <div
-                      className="col-span-6 sm:col-span-1 p-3 sm:p-4 flex items-center cursor-pointer"
-                      onClick={() => navigate(`/task/${task.id}`)}
-                    >
+                    <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 flex items-center">
                       <span
                         className={`font-medium ${getPriorityClass(
                           task.priority
@@ -1384,7 +1366,7 @@ const ProjectDetailsPage = () => {
                       </span>
                     </div>
                     <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 flex items-center justify-center space-x-1">
-                      {/* Action Buttons */}
+                      {/* Action Buttons - these will stop the row's onClick from firing */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1433,16 +1415,18 @@ const ProjectDetailsPage = () => {
                     </div>
                   </div>
 
-                  {/* --- MOBILE VIEW (Card Layout, hidden on sm screens and up) --- */}
-                  <div className="block sm:hidden p-4">
+                  {/* --- MOBILE VIEW (Corrected) --- */}
+                  <div
+                    // +++ 3. ADD a single onClick for the entire card and a cursor pointer +++
+                    className="block sm:hidden p-4 cursor-pointer"
+                    onClick={() => navigate(`/project/${task.id}`)}
+                  >
                     <div className="flex justify-between items-start gap-3">
-                      <h3
-                        className="font-bold text-base text-slate-800 dark:text-slate-100 mb-2 cursor-pointer"
-                        onClick={() => navigate(`/task/${task.id}`)}
-                      >
+                      {/* +++ 4. REMOVE onClick from the title +++ */}
+                      <h3 className="font-bold text-base text-slate-800 dark:text-slate-100 mb-2">
                         {task.task_title || "Untitled Task"}
                       </h3>
-                      {/* Mobile Actions */}
+                      {/* Mobile Actions - these will stop the card's onClick from firing */}
                       <div className="flex-shrink-0 flex items-center space-x-1">
                         <button
                           onClick={(e) => {
@@ -1529,7 +1513,6 @@ const ProjectDetailsPage = () => {
                       <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
                         ASSIGNEES
                       </div>
-                      {/* Mobile Assignees */}
                       {mappedTaskAssignees.length > 0 ? (
                         <div className="flex -space-x-2 overflow-hidden items-center">
                           {mappedTaskAssignees
@@ -1575,6 +1558,7 @@ const ProjectDetailsPage = () => {
           </div>
         </div>
       ) : (
+        // This is the "No Projects" view, which is unchanged.
         <div className="text-center p-10 bg-white dark:bg-slate-800 rounded-lg shadow">
           <svg
             className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500"
