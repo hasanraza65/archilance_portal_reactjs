@@ -33,7 +33,22 @@ const formatTime = (timeStr) => {
   });
 };
 
-const formatDateForAPI = (date) => date.toISOString().split("T")[0];
+// ====================================================================
+// ===== FIXED FUNCTION: This is the corrected date formatting function =====
+// ====================================================================
+const formatDateForAPI = (date) => {
+  // This function formats the date as YYYY-MM-DD using the local timezone,
+  // preventing the off-by-one-day error caused by UTC conversion.
+  if (!date || !(date instanceof Date) || isNaN(date)) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // getMonth() is 0-indexed
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 
 const WorkSession = () => {
   const { token, isAuthenticated } = useAuth();
@@ -41,7 +56,7 @@ const WorkSession = () => {
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Set to false initially
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -51,7 +66,6 @@ const WorkSession = () => {
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
-  
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
@@ -113,9 +127,11 @@ const WorkSession = () => {
 
       const params = new URLSearchParams({ page: currentPage.toString() });
       if (selectedTask) params.append("task_id", selectedTask);
-      if (dateRange[0])
+      
+      // Using the corrected formatDateForAPI function here
+      if (dateRange && dateRange[0])
         params.append("start_date", formatDateForAPI(dateRange[0]));
-      if (dateRange[1])
+      if (dateRange && dateRange.length > 1 && dateRange[1])
         params.append("end_date", formatDateForAPI(dateRange[1]));
 
       try {
@@ -267,8 +283,8 @@ const WorkSession = () => {
           Work Diary
         </h1>
         <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg mb-6">
-              Total Time: {overallTotalTime}
-            </div>
+          Total Time: {overallTotalTime}
+        </div>
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">

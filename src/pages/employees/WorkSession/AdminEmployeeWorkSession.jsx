@@ -89,7 +89,22 @@ const formatTime = (timeStr) => {
   });
 };
 
-const formatDateForAPI = (date) => date.toISOString().split("T")[0];
+// ====================================================================
+// ===== FIXED FUNCTION: This is the corrected date formatting function =====
+// ====================================================================
+const formatDateForAPI = (date) => {
+  // This function formats the date as YYYY-MM-DD using the local timezone,
+  // preventing the off-by-one-day error caused by UTC conversion.
+  if (!date || !(date instanceof Date) || isNaN(date)) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // getMonth() is 0-indexed
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 
 const AdminEmployeeWorkSession = () => {
   const { employeeId } = useParams();
@@ -203,10 +218,13 @@ const AdminEmployeeWorkSession = () => {
       employee_id: employeeId,
     });
     if (selectedTask) params.append("task_id", selectedTask);
+    
+    // Using the corrected formatDateForAPI function here
     if (dateRange && dateRange[0])
       params.append("start_date", formatDateForAPI(dateRange[0]));
-    if (dateRange && dateRange[1])
+    if (dateRange && dateRange.length > 1 && dateRange[1])
       params.append("end_date", formatDateForAPI(dateRange[1]));
+    
     try {
       const response = await fetch(
         `${API_BASE_URL}/work-session?${params.toString()}`,
@@ -238,10 +256,12 @@ const AdminEmployeeWorkSession = () => {
     if (isAuthenticated) fetchWorkSessions();
     else setLoading(false);
   }, [fetchWorkSessions, isAuthenticated]);
+  
   useEffect(() => {
     if (currentPage !== 1) setCurrentPage(1);
+    else if (isAuthenticated) fetchWorkSessions();
   }, [selectedTask, dateRange, selectedProject]);
-
+  
   // Handlers
   const handleResetFilters = () => {
     setSelectedProject("");

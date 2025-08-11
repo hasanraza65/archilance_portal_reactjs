@@ -129,14 +129,14 @@ export const menuItems = [
     allowedRoles: ["customer",], // Sirf customer ko
   },
   {
-    title: "My Team Access",
+    title: "Customer Team Access",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "teamaccess",
     allowedRoles: ["member",], // Sirf customer ko
   },
   {
-    title: "All Customer Team Access",
+    title: "Customer Team Members",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "customerteam",
