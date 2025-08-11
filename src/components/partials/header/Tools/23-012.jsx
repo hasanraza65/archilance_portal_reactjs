@@ -1,6 +1,4 @@
-// src/components/partials/header/Tools/Profile.jsx (Example Path)
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react"; // useMemo ko import kiya
 import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
 import { MenuItem } from "@headlessui/react";
@@ -9,6 +7,7 @@ import Cookies from "js-cookie";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 
+// AuthContext se user ka role lene ke liye useAuth ko import kiya
 import { useAuth } from "@/context/AuthContext";
 
 import UserAvatar from "@/assets/images/all-img/user.png";
@@ -35,7 +34,8 @@ const fetchProfileData = async () => {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  // useAuth se user aur logout function nikala
+  const { logout, user } = useAuth();
   
   const [profilePicSrc, setProfilePicSrc] = useState(UserAvatar);
 
@@ -92,16 +92,34 @@ const Profile = () => {
     </div>
   );
 
-  const ProfileMenu = [
-    { label: "Profile", icon: "heroicons-outline:user", action: () => navigate("/profile") },
-    { label: "Chat", icon: "heroicons-outline:chat", action: () => navigate("/chat") },
-    // { label: "Email", icon: "heroicons-outline:mail", action: () => navigate("/email") },
-    // { label: "Todo", icon: "heroicons-outline:clipboard-check", action: () => navigate("/todo") },
-    // { label: "Settings", icon: "heroicons-outline:cog", action: () => navigate("/settings") },
-    // { label: "Price", icon: "heroicons-outline:credit-card", action: () => navigate("/pricing") },
-    // { label: "Faq", icon: "heroicons-outline:information-circle", action: () => navigate("/faq") },
-    { label: "Logout", icon: "heroicons-outline:login", action: handleLogout },
-  ];
+  // ProfileMenu ab useMemo ke andar define kiya gaya hai taake yeh dynamic ho sake
+  const ProfileMenu = useMemo(() => {
+    // Ye menu items sab roles ke liye hain
+    const baseMenu = [
+      { label: "Profile", icon: "heroicons-outline:user", action: () => navigate("/profile") },
+      // ... baaki common menu items yahan add kar sakte hain
+    ];
+
+    // Yahan hum condition check kar rahe hain
+    // Agar user ka role "customer" ya "member" NAHI hai, tab hi "Chat" ka item add karo
+    const forbiddenRoles = ['customer', 'member'];
+    if (user && !forbiddenRoles.includes(user.role)) {
+      baseMenu.push({
+        label: "Chat",
+        icon: "heroicons-outline:chat",
+        action: () => navigate("/chat"),
+      });
+    }
+
+    // Logout ka button hamesha akhir mein add hoga
+    baseMenu.push({
+      label: "Logout",
+      icon: "heroicons-outline:login",
+      action: handleLogout,
+    });
+
+    return baseMenu;
+  }, [user, navigate]); // Jab 'user' change ho, to yeh menu dobara calculate ho
 
   return (
     <Dropdown label={profileLabel()} classMenuItems="w-[180px] top-[58px]">
