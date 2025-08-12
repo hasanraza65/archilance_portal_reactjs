@@ -63,6 +63,7 @@ const AvatarStack = ({ assignees }) => {
 };
 
 const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
+  // State to hold the raw data from the API
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -78,10 +79,6 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
     }
   }, [isLoading, onLoadingChange]);
 
-  // ====================================================================
-  // CHANGE #1: Updated fetchTasks to remove pagination loop.
-  // It now makes a single API call and expects a direct array response.
-  // ====================================================================
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -100,17 +97,14 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
         Accept: "application/json",
       };
 
-      // Make a single request to get all tasks, no more looping.
       const response = await axios.get(baseUrl, { headers });
 
-      // The API now returns a direct array. Check if the response data is an array.
       if (Array.isArray(response.data)) {
         setTasks(response.data);
       } else {
-        // If the API format is not an array, handle it as an error.
         console.error("API did not return an array:", response.data);
         setError("Invalid data format received from the server.");
-        setTasks([]); // Set tasks to empty array to prevent crashes
+        setTasks([]);
       }
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
@@ -122,32 +116,64 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Dependency array is empty, this runs once on mount.
+  }, []);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
-  const filteredTasks = useMemo(() => {
-    let tasksToFilter = tasks;
+  // ====================================================================
+  // CHANGE #1: Transform the raw API data into a flat structure for the table.
+  // ====================================================================
+  const transformedData = useMemo(() => {
+    if (!tasks || !Array.isArray(tasks)) return [];
+    
+    return tasks.map(item => {
+      // Determine which task object to use: sub_task if it exists, otherwise the main task.
+      const taskToShow = item.sub_task || item.task;
+      
+      return {
+        // Core data for display and actions
+        id: taskToShow.id,
+        project_name: item.project?.project_name || 'N/A',
+        project_title: item.task?.task_title || 'N/A', // The main task/project title
+        task_title: item.sub_task?.task_title || null, // The specific sub-task title
+        assignees: taskToShow.assignees || [],
+        created_at: taskToShow.created_at,
+        due_date: taskToShow.due_date,
+        task_status: taskToShow.task_status,
+        
+        // Pass the whole original task object for the Edit Modal
+        original_task_data: taskToShow,
+      };
+    });
+  }, [tasks]);
+
+  // ====================================================================
+  // CHANGE #2: Filter the *transformed* data.
+  // ====================================================================
+  const filteredAndMemoizedData = useMemo(() => {
+    let dataToFilter = transformedData;
 
     if (statusFilter && statusFilter.toLowerCase() !== "all") {
-      tasksToFilter = tasksToFilter.filter(
-        (task) => task.task_status?.toLowerCase() === statusFilter.toLowerCase()
+      dataToFilter = dataToFilter.filter(
+        (row) => row.task_status?.toLowerCase() === statusFilter.toLowerCase()
       );
     }
 
     if (searchQuery && searchQuery.trim() !== "") {
       const lowerCaseQuery = searchQuery.toLowerCase();
-      tasksToFilter = tasksToFilter.filter(
-        (task) =>
-          task.task_title?.toLowerCase().includes(lowerCaseQuery) ||
-          task.project?.project_name?.toLowerCase().includes(lowerCaseQuery)
+      dataToFilter = dataToFilter.filter(
+        (row) =>
+          row.project_name?.toLowerCase().includes(lowerCaseQuery) ||
+          row.project_title?.toLowerCase().includes(lowerCaseQuery) ||
+          row.task_title?.toLowerCase().includes(lowerCaseQuery) // Search in the new task column as well
       );
     }
 
-    return tasksToFilter;
-  }, [tasks, statusFilter, searchQuery]);
+    return dataToFilter;
+  }, [transformedData, statusFilter, searchQuery]);
+
 
   const handleOpenEditModal = useCallback((task, e) => {
     e.stopPropagation();
@@ -169,9 +195,9 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
       }).then((result) => {
         if (result.isConfirmed) {
           const token = getAuthToken();
-          const deleteApiPath = getApiBasePathForRole(
-            `/project-task/${taskId}`
-          );
+          // Note: The delete endpoint might need to differentiate between task and sub-task.
+          // Assuming /project-task/{id} handles both for now.
+          const deleteApiPath = getApiBasePathForRole(`/project-task/${taskId}`);
           axios
             .delete(
               `${import.meta.env.VITE_BACKEND_BASE_URL}${deleteApiPath}`,
@@ -185,13 +211,12 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
                 "The task has been successfully deleted.",
                 "success"
               );
-              fetchTasks();
+              fetchTasks(); // Refetch all data after deletion
             })
             .catch((error) => {
               Swal.fire(
                 "Failed!",
-                error.response?.data?.message ||
-                  "The task could not be deleted.",
+                error.response?.data?.message || "The task could not be deleted.",
                 "error"
               );
             });
@@ -210,11 +235,14 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
     });
   };
 
+  // ====================================================================
+  // CHANGE #3: Update column definitions to match the new structure and add the "Task" column.
+  // ====================================================================
   const COLUMNS = useMemo(
     () => [
       {
         Header: "Jobs",
-        accessor: (row) => row.project?.project_name || "N/A",
+        accessor: "project_name", // Use the key from transformedData
         Cell: ({ value }) => (
           <span className="font-medium text-slate-700 dark:text-slate-300">
             {value}
@@ -223,32 +251,41 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
       },
       {
         Header: "Projects",
-        accessor: "task_title",
+        accessor: "project_title", // Use the key from transformedData
         Cell: ({ value }) => (
           <span className="font-medium text-slate-600 capitalize">{value}</span>
         ),
       },
       {
+        Header: "Task", // The new column for sub_task title
+        accessor: "task_title",
+        Cell: ({ value }) => (
+          <span className="text-slate-500 capitalize">
+            {value || 'N/A'}
+          </span>
+        ),
+      },
+      {
         Header: "Assigned To",
-        accessor: "assignees",
+        accessor: "assignees", // Use the key from transformedData
         Cell: ({ value }) => <AvatarStack assignees={value} />,
       },
       {
         Header: "Start Date",
-        accessor: "created_at",
+        accessor: "created_at", // Use the key from transformedData
         Cell: ({ value }) => <span>{formatDate(value)}</span>,
       },
       {
         Header: "End Date",
-        accessor: "due_date",
+        accessor: "due_date", // Use the key from transformedData
         Cell: ({ value }) => <span>{formatDate(value)}</span>,
       },
       {
         Header: "Status",
-        accessor: "task_status",
+        accessor: "task_status", // Use the key from transformedData
         Cell: ({ row }) => (
           <EditableTaskStatus
-            taskId={row.original.id}
+            taskId={row.original.id} // ID of the task or sub-task
             currentStatus={row.original.task_status}
             onStatusUpdate={() => fetchTasks()}
             isEditable={userRole !== "customer"}
@@ -266,16 +303,19 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
             <button
               className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
               title="Edit Task"
-              onClick={(e) => handleOpenEditModal(row.original, e)}
+              // Pass the full original task object to the modal handler
+              onClick={(e) => handleOpenEditModal(row.original.original_task_data, e)}
             >
               <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
             </button>
             <button
               className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
               title="Delete Task"
-              onClick={(e) =>
-                handleDelete(row.original.id, row.original.task_title, e)
-              }
+              onClick={(e) => {
+                 // Use the correct title for the confirmation dialog
+                 const titleToDelete = row.original.task_title || row.original.project_title;
+                 handleDelete(row.original.id, titleToDelete, e);
+              }}
             >
               <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
             </button>
@@ -283,16 +323,10 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
         ),
       },
     ],
-    [
-      navigate,
-      handleOpenEditModal,
-      handleDelete,
-      userRole,
-      fetchTasks,
-    ]
+    [handleOpenEditModal, handleDelete, userRole, fetchTasks]
   );
   
-  const data = useMemo(() => filteredTasks, [filteredTasks]);
+  const data = useMemo(() => filteredAndMemoizedData, [filteredAndMemoizedData]);
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable(
@@ -307,6 +341,8 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange }) => {
     if (userRole === "customer") {
       return;
     }
+    // This navigation leads to a page with the task/sub-task ID.
+    // Ensure the route `/project/:id` is designed to handle this.
     navigate(`/project/${row.original.id}`);
   };
 
