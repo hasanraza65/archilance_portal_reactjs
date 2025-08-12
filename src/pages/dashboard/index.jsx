@@ -1,23 +1,33 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Card from "@/components/ui/Card";
 import HomeBredCurbs from "./HomeBredCurbs";
 import { useAuth } from "@/context/AuthContext";
 
-const StatCard = ({ item, color }) => (
-  <div
-    className={`p-6 rounded-xl ${color.bg} hover:shadow-lg transition-shadow duration-200`}
-  >
-    <div className="flex items-center justify-between mb-3">
-      <div
-        className={`w-10 h-10 rounded-lg ${color.iconBg} flex items-center justify-center`}
-      >
-        <div className={`w-5 h-5 ${color.icon}`}>{item.icon}</div>
+const StatCard = ({ item, color }) => {
+  const cardContent = (
+    <div
+      className={`p-6 rounded-xl ${color.bg} hover:shadow-lg transition-shadow duration-200 h-full`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div
+          className={`w-10 h-10 rounded-lg ${color.iconBg} flex items-center justify-center`}
+        >
+          <div className={`w-5 h-5 ${color.icon}`}>{item.icon}</div>
+        </div>
       </div>
+      <h4 className={`${color.title} text-sm font-medium mb-1`}>
+        {item.title}
+      </h4>
+      <div className={`${color.count} text-2xl font-bold`}>{item.count}</div>
     </div>
-    <h4 className={`${color.title} text-sm font-medium mb-1`}>{item.title}</h4>
-    <div className={`${color.count} text-2xl font-bold`}>{item.count}</div>
-  </div>
-);
+  );
+
+  if (item.link) {
+    return <Link to={item.link}>{cardContent}</Link>;
+  }
+  return cardContent;
+};
 
 const UserIcon = () => (
   <svg fill="currentColor" viewBox="0 0 20 20" className="w-full h-full">
@@ -80,11 +90,9 @@ const StatsGrid = ({ stats, colors }) => (
 
 const Dashboard = () => {
   const { user, token } = useAuth();
-
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const cardColors = [
     {
       bg: "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800",
@@ -122,7 +130,6 @@ const Dashboard = () => {
         setLoading(false);
         return;
       }
-
       let apiUrl = "";
       if (user.role === "admin") {
         apiUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/dashboard`;
@@ -134,10 +141,8 @@ const Dashboard = () => {
         setLoading(false);
         return;
       }
-
       setLoading(true);
       setError(null);
-
       try {
         const response = await fetch(apiUrl, {
           headers: {
@@ -145,15 +150,10 @@ const Dashboard = () => {
             Authorization: `Bearer ${token}`,
           },
         });
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
         const data = await response.json();
-
-        console.log("Full API Response for role '" + user.role + "':", data);
-
         let transformedStats = [];
         if (user.role === "admin") {
           transformedStats = [
@@ -161,26 +161,31 @@ const Dashboard = () => {
               title: "Total Customers",
               count: data.total_customers,
               icon: <UserIcon />,
+              link: "/customers",
             },
             {
               title: "Total Employees",
               count: data.total_employees,
               icon: <BriefcaseIcon />,
+              link: "/employees",
             },
             {
               title: "Total Projects",
               count: data.total_projects,
               icon: <FolderIcon />,
+              link: "/jobs",
             },
             {
               title: "Projects In Progress",
               count: data.total_in_progress_projects,
               icon: <TaskIcon />,
+              link: "/jobs?status=In Progress",
             },
             {
               title: "Completed Projects",
               count: data.total_completed_projects,
               icon: <CheckIcon />,
+              link: "/jobs?status=Completed",
             },
             {
               title: "Total Users",
@@ -194,28 +199,29 @@ const Dashboard = () => {
               title: "My Total Projects",
               count: data.total_projects,
               icon: <FolderIcon />,
+              link: "/jobs",
             },
             {
               title: "Projects In Progress",
               count: data.total_in_progress_projects,
               icon: <ClockIcon />,
+              link: "/jobs?status=In Progress",
             },
             {
               title: "Completed Projects",
               count: data.total_completed_projects,
               icon: <CheckIcon />,
+              link: "/jobs?status=Completed",
             },
           ];
         }
         setStats(transformedStats);
       } catch (e) {
         setError(e.message);
-        console.error("Failed to fetch dashboard data:", e);
       } finally {
         setLoading(false);
       }
     };
-
     fetchDashboardData();
   }, [user, token]);
 
@@ -228,7 +234,6 @@ const Dashboard = () => {
   return (
     <div>
       <HomeBredCurbs title="Dashboard" />
-
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-1">
           Welcome back, {user?.name || "User"}!
@@ -239,7 +244,6 @@ const Dashboard = () => {
             : "Here's an overview of your projects and tasks."}
         </p>
       </div>
-
       <div className="grid grid-cols-12 gap-5 mb-5">
         <div className="col-span-12">
           <Card bodyClass="p-6">

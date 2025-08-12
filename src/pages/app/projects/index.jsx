@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ProjectGrid from "./ProjectGrid";
@@ -79,23 +80,29 @@ export const StatusFilterBar = ({
 );
 
 const ProjectPostPage = () => {
+  const [searchParams] = useSearchParams();
+
   const [activeTab, setActiveTab] = useState(
     () => sessionStorage.getItem("projectPageActiveTab") || "projects"
   );
   const [filler, setFiller] = useState(
     () => sessionStorage.getItem("projectView") || "grid"
   );
-  
-  // Har tab ke liye alag state
-  const [projectStatusFilter, setProjectStatusFilter] = useState("All");
+
+  const [projectStatusFilter, setProjectStatusFilter] = useState(() => {
+    const statusFromUrl = searchParams.get("status");
+    return statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)
+      ? statusFromUrl
+      : "All";
+  });
+
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
-
   const [isTaskListLoading, setTaskListLoading] = useState(true);
 
-  const actualUserRole = getUserRole(); 
-  const uiRole = actualUserRole === 'member' ? 'customer' : actualUserRole;
+  const actualUserRole = getUserRole();
+  const uiRole = actualUserRole === "member" ? "customer" : actualUserRole;
 
   const dispatch = useDispatch();
   const {
@@ -120,17 +127,14 @@ const ProjectPostPage = () => {
     setFiller(view);
   };
 
-  // Search aur Status ke hisab se Jobs ko filter karein
   const filteredProjects = useMemo(() => {
     let projectsToFilter = projects;
-
     if (projectStatusFilter.toLowerCase() !== "all") {
       projectsToFilter = projectsToFilter.filter(
         (project) =>
           project.status?.toLowerCase() === projectStatusFilter.toLowerCase()
       );
     }
-
     if (projectSearchQuery.trim() !== "") {
       const lowerCaseQuery = projectSearchQuery.toLowerCase();
       projectsToFilter = projectsToFilter.filter(
@@ -139,7 +143,6 @@ const ProjectPostPage = () => {
           project.des?.toLowerCase().includes(lowerCaseQuery)
       );
     }
-
     return projectsToFilter;
   }, [projects, projectStatusFilter, projectSearchQuery]);
 
@@ -187,7 +190,7 @@ const ProjectPostPage = () => {
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
           {activeTab === "projects" ? "Jobs" : "Projects"}
         </h4>
-        
+
         {activeTab === "projects" &&
           uiRole !== "employee" &&
           uiRole !== "customer" && (
@@ -206,17 +209,20 @@ const ProjectPostPage = () => {
           <Card className="mb-6">
             <div className="md:flex justify-between items-center space-y-4 md:space-y-0">
               <div className="relative md:w-1/3">
-                  <input
-                    type="text"
-                    value={projectSearchQuery}
-                    onChange={(e) => setProjectSearchQuery(e.target.value)}
-                    placeholder="Search jobs by name or description..."
-                    className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
-                    disabled={anyOperationPending}
+                <input
+                  type="text"
+                  value={projectSearchQuery}
+                  onChange={(e) => setProjectSearchQuery(e.target.value)}
+                  placeholder="Search jobs by name or description..."
+                  className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
+                  disabled={anyOperationPending}
+                />
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Icon
+                    icon="heroicons-outline:search"
+                    className="w-5 h-5 text-slate-400"
                   />
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <Icon icon="heroicons-outline:search" className="w-5 h-5 text-slate-400" />
-                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
@@ -244,11 +250,11 @@ const ProjectPostPage = () => {
             </div>
             <hr className="my-4 border-slate-200 dark:border-slate-700" />
             <StatusFilterBar
-                statuses={STATUS_OPTIONS}
-                activeFilter={projectStatusFilter}
-                onFilterChange={setProjectStatusFilter}
-                disabled={anyOperationPending}
-              />
+              statuses={STATUS_OPTIONS}
+              activeFilter={projectStatusFilter}
+              onFilterChange={setProjectStatusFilter}
+              disabled={anyOperationPending}
+            />
           </Card>
 
           {projectsDataLoading &&
@@ -304,8 +310,9 @@ const ProjectPostPage = () => {
                   No Jobs Found
                 </h4>
                 <p className="mt-1 text-sm text-slate-500">
-                  {projectSearchQuery ? `No jobs match your search for "${projectSearchQuery}".`
-                   : projectStatusFilter.toLowerCase() !== "all"
+                  {projectSearchQuery
+                    ? `No jobs match your search for "${projectSearchQuery}".`
+                    : projectStatusFilter.toLowerCase() !== "all"
                     ? `No jobs found with the status "${projectStatusFilter}".`
                     : "There are no Jobs to display."}
                 </p>
@@ -318,19 +325,22 @@ const ProjectPostPage = () => {
         <>
           <Card className="mb-6">
             <div className="md:flex justify-between items-center space-y-4 md:space-y-0">
-                <div className="relative md:w-1/3">
-                    <input
-                      type="text"
-                      value={taskSearchQuery}
-                      onChange={(e) => setTaskSearchQuery(e.target.value)}
-                      placeholder="Search projects by title..."
-                      className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
-                      disabled={isTaskListLoading}
-                    />
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <Icon icon="heroicons-outline:search" className="w-5 h-5 text-slate-400" />
-                    </div>
+              <div className="relative md:w-1/3">
+                <input
+                  type="text"
+                  value={taskSearchQuery}
+                  onChange={(e) => setTaskSearchQuery(e.target.value)}
+                  placeholder="Search projects by title..."
+                  className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
+                  disabled={isTaskListLoading}
+                />
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Icon
+                    icon="heroicons-outline:search"
+                    className="w-5 h-5 text-slate-400"
+                  />
                 </div>
+              </div>
             </div>
             <hr className="my-4 border-slate-200 dark:border-slate-700" />
             <StatusFilterBar

@@ -8,6 +8,13 @@ import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 
 // --- START: Helper functions and presets configuration ---
+
+// NEW: Helper function to get today's date as a range.
+const getTodayDateRange = () => {
+  const today = new Date();
+  return [today, today];
+};
+
 const getWeekDateRange = (date = new Date()) => {
   const current = new Date(date);
   const day = current.getDay();
@@ -38,7 +45,9 @@ const getLastMonthDateRange = () => {
   return [firstDay, lastDay];
 };
 
+// UPDATED: Added a "Today" preset to the list.
 const PRESETS = [
+  { label: "Today", func: getTodayDateRange },
   { label: "Current week", func: getWeekDateRange },
   { label: "Last week", func: getLastWeekDateRange },
   { label: "Current month", func: getCurrentMonthDateRange },
@@ -121,11 +130,13 @@ const AdminEmployeeWorkSession = () => {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
-  const [dateRange, setDateRange] = useState(getWeekDateRange());
+  // MODIFIED: Set the initial date range to today's date by default.
+  const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
 
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
-  const [activePreset, setActivePreset] = useState("Current week");
+  // MODIFIED: Set the active preset label to "Today" to match the default state.
+  const [activePreset, setActivePreset] = useState("Today");
   const presetDropdownRef = useRef(null);
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin`;
@@ -263,12 +274,13 @@ const AdminEmployeeWorkSession = () => {
   }, [selectedTask, dateRange, selectedProject]);
   
   // Handlers
+  // MODIFIED: The reset handler now resets to "Today" to match the initial state.
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
     setTasks([]);
-    setDateRange(getWeekDateRange());
-    setActivePreset("Current week");
+    setDateRange(getTodayDateRange());
+    setActivePreset("Today");
     setOverallTotalTime("0h 0m");
   };
 

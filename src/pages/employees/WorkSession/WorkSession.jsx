@@ -5,6 +5,14 @@ import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
+// --- START: Helper functions ---
+
+// NEW: Helper function to get today's date as a range [today, today].
+const getTodayDateRange = () => {
+  const today = new Date();
+  return [today, today];
+};
+
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -56,15 +64,17 @@ const WorkSession = () => {
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(false); // Set to false initially
+  const [loading, setLoading] = useState(true); // MODIFIED: Start with loading as true
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
-  const [dateRange, setDateRange] = useState([]);
+  // MODIFIED: Initialize dateRange to today's date
+  const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [fetchTrigger, setFetchTrigger] = useState(0);
-  const [hasSearched, setHasSearched] = useState(false);
+  // MODIFIED: Set hasSearched to true initially to trigger the first fetch
+  const [hasSearched, setHasSearched] = useState(true);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
@@ -117,6 +127,7 @@ const WorkSession = () => {
 
   useEffect(() => {
     const performFetch = async () => {
+      // The hasSearched check now allows the initial fetch to happen
       if (!isAuthenticated || !hasSearched) {
         setLoading(false);
         setSessions([]);
@@ -128,7 +139,6 @@ const WorkSession = () => {
       const params = new URLSearchParams({ page: currentPage.toString() });
       if (selectedTask) params.append("task_id", selectedTask);
       
-      // Using the corrected formatDateForAPI function here
       if (dateRange && dateRange[0])
         params.append("start_date", formatDateForAPI(dateRange[0]));
       if (dateRange && dateRange.length > 1 && dateRange[1])
@@ -178,16 +188,19 @@ const WorkSession = () => {
     }
   };
 
+  // MODIFIED: Reset filters now defaults to today's date and re-fetches
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
     setTasks([]);
-    setDateRange([]);
-    setHasSearched(false);
-    setSessions([]);
-    setOverallTotalTime("0h 0m");
+    setDateRange(getTodayDateRange());
+    setHasSearched(true); // Keep this true
+
+    // Trigger a new fetch
     if (currentPage !== 1) {
       setCurrentPage(1);
+    } else {
+      setFetchTrigger((t) => t + 1);
     }
   };
 
@@ -209,7 +222,8 @@ const WorkSession = () => {
           });
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
-          setSessions((p) => p.filter((s) => s.id !== sessionId));
+          // Re-trigger fetch to update overall time
+          setFetchTrigger((t) => t + 1);
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
         }
@@ -282,9 +296,11 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
           Work Diary
         </h1>
-        <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg mb-6">
-          Total Time: {overallTotalTime}
-        </div>
+        { (loading || sessions.length > 0 || hasSearched) && (
+            <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg mb-6">
+                Total Time: {overallTotalTime}
+            </div>
+        )}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -357,7 +373,7 @@ const WorkSession = () => {
                 value={dateRange}
                 onChange={setDateRange}
                 className="form-input w-full"
-                options={{ mode: "range", dateFormat: "Y-m-d" }}
+                options={{ mode: "range", dateFormat: "M j, Y" }}
                 placeholder="Select date range"
               />
             </div>
@@ -476,30 +492,13 @@ const WorkSession = () => {
           ) : hasSearched ? (
             <div className="text-center py-16">
               <p className="text-slate-500">
-                No work sessions found matching your criteria.
+                No work sessions found for the selected criteria.
               </p>
             </div>
           ) : (
+            // This case should no longer be reachable on initial load.
             <div className="text-center py-16">
-              <svg
-                className="mx-auto h-12 w-12 text-slate-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  vectorEffect="non-scaling-stroke"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-200">
-                No work diary to show
-              </h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="text-slate-500">
                 Please select filters and click "Search" to view sessions.
               </p>
             </div>
