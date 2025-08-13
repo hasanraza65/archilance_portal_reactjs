@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+// 1. react-router-dom se useSearchParams import karein
 import { useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -80,6 +81,7 @@ export const StatusFilterBar = ({
 );
 
 const ProjectPostPage = () => {
+  // 2. Component ke andar useSearchParams hook ka istemal karein
   const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState(
@@ -89,11 +91,18 @@ const ProjectPostPage = () => {
     () => sessionStorage.getItem("projectView") || "grid"
   );
 
+  // 3. Filter ki initial state ko URL se set karein
   const [projectStatusFilter, setProjectStatusFilter] = useState(() => {
+    // URL se 'status' parameter hasil karein
     const statusFromUrl = searchParams.get("status");
-    return statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)
-      ? statusFromUrl
-      : "All";
+
+    // Check karein ke URL se mila hua status hamari options list mein hai ya nahi
+    if (statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)) {
+      // Agar valid hai, to usay initial state banayein
+      return statusFromUrl;
+    }
+    // Agar URL mein status nahi hai ya invalid hai, to 'All' set karein
+    return "All";
   });
 
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");

@@ -12,8 +12,8 @@ import Icon from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
 
 // import images
-import MobileLogo from "@/assets/images/logo/logo-c.svg";
-import MobileLogoWhite from "@/assets/images/logo/logo-c-white.svg";
+import MobileLogo from "@/assets/images/logo-img/logo.png";
+import MobileLogoWhite from "@/assets/images/logo-img/logo.png";
 
 const MobileMenu = ({ className = "custom-class" }) => {
   const scrollableNodeRef = useRef();
