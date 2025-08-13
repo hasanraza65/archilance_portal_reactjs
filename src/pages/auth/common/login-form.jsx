@@ -26,22 +26,27 @@ const LoginForm = () => {
   const { login: authLogin } = useAuth();
 
   useEffect(() => {
-    const handleMessage = (event) => {
-      const fcmToken = event.data;
+    // --- START OF CHANGES ---
 
-      // Sirf yeh check karein ke data string hai aur khali nahi hai
-      if (fcmToken && typeof fcmToken === 'string' && fcmToken.length > 20) {
+    // Step 1: Developer ke bataye hue naam se function banayein
+    window.receiveFcmToken = function (token) {
+      console.log("Received FCM Token from Flutter via function call:", token);
+
+      // Check karein ke token khali na ho
+      if (token && typeof token === 'string') {
         // Sirf ek final alert dikhayein
-        alert(`FCM Token Received: ${fcmToken}`);
+        alert(`Token Received Successfully: ${token}`);
       }
     };
 
-    window.addEventListener("message", handleMessage);
-
+    // Step 2: Component ke hatne par is function ko saaf (clean up) kar dein
+    // Yeh zaroori hai taake memory leaks na hon
     return () => {
-      window.removeEventListener("message", handleMessage);
+      window.receiveFcmToken = null;
     };
-  }, []);
+
+    // --- END OF CHANGES ---
+  }, []); // Khali array [] ka matlab hai ke yeh effect sirf ek baar chalta hai
 
   const {
     register,
