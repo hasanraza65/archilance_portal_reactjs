@@ -140,9 +140,35 @@ const OrderStatusStep = ({ status, text, isLast = false }) => {
   );
 };
 
+// +++ YEH COMPONENT UPDATE KIYA GAYA HAI +++
 const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const tasksPerPage = 4;
+  const tasksPerPage = 4; // Har baar kitne tasks load karne hain
+  const [displayedTasks, setDisplayedTasks] = useState([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Jab `tasks` prop change ho (yani data fetch ho), to initial tasks set karein
+  useEffect(() => {
+    if (tasks && tasks.length > 0) {
+      setDisplayedTasks(tasks.slice(0, tasksPerPage));
+    } else {
+      setDisplayedTasks([]);
+    }
+  }, [tasks]);
+
+  const handleLoadMore = () => {
+    setIsLoadingMore(true);
+    // Loader dikhane ke liye thoda delay add kiya hai taake UX behtar ho
+    setTimeout(() => {
+      const currentLength = displayedTasks.length;
+      const newTasksToAdd = tasks.slice(
+        currentLength,
+        currentLength + tasksPerPage
+      );
+      setDisplayedTasks((prevTasks) => [...prevTasks, ...newTasksToAdd]);
+      setIsLoadingMore(false);
+    }, 700); // 700ms ka delay
+  };
+
   if (!tasks || tasks.length === 0) {
     return (
       <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-8 text-center flex flex-col justify-center h-full">
@@ -158,10 +184,7 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
       </div>
     );
   }
-  const indexOfLastTask = currentPage * tasksPerPage;
-  const indexOfFirstTask = indexOfLastTask - tasksPerPage;
-  const currentTasks = tasks.slice(indexOfFirstTask, indexOfLastTask);
-  const totalPages = Math.ceil(tasks.length / tasksPerPage);
+
   const getStatusBadge = (status) => {
     switch (status) {
       case "Completed":
@@ -174,6 +197,7 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
         return "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg";
     }
   };
+
   return (
     <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 flex flex-col overflow-hidden h-full">
       <div className="p-6 bg-gradient-to-r from-slate-50 to-gray-50 flex-shrink-0">
@@ -187,7 +211,8 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {currentTasks.map((task, index) => (
+        {/* Ab `displayedTasks` se map hoga */}
+        {displayedTasks.map((task, index) => (
           <div
             key={task.id}
             className="group p-6 bg-white/80 backdrop-blur-sm border border-white/40 rounded-2xl hover:shadow-xl hover:bg-white/90 transition-all duration-300 hover:-translate-y-1"
@@ -270,31 +295,25 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
           </div>
         ))}
       </div>
-      {totalPages > 1 && (
-        <div className="flex-shrink-0 p-4 bg-slate-50/50 flex items-center justify-center gap-4 border-t border-white/20">
-          <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg text-gray-700 font-semibold shadow-md hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ChevronLeft size={16} />
-            Previous
-          </button>
-          <span className="font-bold text-gray-700">
-            {currentPage} / {totalPages}
-          </span>
-          <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            disabled={currentPage === totalPages}
-            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg text-gray-700 font-semibold shadow-md hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      )}
+
+      {/* +++ PAGINATION KI JAGAH YEH NAYA "LOAD MORE" SECTION +++ */}
+      <div className="flex-shrink-0 p-4 bg-slate-50/50 flex items-center justify-center border-t border-white/20">
+        {isLoadingMore ? (
+          <div className="flex items-center gap-3 text-gray-700 font-semibold">
+            <Loader className="w-6 h-6 animate-spin text-blue-600" />
+            <span>Loading More Tasks...</span>
+          </div>
+        ) : (
+          displayedTasks.length < tasks.length && (
+            <button
+              onClick={handleLoadMore}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              Load More Tasks
+            </button>
+          )
+        )}
+      </div>
     </div>
   );
 };
@@ -897,7 +916,7 @@ const OrderDetailsPage = () => {
     fetchInitialData();
     const pollInterval = setInterval(fetchMessages, 20000);
     return () => clearInterval(pollInterval);
-  }, [projectId, token, rolePrefix]); 
+  }, [projectId, token, rolePrefix]);
 
   useEffect(() => {
     if (!projectData) return;
