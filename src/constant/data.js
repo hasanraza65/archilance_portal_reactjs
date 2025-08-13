@@ -63,42 +63,42 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:document",
     link: "jobs",
-    allowedRoles: ["admin", "employee","customer","member"], // Sabko dikhega
+    allowedRoles: ["admin", "employee","customer","member"], 
   },
   {
     title: "Chat",
     isHide: false,
     icon: "heroicons-outline:chat",
     link: "chat",
-    allowedRoles: ["admin", "employee"], // Sirf admin aur employee ko
+    allowedRoles: ["admin", "employee"], 
   },
    {
     title: "Leaves",
     isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "leaves",
-    allowedRoles: ["admin"], // Sirf admin aur employee ko
+    allowedRoles: ["admin"], 
   },
   {
     title: "Employees",
     isHide: false,
     icon: "heroicons-outline:user",
     link: "employees",
-    allowedRoles: ["admin"], // Sirf admin ko
+    allowedRoles: ["admin"], 
   },
   {
     title: "Customers",
     isHide: false,
     icon: "heroicons-outline:user",
     link: "customers",
-    allowedRoles: ["admin"], // Sirf admin ko
+    allowedRoles: ["admin"], 
   },
    {
     title: "Work Session",
     isHide: false,
     icon: "heroicons-outline:document",
     link: "work-session",
-    allowedRoles: ["employee"], // Sirf admin ko
+    allowedRoles: ["employee"], 
   },
    {
     title: "Leaves",
@@ -112,35 +112,35 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:receipt-refund",
     link: "subscriptions",
-    allowedRoles: ["customer",], // Sirf customer ko
+    allowedRoles: ["customer",], 
   },
   {
     title: "Subscription",
     isHide: false,
     icon: "heroicons-outline:receipt-refund",
     link: "subscription",
-    allowedRoles: ["admin",], // Sirf customer ko
+    allowedRoles: ["admin",], 
   },
   {
     title: "Customer Team",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "team",
-    allowedRoles: ["customer",], // Sirf customer ko
+    allowedRoles: ["customer",], 
   },
   {
     title: "Customer Team Access",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "teamaccess",
-    allowedRoles: ["member",], // Sirf customer ko
+    allowedRoles: ["member",], 
   },
   {
     title: "Customer Team Members",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "customerteam",
-    allowedRoles: ["admin",], // Sirf customer ko
+    allowedRoles: ["admin",], 
   },
 ];
 

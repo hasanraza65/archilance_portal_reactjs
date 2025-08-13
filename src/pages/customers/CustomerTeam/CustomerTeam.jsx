@@ -4,22 +4,21 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
+import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import {
   useTable,
-  useRowSelect,
   useSortBy,
   useGlobalFilter,
   usePagination,
 } from "react-table";
 
-import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
-import Alert from "@/components/ui/Alert";
 import GlobalFilter from "@/pages/table/react-table/GlobalFilter";
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
-// Column configuration for the customer team table
-const CUSTOMER_TEAM_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
+// Column configuration (Actions ke saath)
+const CUSTOMER_TEAM_COLUMNS_CONFIG = (navigate, handleDeleteClick) => [
   {
     Header: "Id",
     accessor: "id",
@@ -74,60 +73,50 @@ const CUSTOMER_TEAM_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
     accessor: "phone",
     Cell: ({ cell: { value } }) => <span>{value || "N/A"}</span>,
   },
-//   {
-//     Header: "Status",
-//     accessor: "status",
-//     Cell: ({ cell: { value } }) => (
-//       <span
-//         className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-//           value === "Pending"
-//             ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400"
-//             : value === "Active"
-//             ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400"
-//             : "bg-slate-100 text-slate-800 dark:bg-slate-500/20 dark:text-slate-400"
-//         }`}
-//       >
-//         {value}
-//       </span>
-//     ),
-//   },
-//   {
-//     Header: "Action",
-//     accessor: "action",
-//     Cell: ({ row }) => {
-//       const handleView = () =>
-//         navigate(`/customer-team/view/${row.original.id}`);
-//       const handleEdit = () =>
-//         navigate(`/customer-team/edit/${row.original.id}`);
-//       const handleDeleteClick = () => openDeleteModalHandler(row.original);
+  // {
+  //   Header: "Status",
+  //   accessor: "status",
+  //   Cell: ({ cell: { value } }) => (
+  //     <span
+  //       className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
+  //         value === "Pending"
+  //           ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400"
+  //           : value === "Active"
+  //           ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400"
+  //           : "bg-slate-100 text-slate-800 dark:bg-slate-500/20 dark:text-slate-400"
+  //       }`}
+  //     >
+  //       {value}
+  //     </span>
+  //   ),
+  // },
+  {
+    Header: "Action",
+    accessor: "action",
+    Cell: ({ row }) => {
+      const handleEdit = () => navigate(`/team/edit/${row.original.id}`);
+      const onDelete = () => handleDeleteClick(row.original);
 
-//       return (
-//         <div className="flex space-x-1 items-center rtl:space-x-reverse">
-//           <button
-//             onClick={handleView}
-//             className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700 rounded-md transition-all duration-200"
-//             title="View Details"
-//           >
-//             <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
-//           </button>
-//           <button
-//             onClick={handleEdit}
-//             className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-all duration-200"
-//             title="Edit"
-//           >
-//             <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
-//           </button>
-//           <button
-//             onClick={handleDeleteClick}
-//             className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-all duration-200"
-//             title="Delete"
-//           >
-//             <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
-//           </button>
-//         </div>
-//       );
-//     },
-//   },
+      return (
+        <div className="flex space-x-1 items-center rtl:space-x-reverse">
+          <button
+            onClick={handleEdit}
+            className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-all duration-200"
+            title="Edit"
+          >
+            <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-all duration-200"
+            title="Delete"
+          >
+            <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    },
+  },
 ];
 
 const CustomerTeam = () => {
@@ -136,22 +125,12 @@ const CustomerTeam = () => {
   const [fetchError, setFetchError] = useState(null);
   const navigate = useNavigate();
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [memberToDelete, setMemberToDelete] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState(null);
-  const [deleteSuccess, setDeleteSuccess] = useState(null);
-
   const fetchTeamMembers = useCallback(async () => {
-    console.log("1. Starting to fetch team members...");
     setLoading(true);
     setFetchError(null);
-    setDeleteSuccess(null);
-    setDeleteError(null);
 
     const token = Cookies.get("token");
     if (!token) {
-      console.error("DEBUG: Authentication token not found in cookies.");
       setFetchError("Authentication token not found. Please log in.");
       setLoading(false);
       return;
@@ -160,11 +139,6 @@ const CustomerTeam = () => {
     const apiUrl = `${
       import.meta.env.VITE_BACKEND_BASE_URL
     }/api/customer/customer-team`;
-    console.log("2. Fetching from URL:", apiUrl);
-    console.log(
-      "   Using token (first 10 chars):",
-      token.substring(0, 10) + "..."
-    );
 
     try {
       const response = await axios.get(apiUrl, {
@@ -174,27 +148,13 @@ const CustomerTeam = () => {
         },
       });
 
-      console.log("3. Full API Response received:", response);
-
       if (response.data && Array.isArray(response.data.data)) {
-        console.log(
-          "4. Data is in expected format. Setting state with:",
-          response.data.data
-        );
         setTeamData(response.data.data);
       } else {
-        console.error(
-          "DEBUG: Received unexpected data format from server:",
-          response.data
-        );
         setFetchError("Received unexpected data format from server.");
         setTeamData([]);
       }
     } catch (err) {
-      console.error(
-        "DEBUG: An error occurred during the API call:",
-        err.response || err
-      );
       setFetchError(
         err.response?.data?.message ||
           err.message ||
@@ -203,7 +163,6 @@ const CustomerTeam = () => {
       setTeamData([]);
     } finally {
       setLoading(false);
-      console.log("5. Fetch process finished.");
     }
   }, []);
 
@@ -211,51 +170,91 @@ const CustomerTeam = () => {
     fetchTeamMembers();
   }, [fetchTeamMembers]);
 
-  const handleOpenDeleteModal = useCallback((member) => {
-    setMemberToDelete(member);
-    setIsDeleteModalOpen(true);
-    setDeleteError(null);
-    setDeleteSuccess(null);
-  }, []);
-  const handleCloseDeleteModal = useCallback(() => {
-    setIsDeleteModalOpen(false);
-    setMemberToDelete(null);
-  }, []);
+  const handleDeleteClick = useCallback(
+    (member) => {
+      Swal.fire({
+        title: "Are you sure?",
+        text: `Do you want to delete "${member.name}"? You won't be able to revert this!`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it!",
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const token = Cookies.get("token");
+          const apiUrl = `${
+            import.meta.env.VITE_BACKEND_BASE_URL
+          }/api/customer/customer-team/${member.id}`;
 
-  const handleConfirmDelete = useCallback(async () => {
-    // ... delete logic remains the same ...
-  }, [memberToDelete, handleCloseDeleteModal]);
+          const toastId = toast.loading("Deleting team member...");
+
+          try {
+            await axios.delete(apiUrl, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            toast.update(toastId, {
+              render: `Team member "${member.name}" has been deleted.`,
+              type: "success",
+              isLoading: false,
+              autoClose: 3000,
+            });
+
+            fetchTeamMembers();
+          } catch (err) {
+            const errorMessage =
+              err.response?.data?.message || "Failed to delete team member.";
+
+            toast.update(toastId, {
+              render: errorMessage,
+              type: "error",
+              isLoading: false,
+              autoClose: 3000,
+            });
+          }
+        }
+      });
+    },
+    [fetchTeamMembers]
+  );
 
   const columns = useMemo(
-    () => CUSTOMER_TEAM_COLUMNS_CONFIG(navigate, handleOpenDeleteModal),
-    [navigate, handleOpenDeleteModal]
+    () => CUSTOMER_TEAM_COLUMNS_CONFIG(navigate, handleDeleteClick),
+    [navigate, handleDeleteClick]
   );
-  const data = useMemo(() => teamData, [teamData]);
 
-  const tableInstance = useTable(
-    { columns, data, initialState: { pageIndex: 0, pageSize: 10 } },
-    useGlobalFilter,
-    useSortBy,
-    usePagination
-  );
+  const data = useMemo(() => teamData, [teamData]);
 
   const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
     page,
+    prepareRow,
+    canPreviousPage,
+    canNextPage,
+    pageOptions,
+    pageCount,
+    gotoPage,
     nextPage,
     previousPage,
-    canNextPage,
-    canPreviousPage,
-    pageOptions,
-    state,
-    gotoPage,
-    pageCount,
     setPageSize,
+    state,
     setGlobalFilter,
-    prepareRow,
-  } = tableInstance;
+  } = useTable(
+    {
+      columns,
+      data,
+      initialState: {
+        pageSize: 10,
+      },
+    },
+    useGlobalFilter,
+    useSortBy,
+    usePagination
+  );
+
   const { globalFilter, pageIndex, pageSize } = state;
 
   if (loading) {
@@ -265,6 +264,7 @@ const CustomerTeam = () => {
       </Card>
     );
   }
+
   if (fetchError) {
     return (
       <Card>
@@ -291,30 +291,14 @@ const CustomerTeam = () => {
             />
             <button
               className="btn btn-dark flex items-center justify-center"
-              onClick={() => navigate("/customer-team/add")}
+              onClick={() => navigate("/team/add")}
             >
               <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
               Add Team Member
             </button>
           </div>
         </div>
-        {/* ... Alerts and Table rendering ... (No changes needed below this line) */}
-        {deleteSuccess && (
-          <Alert
-            className="alert-success light-mode mb-4"
-            toggle={() => setDeleteSuccess(null)}
-          >
-            {deleteSuccess}
-          </Alert>
-        )}
-        {deleteError && (
-          <Alert
-            className="alert-danger light-mode mb-4"
-            toggle={() => setDeleteError(null)}
-          >
-            {deleteError}
-          </Alert>
-        )}
+
         <div className="overflow-x-auto -mx-6">
           <div className="inline-block min-w-full align-middle">
             <div className="overflow-hidden shadow-sm dark:shadow-slate-700 rounded-md">
@@ -354,11 +338,19 @@ const CustomerTeam = () => {
                       prepareRow(row);
                       return (
                         <tr {...row.getRowProps()}>
-                          {row.cells.map((cell) => (
-                            <td {...cell.getCellProps()} className="table-td">
-                              {cell.render("Cell")}
-                            </td>
-                          ))}
+                          {row.cells.map((cell) => {
+                            const { key, ...restCellProps } =
+                              cell.getCellProps();
+                            return (
+                              <td
+                                key={key}
+                                {...restCellProps}
+                                className="table-td"
+                              >
+                                {cell.render("Cell")}
+                              </td>
+                            );
+                          })}
                         </tr>
                       );
                     })
@@ -377,20 +369,7 @@ const CustomerTeam = () => {
             </div>
           </div>
         </div>
-        {page.length > 0 && (
-          <div className="md:flex md:space-y-0 space-y-5 justify-between mt-6 items-center">
-            {/* Pagination controls */}
-          </div>
-        )}
       </Card>
-      <ConfirmDeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={handleCloseDeleteModal}
-        onConfirm={handleConfirmDelete}
-        itemName={memberToDelete?.name}
-        isLoading={deleteLoading}
-        message={`Are you sure you want to delete the team member: `}
-      />
     </>
   );
 };
