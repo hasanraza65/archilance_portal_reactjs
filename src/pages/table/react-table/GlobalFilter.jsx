@@ -1,25 +1,24 @@
-import React, { useState } from "react";
-import Textinput from "@/components/ui/Textinput";
 
-// Hum yahan props mein se filter, setFilter, aur className nikal rahe hain
-// taake className ko seedha Textinput ko de sakein.
-const GlobalFilter = ({ filter, setFilter, className = "" }) => {
-  const [value, setValue] = useState(filter);
-  
-  const onChange = (e) => {
-    setValue(e.target.value);
-    setFilter(e.target.value || undefined);
-  };
+import React from 'react';
+import Icon from "@/components/ui/Icon";
 
-  // Extra div hata diya gaya hai.
-  // Ab className seedha Textinput par lagegi.
+const GlobalFilter =({ value, onChange, placeholder = "Search..." }) => {
+
   return (
-    <Textinput
-      value={value || ""}
-      onChange={onChange}
-      placeholder="search..."
-      className={className} // Yahan className ko pass kiya ja raha hai
-    />
+    <div className="relative w-full">
+      <Icon
+        icon="heroicons-outline:search"
+        className="absolute top-1/2 -translate-y-1/2 left-3 w-5 h-5 text-slate-400 pointer-events-none"
+      />
+      
+      <input
+        type="text"
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="form-control w-full h-10 !pl-10 no-focus-border"
+      />
+    </div>
   );
 };
 

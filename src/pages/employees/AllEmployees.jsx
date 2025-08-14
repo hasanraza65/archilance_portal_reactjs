@@ -65,18 +65,14 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
       );
     },
   },
-   {
-        Header: "Email",
-        accessor: "email",
-        Cell: ({ cell: { value } }) => {
-          const displayValue = value ? value.toLowerCase() : "N/A";
-          return (
-            <span style={{ textTransform: 'none' }}>
-              {displayValue}
-            </span>
-          );
-        },
-      },
+  {
+    Header: "Email",
+    accessor: "email",
+    Cell: ({ cell: { value } }) => {
+      const displayValue = value ? value.toLowerCase() : "N/A";
+      return <span style={{ textTransform: "none" }}>{displayValue}</span>;
+    },
+  },
   {
     Header: "Username",
     accessor: "username",
@@ -323,26 +319,27 @@ const Allemployees = () => {
   return (
     <>
       <Card noBorder>
-        {/* =================== MODIFIED SECTION START =================== */}
-        <div className="md:flex justify-between items-end mb-6">
-          <h4 className="card-title">Employee List</h4>
+        <div className="md:flex justify-between items-center mb-6">
+          <h4 className="card-title mb-4 md:mb-0">Employee List</h4>
 
-          <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3 mt-4 md:mt-0">
-            <GlobalFilter
-              filter={globalFilter || ""}
-              setFilter={setGlobalFilter}
-              className="flex-grow"
-            />
-            <button
-              className="btn btn-dark flex items-center justify-center"
-              onClick={() => navigate("/employees/add")}
-            >
-              <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
-              Add Employee
-            </button>
+          <div className="flex items-center space-x-3 w-full md:w-auto">
+            <div className="flex-1">
+              <GlobalFilter
+                value={globalFilter}
+                onChange={setGlobalFilter}
+                placeholder="Search employees..."
+              />
+            </div>
+              <button
+                className="btn btn-dark flex items-center justify-center h-10"
+                onClick={() => navigate("/employees/add")}
+              >
+                <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
+                Add Employee
+              </button>
+            
           </div>
         </div>
-        {/* =================== MODIFIED SECTION END =================== */}
 
         {deleteSuccess && (
           <Alert

@@ -11,9 +11,9 @@ import {
   useGlobalFilter,
   usePagination,
 } from "react-table";
-import GlobalFilter from "../table/react-table/GlobalFilter";
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import Alert from "@/components/ui/Alert";
+import CustomSearchFilter from "../table/react-table/CustomSearchFilter";
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -151,28 +151,6 @@ const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
   },
 ];
 
-const IndeterminateCheckbox = React.forwardRef(
-  ({ indeterminate, ...rest }, ref) => {
-    const defaultRef = React.useRef();
-    const resolvedRef = ref || defaultRef;
-
-    React.useEffect(() => {
-      if (resolvedRef.current) {
-        resolvedRef.current.indeterminate = indeterminate;
-      }
-    }, [resolvedRef, indeterminate]);
-
-    return (
-      <input
-        type="checkbox"
-        ref={resolvedRef}
-        {...rest}
-        className="table-checkbox"
-      />
-    );
-  }
-);
-IndeterminateCheckbox.displayName = "IndeterminateCheckbox";
 
 const AllCustomers = () => {
   const [customerData, setCustomerData] = useState([]);
@@ -348,14 +326,19 @@ const AllCustomers = () => {
     <>
       <Card noBorder>
         <div className="md:flex justify-between items-center mb-6">
-          <h4 className="card-title">Customer List</h4>
-          <div className="flex flex-wrap space-x-3 items-center">
-            <GlobalFilter
-              filter={globalFilter || ""}
-              setFilter={setGlobalFilter}
-            />
+          <h4 className="card-title mb-4 md:mb-0">Customer List</h4>
+          
+          <div className="flex items-center space-x-3 w-full md:w-auto">
+            <div className="flex-1">
+              <CustomSearchFilter 
+                value={globalFilter}
+                onChange={setGlobalFilter}
+                placeholder="Search customers..."
+              />
+            </div>
+            
             <button
-              className="btn btn-dark flex items-center mt-2 md:mt-0"
+              className="btn btn-dark flex items-center justify-center h-10"
               onClick={() => navigate("/customers/add")}
             >
               <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
@@ -583,5 +566,6 @@ const AllCustomers = () => {
     </>
   );
 };
+
 
 export default AllCustomers;

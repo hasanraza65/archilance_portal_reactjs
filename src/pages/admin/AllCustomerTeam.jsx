@@ -9,11 +9,12 @@ import {
   useGlobalFilter,
   usePagination,
 } from "react-table";
-import GlobalFilter from "@/pages/table/react-table/GlobalFilter";
+
 import Tooltip from "@/components/ui/Tooltip";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Swal from "sweetalert2";
+import CustomSearchFilter from "../table/react-table/CustomSearchFilter";
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -162,22 +163,18 @@ const AllCustomerTeam = () => {
           );
         },
       },
-     
-       {
+      {
         Header: "Email",
         accessor: "email",
         Cell: ({ cell: { value } }) => {
           const displayValue = value ? value.toLowerCase() : "N/A";
-
           return (
-           
             <span style={{ textTransform: 'none' }}>
               {displayValue}
             </span>
           );
         },
       },
-
       {
         Header: "Phone",
         accessor: "phone",
@@ -269,10 +266,17 @@ const AllCustomerTeam = () => {
         hideProgressBar={false}
       />
       <Card noBorder>
-        <div className="md:flex justify-between items-center mb-6">
-          <h4 className="card-title">All Customer Teams</h4>
-          <GlobalFilter filter={globalFilter} setFilter={setGlobalFilter} />
+        {/* THIS IS THE CORRECTED HEADER SECTION */}
+        <div className="md:flex items-center mb-6">
+          <h4 className="card-title md:w-1/4 mb-4 md:mb-0">All Customer Teams</h4>
+          <div className="md:w-3/4">
+            <CustomSearchFilter
+              filter={globalFilter}
+              setFilter={setGlobalFilter}
+            />
+          </div>
         </div>
+
         <div className="overflow-x-auto -mx-6">
           <div className="inline-block min-w-full align-middle">
             <div className="overflow-hidden">
