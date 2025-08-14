@@ -73,23 +73,23 @@ const CUSTOMER_TEAM_COLUMNS_CONFIG = (navigate, handleDeleteClick) => [
     accessor: "phone",
     Cell: ({ cell: { value } }) => <span>{value || "N/A"}</span>,
   },
-  // {
-  //   Header: "Status",
-  //   accessor: "status",
-  //   Cell: ({ cell: { value } }) => (
-  //     <span
-  //       className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-  //         value === "Pending"
-  //           ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400"
-  //           : value === "Active"
-  //           ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400"
-  //           : "bg-slate-100 text-slate-800 dark:bg-slate-500/20 dark:text-slate-400"
-  //       }`}
-  //     >
-  //       {value}
-  //     </span>
-  //   ),
-  // },
+  {
+    Header: "Status",
+    accessor: "status",
+    Cell: ({ cell: { value } }) => (
+      <span
+        className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
+          value === "Pending"
+            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400"
+            : value === "Active"
+            ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400"
+            : "bg-slate-100 text-slate-800 dark:bg-slate-500/20 dark:text-slate-400"
+        }`}
+      >
+        {value}
+      </span>
+    ),
+  },
   {
     Header: "Action",
     accessor: "action",

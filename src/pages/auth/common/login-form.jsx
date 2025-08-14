@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -10,6 +10,7 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
+
 
 const schema = yup
   .object({
@@ -24,29 +25,6 @@ const LOGIN_URL = `${BACKEND_BASE_URL}/api/login`;
 const LoginForm = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const { login: authLogin } = useAuth();
-
-  useEffect(() => {
-    // --- START OF CHANGES ---
-
-    // Step 1: Developer ke bataye hue naam se function banayein
-    window.receiveFcmToken = function (token) {
-      console.log("Received FCM Token from Flutter via function call:", token);
-
-      // Check karein ke token khali na ho
-      if (token && typeof token === 'string') {
-        // Sirf ek final alert dikhayein
-        alert(`Token Received Successfully: ${token}`);
-      }
-    };
-
-    // Step 2: Component ke hatne par is function ko saaf (clean up) kar dein
-    // Yeh zaroori hai taake memory leaks na hon
-    return () => {
-      window.receiveFcmToken = null;
-    };
-
-    // --- END OF CHANGES ---
-  }, []); // Khali array [] ka matlab hai ke yeh effect sirf ek baar chalta hai
 
   const {
     register,
@@ -68,6 +46,7 @@ const LoginForm = () => {
     },
     onSuccess: (responseData) => {
       const loggedInUser = authLogin(responseData, rememberMe);
+
       if (loggedInUser) {
         toast.success("Login Successful! Redirecting...");
       }
