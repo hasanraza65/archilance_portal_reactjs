@@ -122,6 +122,7 @@ const Dashboard = () => {
       icon: "text-purple-600 dark:text-purple-400",
       iconBg: "bg-purple-100 dark:bg-purple-800/30",
     },
+     // Aap yahan aur colors add kar sakte hain
   ];
 
   useEffect(() => {
@@ -170,22 +171,34 @@ const Dashboard = () => {
               link: "/employees",
             },
             {
-              title: "Total Projects",
+              title: "Total Jobs",
               count: data.total_projects,
               icon: <FolderIcon />,
               link: "/jobs",
             },
             {
-              title: "Projects In Progress",
+              title: "Jobs In Progress",
               count: data.total_in_progress_projects,
-              icon: <TaskIcon />,
-              link: "/jobs?status=In Progress",
+              icon: <ClockIcon />,
+              link: "/jobs?tab=projects&status=In Progress", 
             },
             {
-              title: "Completed Projects",
+              title: "My Total Projects",
+              count: data.total_tasks,
+              icon: <FolderIcon />,
+              link: "/jobs?tab=tasks",
+            },
+            {
+              title: "Projects In Progress",
+              count: data.total_in_progress_projects, 
+              icon: <ClockIcon />,
+              link: "/jobs?tab=tasks&status=In Progress", 
+            },
+            {
+              title: "Completed Jobs",
               count: data.total_completed_projects,
               icon: <CheckIcon />,
-              link: "/jobs?status=Completed",
+              link: "/jobs?tab=projects&status=Completed",
             },
             {
               title: "Total Users",
@@ -196,22 +209,34 @@ const Dashboard = () => {
         } else if (user.role === "customer") {
           transformedStats = [
             {
-              title: "My Total Projects",
+              title: "My Total Jobs",
               count: data.total_projects,
               icon: <FolderIcon />,
               link: "/jobs",
             },
             {
-              title: "Projects In Progress",
+              title: "Jobs In Progress",
               count: data.total_in_progress_projects,
               icon: <ClockIcon />,
-              link: "/jobs?status=In Progress",
+              link: "/jobs?tab=projects&status=In Progress", 
             },
             {
-              title: "Completed Projects",
+              title: "My Total Projects",
+              count: data.total_tasks,
+              icon: <FolderIcon />,
+              link: "/jobs?tab=tasks",
+            },
+          {
+              title: "Projects In Progress",
+              count: data.total_in_progress_projects,
+              icon: <TaskIcon />,
+              link: "/jobs?tab=tasks&status=In Progress",
+            },
+            {
+              title: "Completed Jobs",
               count: data.total_completed_projects,
               icon: <CheckIcon />,
-              link: "/jobs?status=Completed",
+              link: "/jobs?tab=projects&status=Completed",
             },
           ];
         }

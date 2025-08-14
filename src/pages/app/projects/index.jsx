@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// 1. react-router-dom se useSearchParams import karein
 import { useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -81,31 +80,14 @@ export const StatusFilterBar = ({
 );
 
 const ProjectPostPage = () => {
-  // 2. Component ke andar useSearchParams hook ka istemal karein
   const [searchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState(
-    () => sessionStorage.getItem("projectPageActiveTab") || "projects"
-  );
-  const [filler, setFiller] = useState(
-    () => sessionStorage.getItem("projectView") || "grid"
-  );
-
-  // 3. Filter ki initial state ko URL se set karein
-  const [projectStatusFilter, setProjectStatusFilter] = useState(() => {
-    // URL se 'status' parameter hasil karein
-    const statusFromUrl = searchParams.get("status");
-
-    // Check karein ke URL se mila hua status hamari options list mein hai ya nahi
-    if (statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)) {
-      // Agar valid hai, to usay initial state banayein
-      return statusFromUrl;
-    }
-    // Agar URL mein status nahi hai ya invalid hai, to 'All' set karein
-    return "All";
-  });
-
+  // State initialization with defaults
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem("projectPageActiveTab") || "projects");
+  const [filler, setFiller] = useState(() => sessionStorage.getItem("projectView") || "grid");
+  const [projectStatusFilter, setProjectStatusFilter] = useState("All");
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
+
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
@@ -122,12 +104,36 @@ const ProjectPostPage = () => {
     isUpdating,
     error: projectsError,
   } = useSelector((state) => state.project);
+  
+  // CHANGE: This useEffect hook runs on component mount to set tab and filters from URL
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    const statusFromUrl = searchParams.get("status");
+
+    // 1. Set the active tab based on the 'tab' parameter in the URL
+    if (tabFromUrl === 'tasks' || tabFromUrl === 'projects') {
+      setActiveTab(tabFromUrl);
+    }
+
+    // 2. Set the status filter based on the 'status' parameter
+    if (statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)) {
+      // Determine which filter to apply based on the target tab
+      const targetTab = tabFromUrl || activeTab; // Use URL tab, or fallback to current tab
+
+      if (targetTab === 'projects') {
+        setProjectStatusFilter(statusFromUrl);
+      } else if (targetTab === 'tasks') {
+        setTaskStatusFilter(statusFromUrl);
+      }
+    }
+  }, [searchParams]); // Rerun if searchParams change
 
   useEffect(() => {
     dispatch(fetchProjectsAPI());
   }, [dispatch]);
 
   useEffect(() => {
+    // Save the active tab to session storage whenever it changes
     sessionStorage.setItem("projectPageActiveTab", activeTab);
   }, [activeTab]);
 

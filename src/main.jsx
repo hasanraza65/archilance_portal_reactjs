@@ -18,7 +18,6 @@ import "react-toastify/dist/ReactToastify.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
-// Provider ki nesting ko theek kiya gaya hai
 root.render(
   <React.StrictMode>
     <BrowserRouter>

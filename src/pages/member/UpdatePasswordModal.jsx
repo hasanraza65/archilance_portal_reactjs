@@ -9,22 +9,18 @@ import { useAuth } from "@/context/AuthContext";
 import Textinput from "@/components/ui/Textinput";
 import Button from "@/components/ui/Button";
 
-// Backend API URL
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const UPDATE_PASSWORD_URL = `${BACKEND_BASE_URL}/api/update-password`;
 
-// 1. Validation Schema ko API ke mutabiq update karein
 const schema = yup.object({
   current_password: yup.string().required("Current Password is required"),
-  // 'new_password' ki jagah 'password'
   password: yup
     .string()
     .min(8, "Password must be at least 8 characters")
     .required("New Password is required"),
-  // 'new_password_confirmation' ki jagah 'password_confirmation'
   password_confirmation: yup
     .string()
-    .oneOf([yup.ref("password"), null], "Passwords must match") // yup.ref() ko bhi update karein
+    .oneOf([yup.ref("password"), null], "Passwords must match") 
     .required("Confirm Password is required"),
 }).required();
 
@@ -43,7 +39,6 @@ const UpdatePasswordModal = ({ onUpdateSuccess }) => {
 
   const { mutate: performPasswordUpdate, isPending: isLoading } = useMutation({
     mutationFn: async (formData) => {
-      // formData ab bilkul sahi format mein hoga
       const response = await axios.post(UPDATE_PASSWORD_URL, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -75,7 +70,7 @@ const UpdatePasswordModal = ({ onUpdateSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-transparent bg-opacity-50 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-md bg-white p-6 shadow-xl dark:bg-slate-800">
         <h2 className="mb-4 text-xl font-bold text-slate-800 dark:text-slate-200">
           Update Your Password
@@ -92,22 +87,22 @@ const UpdatePasswordModal = ({ onUpdateSuccess }) => {
             error={errors.current_password}
             placeholder="Enter your current password"
           />
-          {/* 2. Textinput ke 'name' prop ko update karein */}
+          
           <Textinput
             name="password"
             label="New Password"
             type="password"
             register={register}
-            error={errors.password} // Yeh bhi update ho jayega
+            error={errors.password} 
             placeholder="Enter your new password"
           />
-          {/* 3. Textinput ke 'name' prop ko update karein */}
+         
           <Textinput
             name="password_confirmation"
             label="Confirm New Password"
             type="password"
             register={register}
-            error={errors.password_confirmation} // Yeh bhi update ho jayega
+            error={errors.password_confirmation} 
             placeholder="Confirm your new password"
           />
           <Button

@@ -13,9 +13,6 @@ const ROLE_MAP = {
   5: "member",
 };
 
-// 1. Context ki initial/default value ko change kiya gaya hai.
-// Is se agar koi component Provider ke bahar useAuth() call karega
-// ya state abhi set nahi hui, to app crash nahi hogi.
 const AuthContext = createContext({
   user: null,
   token: null,
@@ -96,18 +93,18 @@ export const AuthProvider = ({ children }) => {
       Cookies.set("userRole", userRoleString, cookieOptions);
 
       dispatch(setReduxUser(userToSave));
-
       if (Number(userData.user_role) === 5 && Number(userData.is_default_pass) === 1) {
         setIsPasswordUpdateRequired(true);
-        navigate("/dashboard", { replace: true });
       } else {
         setIsPasswordUpdateRequired(false);
-        if (userRoleString === 'employee') {
-          navigate("/jobs", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
       }
+
+      if (userRoleString === 'employee' || userRoleString === 'member') {
+        navigate("/jobs", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+   
 
       return userToSave;
     } else {
@@ -149,7 +146,6 @@ export const AuthProvider = ({ children }) => {
     toast.info("You can now continue using the application.");
   };
 
-  // 2. Yahan context ki value banayi jaa rahi hai
   const value = {
     user,
     token,
@@ -157,8 +153,6 @@ export const AuthProvider = ({ children }) => {
     logout,
     isAuthenticated: !!user && !!token,
   };
-  
-  // Maine debugging console logs hata diye hain, aap unhe wapas laga sakte hain agar zaroorat pade.
 
   return (
     <AuthContext.Provider value={value}>
@@ -170,12 +164,9 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// 3. useAuth hook ko bhi thoda behtar banaya gaya hai.
 export const useAuth = () => {
   const context = useContext(AuthContext);
   
-  // Yeh check development ke dauran bohot madad karta hai.
-  // Agar aap ghalti se AuthProvider ke bahar useAuth use karenge, to yeh error aayega.
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

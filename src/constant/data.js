@@ -48,13 +48,12 @@ export const menuItems = [
   {
     title: "Dashboard",
     icon: "heroicons-outline:home",
-    allowedRoles: ["admin", "customer","member"], // Sabko dikhega
-    // Aapke purane structure ke mutabiq child yahan hai
+    allowedRoles: ["admin", "customer"], 
     child: [
       {
         childtitle: "Analytics Dashboard",
         childlink: "dashboard",
-        allowedRoles: ["admin", "customer","member"],
+        allowedRoles: ["admin", "customer"],
       },
     ],
   },
