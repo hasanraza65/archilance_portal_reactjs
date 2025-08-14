@@ -281,14 +281,16 @@ const CustomerTeam = () => {
   return (
     <>
       <Card noBorder>
-        <div className="md:flex justify-between items-end mb-6">
-          <h4 className="card-title">Customer Team</h4>
-          <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3 mt-4 md:mt-0">
+       <div className="md:flex justify-between items-center mb-6">
+          <h4 className="card-title mb-4 md:mb-0">Customer Team</h4>
+           <div className="flex items-center space-x-3 w-full md:w-auto">
+            <div className="flex-1">
             <GlobalFilter
               filter={globalFilter || ""}
               setFilter={setGlobalFilter}
-              className="flex-grow"
+              placeholder="Search team members..."
             />
+            </div>
             <button
               className="btn btn-dark flex items-center justify-center"
               onClick={() => navigate("/team/add")}
