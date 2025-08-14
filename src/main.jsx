@@ -1,5 +1,3 @@
-// src/main.jsx
-
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -12,7 +10,7 @@ import { AuthProvider } from "./context/AuthContext";
 
 // Aapke baaqi imports
 import store from "./store";
-import { queryClient } from "./react-query/queryClient";
+import { queryClient } from "./react-query/queryClient"; // Aap alag file se client import kar rahe hain, jo bilkul theek hai
 import "simplebar-react/dist/simplebar.min.css";
 import "flatpickr/dist/themes/light.css";
 import "../src/assets/css/app.css";
@@ -20,15 +18,16 @@ import "react-toastify/dist/ReactToastify.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
+// Provider ki nesting ko theek kiya gaya hai
 root.render(
   <React.StrictMode>
     <BrowserRouter>
       <Provider store={store}>
-        <AuthProvider>
-          <QueryClientProvider client={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
             <App />
-          </QueryClientProvider>
-        </AuthProvider>
+          </AuthProvider>
+        </QueryClientProvider>
       </Provider>
     </BrowserRouter>
   </React.StrictMode>

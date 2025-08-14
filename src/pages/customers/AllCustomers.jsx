@@ -63,11 +63,20 @@ const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
       );
     },
   },
-  {
-    Header: "Email",
-    accessor: "email",
-    Cell: ({ cell: { value } }) => <span>{value}</span>,
-  },
+  
+       {
+        Header: "Email",
+        accessor: "email",
+        Cell: ({ cell: { value } }) => {
+          const displayValue = value ? value.toLowerCase() : "N/A";
+          return (
+            <span style={{ textTransform: 'none' }}>
+              {displayValue}
+            </span>
+          );
+        },
+      },
+
   {
     Header: "Username",
     accessor: "username",

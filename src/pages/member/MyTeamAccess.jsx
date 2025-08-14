@@ -146,11 +146,22 @@ const MyTeamAccess = () => {
           );
         },
       },
-      {
+  
+       {
         Header: "Email",
         accessor: "email",
-        Cell: ({ cell: { value } }) => <span>{value}</span>,
+        Cell: ({ cell: { value } }) => {
+          const displayValue = value ? value.toLowerCase() : "N/A";
+
+          return (
+           
+            <span style={{ textTransform: 'none' }}>
+              {displayValue}
+            </span>
+          );
+        },
       },
+
       {
         Header: "Phone",
         accessor: "phone",
