@@ -95,14 +95,12 @@ const formatTime = (timeStr) => {
   });
 };
 
-// --- START: NEW HELPER FUNCTION ---
 const formatSecondsToHoursMinutes = (totalSeconds) => {
   if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
 };
-// --- END: NEW HELPER FUNCTION ---
 
 const formatDateForAPI = (date) => {
   if (!date || !(date instanceof Date) || isNaN(date)) {
@@ -131,9 +129,7 @@ const AdminEmployeeWorkSession = () => {
   const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
-  // --- START: NEW STATE ---
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
-  // --- END: NEW STATE ---
 
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
   const [activePreset, setActivePreset] = useState("Today");
@@ -142,7 +138,7 @@ const AdminEmployeeWorkSession = () => {
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // Close dropdown on outside click
+  // useEffect hooks remain the same
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -156,7 +152,6 @@ const AdminEmployeeWorkSession = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetching logic
   useEffect(() => {
     if (!isAuthenticated || !employeeId) return;
     const fetchEmployeeDetails = async () => {
@@ -220,7 +215,6 @@ const AdminEmployeeWorkSession = () => {
     fetchTasksForProject();
   }, [selectedProject, token]);
 
-  // --- START: MODIFIED FETCH FUNCTION ---
   const fetchWorkSessions = useCallback(async () => {
     if (!employeeId) return;
     setLoading(true);
@@ -254,7 +248,6 @@ const AdminEmployeeWorkSession = () => {
       setSessions(fetchedSessions);
       setOverallTotalTime(result.overall_total_time || "0h 0m");
 
-      // Calculate and set manual time total
       const totalManualSeconds = fetchedSessions
         .filter(session => session.type === 'Manual')
         .reduce((acc, session) => acc + Math.abs(session.raw_calculation?.net_seconds || 0), 0);
@@ -267,12 +260,11 @@ const AdminEmployeeWorkSession = () => {
     } catch (err) {
       toast.error(err.message);
       setOverallTotalTime("0h 0m");
-      setManualTotalTime("0h 0m"); // Reset on error
+      setManualTotalTime("0h 0m");
     } finally {
       setLoading(false);
     }
   }, [employeeId, currentPage, selectedTask, dateRange, token, logout]);
-  // --- END: MODIFIED FETCH FUNCTION ---
 
   useEffect(() => {
     if (isAuthenticated) fetchWorkSessions();
@@ -284,6 +276,7 @@ const AdminEmployeeWorkSession = () => {
     else if (isAuthenticated) fetchWorkSessions();
   }, [selectedTask, dateRange, selectedProject]);
   
+  // Handlers remain the same
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
@@ -291,7 +284,7 @@ const AdminEmployeeWorkSession = () => {
     setDateRange(getTodayDateRange());
     setActivePreset("Today");
     setOverallTotalTime("0h 0m");
-    setManualTotalTime("0h 0m"); // Reset manual time on filter reset
+    setManualTotalTime("0h 0m");
   };
 
   const handleDelete = (sessionId) => {
@@ -343,7 +336,8 @@ const AdminEmployeeWorkSession = () => {
 
   return (
     <Card>
-      <div className="flex justify-between items-start mb-6 gap-4">
+      {/* --- MODIFIED FOR RESPONSIVENESS --- */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 gap-4">
         <div>
           <h4 className="card-title">
             Work Diary for{" "}
@@ -351,7 +345,6 @@ const AdminEmployeeWorkSession = () => {
               {employeeName || "Loading..."}
             </span>
           </h4>
-          {/* --- START: MODIFIED TOTALS DISPLAY --- */}
           {!loading && (
             <div className="flex items-baseline gap-4 mt-2">
               <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
@@ -364,7 +357,6 @@ const AdminEmployeeWorkSession = () => {
               )}
             </div>
           )}
-          {/* --- END: MODIFIED TOTALS DISPLAY --- */}
         </div>
         <Link
           to="/employees"
@@ -375,7 +367,6 @@ const AdminEmployeeWorkSession = () => {
       </div>
 
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
-        {/* Filter UI remains the same */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -421,8 +412,9 @@ const AdminEmployeeWorkSession = () => {
           </div>
 
           <div className="flex flex-col justify-end lg:col-span-3">
-            <div className="flex items-end gap-2">
-              <div className="flex-shrink-0">
+            {/* --- MODIFIED FOR RESPONSIVENESS --- */}
+            <div className="flex flex-col lg:flex-row lg:items-end gap-2">
+              <div className="flex-shrink-0 w-full lg:w-auto">
                 <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Period
                 </label>
@@ -432,7 +424,8 @@ const AdminEmployeeWorkSession = () => {
                     onClick={() =>
                       setIsPresetDropdownOpen(!isPresetDropdownOpen)
                     }
-                    className="form-input w-48 flex items-center justify-between text-left"
+                    // --- MODIFIED FOR RESPONSIVENESS ---
+                    className="form-input w-full lg:w-48 flex items-center justify-between text-left"
                   >
                     <span className="text-slate-800 dark:text-slate-300 truncate">
                       {activePreset}
@@ -440,7 +433,7 @@ const AdminEmployeeWorkSession = () => {
                     <ChevronDownIcon />
                   </button>
                   {isPresetDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 p-1">
+                    <div className="absolute top-full left-0 mt-2 w-full lg:w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 p-1">
                       {PRESETS.map((preset) => (
                         <button
                           key={preset.label}
@@ -473,10 +466,11 @@ const AdminEmployeeWorkSession = () => {
                 />
               </div>
 
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 w-full lg:w-auto">
                 <button
                   onClick={handleResetFilters}
-                  className="btn bg-slate-800 hover:bg-slate-900 text-white font-bold whitespace-nowrap h-10"
+                  // --- MODIFIED FOR RESPONSIVENESS ---
+                  className="btn bg-slate-800 hover:bg-slate-900 text-white font-bold whitespace-nowrap h-10 w-full lg:w-auto"
                 >
                   Reset Filters
                 </button>
@@ -511,7 +505,6 @@ const AdminEmployeeWorkSession = () => {
                       : ""
                   }`}
                 >
-                  {/* --- START: MODIFIED SESSION HEADER --- */}
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-slate-700 dark:text-slate-300">
@@ -535,7 +528,6 @@ const AdminEmployeeWorkSession = () => {
                       <TrashIcon />
                     </button>
                   </div>
-                  {/* --- END: MODIFIED SESSION HEADER --- */}
                   {session.memo_content && (
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                       {session.memo_content}

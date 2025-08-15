@@ -7,7 +7,6 @@ import "flatpickr/dist/themes/light.css";
 
 // --- START: Helper functions ---
 
-// Helper function to get today's date as a range [today, today].
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
@@ -41,7 +40,6 @@ const formatTime = (timeStr) => {
   });
 };
 
-// NEW: Helper function to convert seconds to "Xh Ym" format
 const formatSecondsToHoursMinutes = (totalSeconds) => {
   if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
   const hours = Math.floor(totalSeconds / 3600);
@@ -76,13 +74,13 @@ const WorkSession = () => {
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const [hasSearched, setHasSearched] = useState(true);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
-  // NEW STATE for manual time total
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
 
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
+  // All useEffect and handler functions remain the same
   useEffect(() => {
     if (!isAuthenticated) return;
     const fetchProjects = async () => {
@@ -161,13 +159,11 @@ const WorkSession = () => {
         setSessions(fetchedSessions);
         setOverallTotalTime(result.overall_total_time || "0h 0m");
 
-        // --- START: MANUAL TIME CALCULATION ---
         const totalManualSeconds = fetchedSessions
           .filter(session => session.type === 'Manual')
           .reduce((acc, session) => acc + Math.abs(session.raw_calculation.net_seconds || 0), 0);
         
         setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
-        // --- END: MANUAL TIME CALCULATION ---
         
         setPaginationInfo({
           currentPage: result.current_page,
@@ -176,7 +172,7 @@ const WorkSession = () => {
       } catch (err) {
         toast.error(err.message);
         setOverallTotalTime("0h 0m");
-        setManualTotalTime("0h 0m"); // Reset on error
+        setManualTotalTime("0h 0m");
         setSessions([]);
       } finally {
         setLoading(false);
@@ -308,9 +304,9 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
           Work Diary
         </h1>
-        {/* ===== UPDATED TOTALS DISPLAY AREA ===== */}
+        {/* --- MODIFIED FOR RESPONSIVENESS --- */}
         { (loading || sessions.length > 0 || hasSearched) && (
-            <div className="flex items-baseline gap-4 mt-2 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 mt-2 mb-6">
                 <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
                     Total Time: {overallTotalTime}
                 </div>
@@ -321,7 +317,6 @@ const WorkSession = () => {
                 )}
             </div>
         )}
-        {/* ======================================= */}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -341,6 +336,7 @@ const WorkSession = () => {
               Filter Work Sessions
             </h3>
           </div>
+          {/* The grid classes here are already responsive (grid-cols-1 by default) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -402,6 +398,7 @@ const WorkSession = () => {
               <label className="text-sm font-medium text-transparent">
                 Actions
               </label>
+              {/* The button container classes are already responsive */}
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={handleResetFilters}
@@ -446,7 +443,7 @@ const WorkSession = () => {
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center flex-wrap gap-2">
                         <p className="font-semibold text-slate-700 dark:text-slate-300">
                           {formatTime(session.start_time)} –{" "}
                           {formatTime(session.end_time)}
@@ -474,6 +471,7 @@ const WorkSession = () => {
                       </p>
                     )}
                     <div className="mt-4">
+                      {/* Screenshot grid is already responsive */}
                       {session.screenshots.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                           {session.screenshots.map((ss) => (
@@ -531,11 +529,12 @@ const WorkSession = () => {
             </div>
           )}
           {paginationInfo && paginationInfo.lastPage > 1 && (
-            <div className="flex justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 space-x-4">
+            // --- MODIFIED FOR RESPONSIVENESS ---
+            <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
               <button
                 onClick={handlePrevPage}
                 disabled={paginationInfo.currentPage === 1}
-                className="px-4 py-2 bg-slate-800 text-white rounded-md disabled:bg-slate-400"
+                className="btn btn-dark"
               >
                 Prev
               </button>
@@ -547,7 +546,7 @@ const WorkSession = () => {
                 disabled={
                   paginationInfo.currentPage === paginationInfo.lastPage
                 }
-                className="px-4 py-2 bg-slate-800 text-white rounded-md disabled:bg-slate-400"
+                className="btn btn-dark"
               >
                 Next
               </button>

@@ -21,15 +21,6 @@
   </head>
   <body class="font-inter bg-[#EEF1F9] dashcode-app">
     <div id="root" class="h-full"></div>
-<script>
-  window.receiveFcmToken = function (token) {
-    console.log("FCM Token received in index.html:", token);
-    if (token && typeof token === 'string') {
-      alert(`Token Received Successfully: ${token}`);  
-    }
-  };
-</script>
-    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
