@@ -9,7 +9,6 @@ import Card from "@/components/ui/Card";
 
 // --- START: Helper functions and presets configuration ---
 
-// NEW: Helper function to get today's date as a range.
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
@@ -45,7 +44,6 @@ const getLastMonthDateRange = () => {
   return [firstDay, lastDay];
 };
 
-// UPDATED: Added a "Today" preset to the list.
 const PRESETS = [
   { label: "Today", func: getTodayDateRange },
   { label: "Current week", func: getWeekDateRange },
@@ -53,7 +51,6 @@ const PRESETS = [
   { label: "Current month", func: getCurrentMonthDateRange },
   { label: "Last month", func: getLastMonthDateRange },
 ];
-// --- END: Helper functions and presets configuration ---
 
 const ChevronDownIcon = () => (
   <svg
@@ -98,20 +95,22 @@ const formatTime = (timeStr) => {
   });
 };
 
-// ====================================================================
-// ===== FIXED FUNCTION: This is the corrected date formatting function =====
-// ====================================================================
+// --- START: NEW HELPER FUNCTION ---
+const formatSecondsToHoursMinutes = (totalSeconds) => {
+  if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+};
+// --- END: NEW HELPER FUNCTION ---
+
 const formatDateForAPI = (date) => {
-  // This function formats the date as YYYY-MM-DD using the local timezone,
-  // preventing the off-by-one-day error caused by UTC conversion.
   if (!date || !(date instanceof Date) || isNaN(date)) {
     return "";
   }
-
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0"); // getMonth() is 0-indexed
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 };
 
@@ -130,12 +129,13 @@ const AdminEmployeeWorkSession = () => {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
-  // MODIFIED: Set the initial date range to today's date by default.
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
+  // --- START: NEW STATE ---
+  const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
+  // --- END: NEW STATE ---
 
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
-  // MODIFIED: Set the active preset label to "Today" to match the default state.
   const [activePreset, setActivePreset] = useState("Today");
   const presetDropdownRef = useRef(null);
 
@@ -220,6 +220,7 @@ const AdminEmployeeWorkSession = () => {
     fetchTasksForProject();
   }, [selectedProject, token]);
 
+  // --- START: MODIFIED FETCH FUNCTION ---
   const fetchWorkSessions = useCallback(async () => {
     if (!employeeId) return;
     setLoading(true);
@@ -230,7 +231,6 @@ const AdminEmployeeWorkSession = () => {
     });
     if (selectedTask) params.append("task_id", selectedTask);
     
-    // Using the corrected formatDateForAPI function here
     if (dateRange && dateRange[0])
       params.append("start_date", formatDateForAPI(dateRange[0]));
     if (dateRange && dateRange.length > 1 && dateRange[1])
@@ -249,8 +249,17 @@ const AdminEmployeeWorkSession = () => {
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.message || "Failed to fetch data");
-      setSessions(result.data?.reverse() || []);
+
+      const fetchedSessions = result.data?.reverse() || [];
+      setSessions(fetchedSessions);
       setOverallTotalTime(result.overall_total_time || "0h 0m");
+
+      // Calculate and set manual time total
+      const totalManualSeconds = fetchedSessions
+        .filter(session => session.type === 'Manual')
+        .reduce((acc, session) => acc + Math.abs(session.raw_calculation?.net_seconds || 0), 0);
+      setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
+
       setPaginationInfo({
         currentPage: result.current_page,
         lastPage: result.last_page,
@@ -258,10 +267,12 @@ const AdminEmployeeWorkSession = () => {
     } catch (err) {
       toast.error(err.message);
       setOverallTotalTime("0h 0m");
+      setManualTotalTime("0h 0m"); // Reset on error
     } finally {
       setLoading(false);
     }
   }, [employeeId, currentPage, selectedTask, dateRange, token, logout]);
+  // --- END: MODIFIED FETCH FUNCTION ---
 
   useEffect(() => {
     if (isAuthenticated) fetchWorkSessions();
@@ -273,8 +284,6 @@ const AdminEmployeeWorkSession = () => {
     else if (isAuthenticated) fetchWorkSessions();
   }, [selectedTask, dateRange, selectedProject]);
   
-  // Handlers
-  // MODIFIED: The reset handler now resets to "Today" to match the initial state.
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
@@ -282,6 +291,7 @@ const AdminEmployeeWorkSession = () => {
     setDateRange(getTodayDateRange());
     setActivePreset("Today");
     setOverallTotalTime("0h 0m");
+    setManualTotalTime("0h 0m"); // Reset manual time on filter reset
   };
 
   const handleDelete = (sessionId) => {
@@ -302,7 +312,7 @@ const AdminEmployeeWorkSession = () => {
           });
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
-          fetchWorkSessions(); // Refetch to update list and total time
+          fetchWorkSessions();
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
         }
@@ -341,11 +351,20 @@ const AdminEmployeeWorkSession = () => {
               {employeeName || "Loading..."}
             </span>
           </h4>
+          {/* --- START: MODIFIED TOTALS DISPLAY --- */}
           {!loading && (
-            <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg">
-              Total Time: {overallTotalTime}
+            <div className="flex items-baseline gap-4 mt-2">
+              <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
+                Total Time: {overallTotalTime}
+              </div>
+              {manualTotalTime !== "0h 0m" && (
+                <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                   Manual: <span className="font-semibold text-sky-700 dark:text-sky-400">({manualTotalTime})</span>
+                </div>
+              )}
             </div>
           )}
+          {/* --- END: MODIFIED TOTALS DISPLAY --- */}
         </div>
         <Link
           to="/employees"
@@ -356,6 +375,7 @@ const AdminEmployeeWorkSession = () => {
       </div>
 
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
+        {/* Filter UI remains the same */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -491,14 +511,22 @@ const AdminEmployeeWorkSession = () => {
                       : ""
                   }`}
                 >
+                  {/* --- START: MODIFIED SESSION HEADER --- */}
                   <div className="flex justify-between items-center">
-                    <p className="font-semibold text-slate-700 dark:text-slate-300">
-                      {formatTime(session.start_time)} –{" "}
-                      {formatTime(session.end_time)}
-                      <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
-                        ({session.total_time})
-                      </span>
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-slate-700 dark:text-slate-300">
+                        {formatTime(session.start_time)} –{" "}
+                        {formatTime(session.end_time)}
+                        <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
+                          ({session.total_time})
+                        </span>
+                      </p>
+                      {session.type === 'Manual' && (
+                        <span className="px-2 py-0.5 bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 rounded-full text-xs font-medium">
+                          Manual
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={() => handleDelete(session.id)}
                       title="Delete Session"
@@ -507,6 +535,7 @@ const AdminEmployeeWorkSession = () => {
                       <TrashIcon />
                     </button>
                   </div>
+                  {/* --- END: MODIFIED SESSION HEADER --- */}
                   {session.memo_content && (
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                       {session.memo_content}

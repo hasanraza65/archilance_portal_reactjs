@@ -7,7 +7,7 @@ import "flatpickr/dist/themes/light.css";
 
 // --- START: Helper functions ---
 
-// NEW: Helper function to get today's date as a range [today, today].
+// Helper function to get today's date as a range [today, today].
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
@@ -41,20 +41,22 @@ const formatTime = (timeStr) => {
   });
 };
 
-// ====================================================================
-// ===== FIXED FUNCTION: This is the corrected date formatting function =====
-// ====================================================================
+// NEW: Helper function to convert seconds to "Xh Ym" format
+const formatSecondsToHoursMinutes = (totalSeconds) => {
+  if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+};
+
+
 const formatDateForAPI = (date) => {
-  // This function formats the date as YYYY-MM-DD using the local timezone,
-  // preventing the off-by-one-day error caused by UTC conversion.
   if (!date || !(date instanceof Date) || isNaN(date)) {
     return "";
   }
-
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0"); // getMonth() is 0-indexed
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 };
 
@@ -64,18 +66,19 @@ const WorkSession = () => {
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(true); // MODIFIED: Start with loading as true
+  const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
-  // MODIFIED: Initialize dateRange to today's date
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [fetchTrigger, setFetchTrigger] = useState(0);
-  // MODIFIED: Set hasSearched to true initially to trigger the first fetch
   const [hasSearched, setHasSearched] = useState(true);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
+  // NEW STATE for manual time total
+  const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
+
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
@@ -127,10 +130,10 @@ const WorkSession = () => {
 
   useEffect(() => {
     const performFetch = async () => {
-      // The hasSearched check now allows the initial fetch to happen
       if (!isAuthenticated || !hasSearched) {
         setLoading(false);
         setSessions([]);
+        setManualTotalTime("0h 0m"); // Reset on no search
         return;
       }
       setLoading(true);
@@ -153,8 +156,19 @@ const WorkSession = () => {
         );
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || `Request failed`);
-        setSessions(result.data?.reverse() || []);
+
+        const fetchedSessions = result.data?.reverse() || [];
+        setSessions(fetchedSessions);
         setOverallTotalTime(result.overall_total_time || "0h 0m");
+
+        // --- START: MANUAL TIME CALCULATION ---
+        const totalManualSeconds = fetchedSessions
+          .filter(session => session.type === 'Manual')
+          .reduce((acc, session) => acc + Math.abs(session.raw_calculation.net_seconds || 0), 0);
+        
+        setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
+        // --- END: MANUAL TIME CALCULATION ---
+        
         setPaginationInfo({
           currentPage: result.current_page,
           lastPage: result.last_page,
@@ -162,6 +176,7 @@ const WorkSession = () => {
       } catch (err) {
         toast.error(err.message);
         setOverallTotalTime("0h 0m");
+        setManualTotalTime("0h 0m"); // Reset on error
         setSessions([]);
       } finally {
         setLoading(false);
@@ -188,15 +203,13 @@ const WorkSession = () => {
     }
   };
 
-  // MODIFIED: Reset filters now defaults to today's date and re-fetches
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
     setTasks([]);
     setDateRange(getTodayDateRange());
-    setHasSearched(true); // Keep this true
+    setHasSearched(true); 
 
-    // Trigger a new fetch
     if (currentPage !== 1) {
       setCurrentPage(1);
     } else {
@@ -222,7 +235,6 @@ const WorkSession = () => {
           });
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
-          // Re-trigger fetch to update overall time
           setFetchTrigger((t) => t + 1);
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
@@ -296,11 +308,20 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
           Work Diary
         </h1>
+        {/* ===== UPDATED TOTALS DISPLAY AREA ===== */}
         { (loading || sessions.length > 0 || hasSearched) && (
-            <div className="mt-2 text-slate-600 dark:text-slate-300 font-semibold text-lg mb-6">
-                Total Time: {overallTotalTime}
+            <div className="flex items-baseline gap-4 mt-2 mb-6">
+                <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
+                    Total Time: {overallTotalTime}
+                </div>
+                {manualTotalTime !== "0h 0m" && (
+                    <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                        Manual: <span className="font-semibold text-sky-700 dark:text-sky-400">({manualTotalTime})</span>
+                    </div>
+                )}
             </div>
         )}
+        {/* ======================================= */}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -425,13 +446,20 @@ const WorkSession = () => {
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <p className="font-semibold text-slate-700 dark:text-slate-300">
-                        {formatTime(session.start_time)} –{" "}
-                        {formatTime(session.end_time)}
-                        <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
-                          ({session.total_time})
-                        </span>
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-700 dark:text-slate-300">
+                          {formatTime(session.start_time)} –{" "}
+                          {formatTime(session.end_time)}
+                          <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
+                            ({session.total_time})
+                          </span>
+                        </p>
+                        {session.type === 'Manual' && (
+                          <span className="px-2 py-0.5 bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 rounded-full text-xs font-medium">
+                            Manual
+                          </span>
+                        )}
+                      </div>
                       <button
                         onClick={() => handleDelete(session.id)}
                         title="Delete Session"
@@ -496,7 +524,6 @@ const WorkSession = () => {
               </p>
             </div>
           ) : (
-            // This case should no longer be reachable on initial load.
             <div className="text-center py-16">
               <p className="text-slate-500">
                 Please select filters and click "Search" to view sessions.
