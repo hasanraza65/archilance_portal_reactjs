@@ -90,6 +90,8 @@ export const AuthProvider = ({ children }) => {
 
       Cookies.set("user", JSON.stringify(userToSave), cookieOptions);
       Cookies.set("token", apiResponse.access_token, cookieOptions);
+      const fcmTokenFromFlutter = localStorage.getItem("fcm_token");
+      console.log("fcmtoken",fcmTokenFromFlutter);
       Cookies.set("userRole", userRoleString, cookieOptions);
 
       dispatch(setReduxUser(userToSave));
