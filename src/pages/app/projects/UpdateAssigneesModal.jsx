@@ -5,17 +5,16 @@ import Icon from "@/components/ui/Icon";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
-import { toggleUpdateAssigneesModal, updateProjectAssigneesAPI } from "./store";
-// +++ IMPORT HELPER TO GET USER ROLE +++
-import { getApiPrefix } from "@/pages/utility/apiHelper";
+import { toggleUpdateAssigneesModal, updateProjectAssigneesAPI, fetchProjectsAPI } from "./store";
+import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
 
 const UpdateAssigneesModal = () => {
   const { updateAssigneesModal, projectToUpdateAssignees, isUpdating } = useSelector((state) => state.project);
   const dispatch = useDispatch();
   
-  // +++ GET USER ROLE AND DETERMINE IF EDITABLE +++
   const userRole = getApiPrefix();
-  const isEditable = userRole === 'admin';
+  const employeeType = getEmployeeType();
+  const isEditable = userRole === 'admin' || employeeType === 'Manager';
 
   const [allEmployees, setAllEmployees] = useState([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState(new Set());
@@ -23,7 +22,6 @@ const UpdateAssigneesModal = () => {
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Function to map API user data to a consistent local format
   const mapApiUserToLocal = (user) => {
     if (!user) return null;
     const name = user.name || "Unknown User";
@@ -40,10 +38,8 @@ const UpdateAssigneesModal = () => {
     return { id: user.id, name, profilePic, avatar: avatarChar, color };
   };
 
-  // Effect to fetch employees and set initial state when modal opens
   useEffect(() => {
     if (updateAssigneesModal) {
-      // Set initial and selected IDs from the project data for all roles
       const currentIds = new Set(
         projectToUpdateAssignees?.project_assignees
           ?.filter(a => a.user)
@@ -52,23 +48,21 @@ const UpdateAssigneesModal = () => {
       setSelectedEmployeeIds(currentIds);
       setInitialEmployeeIds(currentIds);
 
-      // +++ ONLY FETCH ALL EMPLOYEES IF USER IS ADMIN +++
       if (isEditable && allEmployees.length === 0) {
         fetchAllEmployees();
       }
     } else {
-      // Reset state when modal closes
       setSearchTerm("");
       setAllEmployees([]);
     }
-  }, [updateAssigneesModal, isEditable]); // Add isEditable to dependency array
+  }, [updateAssigneesModal, isEditable]);
 
-  // Fetches the full list of employees from the API (only for admin)
   const fetchAllEmployees = async () => {
     setIsLoadingEmployees(true);
     try {
       const token = Cookies.get("token");
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user`, {
+      const apiPath = getApiPrefix(); 
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/${apiPath}/employee-user`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const employeesData = Array.isArray(res.data) ? res.data : (res.data?.data || []);
@@ -98,41 +92,38 @@ const UpdateAssigneesModal = () => {
     dispatch(toggleUpdateAssigneesModal({ open: false, project: null }));
   };
   
-  // Dispatches the update action to the Redux store
   const handleUpdate = () => {
-    // +++ PREVENT NON-ADMINS FROM UPDATING +++
     if (!isEditable) return;
 
     const payload = {
       project_id: projectToUpdateAssignees.id,
       employee_ids: Array.from(selectedEmployeeIds).map(id => parseInt(id, 10)),
     };
+
     dispatch(updateProjectAssigneesAPI(payload)).unwrap().then(() => {
         toast.success("Assignees updated successfully!");
+        dispatch(fetchProjectsAPI());
         handleClose();
     }).catch((err) => {
         toast.error(err?.message || err || "Failed to update assignees.");
     });
   };
 
-  // Filter employees based on the search term (for admin view)
   const filteredEmployees = allEmployees.filter(employee =>
     employee.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Get current assignees for the read-only view
   const currentAssignees = projectToUpdateAssignees?.project_assignees
     ?.map(a => mapApiUserToLocal(a.user))
     .filter(Boolean) || [];
 
-  // Check if any changes have been made to disable the save button
   const noChangesMade = 
     selectedEmployeeIds.size === initialEmployeeIds.size &&
     [...selectedEmployeeIds].every(id => initialEmployeeIds.has(id));
 
   const modalTitle = isEditable 
-    ? `Update Assignees for "${projectToUpdateAssignees?.project_name || 'Project'}"`
-    : `View Assignees for "${projectToUpdateAssignees?.project_name || 'Project'}"`;
+    ? `Update Assignees for "${projectToUpdateAssignees?.name || 'Project'}"`
+    : `View Assignees for "${projectToUpdateAssignees?.name || 'Project'}"`;
 
   return (
     <Modal
@@ -142,11 +133,8 @@ const UpdateAssigneesModal = () => {
       className="max-w-lg"
     >
         <div className="flex flex-col max-h-[70vh]">
-            {/* +++ RENDER DIFFERENT UI BASED ON ROLE +++ */}
             {isEditable ? (
-              // EDITABLE VIEW FOR ADMIN
               <>
-                {/* Search Input */}
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700">
                     <div className="relative">
                         <Icon icon="heroicons-outline:search" className="absolute top-1/2 -translate-y-1/2 left-3 text-slate-400" />
@@ -160,7 +148,6 @@ const UpdateAssigneesModal = () => {
                     </div>
                 </div>
 
-                {/* Employee List */}
                 <div className="p-2 space-y-1 overflow-y-auto flex-grow">
                     {isLoadingEmployees ? (
                         <div className="text-center py-10 text-slate-500">Loading employees...</div>
@@ -197,7 +184,6 @@ const UpdateAssigneesModal = () => {
                 </div>
               </>
             ) : (
-              // READ-ONLY VIEW FOR EMPLOYEE/CUSTOMER
               <div className="p-4 space-y-2 overflow-y-auto flex-grow">
                   {currentAssignees.length > 0 ? (
                       currentAssignees.map((assignee) => (
@@ -218,7 +204,6 @@ const UpdateAssigneesModal = () => {
               </div>
             )}
 
-            {/* Footer with Actions */}
             <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end space-x-3">
                 <button
                     type="button"
@@ -228,7 +213,6 @@ const UpdateAssigneesModal = () => {
                 >
                     {isEditable ? "Cancel" : "Close"}
                 </button>
-                {/* +++ ONLY SHOW SAVE BUTTON FOR ADMINS +++ */}
                 {isEditable && (
                     <button
                         type="button"
