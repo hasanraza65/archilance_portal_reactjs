@@ -15,7 +15,8 @@ const AddEmployee = () => {
     phone: "",
     password: "",
     password_confirmation: "",
-    user_role: "3",
+    employee_type: "Employee", // Added this field
+    user_role: "3", // Kept this for the API, but removed from the form
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -50,7 +51,7 @@ const AddEmployee = () => {
     } else if (formData.password !== formData.password_confirmation) {
       newErrors.password_confirmation = "Passwords do not match.";
     }
-    if (!formData.user_role) newErrors.user_role = "User role is required.";
+    if (!formData.employee_type) newErrors.employee_type = "Employee type is required."; // Added validation for employee_type
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -74,6 +75,7 @@ const AddEmployee = () => {
       return;
     }
 
+    // The payload now automatically includes employee_type from the state
     const payload = {
       ...formData,
       user_role: parseInt(formData.user_role, 10),
@@ -197,6 +199,26 @@ const AddEmployee = () => {
           {errors.phone && <p className={errorClass}>{errors.phone}</p>}
         </div>
 
+        {/* New Employee Type Dropdown */}
+        <div>
+          <label htmlFor="employee_type" className={labelClass}>
+            Employee Type
+          </label>
+          <select
+            name="employee_type"
+            id="employee_type"
+            className={`${inputClass} ${
+              errors.employee_type ? "border-danger-500" : ""
+            }`}
+            value={formData.employee_type}
+            onChange={handleChange}
+          >
+            <option value="Employee">Employee</option>
+            <option value="Manager">Manager</option>
+          </select>
+          {errors.employee_type && <p className={errorClass}>{errors.employee_type}</p>}
+        </div>
+
         <div>
           <label htmlFor="password" className={labelClass}>
             Password
@@ -234,24 +256,8 @@ const AddEmployee = () => {
             <p className={errorClass}>{errors.password_confirmation}</p>
           )}
         </div>
-
-        <div>
-          <label htmlFor="user_role" className={labelClass}>
-            User Role
-          </label>
-          <select
-            name="user_role"
-            id="user_role"
-            className={`${inputClass} ${
-              errors.user_role ? "border-danger-500" : ""
-            }`}
-            value={formData.user_role}
-            onChange={handleChange}
-          >
-            <option value="3">Employee</option>
-          </select>
-          {errors.user_role && <p className={errorClass}>{errors.user_role}</p>}
-        </div>
+        
+        {/* User Role dropdown has been removed from here */}
 
         <div className="flex justify-end space-x-3 pt-4">
           <button
