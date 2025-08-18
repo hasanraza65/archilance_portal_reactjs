@@ -1,3 +1,6 @@
+
+// src/pages/projects/ProjectDetailsPage.js
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -8,7 +11,7 @@ import EditBriefModal from "./Brief-task/EditBriefModel";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import DOMPurify from "dompurify";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
+import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
 import { useDispatch } from "react-redux";
 import { toggleUpdateAssigneesModal } from "./store";
 import Icon from "@/components/ui/Icon";
@@ -26,7 +29,6 @@ import {
   Undo2,
 } from "lucide-react";
 
-// +++ IMPORT THE NEW COMPONENT +++
 import EditableProjectStatus from "./EditableProjectStatus";
 
 const ConversationBox = ({
@@ -173,7 +175,7 @@ const ConversationBox = ({
       {message.attachments?.length > 0 && (
         <div
           className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${
-            message.message
+            message
               ? `mt-3 pt-3 border-t ${
                   isSentByMe ? "border-white/20" : "border-gray-200/80"
                 }`
@@ -280,20 +282,17 @@ const ConversationBox = ({
   );
   return (
     <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/20 h-full flex flex-col overflow-hidden">
-      {/* Header: Adjusted padding for mobile */}
       <div className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-900 flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl text-white">
             <MessageCircle className="w-6 h-6" />
           </div>
-          {/* Header: Adjusted font size for mobile */}
           <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
             Job Chat
           </h3>
         </div>
       </div>
 
-      {/* Chat Area: Adjusted padding and spacing for mobile */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4">
         {isLoading && (
           <div className="flex justify-center items-center h-full">
@@ -310,7 +309,6 @@ const ConversationBox = ({
               editingMessage && editingMessage.id === message.id;
 
             return (
-              // +++ MODIFIED: Added onClick to handle mobile tap actions +++
               <div
                 key={message.id}
                 className={`flex items-end gap-2 sm:gap-3 ${
@@ -324,7 +322,6 @@ const ConversationBox = ({
                   }
                 }}
               >
-                {/* Avatar: Adjusted size for mobile */}
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0">
                   {message.sender?.profile_pic ? (
                     <img
@@ -360,8 +357,6 @@ const ConversationBox = ({
                   >
                     {formatTime(message.created_at)}
                   </p>
-
-                  {/* --- DESKTOP HOVER ACTIONS (Hidden on mobile) --- */}
                   {isSentByMe && !isEditing && (
                     <div className="absolute top-1 -left-12 flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex">
                       <button
@@ -383,8 +378,6 @@ const ConversationBox = ({
                       </button>
                     </div>
                   )}
-
-                  {/* --- MOBILE TAP ACTIONS (Visible on tap, hidden on desktop) --- */}
                   {isSentByMe &&
                     !isEditing &&
                     mobileActionMessageId === message.id && (
@@ -412,7 +405,6 @@ const ConversationBox = ({
         <div ref={chatEndRef} />
       </div>
 
-      {/* Input Area: Adjusted for mobile */}
       <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-900 flex-shrink-0 space-y-3">
         {attachments.length > 0 && (
           <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -466,7 +458,6 @@ const ConversationBox = ({
             ) : (
               <Send size={16} />
             )}
-            {/* +++ MODIFIED: "Send" text is hidden on mobile +++ */}
             <span className="hidden sm:inline">Send</span>
           </button>
         </div>
@@ -593,6 +584,7 @@ const ProjectDetailsPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const userRole = getApiPrefix();
+  const employeeType = getEmployeeType();
   const token = Cookies.get("token");
 
   const [projectDetails, setProjectDetails] = useState(null);
@@ -610,7 +602,7 @@ const ProjectDetailsPage = () => {
   const [briefToEdit, setBriefToEdit] = useState(null);
 
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
-  const isManagerOrAdmin = userRole === "admin";
+  const isManagerOrAdmin = userRole === "admin" || employeeType === "Manager";
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const [currentUser, setCurrentUser] = useState(null);
   useEffect(() => {
@@ -1110,7 +1102,6 @@ const ProjectDetailsPage = () => {
   const projectHasActualDescription =
     sanitizedProjectDescription.replace(/<[^>]*>/g, "").trim().length > 0;
 
-  // +++ FIX: Create a variable to determine if the user can see briefs.
   const canViewBriefs = userRole === "admin" || userRole === "employee";
 
   return (
@@ -1125,12 +1116,11 @@ const ProjectDetailsPage = () => {
               Job #{projectDetails.id}
             </p>
           </div>
-          {/* +++ UPDATED SECTION FOR EDITABLE STATUS +++ */}
           <EditableProjectStatus
             projectId={projectDetails.id}
             currentStatus={projectDetails.status}
             onStatusUpdate={fetchProjectAndTasks}
-            isEditable={userRole === "admin"}
+            isEditable={userRole === "admin" || employeeType === "Manager"}
             apiBaseUrl={API_BASE_URL}
             apiPath={getApiBasePathForRole("/update-project-status")}
             token={token}
@@ -1220,7 +1210,6 @@ const ProjectDetailsPage = () => {
 
       {tasks.length > 0 ? (
         <div className="bg-white dark:bg-slate-700/50 rounded-lg shadow-lg overflow-hidden">
-          {/* === SECTION HEADER: Title and Action Buttons (Unchanged) === */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border-b border-gray-200 dark:border-slate-600 gap-4">
             <h2 className="text-xl font-semibold text-slate-700 dark:text-white">
               Project for this Job
@@ -1261,7 +1250,6 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
 
-          {/* === DESKTOP TABLE HEADER (Unchanged) === */}
           <div className="hidden sm:grid grid-cols-12 bg-slate-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-300 sticky top-0 z-10">
             <div className="col-span-12 sm:col-span-4 p-3 sm:p-4">Name</div>
             <div className="col-span-12 sm:col-span-2 p-3 sm:p-4">
@@ -1275,7 +1263,6 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
 
-          {/* === SCROLLABLE TASKS CONTAINER (Unchanged) === */}
           <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
             {tasks.map((task, index) => {
               const mappedTaskAssignees = (task.assignees || [])
@@ -1288,20 +1275,16 @@ const ProjectDetailsPage = () => {
                   key={task.id || `task-${index}`}
                   className="border-b border-gray-200 dark:border-slate-600 last:border-b-0"
                 >
-                  {/* --- DESKTOP VIEW (Corrected) --- */}
                   <div
-                    // +++ 1. ADD a single onClick for the entire row and a cursor pointer +++
                     className="hidden sm:grid grid-cols-12 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs sm:text-sm cursor-pointer"
                     onClick={() => navigate(`/project/${task.id}`)}
                   >
-                    {/* +++ 2. REMOVE onClick from individual cells +++ */}
                     <div className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center">
                       <span className="text-slate-900 dark:text-slate-100 truncate">
                         {task.task_title || "N/A"}
                       </span>
                     </div>
                     <div className="col-span-12 sm:col-span-2 p-3 sm:p-4 flex items-center">
-                      {/* Assignee Avatars */}
                       {mappedTaskAssignees.length > 0 ? (
                         <div className="flex -space-x-2 overflow-hidden items-center">
                           {mappedTaskAssignees
@@ -1366,7 +1349,6 @@ const ProjectDetailsPage = () => {
                       </span>
                     </div>
                     <div className="col-span-6 sm:col-span-1 p-3 sm:p-4 flex items-center justify-center space-x-1">
-                      {/* Action Buttons - these will stop the row's onClick from firing */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1415,18 +1397,14 @@ const ProjectDetailsPage = () => {
                     </div>
                   </div>
 
-                  {/* --- MOBILE VIEW (Corrected) --- */}
                   <div
-                    // +++ 3. ADD a single onClick for the entire card and a cursor pointer +++
                     className="block sm:hidden p-4 cursor-pointer"
                     onClick={() => navigate(`/project/${task.id}`)}
                   >
                     <div className="flex justify-between items-start gap-3">
-                      {/* +++ 4. REMOVE onClick from the title +++ */}
                       <h3 className="font-bold text-base text-slate-800 dark:text-slate-100 mb-2">
                         {task.task_title || "Untitled Task"}
                       </h3>
-                      {/* Mobile Actions - these will stop the card's onClick from firing */}
                       <div className="flex-shrink-0 flex items-center space-x-1">
                         <button
                           onClick={(e) => {
@@ -1558,7 +1536,6 @@ const ProjectDetailsPage = () => {
           </div>
         </div>
       ) : (
-        // This is the "No Projects" view, which is unchanged.
         <div className="text-center p-10 bg-white dark:bg-slate-800 rounded-lg shadow">
           <svg
             className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500"
@@ -1623,7 +1600,6 @@ const ProjectDetailsPage = () => {
 
       {projectDetails && canViewBriefs && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden backdrop-blur-sm">
-          {/* === SECTION HEADER (Responsive) === */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700 gap-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
@@ -1671,7 +1647,6 @@ const ProjectDetailsPage = () => {
 
           {briefs.length > 0 ? (
             <>
-              {/* === DESKTOP TABLE HEADER (Hidden on mobile) === */}
               <div className="hidden sm:grid grid-cols-12 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 border-b border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 sticky top-0 z-10">
                 <div className="col-span-5 p-4 sm:p-5 flex items-center space-x-2">
                   <svg
@@ -1726,14 +1701,12 @@ const ProjectDetailsPage = () => {
                 </div>
               </div>
 
-              {/* === SCROLLABLE BRIEFS CONTAINER === */}
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
                 {briefs.map((brief, index) => (
                   <div
                     key={brief.id || `brief-${index}`}
                     className="border-b border-slate-200 dark:border-slate-700 last:border-b-0"
                   >
-                    {/* --- DESKTOP VIEW (Grid Row) --- */}
                     <div
                       className={`hidden sm:grid grid-cols-12 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all duration-200 text-xs sm:text-sm group ${
                         index % 2 === 0
@@ -1855,7 +1828,6 @@ const ProjectDetailsPage = () => {
                         </div>
                       </div>
                       <div className="col-span-2 p-4 sm:p-5 flex items-center justify-center space-x-1">
-                        {/* Action Buttons */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1932,7 +1904,6 @@ const ProjectDetailsPage = () => {
                       </div>
                     </div>
 
-                    {/* --- MOBILE VIEW (Card Layout) --- */}
                     <div
                       className={`block sm:hidden p-4 ${
                         index % 2 === 0
@@ -1940,7 +1911,6 @@ const ProjectDetailsPage = () => {
                           : "bg-slate-50 dark:bg-slate-800/50"
                       }`}
                     >
-                      {/* Description */}
                       <div
                         className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300 leading-relaxed"
                         dangerouslySetInnerHTML={{
@@ -1949,7 +1919,6 @@ const ProjectDetailsPage = () => {
                       />
 
                       <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        {/* Date and Actions */}
                         <div className="flex justify-between items-center mb-4">
                           <div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
@@ -1964,7 +1933,6 @@ const ProjectDetailsPage = () => {
                             </span>
                           </div>
                           <div className="flex items-center justify-center space-x-1">
-                            {/* Action Buttons */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2041,7 +2009,6 @@ const ProjectDetailsPage = () => {
                           </div>
                         </div>
 
-                        {/* Attachments */}
                         <div className="mt-4">
                           <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
                             ATTACHMENTS

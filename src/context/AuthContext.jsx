@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }) => {
             },
           }
         );
-        toast.success("Successfully logged out from the server.");
+        
       } catch (error) {
         console.error("Backend logout failed, proceeding with frontend logout:", error);
         toast.error("Could not log out from the server, but you have been logged out locally.");

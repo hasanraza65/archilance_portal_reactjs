@@ -214,9 +214,10 @@ const ProjectPostPage = () => {
           {activeTab === "projects" ? "Jobs" : "Projects"}
         </h4>
 
+        {/* === YAHAN TABDEELI KI GAYI HAI === */}
+        {/* Ab button Manager ko bhi nazar aayega ya agar user admin hai (employee ya customer nahi) */}
         {activeTab === "projects" &&
-          uiRole !== "employee" &&
-          uiRole !== "customer" && (
+          (employeeType === "Manager" || (uiRole !== "employee" && uiRole !== "customer")) && (
             <Button
               icon="heroicons-outline:plus"
               text="Add Job"

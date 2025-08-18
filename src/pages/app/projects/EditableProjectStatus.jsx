@@ -1,12 +1,9 @@
-// src/pages/projects/EditableProjectStatus.js (Final Corrected Code)
-
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "react-toastify";
 import Icon from "@/components/ui/Icon";
 import { FiLoader } from "react-icons/fi";
 
-// --- Utility functions (No changes here) ---
 const STATUS_OPTIONS = ["In Progress", "Pending", "Completed", "Cancelled", "Backlog"];
 const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
@@ -27,8 +24,6 @@ const getStatusSelectedBarColor = (status) => {
   return "bg-slate-500";
 };
 
-// --- The Component ---
-
 const EditableProjectStatus = ({
   projectId,
   currentStatus,
@@ -45,22 +40,18 @@ const EditableProjectStatus = ({
   const dropdownRef = useRef(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
-  // === YAHAN POSITION CALCULATION KO THEEK KIYA GAYA HAI ===
   const calculatePosition = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const menuWidth = 224; // w-56
+      const menuWidth = 224;
       
       let left = rect.left;
-      // Agar menu screen se bahar ja raha hai, to usko left side shift karo
       if (rect.left + menuWidth > window.innerWidth) {
         left = window.innerWidth - menuWidth - 8;
       }
       
-      // `position: fixed` ke liye, `getBoundingClientRect` ki values hi kaafi hain.
-      // ScrollY add karne ki zaroorat nahi hai.
       setMenuPosition({
-        top: rect.bottom + 4, // Button ke 4px neeche
+        top: rect.bottom + 4,
         left: left,
       });
     }
@@ -80,10 +71,10 @@ const EditableProjectStatus = ({
     };
 
     if (isOpen) {
-      calculatePosition(); // Position calculate karein
+      calculatePosition();
       document.addEventListener("mousedown", handleClickOutside);
       window.addEventListener("resize", calculatePosition);
-      window.addEventListener("scroll", calculatePosition, true); // Scroll par bhi update karein
+      window.addEventListener("scroll", calculatePosition, true);
     }
     
     return () => {

@@ -14,6 +14,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const selectStyles = {
   control: (base) => ({
@@ -40,7 +41,15 @@ const selectStyles = {
     ":active": { backgroundColor: "#e2e8f0" },
   }),
 };
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const OptionComponent = ({ data, ...props }) => {
   return (
     <components.Option {...props}>
@@ -76,17 +85,14 @@ const AddProject = ({ onProjectAdded }) => {
   const FormValidationSchema = yup
     .object({
       project_name: yup.string().required("Job name is required"),
-
       project_description: yup.string().nullable(),
-
       start_date: yup
         .date()
         .required("Start date is required")
         .typeError("Invalid date format"),
-      // +++ CHANGE: Made due_date optional by removing .required() and adding .nullable()
       due_date: yup
         .date()
-        .nullable() // Allow the date to be null
+        .nullable()
         .typeError("Invalid date format")
         .min(yup.ref("start_date"), "Due date can't be before the start date"),
       customer_id: yup
@@ -146,8 +152,9 @@ const AddProject = ({ onProjectAdded }) => {
     const fetchCustomers = async () => {
       setLoadingCustomers(true);
       try {
-        const res = await axios.get(
-          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user`,
+        const apiPath = getApiBasePathForRole("/customer-user");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -155,11 +162,23 @@ const AddProject = ({ onProjectAdded }) => {
             },
           }
         );
+
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.message || "Failed to load customers");
+        }
+
+        const data = await response.json();
+
         setCustomers(
-          res.data.map((c) => ({ value: c.id.toString(), label: c.name }))
+          data.map((c) => ({ value: c.id.toString(), label: c.name }))
         );
       } catch (e) {
-        toast.error(e.response?.data?.message || "Failed to load customers");
+        toast.error(
+          e.message || "An unknown error occurred while fetching customers"
+        );
       } finally {
         setLoadingCustomers(false);
       }
@@ -168,8 +187,9 @@ const AddProject = ({ onProjectAdded }) => {
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
       try {
-        const res = await axios.get(
-          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user`,
+        const apiPath = getApiBasePathForRole("/employee-user");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -177,11 +197,23 @@ const AddProject = ({ onProjectAdded }) => {
             },
           }
         );
+
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.message || "Failed to load employees");
+        }
+
+        const data = await response.json();
+
         setEmployees(
-          res.data.map((e) => ({ value: e.id.toString(), label: e.name }))
+          data.map((e) => ({ value: e.id.toString(), label: e.name }))
         );
       } catch (e) {
-        toast.error(e.response?.data?.message || "Failed to load employees");
+        toast.error(
+          e.message || "An unknown error occurred while fetching employees"
+        );
       } finally {
         setLoadingEmployees(false);
       }
@@ -206,7 +238,6 @@ const AddProject = ({ onProjectAdded }) => {
       project_name: data.project_name,
       project_description: finalDescription,
       start_date: new Date(data.start_date).toISOString().split("T")[0],
-      // +++ CHANGE: Safely handle optional due_date. If it's not set, send null.
       due_date: data.due_date
         ? new Date(data.due_date).toISOString().split("T")[0]
         : null,
@@ -221,10 +252,8 @@ const AddProject = ({ onProjectAdded }) => {
         setQuillDescription("");
         if (onProjectAdded) onProjectAdded();
       })
-      .catch(() => {
-        // Error is handled in the slice, so no action needed here
-      })
-      .finally(() => setLocalIsLoding(false));
+      .catch(() => {})
+      .finally(() => setLocalIsLoading(false));
   };
 
   const handleCloseModal = () => {
@@ -306,7 +335,6 @@ const AddProject = ({ onProjectAdded }) => {
               </div>
             )}
           </FormGroup>
-          {/* +++ CHANGE: Updated label to indicate it's optional */}
           <FormGroup label="Due Date (Optional)" id="add-due-date-picker">
             <Controller
               name="due_date"

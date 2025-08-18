@@ -13,7 +13,7 @@ import Alert from "@/components/ui/Alert";
 const schema = yup.object().shape({
   name: yup.string().required("Name is required"),
   email: yup.string().email("Invalid email format").required("Email is required"),
-  phone: yup.string().required("Phone number is required"),
+  phone: yup.string(),
 });
 
 const AddCustomerTeam = () => {
@@ -57,14 +57,12 @@ const AddCustomerTeam = () => {
       const response = await axios.post(apiUrl, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          // Axios sets the correct 'Content-Type' for FormData automatically
+          
         },
       });
 
       setSuccessMessage(response.data.message || 'Team member added successfully!');
-      reset(); // Clear the form fields
-      
-      // Redirect back to the team list after 2 seconds
+      reset(); 
       setTimeout(() => {
         navigate('/team'); 
       }, 2000);
@@ -104,7 +102,7 @@ const AddCustomerTeam = () => {
           name="email"
           label="Email Address"
           type="email"
-          placeholder="Enter email address (e.g., test@mail.com)"
+          placeholder="Enter email address (e.g., abc@mail.com)"
           register={register}
           error={errors.email}
         />
