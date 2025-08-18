@@ -56,7 +56,8 @@ const Avatar = ({ user }) => {
   );
 };
 
-const ProjectGrid = ({ project, userRole }) => {
+// +++ CHANGE #1: Add 'employeeType' to the component's props +++
+const ProjectGrid = ({ project, userRole, employeeType }) => {
   const {
     id,
     name,
@@ -150,7 +151,6 @@ const ProjectGrid = ({ project, userRole }) => {
       onClick={handleCardClick}
     >
       <div className="p-6 flex flex-col h-full">
-        {/* Action icons will appear on hover in the top-right corner */}
         {userRole !== "customer" && (
           <div
             className="absolute top-4 right-4 flex items-center space-x-1 rtl:space-x-reverse
@@ -165,7 +165,9 @@ const ProjectGrid = ({ project, userRole }) => {
             >
               <Icon icon="heroicons:eye" />
             </button>
-            {userRole === "admin" && (
+            
+            {/* +++ CHANGE #2: Update the condition to include the Manager +++ */}
+            {(userRole === "admin" || employeeType === "Manager") && (
               <>
                 <button
                   type="button"

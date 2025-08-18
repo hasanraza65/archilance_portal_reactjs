@@ -93,8 +93,11 @@ const ProjectPostPage = () => {
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
 
-  // "Assigned to me" filter ke liye state
+  // "Assigned to me" filter ke liye state (Jobs Tab)
   const [assignedToMeFilter, setAssignedToMeFilter] = useState(false);
+  
+  // +++ CHANGE #1: ADDED NEW STATE FOR THE 'PROJECTS' TAB FILTER +++
+  const [taskAssignedToMeFilter, setTaskAssignedToMeFilter] = useState(false);
 
   const actualUserRole = getUserRole();
   const employeeType = getEmployeeType(); // Employee type haasil kiya
@@ -128,18 +131,13 @@ const ProjectPostPage = () => {
     }
   }, [searchParams]);
 
-  // Data fetch karne wale useEffect ko update kiya gaya hai
   useEffect(() => {
-    // API call ke liye parameters tayyar kiye
     const apiParams = {};
     if (assignedToMeFilter) {
       apiParams.assigned_me = 1;
     }
-    
-    // fetchProjectsAPI ko parameters ke saath dispatch kiya
     dispatch(fetchProjectsAPI(apiParams));
-
-  }, [dispatch, assignedToMeFilter]); // Ab yeh assignedToMeFilter change hone par bhi chalega
+  }, [dispatch, assignedToMeFilter]);
 
   useEffect(() => {
     sessionStorage.setItem("projectPageActiveTab", activeTab);
@@ -213,9 +211,7 @@ const ProjectPostPage = () => {
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
           {activeTab === "projects" ? "Jobs" : "Projects"}
         </h4>
-
-        {/* === YAHAN TABDEELI KI GAYI HAI === */}
-        {/* Ab button Manager ko bhi nazar aayega ya agar user admin hai (employee ya customer nahi) */}
+        
         {activeTab === "projects" &&
           (employeeType === "Manager" || (uiRole !== "employee" && uiRole !== "customer")) && (
             <Button
@@ -250,7 +246,6 @@ const ProjectPostPage = () => {
               </div>
 
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-                {/* NAYA BUTTON - Sirf Manager ke liye */}
                 {employeeType === "Manager" && (
                   <Button
                     text="Assigned to me"
@@ -327,6 +322,7 @@ const ProjectPostPage = () => {
                         project={project}
                         key={project.id}
                         userRole={uiRole}
+                         employeeType={employeeType}
                       />
                     ))}
                   </div>
@@ -335,6 +331,7 @@ const ProjectPostPage = () => {
                   <ProjectList
                     projects={filteredProjects}
                     userRole={uiRole}
+                    employeeType={employeeType}
                   />
                 )}
               </>
@@ -379,6 +376,22 @@ const ProjectPostPage = () => {
                   />
                 </div>
               </div>
+              
+              {/* +++ CHANGE #2: ADDED THE BUTTON FOR 'PROJECTS' TAB +++ */}
+              <div className="flex items-center justify-end">
+                {employeeType === "Manager" && (
+                  <Button
+                    text="Assigned to me"
+                    disabled={isTaskListLoading}
+                    className={`py-2 px-4 text-sm font-medium transition-colors ${
+                      taskAssignedToMeFilter
+                        ? "btn-dark"
+                        : "btn-outline-dark"
+                    }`}
+                    onClick={() => setTaskAssignedToMeFilter(prev => !prev)}
+                  />
+                )}
+              </div>
             </div>
             <hr className="my-4 border-slate-200 dark:border-slate-700" />
             <StatusFilterBar
@@ -390,10 +403,12 @@ const ProjectPostPage = () => {
           </Card>
 
           <Card noBorder>
+            {/* +++ CHANGE #3: PASSED THE NEW PROP TO TaskList +++ */}
             <TaskList
               statusFilter={taskStatusFilter}
               searchQuery={taskSearchQuery}
               onLoadingChange={setTaskListLoading}
+              assignedToMe={taskAssignedToMeFilter}
             />
           </Card>
         </>

@@ -9,7 +9,6 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const STATUS_OPTIONS = ["To Do", "In Progress", "Done", "Cancelled"];
 
-// Updated function for clarity and correctness
 const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
   switch (s) {

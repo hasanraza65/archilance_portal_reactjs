@@ -10,11 +10,7 @@
   If we ever want to remove these styles, we need to add an explicit border
   color utility to any element that depends on these defaults.
 */
-@layer components {
-  .action-btn {
-    @apply h-8 w-8 rounded-full flex items-center justify-center transition-colors duration-150;
-  }
-}
+
 @theme {
   --color-primary-50: var(--primary-50);
   --color-primary-100: var(--primary-100);
@@ -5351,4 +5347,8 @@ html[dir="rtl"] .recharts-yAxis .recharts-text {
   blockquote {
     @apply border-l-2 border-gray-500 pl-5 text-xl  italic;
   }
+  .action-btn {
+    @apply h-8 w-8 rounded-full flex items-center justify-center transition-colors duration-150;
+  }
 }
+

@@ -14,6 +14,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const selectStyles = {
   control: (base) => ({
@@ -68,7 +69,14 @@ const OptionComponent = ({ data, ...props }) => {
     </components.Option>
   );
 };
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const EditProject = () => {
   const {
     editModal,
@@ -86,13 +94,11 @@ const EditProject = () => {
   const FormValidationSchema = yup
     .object({
       project_name: yup.string().required("Job name is required"),
-      // +++ CHANGE: Made project_description optional
       project_description: yup.string().nullable(),
       start_date: yup
         .date()
         .required("Start date is required")
         .typeError("Invalid date format"),
-      // +++ CHANGE: Made due_date optional
       due_date: yup
         .date()
         .nullable()
@@ -122,7 +128,6 @@ const EditProject = () => {
   });
 
   useEffect(() => {
-    // +++ CHANGE: Handle empty quill value for optional description
     const textContent = (quillDescription || "").replace(/<[^>]*>/g, "").trim();
     setValue("project_description", textContent ? quillDescription : "", {
       shouldValidate: true,
@@ -140,8 +145,9 @@ const EditProject = () => {
           setLoadingCustomers(false);
           return;
         }
-        const response = await axios.get(
-          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user`,
+        const apiPath = getApiBasePathForRole("/customer-user");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -149,16 +155,25 @@ const EditProject = () => {
             },
           }
         );
-        const customerOptions = response.data.map((customer) => ({
+
+        // +++ FIX: Check if the response was successful +++
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.message || "Failed to load customers");
+        }
+
+        // +++ FIX: Correctly parse the JSON data from the response +++
+        const data = await response.json();
+
+        const customerOptions = data.map((customer) => ({
           value: customer.id.toString(),
           label: customer.name,
         }));
         setCustomers(customerOptions);
       } catch (error) {
         console.error("Error fetching customers:", error);
-        toast.error(
-          error.response?.data?.message || "Failed to load customers"
-        );
+        // +++ FIX: Display the correct error message from the caught error object +++
+        toast.error(error.message || "An unknown error occurred while fetching customers.");
       } finally {
         setLoadingCustomers(false);
       }
@@ -201,7 +216,6 @@ const EditProject = () => {
         setLocalIsLoading(false);
         return;
       }
-      // +++ CHANGE: Handle optional fields in payload
       const textContent = (data.project_description || "")
         .replace(/<[^>]*>/g, "")
         .trim();
@@ -294,7 +308,6 @@ const EditProject = () => {
               </div>
             )}
           </FormGroup>
-          {/* +++ CHANGE: Updated label to indicate it's optional */}
           <FormGroup
             label="Due Date (Optional)"
             id="edit-due-date-picker"
@@ -368,7 +381,6 @@ const EditProject = () => {
           )}
         </FormGroup>
 
-        {/* +++ CHANGE: Updated label and removed error border logic as it's now optional */}
         <FormGroup
           label="Description (Optional)"
           id="edit_project_description_quill_fg"
