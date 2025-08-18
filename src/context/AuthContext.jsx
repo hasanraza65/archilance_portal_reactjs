@@ -77,6 +77,7 @@ export const AuthProvider = ({ children }) => {
         role: userRoleString,
         profile_pic: userData.profile_pic,
         is_default_pass: userData.is_default_pass,
+        employee_type: userData.employee_type, // <-- YAHAN TABDEELI KI GAYI HAI
       };
 
       const cookieOptions = {
@@ -107,7 +108,6 @@ export const AuthProvider = ({ children }) => {
         navigate("/dashboard", { replace: true });
       }
    
-
       return userToSave;
     } else {
       toast.error("Login failed: Invalid data received from server.");

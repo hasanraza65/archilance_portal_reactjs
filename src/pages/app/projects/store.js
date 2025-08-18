@@ -1,3 +1,5 @@
+// src/pages/project/store/index.js (or wherever your slice is) - UPDATED
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -22,34 +24,44 @@ const getProjectPath = () => {
   }
 };
 
-// ====================================================================
-// CHANGE: Customer object ko project data ke sath store karein
-// ====================================================================
 const formatProjectFromAPI = (project) => ({
   id: project.id,
   name: project.project_name || "Unnamed Project",
   des: project.project_description || "",
   startDate: project.start_date || new Date().toISOString().split("T")[0],
   endDate: project.due_date,
-  progress: typeof project.progress === "number" ? project.progress : project.project_progress || 0,
+  progress:
+    typeof project.progress === "number"
+      ? project.progress
+      : project.project_progress || 0,
   customer_id: project.customer_id || null,
   status: project.status || "ongoing",
   project_assignees: project.project_assignees || [],
-  customer: project.customer || null, // Yeh line customer object ko save karegi
+  customer: project.customer || null,
 });
 
-
+// ====================================================================
+// YAHAN TABDEELI KI GAYI HAI
+// ====================================================================
 export const fetchProjectsAPI = createAsyncThunk(
   "project/fetchProjects",
-  // The 'page' argument is kept to avoid breaking other parts of the code, but it's not used in the API call.
-  async (page = 1, { rejectWithValue }) => {
+  // Ab yeh function 'page' ke bajaye 'params' object leta hai
+  async (params = {}, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
       const path = getProjectPath();
-      // API call now fetches all projects without pagination query params
-      const response = await axios.get(`${API_ROOT}${path}`, {
+      let url = `${API_ROOT}${path}`; // Shuru ki URL
+
+      // Params object ko URL query string (e.g., "?assigned_me=1") mein convert karein
+      const queryString = new URLSearchParams(params).toString();
+      if (queryString) {
+        url += `?${queryString}`; // URL ke aakhir mein query string add karein
+      }
+
+      // API call ab naye URL ke saath hogi
+      const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
@@ -61,16 +73,14 @@ export const fetchProjectsAPI = createAsyncThunk(
 
       if (Array.isArray(responseData)) {
         projectsArray = responseData;
-      } 
-      else if (responseData && Array.isArray(responseData.data)) {
+      } else if (responseData && Array.isArray(responseData.data)) {
         projectsArray = responseData.data;
-      }
-      else {
+      } else {
         return rejectWithValue("Invalid project data structure from API.");
       }
 
       const formattedProjects = projectsArray.map(formatProjectFromAPI);
-      
+
       return {
         projects: formattedProjects,
         meta: {
@@ -80,11 +90,17 @@ export const fetchProjectsAPI = createAsyncThunk(
         },
       };
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || "Failed to load projects.";
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to load projects.";
       return rejectWithValue(errorMessage);
     }
   }
 );
+// ====================================================================
+// TABDEELI KHATAM
+// ====================================================================
 
 export const addProjectAPI = createAsyncThunk(
   "project/addProject",
@@ -101,9 +117,12 @@ export const addProjectAPI = createAsyncThunk(
         },
       });
 
-      if (response.data && (response.status === 201 || response.status === 200)) {
+      if (
+        response.data &&
+        (response.status === 201 || response.status === 200)
+      ) {
         toast.success("Job added successfully!");
-        dispatch(fetchProjectsAPI(1));
+        dispatch(fetchProjectsAPI()); // Call without params to fetch all projects
         if (response.data.data && typeof response.data.data === "object") {
           return formatProjectFromAPI(response.data.data);
         }
@@ -114,7 +133,10 @@ export const addProjectAPI = createAsyncThunk(
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "Could not add project.";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Could not add project.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -129,17 +151,20 @@ export const saveEditedProjectAPI = createAsyncThunk(
       if (!token) return rejectWithValue("Authentication token not found.");
 
       const path = getProjectPath();
-      const response = await axios.put(`${API_ROOT}${path}/${projectData.id}`, projectData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
+      const response = await axios.put(
+        `${API_ROOT}${path}/${projectData.id}`,
+        projectData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        const { currentPage } = getState().project;
-        dispatch(fetchProjectsAPI(currentPage));
+        dispatch(fetchProjectsAPI()); // Refresh the list
         if (response.data.data && typeof response.data.data === "object") {
           return formatProjectFromAPI(response.data.data);
         }
@@ -150,7 +175,10 @@ export const saveEditedProjectAPI = createAsyncThunk(
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "Could not update project.";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Could not update project.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -174,8 +202,7 @@ export const deleteProjectAPI = createAsyncThunk(
 
       if (response.status === 200 || response.status === 204) {
         toast.success("Project deleted successfully!");
-        const { currentPage } = getState().project;
-        dispatch(fetchProjectsAPI(currentPage));
+        dispatch(fetchProjectsAPI()); // Refresh the list
         return projectId;
       } else {
         const errorMsg = response.data?.message || "Failed to delete project.";
@@ -183,7 +210,10 @@ export const deleteProjectAPI = createAsyncThunk(
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "Failed to delete project.";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to delete project.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -192,13 +222,16 @@ export const deleteProjectAPI = createAsyncThunk(
 
 export const updateProjectAssigneesAPI = createAsyncThunk(
   "project/updateAssignees",
-  async ({ project_id, employee_ids }, { dispatch, getState, rejectWithValue }) => {
+  async (
+    { project_id, employee_ids },
+    { dispatch, getState, rejectWithValue }
+  ) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
-      
+
       const payload = { project_id, employee_ids };
-      
+
       const role = getApiPrefix();
       if (!role) {
         return rejectWithValue("User role could not be determined.");
@@ -213,11 +246,13 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
         },
       });
 
-      const { currentPage } = getState().project;
-      dispatch(fetchProjectsAPI(currentPage));
+      dispatch(fetchProjectsAPI()); // Refresh the list
       return { projectId: project_id, employeeIds: employee_ids };
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "Could not update assignees.";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Could not update assignees.";
       return rejectWithValue(errorMessage);
     }
   }
@@ -232,13 +267,17 @@ export const updateProjectFieldAPI = createAsyncThunk(
 
       const path = getProjectPath();
       const payload = { [field]: value };
-      
-      const response = await axios.patch(`${API_ROOT}${path}/${projectId}`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
+
+      const response = await axios.patch(
+        `${API_ROOT}${path}/${projectId}`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
@@ -249,7 +288,8 @@ export const updateProjectFieldAPI = createAsyncThunk(
         return rejectWithValue(errorMsg);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "An error occurred.";
+      const errorMessage =
+        error.response?.data?.message || error.message || "An error occurred.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -284,7 +324,9 @@ export const appProjectSlice = createSlice({
     },
     toggleUpdateAssigneesModal: (state, action) => {
       state.updateAssigneesModal = action.payload.open;
-      state.projectToUpdateAssignees = action.payload.open ? action.payload.project : null;
+      state.projectToUpdateAssignees = action.payload.open
+        ? action.payload.project
+        : null;
     },
   },
   extraReducers: (builder) => {
@@ -354,7 +396,9 @@ export const appProjectSlice = createSlice({
       })
       .addCase(updateProjectFieldAPI.fulfilled, (state, action) => {
         const { projectId, field, value } = action.payload;
-        const projectIndex = state.projects.findIndex(p => p.id === projectId);
+        const projectIndex = state.projects.findIndex(
+          (p) => p.id === projectId
+        );
         if (projectIndex !== -1) {
           state.projects[projectIndex][field] = value;
         }
@@ -362,6 +406,10 @@ export const appProjectSlice = createSlice({
   },
 });
 
-export const { toggleAddModal, setEditModalAndItem, toggleUpdateAssigneesModal } = appProjectSlice.actions;
+export const {
+  toggleAddModal,
+  setEditModalAndItem,
+  toggleUpdateAssigneesModal,
+} = appProjectSlice.actions;
 
 export default appProjectSlice.reducer;

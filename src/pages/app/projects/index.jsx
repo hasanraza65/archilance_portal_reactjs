@@ -13,7 +13,8 @@ import AddProject from "./AddProject";
 import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getUserRole } from "@/pages/utility/apiHelper";
+// getUserRole ke saath getEmployeeType bhi import kiya gaya hai
+import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
 
@@ -92,7 +93,11 @@ const ProjectPostPage = () => {
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
 
+  // "Assigned to me" filter ke liye state
+  const [assignedToMeFilter, setAssignedToMeFilter] = useState(false);
+
   const actualUserRole = getUserRole();
+  const employeeType = getEmployeeType(); // Employee type haasil kiya
   const uiRole = actualUserRole === "member" ? "customer" : actualUserRole;
 
   const dispatch = useDispatch();
@@ -105,35 +110,38 @@ const ProjectPostPage = () => {
     error: projectsError,
   } = useSelector((state) => state.project);
   
-  // CHANGE: This useEffect hook runs on component mount to set tab and filters from URL
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
     const statusFromUrl = searchParams.get("status");
 
-    // 1. Set the active tab based on the 'tab' parameter in the URL
     if (tabFromUrl === 'tasks' || tabFromUrl === 'projects') {
       setActiveTab(tabFromUrl);
     }
 
-    // 2. Set the status filter based on the 'status' parameter
     if (statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)) {
-      // Determine which filter to apply based on the target tab
-      const targetTab = tabFromUrl || activeTab; // Use URL tab, or fallback to current tab
-
+      const targetTab = tabFromUrl || activeTab;
       if (targetTab === 'projects') {
         setProjectStatusFilter(statusFromUrl);
       } else if (targetTab === 'tasks') {
         setTaskStatusFilter(statusFromUrl);
       }
     }
-  }, [searchParams]); // Rerun if searchParams change
+  }, [searchParams]);
+
+  // Data fetch karne wale useEffect ko update kiya gaya hai
+  useEffect(() => {
+    // API call ke liye parameters tayyar kiye
+    const apiParams = {};
+    if (assignedToMeFilter) {
+      apiParams.assigned_me = 1;
+    }
+    
+    // fetchProjectsAPI ko parameters ke saath dispatch kiya
+    dispatch(fetchProjectsAPI(apiParams));
+
+  }, [dispatch, assignedToMeFilter]); // Ab yeh assignedToMeFilter change hone par bhi chalega
 
   useEffect(() => {
-    dispatch(fetchProjectsAPI());
-  }, [dispatch]);
-
-  useEffect(() => {
-    // Save the active tab to session storage whenever it changes
     sessionStorage.setItem("projectPageActiveTab", activeTab);
   }, [activeTab]);
 
@@ -241,6 +249,20 @@ const ProjectPostPage = () => {
               </div>
 
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
+                {/* NAYA BUTTON - Sirf Manager ke liye */}
+                {employeeType === "Manager" && (
+                  <Button
+                    text="Assigned to me"
+                    disabled={anyOperationPending}
+                    className={`py-2 px-4 text-sm font-medium transition-colors ${
+                      assignedToMeFilter
+                        ? "btn-dark"
+                        : "btn-outline-dark"
+                    }`}
+                    onClick={() => setAssignedToMeFilter(prev => !prev)}
+                  />
+                )}
+                
                 <Button
                   icon="heroicons:list-bullet"
                   disabled={anyOperationPending}

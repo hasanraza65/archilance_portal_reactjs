@@ -21,6 +21,23 @@ const getActualUserRole = () => {
   }
 };
 
+/**
+ * Ye function cookie se user ka employee_type nikalta hai (e.g., "Manager").
+ */
+export const getEmployeeType = () => {
+  const userCookie = Cookies.get("user");
+  if (!userCookie) {
+    return null;
+  }
+  try {
+    const user = JSON.parse(userCookie);
+    return user?.employee_type; // Yeh "Manager" ya "Employee" return karega
+  } catch (e) {
+    console.error("Error parsing user cookie for employee_type:", e);
+    return null;
+  }
+};
+
 
 /**
  * getApiPrefix() - API Calls Ke Liye
