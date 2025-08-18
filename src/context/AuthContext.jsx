@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setUser as setReduxUser, logOut as logOutRedux } from "@/store/api/auth/authSlice";
 import UpdatePasswordModal from "@/pages/member/UpdatePasswordModal";
+import axios from "axios"; 
 
 const ROLE_MAP = {
   2: "admin",
@@ -12,6 +13,10 @@ const ROLE_MAP = {
   4: "customer",
   5: "member",
 };
+
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || "https://portal.archilance.net/backend/public";
+const LOGOUT_API_URL = `${BACKEND_BASE_URL}/api/logout`;
+
 
 const AuthContext = createContext({
   user: null,
@@ -77,7 +82,7 @@ export const AuthProvider = ({ children }) => {
         role: userRoleString,
         profile_pic: userData.profile_pic,
         is_default_pass: userData.is_default_pass,
-        employee_type: userData.employee_type, // <-- YAHAN TABDEELI KI GAYI HAI
+        employee_type: userData.employee_type,
       };
 
       const cookieOptions = {
@@ -115,7 +120,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const currentToken = Cookies.get("token");
+
+    if (currentToken) {
+      try {
+       
+        await axios.post(
+          LOGOUT_API_URL,
+          {}, 
+          {
+            headers: {
+              Authorization: `Bearer ${currentToken}`,
+              Accept: "application/json",
+            },
+          }
+        );
+        toast.success("Successfully logged out from the server.");
+      } catch (error) {
+        console.error("Backend logout failed, proceeding with frontend logout:", error);
+        toast.error("Could not log out from the server, but you have been logged out locally.");
+      }
+    }
     setUser(null);
     setToken(null);
     setIsPasswordUpdateRequired(false);
@@ -129,6 +155,7 @@ export const AuthProvider = ({ children }) => {
     toast.info("You have been logged out.");
     navigate("/login");
   };
+
 
   const handlePasswordUpdateSuccess = () => {
     setIsPasswordUpdateRequired(false);
