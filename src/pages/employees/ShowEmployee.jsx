@@ -7,6 +7,8 @@ import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import { canManageEmployees } from "@/pages/utility/apiHelper"; // Import the helper
+import { getApiPrefix } from "@/pages/utility/apiHelper";
+
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -26,7 +28,15 @@ const DetailItem = ({ label, value }) => {
     </div>
   );
 };
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const ShowEmployee = () => {
   const { employeeId } = useParams();
   const navigate = useNavigate();
@@ -48,8 +58,10 @@ const ShowEmployee = () => {
     }
 
     try {
+            const apiPath = getApiBasePathForRole("/employee-user");
+
       const response = await axios.get(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user/${employeeId}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${employeeId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

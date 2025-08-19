@@ -5,6 +5,8 @@ import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
 import Card from '@/components/ui/Card'; 
 import Icon from '@/components/ui/Icon';   
+import { getApiPrefix } from "@/pages/utility/apiHelper";
+
 const AddCustomer = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -54,7 +56,15 @@ const AddCustomer = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -82,8 +92,10 @@ const AddCustomer = () => {
     console.log("Sending payload to Add Customer API:", payload);
 
     try {
+            const apiPath = getApiBasePathForRole("/customer-user");
+
       const response = await axios.post(
-         `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         payload,
         {
           headers: {

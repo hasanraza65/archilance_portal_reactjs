@@ -90,7 +90,7 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:user",
     link: "customers",
-    allowedRoles: ["admin"], 
+    allowedRoles: ["admin","Manager"], 
   },
    {
     title: "Work Session",

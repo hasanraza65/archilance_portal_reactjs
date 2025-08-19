@@ -286,7 +286,7 @@ function App() {
           <Route
             path="customers"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <AllCustomers />
               </ProtectedRoute>
             }
@@ -294,7 +294,7 @@ function App() {
           <Route
             path="/customers/view/:customerId"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <CustomerView />
               </ProtectedRoute>
             }
@@ -302,7 +302,7 @@ function App() {
           <Route
             path="customers/add"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <AddCustomers />
               </ProtectedRoute>
             }
@@ -310,7 +310,7 @@ function App() {
           <Route
             path="/customers/edit/:customerId"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+               <ProtectedRoute requireManagerAccess={true}>
                 <UpdateCustomer />
               </ProtectedRoute>
             }

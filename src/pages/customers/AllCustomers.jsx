@@ -14,6 +14,7 @@ import {
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import Alert from "@/components/ui/Alert";
 import CustomSearchFilter from "../table/react-table/CustomSearchFilter";
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -150,7 +151,15 @@ const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
     },
   },
 ];
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 
 const AllCustomers = () => {
   const [customerData, setCustomerData] = useState([]);
@@ -176,8 +185,10 @@ const AllCustomers = () => {
       return;
     }
     try {
+            const apiPath = getApiBasePathForRole("/customer-user");
+
       const response = await axios.get(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -235,9 +246,10 @@ const AllCustomers = () => {
       setIsDeleteModalOpen(false);
       return;
     }
-    try {
+    try {      const apiPath = getApiBasePathForRole("/customer-user");
+
       await axios.delete(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/customer-user/${
+         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${
           customerToDelete.id
         }`,
         {
