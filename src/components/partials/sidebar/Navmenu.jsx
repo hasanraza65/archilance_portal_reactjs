@@ -8,6 +8,9 @@ import { useDispatch } from "react-redux";
 import useMobileMenu from "@/hooks/useMobileMenu";
 import Submenu from "./Submenu";
 
+// Helper functions ko import karein
+import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
+
 const Navmenu = ({ menus }) => {
   const [activeSubmenu, setActiveSubmenu] = useState(null);
 
@@ -25,6 +28,50 @@ const Navmenu = ({ menus }) => {
   const [activeMultiMenu, setMultiMenu] = useState(null);
   const dispatch = useDispatch();
 
+  const currentUserRole = getUserRole();
+  const currentUserEmployeeType = getEmployeeType();
+
+  // DEBUGGING: Console mein check karein ke cookie se kya value aa rahi hai
+  useEffect(() => {
+    console.log("Current User Role:", currentUserRole);
+    console.log("Current Employee Type:", currentUserEmployeeType);
+  }, [currentUserRole, currentUserEmployeeType]);
+
+
+  const filterMenuItems = (items) => {
+    return items
+      .filter((item) => {
+        if (!item.allowedRoles || item.allowedRoles.length === 0) {
+          return true;
+        }
+
+        const hasRoleAccess = item.allowedRoles.includes(currentUserRole);
+        
+        // --- YEH LINE UPDATE HUI HAI ---
+        // Pehle check karein ke currentUserEmployeeType null ya undefined to nahi
+        const isManager = currentUserEmployeeType?.toLowerCase() === "manager";
+        
+        // --- AUR YEH LINE UPDATE HUI HAI ---
+        // 'Manager' ko bhi lowercase mein check karein
+        const managerHasAccess = isManager && item.allowedRoles.map(role => role.toLowerCase()).includes("manager");
+
+        return hasRoleAccess || managerHasAccess;
+      })
+      .map((item) => {
+        if (item.child) {
+          const filteredChildren = filterMenuItems(item.child);
+          if (filteredChildren.length > 0) {
+            return { ...item, child: filteredChildren };
+          }
+          return null;
+        }
+        return item;
+      })
+      .filter(Boolean);
+  };
+
+  const filteredMenus = filterMenuItems(menus);
+
   const toggleMultiMenu = (j) => {
     if (activeMultiMenu === j) {
       setMultiMenu(null);
@@ -35,17 +82,16 @@ const Navmenu = ({ menus }) => {
 
   const isLocationMatch = (targetLocation) => {
     return (
-      targetLocation && (
-        locationName === targetLocation ||
-        locationName.startsWith(`${targetLocation}/`)
-      )
+      targetLocation &&
+      (locationName === targetLocation ||
+        locationName.startsWith(`${targetLocation}/`))
     );
   };
 
   useEffect(() => {
     let submenuIndex = null;
     let multiMenuIndex = null;
-    menus.forEach((item, i) => {
+    filteredMenus.forEach((item, i) => {
       if (isLocationMatch(item.link)) {
         submenuIndex = i;
       }
@@ -67,21 +113,18 @@ const Navmenu = ({ menus }) => {
         });
       }
     });
-    // This part of title logic might need adjustment if routes change.
-    // document.title = `Archilance LLC  | ${locationName}`;
 
     setActiveSubmenu(submenuIndex);
     setMultiMenu(multiMenuIndex);
     if (mobileMenu) {
       setMobileMenu(false);
     }
-    // Minor improvement: dependency array includes `menus` so it recalculates if the user logs out and in with a new role.
-  }, [location, menus]);
+  }, [location, filteredMenus]);
 
   return (
     <>
       <ul>
-        {menus.map((item, i) => (
+        {filteredMenus.map((item, i) => (
           <li
             key={i}
             className={` single-sidebar-menu 
@@ -89,7 +132,6 @@ const Navmenu = ({ menus }) => {
               ${activeSubmenu === i ? "open" : ""}
               ${locationName === item.link ? "menu-item-active" : ""}`}
           >
-            {/* single menu with no childred*/}
             {!item.child && !item.isHeadr && (
               <NavLink className="menu-link" to={item.link}>
                 <span className="menu-icon grow-0">
@@ -99,11 +141,9 @@ const Navmenu = ({ menus }) => {
                 {item.badge && <span className="menu-badge">{item.badge}</span>}
               </NavLink>
             )}
-            {/* only for menulabel */}
             {item.isHeadr && !item.child && (
               <div className="menulabel">{item.title}</div>
             )}
-            {/*    !!sub menu parent   */}
             {item.child && (
               <div
                 className={`menu-link ${

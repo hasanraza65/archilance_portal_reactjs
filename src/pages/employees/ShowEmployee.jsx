@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -6,6 +6,7 @@ import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
+import { canManageEmployees } from "@/pages/utility/apiHelper"; // Import the helper
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -32,6 +33,8 @@ const ShowEmployee = () => {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const hasManagementPermission = useMemo(() => canManageEmployees(), []);
 
   const fetchEmployeeDetails = useCallback(async () => {
     setLoading(true);
@@ -197,12 +200,14 @@ const ShowEmployee = () => {
               icon="heroicons-outline:arrow-left"
               onClick={() => navigate("/employees")}
             />
-            <Button
-              text="Edit Employee"
-              className="btn-primary w-full sm:w-auto"
-              icon="heroicons:pencil-square"
-              onClick={() => navigate(`/employees/edit/${employee.id}`)}
-            />
+            {hasManagementPermission && (
+              <Button
+                text="Edit Employee"
+                className="btn-primary w-full sm:w-auto"
+                icon="heroicons:pencil-square"
+                onClick={() => navigate(`/employees/edit/${employee.id}`)}
+              />
+            )}
           </div>
         </div>
       </Card>

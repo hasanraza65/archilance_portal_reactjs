@@ -1,12 +1,7 @@
-// src/pages/utility/apiHelper.js
 import Cookies from 'js-cookie';
 
-// Sab roles jo aapki application mein hain
 const VALID_ROLES = ['admin', 'employee', 'customer', 'member'];
 
-/**
- * Ye function cookie se user ka asal role nikalta hai.
- */
 const getActualUserRole = () => {
   const userCookie = Cookies.get("user");
   if (!userCookie) {
@@ -21,9 +16,6 @@ const getActualUserRole = () => {
   }
 };
 
-/**
- * Ye function cookie se user ka employee_type nikalta hai (e.g., "Manager").
- */
 export const getEmployeeType = () => {
   const userCookie = Cookies.get("user");
   if (!userCookie) {
@@ -31,42 +23,50 @@ export const getEmployeeType = () => {
   }
   try {
     const user = JSON.parse(userCookie);
-    return user?.employee_type; // Yeh "Manager" ya "Employee" return karega
+    // This will return "Manager", "Employee", or null
+    return user?.employee_type; 
   } catch (e) {
     console.error("Error parsing user cookie for employee_type:", e);
     return null;
   }
 };
 
-
 /**
- * getApiPrefix() - API Calls Ke Liye
- * Ye function ab user ka asal role hi return karega.
+ * YEH NAYA AUR SABSE IMPORTANT FUNCTION HAI
+ * Checks if the current user has permissions to manage other employees.
+ * A user is considered a manager if their role is 'admin' OR their employee_type is 'Manager'.
+ * This function is case-insensitive for the employee_type check.
+ * @returns {boolean} - Returns true if the user has management permissions, otherwise false.
  */
-export const getApiPrefix = () => {
+export const canManageEmployees = () => {
   const role = getActualUserRole();
+  const employeeType = getEmployeeType();
 
-  // ====================================================================
-  // CHANGE: 'member' ko 'customer' banane wali logic hata di gayi hai.
-  // Ab ye function 'member' ke liye 'member' hi return karega.
-  // ====================================================================
-
-  // Check karein ke role valid hai ya nahi
-  if (VALID_ROLES.includes(role)) {
-    return role; // 'member' ke liye 'member', 'customer' ke liye 'customer' etc. return hoga
+  // Condition 1: If the user's role is 'admin', they always have access.
+  if (role === 'admin') {
+    return true;
   }
 
-  // Agar role na ho ya na-maloom ho, to default set karein
+  // Condition 2: If the user's employee_type is 'Manager', they also have access.
+  // We use .toLowerCase() to avoid case-sensitivity issues (e.g., "Manager" vs "manager").
+  // The `?.` prevents an error if employeeType is null or undefined.
+  if (employeeType?.toLowerCase() === 'manager') {
+    return true;
+  }
+
+  // If neither of the above conditions are met, the user does not have access.
+  return false;
+};
+
+export const getApiPrefix = () => {
+  const role = getActualUserRole();
+  if (VALID_ROLES.includes(role)) {
+    return role;
+  }
   console.warn(`Unknown or missing role found: '${role}'. Defaulting to 'customer'.`);
   return 'customer';
 };
 
-
-/**
- * getUserRole() - User Interface (UI) Ke Liye
- * Ye function UI ke liye user ka ASAL role batata hai.
- */
 export const getUserRole = () => {
-  // Ye hamesha user ka asal role return karega.
   return getActualUserRole();
 };

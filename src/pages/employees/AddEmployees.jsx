@@ -1,11 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
+import { canManageEmployees } from "@/pages/utility/apiHelper";
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const AddEmployee = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -20,6 +31,14 @@ const AddEmployee = () => {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    // Check for permission when the component mounts
+    if (!canManageEmployees()) {
+      toast.error("You are not authorized to perform this action.");
+      navigate("/employees"); // Redirect to the employee list
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -82,8 +101,11 @@ const AddEmployee = () => {
     };
 
     try {
+     
+          
+      const apiPath = getApiBasePathForRole("/employee-user");
       const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         payload,
         {
           headers: {

@@ -114,14 +114,6 @@ function App() {
             }
           />
           <Route path="login" element={<Navigate to="/" replace />} />
-          {/* <Route
-            path="register"
-            element={
-              <Suspense fallback={<Loading />}>
-                <Register />
-              </Suspense>
-            }
-          /> */}
           <Route
             path="forgot-password"
             element={
@@ -232,10 +224,11 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
           <Route
             path="employees"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <Allemployees />
               </ProtectedRoute>
             }
@@ -243,7 +236,7 @@ function App() {
           <Route
             path="/employees/view/:employeeId"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <ShowEmployee />
               </ProtectedRoute>
             }
@@ -251,7 +244,7 @@ function App() {
           <Route
             path="employees/add"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <AddEmployee />
               </ProtectedRoute>
             }
@@ -259,7 +252,7 @@ function App() {
           <Route
             path="/employees/edit/:employeeId"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <EditEmployee />
               </ProtectedRoute>
             }
@@ -267,7 +260,7 @@ function App() {
           <Route
             path="/employees/work-sessions/:employeeId"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute requireManagerAccess={true}>
                 <AdminEmployeeWorkSession />
               </ProtectedRoute>
             }

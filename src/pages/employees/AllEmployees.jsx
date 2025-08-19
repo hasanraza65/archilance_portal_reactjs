@@ -14,10 +14,20 @@ import {
 import GlobalFilter from "../table/react-table/GlobalFilter";
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import Alert from "@/components/ui/Alert";
+import { canManageEmployees } from "@/pages/utility/apiHelper"; // Import the helper
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
-
-const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
+const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler, hasPermission) => [
   {
     Header: "Id",
     accessor: "id",
@@ -111,20 +121,24 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
           >
             <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
           </button>
-          <button
-            onClick={handleEdit}
-            className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
-            title="Edit Employee"
-          >
-            <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleDeleteClick}
-            className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-red-200 dark:hover:border-red-700"
-            title="Delete Employee"
-          >
-            <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
-          </button>
+          {hasPermission && (
+            <>
+              <button
+                onClick={handleEdit}
+                className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Edit Employee"
+              >
+                <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleDeleteClick}
+                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-all duration-200 border border-transparent hover:border-red-200 dark:hover:border-red-700"
+                title="Delete Employee"
+              >
+                <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       );
     },
@@ -163,6 +177,8 @@ const Allemployees = () => {
   const [deleteError, setDeleteError] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState(null);
 
+  const hasManagementPermission = useMemo(() => canManageEmployees(), []);
+
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
@@ -175,8 +191,9 @@ const Allemployees = () => {
       return;
     }
     try {
+      const apiPath = getApiBasePathForRole("/employee-user");
       const response = await axios.get(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user`,
+       `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -233,8 +250,9 @@ const Allemployees = () => {
       return;
     }
     try {
+        const apiPath = getApiBasePathForRole("/employee-user");
       await axios.delete(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin/employee-user/${
+         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${
           employeeToDelete.id
         }`,
         {
@@ -264,8 +282,8 @@ const Allemployees = () => {
   }, [employeeToDelete, handleCloseDeleteModal]);
 
   const columns = useMemo(
-    () => EMPLOYEE_API_COLUMNS_CONFIG(navigate, handleOpenDeleteModal),
-    [navigate, handleOpenDeleteModal]
+    () => EMPLOYEE_API_COLUMNS_CONFIG(navigate, handleOpenDeleteModal, hasManagementPermission),
+    [navigate, handleOpenDeleteModal, hasManagementPermission]
   );
   const data = useMemo(() => employeeData, [employeeData]);
 
@@ -330,14 +348,15 @@ const Allemployees = () => {
                 placeholder="Search employees..."
               />
             </div>
-              <button
-                className="btn btn-dark flex items-center justify-center h-10"
-                onClick={() => navigate("/employees/add")}
-              >
-                <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
-                Add Employee
-              </button>
-            
+              {hasManagementPermission && (
+                <button
+                  className="btn btn-dark flex items-center justify-center h-10"
+                  onClick={() => navigate("/employees/add")}
+                >
+                  <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
+                  Add Employee
+                </button>
+              )}
           </div>
         </div>
 

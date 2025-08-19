@@ -43,7 +43,7 @@ export const menuItems = [
   {
     isHeadr: true,
     title: "menu",
-    allowedRoles: ["admin", "employee", "customer"], // Sabko dikhega
+    allowedRoles: ["admin", "employee", "customer","Manager"], // Sabko dikhega
   },
   {
     title: "Dashboard",
@@ -83,7 +83,7 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:user",
     link: "employees",
-    allowedRoles: ["admin"], 
+    allowedRoles: ["admin","Manager"], 
   },
   {
     title: "Customers",
