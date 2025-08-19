@@ -36,6 +36,7 @@ const EditEmployee = () => {
   const watchedProfilePicFile = watch("profile_pic");
   const passwordValue = watch("password");
 
+  // Effect to handle profile picture preview
   useEffect(() => {
     let objectUrl = null;
     if (watchedProfilePicFile && watchedProfilePicFile[0]) {
@@ -54,6 +55,7 @@ const EditEmployee = () => {
     };
   }, [watchedProfilePicFile, currentProfilePicUrl]);
 
+  // Function to fetch existing employee data
   const fetchEmployeeData = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
@@ -81,6 +83,7 @@ const EditEmployee = () => {
         response.data.id
       ) {
         const employee = response.data;
+        // Reset the form with fetched data, including the new employee_type field
         reset({
           name: employee.name || "",
           email: employee.email || "",
@@ -88,7 +91,7 @@ const EditEmployee = () => {
           phone: employee.phone
             ? String(employee.phone).replace(/[\r\n]+/g, "")
             : "",
-          user_role: employee.user_role || "",
+          employee_type: employee.employee_type || "Employee", // **ADDED**: Set employee type from API
           password: "",
           password_confirmation: "",
         });
@@ -120,6 +123,7 @@ const EditEmployee = () => {
     fetchEmployeeData();
   }, [fetchEmployeeData]);
 
+  // Form submission handler
   const onSubmit = async (formData) => {
     setSubmitting(true);
     setSubmitError(null);
@@ -136,8 +140,8 @@ const EditEmployee = () => {
     dataToSubmit.append("email", formData.email);
     dataToSubmit.append("username", formData.username);
     dataToSubmit.append("phone", formData.phone || "");
-    dataToSubmit.append("user_role", formData.user_role);
-    dataToSubmit.append("_method", "PUT");
+    dataToSubmit.append("employee_type", formData.employee_type); // **ADDED**: Append employee type to the payload
+    dataToSubmit.append("_method", "PUT"); // Method spoofing for Laravel
 
     if (formData.profile_pic && formData.profile_pic[0]) {
       const fileToUpload = formData.profile_pic[0];
@@ -153,7 +157,7 @@ const EditEmployee = () => {
     }
 
     try {
-      const response = await axios.post(
+      await axios.post(
         `${
           import.meta.env.VITE_BACKEND_BASE_URL
         }/api/admin/employee-user/${employeeId}`,
@@ -166,7 +170,8 @@ const EditEmployee = () => {
         }
       );
       setSuccessMessage("Employee updated successfully!");
-      setTimeout(() => navigate(`/employees/edit/${row.original.id}`), 2000);
+      // **FIXED**: Correct navigation after successful update
+      setTimeout(() => navigate('/employees'), 2000);
     } catch (err) {
       if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
@@ -191,6 +196,7 @@ const EditEmployee = () => {
       </Card>
     );
   }
+
   if (fetchError) {
     return (
       <Card title="Error">
@@ -278,15 +284,29 @@ const EditEmployee = () => {
           />
         </div>
 
-        <Textinput
-          label="Role ID / Name*"
-          name="user_role"
-          type="text"
-          placeholder="Enter employee role"
-          register={register}
-          validate={{ required: "Role is required" }}
-          error={formErrors.user_role}
-        />
+        {/* **ADDED**: Employee Type Dropdown */}
+        <div>
+          <label htmlFor="employee_type" className="form-label">
+            Employee Type*
+          </label>
+          <select
+            id="employee_type"
+            className={`form-control py-2 ${
+              formErrors.employee_type ? "border-danger-500" : ""
+            }`}
+            {...register("employee_type", {
+              required: "Employee type is required",
+            })}
+          >
+            <option value="Employee">Employee</option>
+            <option value="Manager">Manager</option>
+          </select>
+          {formErrors.employee_type && (
+            <p className="text-danger-500 text-xs mt-1">
+              {formErrors.employee_type.message}
+            </p>
+          )}
+        </div>
 
         <div>
           <label
