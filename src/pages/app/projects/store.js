@@ -1,5 +1,3 @@
-// src/pages/project/store/index.js (or wherever your slice is) - UPDATED
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -9,17 +7,17 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 const API_ROOT = `${import.meta.env.VITE_BACKEND_BASE_URL}/api`;
 
 const getProjectPath = () => {
-  const role = getApiPrefix(); // Ye 'admin', 'employee', 'customer', ya 'member' return karega
+  const role = getApiPrefix();
 
   switch (role) {
     case "employee":
       return "/employee/project";
     case "customer":
       return "/customer/project";
-    case "member": // 'member' role ke liye naya path add kiya gaya
+    case "member":
       return "/member/project";
     case "admin":
-    default: // Agar koi role match na ho to default 'admin' path istemal hoga
+    default:
       return "/admin/project";
   }
 };
@@ -27,40 +25,30 @@ const getProjectPath = () => {
 const formatProjectFromAPI = (project) => ({
   id: project.id,
   name: project.project_name || "Unnamed Project",
-  des: project.project_description || "",
-  startDate: project.start_date || new Date().toISOString().split("T")[0],
-  endDate: project.due_date,
-  progress:
-    typeof project.progress === "number"
-      ? project.progress
-      : project.project_progress || 0,
+  project_name: project.project_name || "Unnamed Project",
+  project_description: project.project_description || "",
+  start_date: project.start_date || new Date().toISOString().split("T")[0],
+  due_date: project.due_date,
+  progress: typeof project.progress === "number" ? project.progress : project.project_progress || 0,
   customer_id: project.customer_id || null,
   status: project.status || "ongoing",
   project_assignees: project.project_assignees || [],
   customer: project.customer || null,
 });
 
-// ====================================================================
-// YAHAN TABDEELI KI GAYI HAI
-// ====================================================================
+// Async Thunks
 export const fetchProjectsAPI = createAsyncThunk(
   "project/fetchProjects",
-  // Ab yeh function 'page' ke bajaye 'params' object leta hai
   async (params = {}, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
 
       const path = getProjectPath();
-      let url = `${API_ROOT}${path}`; // Shuru ki URL
-
-      // Params object ko URL query string (e.g., "?assigned_me=1") mein convert karein
+      let url = `${API_ROOT}${path}`;
       const queryString = new URLSearchParams(params).toString();
-      if (queryString) {
-        url += `?${queryString}`; // URL ke aakhir mein query string add karein
-      }
+      if (queryString) url += `?${queryString}`;
 
-      // API call ab naye URL ke saath hogi
       const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -98,9 +86,6 @@ export const fetchProjectsAPI = createAsyncThunk(
     }
   }
 );
-// ====================================================================
-// TABDEELI KHATAM
-// ====================================================================
 
 export const addProjectAPI = createAsyncThunk(
   "project/addProject",
@@ -117,12 +102,9 @@ export const addProjectAPI = createAsyncThunk(
         },
       });
 
-      if (
-        response.data &&
-        (response.status === 201 || response.status === 200)
-      ) {
+      if (response.data && (response.status === 201 || response.status === 200)) {
         toast.success("Job added successfully!");
-        dispatch(fetchProjectsAPI()); // Call without params to fetch all projects
+        dispatch(fetchProjectsAPI());
         if (response.data.data && typeof response.data.data === "object") {
           return formatProjectFromAPI(response.data.data);
         }
@@ -145,7 +127,7 @@ export const addProjectAPI = createAsyncThunk(
 
 export const saveEditedProjectAPI = createAsyncThunk(
   "project/saveEditedProject",
-  async (projectData, { dispatch, getState, rejectWithValue }) => {
+  async (projectData, { dispatch, rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
@@ -164,7 +146,7 @@ export const saveEditedProjectAPI = createAsyncThunk(
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        dispatch(fetchProjectsAPI()); // Refresh the list
+        dispatch(fetchProjectsAPI());
         if (response.data.data && typeof response.data.data === "object") {
           return formatProjectFromAPI(response.data.data);
         }
@@ -187,7 +169,7 @@ export const saveEditedProjectAPI = createAsyncThunk(
 
 export const deleteProjectAPI = createAsyncThunk(
   "project/deleteProjectAPI",
-  async (projectId, { dispatch, getState, rejectWithValue }) => {
+  async (projectId, { dispatch, rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found");
@@ -202,7 +184,7 @@ export const deleteProjectAPI = createAsyncThunk(
 
       if (response.status === 200 || response.status === 204) {
         toast.success("Project deleted successfully!");
-        dispatch(fetchProjectsAPI()); // Refresh the list
+        dispatch(fetchProjectsAPI());
         return projectId;
       } else {
         const errorMsg = response.data?.message || "Failed to delete project.";
@@ -222,10 +204,7 @@ export const deleteProjectAPI = createAsyncThunk(
 
 export const updateProjectAssigneesAPI = createAsyncThunk(
   "project/updateAssignees",
-  async (
-    { project_id, employee_ids },
-    { dispatch, getState, rejectWithValue }
-  ) => {
+  async ({ project_id, employee_ids }, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
@@ -239,15 +218,18 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
 
       const updatePath = `/${role}/update-project-assignees`;
 
-      await axios.post(`${API_ROOT}${updatePath}`, payload, {
+      const response = await axios.post(`${API_ROOT}${updatePath}`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
       });
 
-      dispatch(fetchProjectsAPI()); // Refresh the list
-      return { projectId: project_id, employeeIds: employee_ids };
+      return {
+        projectId: project_id,
+        updatedProject: formatProjectFromAPI(response.data.data || response.data),
+        employeeIds: employee_ids
+      };
     } catch (error) {
       const errorMessage =
         error.response?.data?.message ||
@@ -281,7 +263,12 @@ export const updateProjectFieldAPI = createAsyncThunk(
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        return { projectId, field, value };
+        return { 
+          projectId, 
+          field, 
+          value,
+          updatedProject: formatProjectFromAPI(response.data.data || response.data)
+        };
       } else {
         const errorMsg = response.data?.message || "Failed to update field.";
         toast.error(errorMsg);
@@ -296,6 +283,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
   }
 );
 
+// Slice
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {
@@ -385,22 +373,38 @@ export const appProjectSlice = createSlice({
       .addCase(updateProjectAssigneesAPI.pending, (state) => {
         state.isUpdating = true;
       })
-      .addCase(updateProjectAssigneesAPI.fulfilled, (state) => {
+      .addCase(updateProjectAssigneesAPI.fulfilled, (state, action) => {
         state.isUpdating = false;
         state.updateAssigneesModal = false;
-        state.projectToUpdateAssignees = null;
+        
+        // Update the specific project in the projects array
+        const { projectId, updatedProject } = action.payload;
+        const projectIndex = state.projects.findIndex(p => p.id === projectId);
+        if (projectIndex !== -1) {
+          state.projects[projectIndex] = updatedProject;
+        }
+        
+        // Also update the projectToUpdateAssignees if it's the same project
+        if (state.projectToUpdateAssignees && state.projectToUpdateAssignees.id === projectId) {
+          state.projectToUpdateAssignees = updatedProject;
+        }
       })
       .addCase(updateProjectAssigneesAPI.rejected, (state, action) => {
         state.isUpdating = false;
         state.error = action.payload;
       })
       .addCase(updateProjectFieldAPI.fulfilled, (state, action) => {
-        const { projectId, field, value } = action.payload;
-        const projectIndex = state.projects.findIndex(
-          (p) => p.id === projectId
-        );
+        const { projectId, updatedProject } = action.payload;
+        
+        // Update projects array
+        const projectIndex = state.projects.findIndex(p => p.id === projectId);
         if (projectIndex !== -1) {
-          state.projects[projectIndex][field] = value;
+          state.projects[projectIndex] = updatedProject;
+        }
+        
+        // Update projectToUpdateAssignees if it exists
+        if (state.projectToUpdateAssignees && state.projectToUpdateAssignees.id === projectId) {
+          state.projectToUpdateAssignees = updatedProject;
         }
       });
   },

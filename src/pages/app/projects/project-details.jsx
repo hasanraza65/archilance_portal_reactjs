@@ -1,4 +1,3 @@
-
 // src/pages/projects/ProjectDetailsPage.js
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -12,7 +11,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import DOMPurify from "dompurify";
 import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
-import { useDispatch } from "react-redux";
+import { useSelector, useDispatch } from "react-redux"; // useSelector import kiya gaya
 import { toggleUpdateAssigneesModal } from "./store";
 import Icon from "@/components/ui/Icon";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
@@ -583,6 +582,12 @@ const ProjectDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
+  // === YAHAN TABDEELI KI GAYI HAI (START) ===
+  // Redux store se `updateAssigneesModal` ki state ko access karein
+  const { updateAssigneesModal } = useSelector((state) => state.project);
+  // === YAHAN TABDEELI KI GAYI HAI (END) ===
+
   const userRole = getApiPrefix();
   const employeeType = getEmployeeType();
   const token = Cookies.get("token");
@@ -844,6 +849,22 @@ const ProjectDetailsPage = () => {
       setLoading(false);
     }
   }, [id, navigate]);
+
+  // === YAHAN TABDEELI KI GAYI HAI (START) ===
+  // useRef ka istemaal karke modal ki pichli state ko store karein
+  const prevUpdateAssigneesModal = useRef(updateAssigneesModal);
+
+  useEffect(() => {
+    // Check karein agar modal pehle khula tha (true) aur ab band ho gaya hai (false)
+    if (prevUpdateAssigneesModal.current === true && updateAssigneesModal === false) {
+      // Agar modal band hua hai, to project details ko dobara fetch karein
+      // taake updated data (jaise ke naye assignees) UI par show ho
+      fetchProjectAndTasks();
+    }
+    // Agli render ke liye ref ki value ko update karein
+    prevUpdateAssigneesModal.current = updateAssigneesModal;
+  }, [updateAssigneesModal, fetchProjectAndTasks]); // Yeh effect tab chalega jab in dependencies mein se koi change hoga
+  // === YAHAN TABDEELI KI GAYI HAI (END) ===
 
   useEffect(() => {
     fetchProjectAndTasks();

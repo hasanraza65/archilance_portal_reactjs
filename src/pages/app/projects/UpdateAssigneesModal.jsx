@@ -92,22 +92,24 @@ const UpdateAssigneesModal = () => {
     dispatch(toggleUpdateAssigneesModal({ open: false, project: null }));
   };
   
-  const handleUpdate = () => {
-    if (!isEditable) return;
+const handleUpdate = () => {
+  if (!isEditable) return;
 
-    const payload = {
-      project_id: projectToUpdateAssignees.id,
-      employee_ids: Array.from(selectedEmployeeIds).map(id => parseInt(id, 10)),
-    };
-
-    dispatch(updateProjectAssigneesAPI(payload)).unwrap().then(() => {
-        toast.success("Assignees updated successfully!");
-        dispatch(fetchProjectsAPI());
-        handleClose();
-    }).catch((err) => {
-        toast.error(err?.message || err || "Failed to update assignees.");
-    });
+  const payload = {
+    project_id: projectToUpdateAssignees.id,
+    employee_ids: Array.from(selectedEmployeeIds).map(id => parseInt(id, 10)),
   };
+
+  dispatch(updateProjectAssigneesAPI(payload))
+    .unwrap()
+    .then(() => {
+      toast.success("Assignees updated successfully!");
+      handleClose();
+    })
+    .catch((err) => {
+      toast.error(err?.message || err || "Failed to update assignees.");
+    });
+};
 
   const filteredEmployees = allEmployees.filter(employee =>
     employee.name.toLowerCase().includes(searchTerm.toLowerCase())
