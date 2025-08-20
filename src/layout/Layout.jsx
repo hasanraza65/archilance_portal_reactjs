@@ -2,39 +2,37 @@ import React, { useEffect, Suspense, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Header from "@/components/partials/header";
 import Sidebar from "@/components/partials/sidebar";
+import Footer from "@/components/partials/footer";
+import MobileMenu from "../components/partials/sidebar/MobileMenu";
+import MobileFooter from "@/components/partials/footer/MobileFooter";
 import useWidth from "@/hooks/useWidth";
 import useSidebar from "@/hooks/useSidebar";
 import useContentWidth from "@/hooks/useContentWidth";
 import useMenulayout from "@/hooks/useMenulayout";
 import useMenuHidden from "@/hooks/useMenuHidden";
-import Footer from "@/components/partials/footer";
-import MobileMenu from "../components/partials/sidebar/MobileMenu";
-import useMobileMenu from "@/hooks/useMobileMenu";
-import MobileFooter from "@/components/partials/footer/MobileFooter";
+import useBodyScrollLock from "@/hooks/useBodyScrollLock";
 import { ToastContainer } from "react-toastify";
 import Loading from "@/components/Loading";
 import { motion, AnimatePresence } from "framer-motion";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
-import useBodyScrollLock from "@/hooks/useBodyScrollLock";
 
 const Layout = () => {
   const { width, breakpoints } = useWidth();
   const [collapsed] = useSidebar();
   const location = useLocation();
+  const [contentWidth] = useContentWidth();
+  const [menuType] = useMenulayout();
+  const [menuHidden] = useMenuHidden();
+  const [isMobileChatView, setIsMobileChatView] = useState(false);
+
+  const [mobileMenu, setMobileMenu] = useState(false);
 
   useBodyScrollLock();
-
-  const [isMobileChatView, setIsMobileChatView] = useState(false);
 
   useEffect(() => {
     const onChatPage = location.pathname.startsWith("/chat");
     const isMobile = width < breakpoints.lg;
-
-    if (onChatPage && isMobile) {
-      setIsMobileChatView(true);
-    } else {
-      setIsMobileChatView(false);
-    }
+    setIsMobileChatView(onChatPage && isMobile);
   }, [location, width, breakpoints]);
 
   const switchHeaderClass = () => {
@@ -46,11 +44,6 @@ const Layout = () => {
       return "ltr:ml-[248px] rtl:mr-[248px]";
     }
   };
-
-  const [contentWidth] = useContentWidth();
-  const [menuType] = useMenulayout();
-  const [menuHidden] = useMenuHidden();
-  const [mobileMenu, setMobileMenu] = useMobileMenu();
 
   if (isMobileChatView) {
     return (
@@ -65,25 +58,29 @@ const Layout = () => {
   return (
     <>
       <ToastContainer />
-      <Header className={width > breakpoints.xl ? switchHeaderClass() : ""} />
+      <Header
+        className={width > breakpoints.xl ? switchHeaderClass() : ""}
+        mobileMenu={mobileMenu}
+        setMobileMenu={setMobileMenu}
+      />
       {menuType === "vertical" && width > breakpoints.xl && !menuHidden && (
         <Sidebar />
       )}
-
       <MobileMenu
         className={`${
           width < breakpoints.xl && mobileMenu
-            ? "left-0 visible opacity-100  z-9999"
-            : "left-[-300px] invisible opacity-0  z-[-999] "
+            ? "left-0 visible opacity-100  z-[9999]"
+            : "left-[-300px] invisible opacity-0  z-[-999]"
         }`}
+        mobileMenu={mobileMenu}
+        setMobileMenu={setMobileMenu}
       />
       {width < breakpoints.xl && mobileMenu && (
         <div
-          className="overlay bg-slate-900/50 backdrop-filter backdrop-blur-xs opacity-100 fixed inset-0 z-999"
+          className="overlay bg-slate-900/50 backdrop-filter backdrop-blur-xs opacity-100 fixed inset-0 z-[999]"
           onClick={() => setMobileMenu(false)}
         ></div>
       )}
-
       <div
         className={`content-wrapper transition-all duration-150 ${
           width > 1280 ? switchHeaderClass() : ""

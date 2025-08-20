@@ -25,7 +25,6 @@ const Sidebar = () => {
       node.addEventListener("scroll", handleScroll);
     }
 
-    // Cleanup function to remove the event listener
     return () => {
       if (node) {
         node.removeEventListener("scroll", handleScroll);
@@ -66,11 +65,6 @@ const Sidebar = () => {
           className="sidebar-menu px-4 h-[calc(100%-80px)]"
           scrollableNodeProps={{ ref: scrollableNodeRef }}
         >
-          {/* 
-            This component now passes the entire, unfiltered 'menuItems' list 
-            directly to the Navmenu component. The Navmenu component itself contains 
-            the logic to decide which menu items to display based on the user's role and employee_type.
-          */}
           <Navmenu menus={menuItems} />
         </SimpleBar>
       </div>
