@@ -1,4 +1,6 @@
-import React, { useRef, useEffect, useState, useMemo } from "react";
+// src/components/partials/sidebar/MobileMenu.js (Updated Code)
+
+import React, { useRef, useEffect, useState } from "react";
 import Navmenu from "./Navmenu";
 import { menuItems } from "@/constant/data";
 import SimpleBar from "simplebar-react";
@@ -39,25 +41,6 @@ const MobileMenu = ({ className, mobileMenu, setMobileMenu }) => {
     };
   }, []);
 
-  const accessibleMenus = useMemo(() => {
-    if (!user?.role) {
-      return [];
-    }
-    return menuItems
-      .filter((item) => item.allowedRoles.includes(user.role))
-      .map((item) => {
-        if (item.child) {
-          return {
-            ...item,
-            child: item.child.filter((childItem) =>
-              childItem.allowedRoles.includes(user.role)
-            ),
-          };
-        }
-        return item;
-      });
-  }, [user]);
-
   return (
     <div
       className={`${className} fixed top-0 bg-white dark:bg-slate-800 shadow-lg h-full w-[248px]`}
@@ -87,7 +70,6 @@ const MobileMenu = ({ className, mobileMenu, setMobileMenu }) => {
           <Icon icon="heroicons:x-mark" />
         </button>
       </div>
-
       <div
         className={`h-[60px] absolute top-[80px] nav-shadow z-10 w-full transition-all duration-200 pointer-events-none ${
           scroll ? "opacity-100" : "opacity-0"
@@ -97,7 +79,11 @@ const MobileMenu = ({ className, mobileMenu, setMobileMenu }) => {
         className="sidebar-menu px-4 h-[calc(100%-80px)]"
         scrollableNodeProps={{ ref: scrollableNodeRef }}
       >
-        <Navmenu menus={accessibleMenus} />
+        <Navmenu
+          menus={menuItems}
+       
+          closeMobileMenu={() => setMobileMenu(false)}
+        />
       </SimpleBar>
     </div>
   );

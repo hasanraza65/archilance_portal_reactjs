@@ -1,3 +1,5 @@
+// src/layout/Layout.js (Updated Code)
+
 import React, { useEffect, Suspense, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Header from "@/components/partials/header";
@@ -73,7 +75,7 @@ const Layout = () => {
             : "left-[-300px] invisible opacity-0  z-[-999]"
         }`}
         mobileMenu={mobileMenu}
-        setMobileMenu={setMobileMenu}
+        setMobileMenu={setMobileMenu} // Yeh prop pehle se pass ho raha hai, jo aacha hai
       />
       {width < breakpoints.xl && mobileMenu && (
         <div

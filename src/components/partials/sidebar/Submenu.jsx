@@ -1,5 +1,3 @@
-// src/components/sidebar/Submenu.jsx
-
 import React from "react";
 import { Collapse } from "react-collapse";
 import { NavLink } from "react-router-dom";
@@ -12,12 +10,13 @@ const Submenu = ({
   i,
   toggleMultiMenu,
   activeMultiMenu,
+  closeMobileMenu = () => {},
 }) => {
   return (
     <Collapse isOpened={activeSubmenu === i}>
-      <ul className="sub-menu  space-y-4  ">
+      <ul className="sub-menu space-y-4">
         {item.child?.map((subItem, j) => (
-          <li key={j} className="block pl-4 pr-1 first:pt-4  last:pb-4">
+          <li key={j} className="block pl-4 pr-1 first:pt-4 last:pb-4">
             {subItem?.multi_menu ? (
               <div>
                 <div
@@ -50,10 +49,11 @@ const Submenu = ({
                   activeMultiMenu={activeMultiMenu}
                   j={j}
                   subItem={subItem}
+                  closeMobileMenu={closeMobileMenu}
                 />
               </div>
             ) : (
-              <NavLink to={subItem.childlink}>
+              <NavLink to={subItem.childlink} onClick={closeMobileMenu}>
                 {({ isActive }) => (
                   <span
                     className={`${

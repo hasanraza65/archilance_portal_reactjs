@@ -3,7 +3,7 @@ import React from "react";
 import { Collapse } from "react-collapse";
 import { NavLink } from "react-router-dom";
 
-const LockLink = ({ to, children, item }) => {
+const LockLink = ({ to, children, item, closeMobileMenu }) => {
   const { multiTitle, badge } = item;
   return (
     <>
@@ -23,19 +23,25 @@ const LockLink = ({ to, children, item }) => {
           </span>
         </span>
       ) : (
-        <NavLink to={to}>{children}</NavLink>
+        <NavLink to={to} onClick={closeMobileMenu}>
+          {children}
+        </NavLink>
       )}
     </>
   );
 };
 
-const Multilevel = ({ activeMultiMenu, j, subItem }) => {
+const Multilevel = ({ activeMultiMenu, j, subItem, closeMobileMenu = () => {} }) => {
   return (
     <Collapse isOpened={activeMultiMenu === j}>
       <ul className="space-y-[14px] pl-4">
         {subItem?.multi_menu?.map((item, i) => (
           <li key={i} className=" first:pt-[14px]">
-            <LockLink to={item.multiLink} item={item}>
+            <LockLink
+              to={item.multiLink}
+              item={item}
+              closeMobileMenu={closeMobileMenu}
+            >
               {({ isActive }) => (
                 <span
                   className={`${

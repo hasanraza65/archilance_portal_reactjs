@@ -1,18 +1,17 @@
-// src/components/sidebar/Navmenu.jsx
-
 import React, { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Collapse } from "react-collapse";
 import Icon from "@/components/ui/Icon";
-import { useDispatch } from "react-redux";
-import useMobileMenu from "@/hooks/useMobileMenu";
 import Submenu from "./Submenu";
-
-// Helper functions ko import karein
 import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
 
-const Navmenu = ({ menus }) => {
+const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
   const [activeSubmenu, setActiveSubmenu] = useState(null);
+  const [activeMultiMenu, setMultiMenu] = useState(null);
+  const location = useLocation();
+  const locationName = location.pathname.replace("/", "");
+  
+  const currentUserRole = getUserRole();
+  const currentUserEmployeeType = getEmployeeType();
 
   const toggleSubmenu = (i) => {
     if (activeSubmenu === i) {
@@ -21,23 +20,7 @@ const Navmenu = ({ menus }) => {
       setActiveSubmenu(i);
     }
   };
-
-  const location = useLocation();
-  const locationName = location.pathname.replace("/", "");
-  const [mobileMenu, setMobileMenu] = useMobileMenu();
-  const [activeMultiMenu, setMultiMenu] = useState(null);
-  const dispatch = useDispatch();
-
-  const currentUserRole = getUserRole();
-  const currentUserEmployeeType = getEmployeeType();
-
-  // DEBUGGING: Console mein check karein ke cookie se kya value aa rahi hai
-  useEffect(() => {
-    console.log("Current User Role:", currentUserRole);
-    console.log("Current Employee Type:", currentUserEmployeeType);
-  }, [currentUserRole, currentUserEmployeeType]);
-
-
+  
   const filterMenuItems = (items) => {
     return items
       .filter((item) => {
@@ -46,13 +29,7 @@ const Navmenu = ({ menus }) => {
         }
 
         const hasRoleAccess = item.allowedRoles.includes(currentUserRole);
-        
-        // --- YEH LINE UPDATE HUI HAI ---
-        // Pehle check karein ke currentUserEmployeeType null ya undefined to nahi
         const isManager = currentUserEmployeeType?.toLowerCase() === "manager";
-        
-        // --- AUR YEH LINE UPDATE HUI HAI ---
-        // 'Manager' ko bhi lowercase mein check karein
         const managerHasAccess = isManager && item.allowedRoles.map(role => role.toLowerCase()).includes("manager");
 
         return hasRoleAccess || managerHasAccess;
@@ -91,17 +68,16 @@ const Navmenu = ({ menus }) => {
   useEffect(() => {
     let submenuIndex = null;
     let multiMenuIndex = null;
+    
     filteredMenus.forEach((item, i) => {
       if (isLocationMatch(item.link)) {
         submenuIndex = i;
       }
-
       if (item.child) {
         item.child.forEach((childItem, j) => {
           if (isLocationMatch(childItem.childlink)) {
             submenuIndex = i;
           }
-
           if (childItem.multi_menu) {
             childItem.multi_menu.forEach((nestedItem) => {
               if (isLocationMatch(nestedItem.multiLink)) {
@@ -116,10 +92,7 @@ const Navmenu = ({ menus }) => {
 
     setActiveSubmenu(submenuIndex);
     setMultiMenu(multiMenuIndex);
-    if (mobileMenu) {
-      setMobileMenu(false);
-    }
-  }, [location, filteredMenus]);
+  }, [location, menus]);
 
   return (
     <>
@@ -127,13 +100,13 @@ const Navmenu = ({ menus }) => {
         {filteredMenus.map((item, i) => (
           <li
             key={i}
-            className={` single-sidebar-menu 
+            className={`single-sidebar-menu 
               ${item.child ? "item-has-children" : ""}
               ${activeSubmenu === i ? "open" : ""}
               ${locationName === item.link ? "menu-item-active" : ""}`}
           >
             {!item.child && !item.isHeadr && (
-              <NavLink className="menu-link" to={item.link}>
+              <NavLink className="menu-link" to={item.link} onClick={closeMobileMenu}>
                 <span className="menu-icon grow-0">
                   <Icon icon={item.icon} />
                 </span>
@@ -141,15 +114,15 @@ const Navmenu = ({ menus }) => {
                 {item.badge && <span className="menu-badge">{item.badge}</span>}
               </NavLink>
             )}
+
             {item.isHeadr && !item.child && (
               <div className="menulabel">{item.title}</div>
             )}
+
             {item.child && (
               <div
                 className={`menu-link ${
-                  activeSubmenu === i
-                    ? "parent_active not-collapsed"
-                    : "collapsed"
+                  activeSubmenu === i ? "parent_active not-collapsed" : "collapsed"
                 }`}
                 onClick={() => toggleSubmenu(i)}
               >
@@ -177,6 +150,7 @@ const Navmenu = ({ menus }) => {
               i={i}
               toggleMultiMenu={toggleMultiMenu}
               activeMultiMenu={activeMultiMenu}
+              closeMobileMenu={closeMobileMenu}
             />
           </li>
         ))}
