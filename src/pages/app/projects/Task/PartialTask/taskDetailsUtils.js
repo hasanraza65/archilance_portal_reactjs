@@ -89,40 +89,48 @@ export const mapApiUserToLocal = (apiUser) => {
   };
 };
 
+// ***** SUDHAAR: Naye status ke hisab se styling update ki gayi hai *****
 export const getStatusClass = (status) => {
-  if (
-    !status ||
-    String(status).toLowerCase() === "todo" ||
-    String(status).toLowerCase() === "to do" ||
-    String(status).toLowerCase() === "open"
-  ) {
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  }
-  switch (String(status).toLowerCase()) {
+  const s = status === null ? "todo" : String(status).toLowerCase();
+
+  switch (s) {
+    case "todo":
+      return "bg-slate-100 text-slate-700 border-slate-300";
+    case "backlog":
+      return "bg-gray-100 text-gray-700 border-gray-300";
+    case "awaiting info":
+      return "bg-amber-100 text-amber-800 border-amber-300";
     case "in progress":
-    case "pending":
-    case "doing":
-      return "bg-blue-50 text-blue-700 border-blue-200";
+      return "bg-blue-100 text-blue-800 border-blue-300";
+    case "in-house review":
+      return "bg-purple-100 text-purple-800 border-purple-300";
+    case "client review":
+      return "bg-pink-100 text-pink-800 border-pink-300";
     case "completed":
-    case "done":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "waiting":
-      return "bg-yellow-50 text-yellow-700 border-yellow-200";
+      return "bg-emerald-100 text-emerald-800 border-emerald-300";
     default:
-      return `bg-purple-50 text-purple-700 border-purple-200`;
+      return "bg-gray-100 text-gray-700 border-gray-300";
   }
 };
 
+// ***** SUDHAAR: Naye status ke hisab se dropdown indicator color update kiya gaya hai *****
 export const getStatusSelectedBarColor = (status) => {
-  if (!status || String(status).toLowerCase() === "todo") return "bg-amber-500";
-  switch (String(status).toLowerCase()) {
+  const s = status === null ? "todo" : String(status).toLowerCase();
+  switch (s) {
+    case "todo":
+      return "bg-slate-500";
+    case "backlog":
+      return "bg-gray-500";
+    case "awaiting info":
+      return "bg-amber-500";
     case "in progress":
-    case "doing":
       return "bg-blue-500";
+    case "in-house review":
+      return "bg-purple-500";
+    case "client review":
+      return "bg-pink-500";
     case "completed":
-      return "bg-green-500";
-    case "waiting":
-      return "bg-yellow-500";
+      return "bg-emerald-500";
     default:
       return "bg-gray-500";
   }
@@ -169,14 +177,21 @@ export const getCurrentPriorityDetails = (priorityValue) => {
   };
 };
 
+// ***** SUDHAAR: Status options ko naye workflow ke hisab se update kiya gaya hai *****
 export const statusUpdateOptions = [
-  { apiValue: "Todo", displayLabel: "To-Do" },
+  { apiValue: "Backlog", displayLabel: "Backlog" },
+  { apiValue: "Awaiting Info", displayLabel: "Awaiting Info" },
   { apiValue: "In Progress", displayLabel: "In Progress" },
+  { apiValue: "In-house review", displayLabel: "In-house review" },
+  { apiValue: "Client Review", displayLabel: "Client Review" },
   { apiValue: "Completed", displayLabel: "Completed" },
 ];
 
 export const getCurrentStatusDisplayLabel = (statusApiValue) => {
   if (!statusApiValue) return "To-Do";
+  // The special `null` status in the header component isn't listed in the options, so we handle it first.
+  if (statusApiValue === "Todo") return "To-Do";
+
   const option = statusUpdateOptions.find(
     (opt) => opt.apiValue.toLowerCase() === String(statusApiValue).toLowerCase()
   );

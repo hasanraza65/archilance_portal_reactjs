@@ -84,40 +84,40 @@ const WorkSession = () => {
   // =================================================================
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log("[DEBUG] User not authenticated. Skipping job fetch.");
+      // console.log("[DEBUG] User not authenticated. Skipping job fetch.");/
       return;
     }
     const fetchProjects = async () => {
       setProjectsLoading(true);
-      console.log("[DEBUG] 1. Attempting to fetch jobs from API...");
-      console.log(`[DEBUG] API URL: ${API_BASE_URL}/project`);
+      // console.log("[DEBUG] 1. Attempting to fetch jobs from API...");
+      // console.log(`[DEBUG] API URL: ${API_BASE_URL}/project`);
       
       try {
         const res = await fetch(`${API_BASE_URL}/project`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        console.log("[DEBUG] 2. Received response from API:", res);
+        // console.log("[DEBUG] 2. Received response from API:", res);
 
         if (!res.ok) {
           throw new Error(`Could not fetch jobs. Status: ${res.status}`);
         }
         
         const data = await res.json();
-        console.log("[DEBUG] 3. API data parsed successfully:", data);
+        // console.log("[DEBUG] 3. API data parsed successfully:", data);
         
         const jobsData = data || [];
-        console.log("[DEBUG] 4. Extracted jobs array to set in state:", jobsData);
+        // console.log("[DEBUG] 4. Extracted jobs array to set in state:", jobsData);
 
         setProjects(jobsData);
 
       } catch (error) {
-        console.error("[DEBUG] 5. An error occurred while fetching jobs:", error);
+        // console.error("[DEBUG] 5. An error occurred while fetching jobs:", error);
         toast.error(error.message);
         setProjects([]);
       } finally {
         setProjectsLoading(false);
-        console.log("[DEBUG] 6. Finished fetching jobs process.");
+        // console.log("[DEBUG] 6. Finished fetching jobs process.");
       }
     };
     fetchProjects();
