@@ -179,7 +179,7 @@ const AdminEmployeeWorkSession = () => {
         });
         if (!res.ok) throw new Error("Could not fetch projects.");
         const data = await res.json();
-        setProjects(data.data || []);
+        setProjects(data || []);
       } catch (error) {
         toast.error(error.message);
       }

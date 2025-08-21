@@ -11,7 +11,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
 
-console.log("LOG: LoginForm.jsx file has been loaded.");
+// console.log("LOG: LoginForm.jsx file has been loaded.");
 const fcmTokenFromFlutter = localStorage.getItem("fcm_token") || "";
 const schema = yup
   .object({
@@ -25,7 +25,7 @@ const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const LOGIN_URL = `${BACKEND_BASE_URL}/api/login`;
 
 const LoginForm = () => {
-  console.log("LOG: LoginForm component is rendering.");
+  // console.log("LOG: LoginForm component is rendering.");
   const [rememberMe, setRememberMe] = useState(false);
   const { login: authLogin } = useAuth();
 
@@ -40,9 +40,9 @@ const LoginForm = () => {
 
   const { mutate: performLogin, isPending: isLoading } = useMutation({
     mutationFn: async (formData) => {
-      console.log("LOG: mutationFn called. Sending login request to backend.");
-      console.log("LOG: Login URL:", LOGIN_URL);
-      console.log("LOG: Login Data:", { login: formData.email, password: "ENCRYPTED" });
+      // console.log("LOG: mutationFn called. Sending login request to backend.");
+      // console.log("LOG: Login URL:", LOGIN_URL);
+      // console.log("LOG: Login Data:", { login: formData.email, password: "ENCRYPTED" });
       const apiData = {
         login: formData.email,
         password: formData.password,
@@ -50,24 +50,24 @@ const LoginForm = () => {
         
       };
       const response = await axios.post(LOGIN_URL, apiData);
-      console.log("LOG: Received successful response from login API.", response.data);
+      // console.log("LOG: Received successful response from login API.", response.data);
       return response.data;
     },
     onSuccess: (responseData) => {
-      console.log("LOG: Login onSuccess block has been entered.");
+      // console.log("LOG: Login onSuccess block has been entered.");
       const loggedInUser = authLogin(responseData, rememberMe);
-      console.log("LOG: authLogin function was called. User is now logged in.");
+      // console.log("LOG: authLogin function was called. User is now logged in.");
 
       if (loggedInUser) {
         toast.success("Login Successful! Redirecting...");
-        console.log("LOG: User is confirmed to be logged in. Now attempting to message Flutter.");
+        // console.log("LOG: User is confirmed to be logged in. Now attempting to message Flutter.");
 
         if (window.AuthHandler && window.AuthHandler.postMessage) {
-          console.log("LOG: window.AuthHandler was found. Sending 'login_successful' message...");
+          // console.log("LOG: window.AuthHandler was found. Sending 'login_successful' message...");
           window.AuthHandler.postMessage("login_successful");
-          console.log("LOG: 'login_successful' message has been sent to Flutter.");
+          // console.log("LOG: 'login_successful' message has been sent to Flutter.");
         } else {
-          console.error("ERROR: window.AuthHandler was NOT found. Cannot message Flutter. Is the app running in the correct webview environment?");
+          // console.error("ERROR: window.AuthHandler was NOT found. Cannot message Flutter. Is the app running in the correct webview environment?");
         }
       } else {
          console.error("ERROR: loggedInUser object is falsy after calling authLogin.");
@@ -76,9 +76,9 @@ const LoginForm = () => {
     onError: (error) => {
       console.error("ERROR: Login API call failed.");
       if (error.response) {
-        console.error("ERROR DETAILS: Server responded with an error.", error.response.data);
+        // console.error("ERROR DETAILS: Server responded with an error.", error.response.data);
       } else {
-        console.error("ERROR DETAILS: A network or other error occurred.", error.message);
+        // console.error("ERROR DETAILS: A network or other error occurred.", error.message);
       }
       let errorMsg = "Login failed. Please check your credentials.";
       if (axios.isAxiosError(error) && error.response) {
@@ -93,7 +93,7 @@ const LoginForm = () => {
   });
 
   const onSubmit = (formData) => {
-    console.log("LOG: Form submitted with data:", { email: formData.email, password: "ENCRYPTED" });
+    // console.log("LOG: Form submitted with data:", { email: formData.email, password: "ENCRYPTED" });
     performLogin(formData);
   };
 

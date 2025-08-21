@@ -10,7 +10,6 @@ import Loading from "@/components/Loading";
 // image import
 import LogoWhite from "@/assets/images/logo-img/logo.png";
 import Logo from "@/assets/images/logo-img/logo.png";
-import Illustration from "@/assets/images/auth/ils1.svg";
 
 const Login = () => {
   const [isDark] = useDarkMode();
@@ -40,39 +39,37 @@ const Login = () => {
   }
 
   return (
-    <div className="loginwrapper">
-      <div className="lg-inner-column">
-        <div className="left-column relative z-1">
-          <div className="max-w-[520px] pt-20 ltr:pl-20 rtl:pr-20">
-            {/* Change: Logo aur Text ko ek saath dikhane ke liye flex container banaya gaya hai */}
-            <Link to="/" className="mb-10 block">
+    // Outer page background ko white kar diya hai
+    <div className="loginwrapper min-h-screen flex items-center justify-center p-4 bg-white dark:bg-slate-900">
+      
+      {/* Main container jismein shadow aur border hai */}
+      <div className="lg-inner-column flex bg-white dark:bg-slate-800 shadow-lg rounded-md overflow-hidden">
+        
+        {/* ========== FINAL CHANGE IS HERE ========== */}
+        {/* Is div se bg-slate-100 hata kar bg-white kar diya gaya hai */}
+        <div className="left-column relative z-1 flex flex-col items-center justify-center p-10 bg-white dark:bg-slate-800">
+           
+           <Link to="/" className="mb-8 block">
               <div className="flex items-center space-x-4">
                 <img src={isDark ? LogoWhite : Logo} alt="logo" className="h-16 w-auto" />
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
-                  Archilance LLC
+                <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+                  Archilance LLC
                 </h2>
               </div>
             </Link>
 
-            <h4>
-              Unlock your Project
-              <span className="text-slate-800 dark:text-slate-400 font-bold">
-                performance
-              </span>
-            </h4>
-          </div>
-          <div className="absolute left-0 2xl:bottom-[-160px] bottom-[-130px] h-full w-full z-[-1]">
-            <img
-              src={Illustration}
-              alt=""
-              className="h-full w-full object-contain"
-            />
-          </div>
+          <video
+            controls 
+            className="w-full max-w-2xl rounded-lg shadow-xl" 
+            src="/video/demo.mp4"
+          >
+            Your browser does not support the video tag.
+          </video>
         </div>
+        
         <div className="right-column relative">
           <div className="inner-content h-full flex flex-col bg-white dark:bg-slate-800">
             <div className="auth-box h-full flex flex-col justify-center">
-              {/* Change: Mobile view ke liye bhi logo aur text ko ek saath dikhaya gaya hai */}
               <div className="mobile-logo mb-6 lg:hidden block">
                 <Link to="/" className="flex items-center justify-center space-x-4">
                   <img
@@ -81,14 +78,14 @@ const Login = () => {
                     className="h-16 w-auto"
                   />
                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
-                    Archilance LLC
+                    Archilance LLC
                   </h2>
                 </Link>
               </div>
               <div className="text-center 2xl:mb-10 mb-4">
                 <h4 className="font-medium">Sign in</h4>
                 <div className="text-slate-500 text-base">
-                  Sign in to your account to start using Archilance LLC
+                  Sign in to your account to start using Archilance LLC
                 </div>
               </div>
               <LoginForm />

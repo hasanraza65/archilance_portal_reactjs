@@ -6,7 +6,6 @@ import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import {
   useTable,
-  useRowSelect,
   useSortBy,
   useGlobalFilter,
   usePagination,
@@ -14,20 +13,25 @@ import {
 import GlobalFilter from "../table/react-table/GlobalFilter";
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import Alert from "@/components/ui/Alert";
-import { canManageEmployees } from "@/pages/utility/apiHelper"; // Import the helper
+import { canManageEmployees } from "@/pages/utility/apiHelper";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
-  console.log(role);
+  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
   if (role) {
     return `/api/${role}${cleanBasePath}`;
   }
   return `/api/admin${cleanBasePath}`;
 };
-const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler, hasPermission) => [
+
+const EMPLOYEE_API_COLUMNS_CONFIG = (
+  navigate,
+  openDeleteModalHandler,
+  hasPermission
+) => [
   {
     Header: "Id",
     accessor: "id",
@@ -145,26 +149,6 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler, hasPermis
   },
 ];
 
-const IndeterminateCheckbox = React.forwardRef(
-  ({ indeterminate, ...rest }, ref) => {
-    const defaultRef = React.useRef();
-    const resolvedRef = ref || defaultRef;
-    React.useEffect(() => {
-      if (resolvedRef.current)
-        resolvedRef.current.indeterminate = indeterminate;
-    }, [resolvedRef, indeterminate]);
-    return (
-      <input
-        type="checkbox"
-        ref={resolvedRef}
-        {...rest}
-        className="table-checkbox"
-      />
-    );
-  }
-);
-IndeterminateCheckbox.displayName = "IndeterminateCheckbox";
-
 const Allemployees = () => {
   const [employeeData, setEmployeeData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -193,7 +177,7 @@ const Allemployees = () => {
     try {
       const apiPath = getApiBasePathForRole("/employee-user");
       const response = await axios.get(
-       `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -250,9 +234,9 @@ const Allemployees = () => {
       return;
     }
     try {
-        const apiPath = getApiBasePathForRole("/employee-user");
+      const apiPath = getApiBasePathForRole("/employee-user");
       await axios.delete(
-         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${
           employeeToDelete.id
         }`,
         {
@@ -282,7 +266,12 @@ const Allemployees = () => {
   }, [employeeToDelete, handleCloseDeleteModal]);
 
   const columns = useMemo(
-    () => EMPLOYEE_API_COLUMNS_CONFIG(navigate, handleOpenDeleteModal, hasManagementPermission),
+    () =>
+      EMPLOYEE_API_COLUMNS_CONFIG(
+        navigate,
+        handleOpenDeleteModal,
+        hasManagementPermission
+      ),
     [navigate, handleOpenDeleteModal, hasManagementPermission]
   );
   const data = useMemo(() => employeeData, [employeeData]);
@@ -291,8 +280,7 @@ const Allemployees = () => {
     { columns, data, initialState: { pageIndex: 0, pageSize: 10 } },
     useGlobalFilter,
     useSortBy,
-    usePagination,
-    useRowSelect
+    usePagination
   );
 
   const {
@@ -348,15 +336,15 @@ const Allemployees = () => {
                 placeholder="Search employees..."
               />
             </div>
-              {hasManagementPermission && (
-                <button
-                  className="btn btn-dark flex items-center justify-center h-10"
-                  onClick={() => navigate("/employees/add")}
-                >
-                  <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
-                  Add Employee
-                </button>
-              )}
+            {hasManagementPermission && (
+              <button
+                className="btn btn-dark flex items-center justify-center h-10"
+                onClick={() => navigate("/employees/add")}
+              >
+                <Icon icon="heroicons-outline:plus" className="w-5 h-5 mr-2" />
+                Add Employee
+              </button>
+            )}
           </div>
         </div>
 
@@ -385,27 +373,31 @@ const Allemployees = () => {
                 {...getTableProps()}
               >
                 <thead className="bg-slate-100 dark:bg-slate-700">
-                  {headerGroups.map((headerGroup) => (
-                    <tr {...headerGroup.getHeaderGroupProps()}>
-                      {headerGroup.headers.map((column) => (
-                        <th
-                          {...column.getHeaderProps(
+                  {headerGroups.map((headerGroup) => {
+                    const { key, ...restHeaderGroupProps } =
+                      headerGroup.getHeaderGroupProps();
+                    return (
+                      <tr key={key} {...restHeaderGroupProps}>
+                        {headerGroup.headers.map((column) => {
+                          const { key, ...restColumn } = column.getHeaderProps(
                             column.getSortByToggleProps()
-                          )}
-                          className="table-th"
-                        >
-                          {column.render("Header")}
-                          <span className="ltr:ml-1 rtl:mr-1">
-                            {column.isSorted
-                              ? column.isSortedDesc
-                                ? " 🔽"
-                                : " 🔼"
-                              : ""}
-                          </span>
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
+                          );
+                          return (
+                            <th key={key} {...restColumn} className="table-th">
+                              {column.render("Header")}
+                              <span className="ltr:ml-1 rtl:mr-1">
+                                {column.isSorted
+                                  ? column.isSortedDesc
+                                    ? " 🔽"
+                                    : " 🔼"
+                                  : ""}
+                              </span>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </thead>
                 <tbody
                   {...getTableBodyProps()}
@@ -414,13 +406,21 @@ const Allemployees = () => {
                   {page.length > 0 ? (
                     page.map((row) => {
                       prepareRow(row);
+                      const { key: rowKey, ...restOfRowProps } = row.getRowProps();
                       return (
-                        <tr {...row.getRowProps()}>
-                          {row.cells.map((cell) => (
-                            <td {...cell.getCellProps()} className="table-td">
-                              {cell.render("Cell")}
-                            </td>
-                          ))}
+                        <tr key={rowKey} {...restOfRowProps}>
+                          {row.cells.map((cell) => {
+                            const { key: cellKey, ...restOfCellProps } = cell.getCellProps();
+                            return (
+                              <td
+                                key={cellKey}
+                                {...restOfCellProps}
+                                className="table-td"
+                              >
+                                {cell.render("Cell")}
+                              </td>
+                            );
+                          })}
                         </tr>
                       );
                     })

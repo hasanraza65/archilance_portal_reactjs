@@ -47,7 +47,6 @@ const formatSecondsToHoursMinutes = (totalSeconds) => {
   return `${hours}h ${minutes}m`;
 };
 
-
 const formatDateForAPI = (date) => {
   if (!date || !(date instanceof Date) || isNaN(date)) {
     return "";
@@ -66,6 +65,7 @@ const WorkSession = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
@@ -76,27 +76,56 @@ const WorkSession = () => {
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
 
-
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // All useEffect and handler functions remain the same
+  // =================================================================
+  //  DEBUGGING SECTION FOR FETCHING JOBS
+  // =================================================================
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      console.log("[DEBUG] User not authenticated. Skipping job fetch.");
+      return;
+    }
     const fetchProjects = async () => {
+      setProjectsLoading(true);
+      console.log("[DEBUG] 1. Attempting to fetch jobs from API...");
+      console.log(`[DEBUG] API URL: ${API_BASE_URL}/project`);
+      
       try {
         const res = await fetch(`${API_BASE_URL}/project`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error("Could not fetch projects.");
+
+        console.log("[DEBUG] 2. Received response from API:", res);
+
+        if (!res.ok) {
+          throw new Error(`Could not fetch jobs. Status: ${res.status}`);
+        }
+        
         const data = await res.json();
-        setProjects(data.data || []);
+        console.log("[DEBUG] 3. API data parsed successfully:", data);
+        
+        const jobsData = data || [];
+        console.log("[DEBUG] 4. Extracted jobs array to set in state:", jobsData);
+
+        setProjects(jobsData);
+
       } catch (error) {
+        console.error("[DEBUG] 5. An error occurred while fetching jobs:", error);
         toast.error(error.message);
+        setProjects([]);
+      } finally {
+        setProjectsLoading(false);
+        console.log("[DEBUG] 6. Finished fetching jobs process.");
       }
     };
     fetchProjects();
   }, [isAuthenticated, token, API_BASE_URL]);
+  // =================================================================
+  //  END DEBUGGING SECTION
+  // =================================================================
+
 
   useEffect(() => {
     if (!selectedProject) {
@@ -131,15 +160,15 @@ const WorkSession = () => {
       if (!isAuthenticated || !hasSearched) {
         setLoading(false);
         setSessions([]);
-        setManualTotalTime("0h 0m"); // Reset on no search
+        setManualTotalTime("0h 0m");
         return;
       }
       setLoading(true);
       window.scrollTo(0, 0);
 
       const params = new URLSearchParams({ page: currentPage.toString() });
+      if (selectedProject) params.append("project_id", selectedProject);
       if (selectedTask) params.append("task_id", selectedTask);
-      
       if (dateRange && dateRange[0])
         params.append("start_date", formatDateForAPI(dateRange[0]));
       if (dateRange && dateRange.length > 1 && dateRange[1])
@@ -160,11 +189,15 @@ const WorkSession = () => {
         setOverallTotalTime(result.overall_total_time || "0h 0m");
 
         const totalManualSeconds = fetchedSessions
-          .filter(session => session.type === 'Manual')
-          .reduce((acc, session) => acc + Math.abs(session.raw_calculation.net_seconds || 0), 0);
-        
+          .filter((session) => session.type === "Manual")
+          .reduce(
+            (acc, session) =>
+              acc + Math.abs(session.raw_calculation.net_seconds || 0),
+            0
+          );
+
         setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
-        
+
         setPaginationInfo({
           currentPage: result.current_page,
           lastPage: result.last_page,
@@ -179,16 +212,7 @@ const WorkSession = () => {
       }
     };
     performFetch();
-  }, [
-    fetchTrigger,
-    currentPage,
-    isAuthenticated,
-    token,
-    hasSearched,
-    API_BASE_URL,
-    dateRange,
-    selectedTask,
-  ]);
+  }, [fetchTrigger, currentPage, isAuthenticated, token, hasSearched, API_BASE_URL, dateRange, selectedProject, selectedTask]);
 
   const handleSearch = () => {
     setHasSearched(true);
@@ -204,7 +228,7 @@ const WorkSession = () => {
     setSelectedTask("");
     setTasks([]);
     setDateRange(getTodayDateRange());
-    setHasSearched(true); 
+    setHasSearched(true);
 
     if (currentPage !== 1) {
       setCurrentPage(1);
@@ -251,13 +275,10 @@ const WorkSession = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
-            `${API_BASE_URL}/screenshot/${screenshotId}`,
-            {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
+          const res = await fetch(`${API_BASE_URL}/screenshot/${screenshotId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
           if (!res.ok) {
             const errorData = await res.json();
             throw new Error(
@@ -304,18 +325,20 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
           Work Diary
         </h1>
-        {/* --- MODIFIED FOR RESPONSIVENESS --- */}
-        { (loading || sessions.length > 0 || hasSearched) && (
-            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 mt-2 mb-6">
-                <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
-                    Total Time: {overallTotalTime}
-                </div>
-                {manualTotalTime !== "0h 0m" && (
-                    <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                        Manual: <span className="font-semibold text-sky-700 dark:text-sky-400">({manualTotalTime})</span>
-                    </div>
-                )}
+        {(loading || sessions.length > 0 || hasSearched) && (
+          <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 mt-2 mb-6">
+            <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
+              Total Time: {overallTotalTime}
             </div>
+            {manualTotalTime !== "0h 0m" && (
+              <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Manual:{" "}
+                <span className="font-semibold text-sky-700 dark:text-sky-400">
+                  ({manualTotalTime})
+                </span>
+              </div>
+            )}
+          </div>
         )}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -336,7 +359,6 @@ const WorkSession = () => {
               Filter Work Sessions
             </h3>
           </div>
-          {/* The grid classes here are already responsive (grid-cols-1 by default) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -348,14 +370,21 @@ const WorkSession = () => {
                   setSelectedProject(e.target.value);
                   setSelectedTask("");
                 }}
-                className="form-select w-full"
+                disabled={projectsLoading}
+                className="form-select w-full disabled:bg-slate-100"
               >
                 <option value="">All Jobs</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.project_name}
-                  </option>
-                ))}
+                {projectsLoading ? (
+                  <option disabled>Loading jobs...</option>
+                ) : projects.length > 0 ? (
+                  projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.project_name}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>No jobs available</option>
+                )}
               </select>
             </div>
             <div className="space-y-2">
@@ -365,14 +394,14 @@ const WorkSession = () => {
               <select
                 value={selectedTask}
                 onChange={(e) => setSelectedTask(e.target.value)}
-                disabled={!selectedProject || tasksLoading}
+                disabled={!selectedProject || tasksLoading || projectsLoading}
                 className="form-select w-full disabled:bg-slate-100"
               >
                 <option value="">
                   {!selectedProject ? "Select job first" : "All Projects"}
                 </option>
                 {tasksLoading ? (
-                  <option>Loading tasks...</option>
+                  <option disabled>Loading projects...</option>
                 ) : (
                   tasks.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -398,7 +427,6 @@ const WorkSession = () => {
               <label className="text-sm font-medium text-transparent">
                 Actions
               </label>
-              {/* The button container classes are already responsive */}
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={handleResetFilters}
@@ -451,7 +479,7 @@ const WorkSession = () => {
                             ({session.total_time})
                           </span>
                         </p>
-                        {session.type === 'Manual' && (
+                        {session.type === "Manual" && (
                           <span className="px-2 py-0.5 bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 rounded-full text-xs font-medium">
                             Manual
                           </span>
@@ -471,7 +499,6 @@ const WorkSession = () => {
                       </p>
                     )}
                     <div className="mt-4">
-                      {/* Screenshot grid is already responsive */}
                       {session.screenshots.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                           {session.screenshots.map((ss) => (
@@ -529,7 +556,6 @@ const WorkSession = () => {
             </div>
           )}
           {paginationInfo && paginationInfo.lastPage > 1 && (
-            // --- MODIFIED FOR RESPONSIVENESS ---
             <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
               <button
                 onClick={handlePrevPage}
