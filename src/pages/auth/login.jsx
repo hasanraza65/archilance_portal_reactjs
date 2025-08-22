@@ -1,4 +1,4 @@
-// File: src/pages/auth/login.jsx
+// src/pages/auth/login.jsx
 
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -39,17 +39,12 @@ const Login = () => {
   }
 
   return (
-    // Outer page background ko white kar diya hai
     <div className="loginwrapper min-h-screen flex items-center justify-center p-4 bg-white dark:bg-slate-900">
-      
-      {/* Main container jismein shadow aur border hai */}
       <div className="lg-inner-column flex bg-white dark:bg-slate-800 shadow-lg rounded-md overflow-hidden">
-        
-        {/* ========== FINAL CHANGE IS HERE ========== */}
-        {/* Is div se bg-slate-100 hata kar bg-white kar diya gaya hai */}
         <div className="left-column relative z-1 flex flex-col items-center justify-center p-10 bg-white dark:bg-slate-800">
            
-           <Link to="/" className="mb-8 block">
+           {/* ========== YAHAN CHANGE KIYA GAYA HAI ========== */}
+           <Link to="/" className="mt-24 mb-8 block">
               <div className="flex items-center space-x-4">
                 <img src={isDark ? LogoWhite : Logo} alt="logo" className="h-16 w-auto" />
                 <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
@@ -60,8 +55,8 @@ const Login = () => {
 
           <video
             controls 
-            className="w-full max-w-2xl rounded-lg shadow-xl" 
-            src="/video/demo.mp4"
+            className="w-full max-w-2xl rounded-lg shadow-xl aspect-video object-cover" 
+            src="https://res.cloudinary.com/dlffiwsjj/video/upload/v1755871449/for_send_t52hux.mp4"
           >
             Your browser does not support the video tag.
           </video>
