@@ -15,7 +15,7 @@ const TaskHeader = ({
   setIsStatusDropdownOpen,
   statusDropdownRef,
   handleUpdateTaskField,
-  isEditable, // ***** SUDHAAR: isEditable prop ko yahan receive karein *****
+  isEditable,
 }) => {
   const navigate = useNavigate();
   const currentStatusLabel = getCurrentStatusDisplayLabel(taskStatus);
@@ -28,12 +28,9 @@ const TaskHeader = ({
           <h1 className="text-2xl font-bold mb-2 text-slate-800">
             {taskTitle}
           </h1>
-        
         </div>
-        
-        {/* ***** SUDHAAR: Yahan par role ke hisab se UI badlein ***** */}
+
         {isEditable ? (
-          // --- ADMIN / EMPLOYEE VIEW (Clickable Dropdown) ---
           <div className="relative" ref={statusDropdownRef}>
             <button
               onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
@@ -48,19 +45,16 @@ const TaskHeader = ({
             </button>
             {isStatusDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-30 border border-slate-200 overflow-y-auto max-h-60 py-1">
-                <button
-                  onClick={async () => {
-                    await handleUpdateTaskField("task_status", null);
-                    setIsStatusDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-slate-100 flex items-center relative ${taskStatus === null ? "font-semibold text-blue-600" : "text-slate-700"}`}
+                {/* ***** SUDHAAR: Yahan button ko div se badal diya hai ***** */}
+                <div
+                  className={`w-full text-left px-3 py-2.5 text-sm flex items-center relative cursor-default ${taskStatus === null ? "font-semibold text-blue-600" : "text-slate-700"}`}
                 >
                   {taskStatus === null && (<span className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusSelectedBarColor(null)}`}></span>)}
                   {taskStatus === null ? (
                     <svg className="w-4 h-4 mr-2.5 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                   ) : (<span className="w-4 h-4 mr-2.5 shrink-0"></span>)}
                   <span className="italic text-slate-500">— Default (To-Do) —</span>
-                </button>
+                </div>
                 <div className="border-t border-slate-100 my-1 mx-1"></div>
                 {statusUpdateOptions.map((option) => (
                   <button
@@ -84,7 +78,6 @@ const TaskHeader = ({
             )}
           </div>
         ) : (
-          // --- CUSTOMER VIEW (Static Label) ---
           <div className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border ${getStatusClass(taskStatus)}`}>
             {currentStatusLabel.toUpperCase()}
           </div>
