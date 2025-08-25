@@ -41,7 +41,8 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     Header: "Name",
     accessor: "name",
     Cell: ({ row }) => {
-      const { name, profile_pic, id } = row.original;
+      const { name, profile_pic, id, employee_type } = row.original;
+      
       return (
         <div
           className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer group"
@@ -72,9 +73,29 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
               </span>
             )}
           </span>
-          <span className="text-sm text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
-            {name}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
+              {name}
+            </span>
+            
+            {/* --- BADGE COLORS UPDATED --- */}
+            {(employee_type === "Manager" || employee_type === "Outsource") && (
+              <span
+                className={`
+                  px-2 py-0.5 text-xs font-semibold rounded-full capitalize
+                  ${
+                    employee_type === "Manager"
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200" // Green color for Manager
+                      : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200"     // Amber/Orange for Outsource
+                  }
+                `}
+              >
+                {employee_type.toLowerCase()}
+              </span>
+            )}
+            {/* --- END OF BADGE UPDATE --- */}
+
+          </div>
         </div>
       );
     },

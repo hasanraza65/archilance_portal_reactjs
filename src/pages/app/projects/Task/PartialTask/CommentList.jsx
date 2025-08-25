@@ -13,7 +13,8 @@ const isAudio = (attachment) => {
   if (mime) {
     return mime.startsWith("audio/");
   }
-  const name = attachment.original_name || "";
+  // Use 'name' which is derived from file_name from API
+  const name = attachment.name || "";
   if (name) {
     const extension = name.split(".").pop().toLowerCase();
     return ["mp3", "wav", "ogg", "webm", "m4a", "aac"].includes(extension);
@@ -559,7 +560,7 @@ const CommentList = ({
       );
     if (newAttachmentsForEdit.length > 0)
       newAttachmentsForEdit.forEach((att) =>
-        formData.append("attachments[]", att.file)
+        formData.append("attachments[]", att.file, att.file.name)
       );
 
     const success = await onEditComment(commentId, formData);
@@ -595,12 +596,12 @@ const CommentList = ({
       attSetup = comment.comment_attachments
         .map((att, idx) => {
           if (!att) return null;
-          const fp = att.file_path,
-            fn =
-              att.original_name ||
-              (fp
-                ? fp.substring(fp.lastIndexOf("/") + 1)
-                : `att_edit_${idx + 1}`);
+          const fp = att.file_path;
+          const fn =
+            att.file_name || // UPDATED: Use file_name from API
+            (fp
+              ? fp.substring(fp.lastIndexOf("/") + 1)
+              : `att_edit_${idx + 1}`);
           let ft = att.file_type || "application/octet-stream";
           const ext = fn.substring(fn.lastIndexOf(".") + 1).toLowerCase();
           if (
@@ -618,7 +619,7 @@ const CommentList = ({
           return {
             id: att.id,
             file_path: fp,
-            original_name: fn,
+            file_name: fn, // UPDATED: Keep consistent
             name: fn,
             file_type: ft,
             file_size: att.file_size || null,
@@ -785,12 +786,12 @@ const CommentList = ({
       return commentNode.comment_attachments
         .map((att, idx) => {
           if (!att) return null;
-          const fp = att.file_path,
-            fn =
-              att.original_name ||
-              (fp
-                ? fp.substring(fp.lastIndexOf("/") + 1)
-                : `att_${commentNode.id}_${idx + 1}`);
+          const fp = att.file_path;
+          const fn =
+            att.file_name || // UPDATED: Use file_name from API
+            (fp
+              ? fp.substring(fp.lastIndexOf("/") + 1)
+              : `att_${commentNode.id}_${idx + 1}`);
           let ft = att.file_type || "application/octet-stream";
           const ext = fn.substring(fn.lastIndexOf(".") + 1).toLowerCase();
           if (
@@ -809,7 +810,7 @@ const CommentList = ({
               : `att-disp-idx-${commentNode.id}-${idx}`,
             db_id: att.id,
             file_path: fp,
-            original_name: fn,
+            file_name: fn, // UPDATED: Keep consistent
             name: fn,
             file_type: ft,
             file_size: att.file_size || null,
@@ -898,13 +899,7 @@ const CommentList = ({
                             url = base + seg;
                           }
                           const img = att.file_type?.startsWith("image/");
-                          const name =
-                            att.original_name ||
-                            att.name ||
-                            (att.file_path
-                              ? att.file_path.split("/").pop()
-                              : "") ||
-                            `Attachment`;
+                          const name = att.name || `Attachment`; // Use name which is set from file_name
                           return (
                             <div
                               key={att.id}
@@ -1122,7 +1117,7 @@ const CommentList = ({
                                 : url;
                               url = base + seg;
                             } else url = "";
-                            const name = att.original_name || `Attachment`;
+                            const name = att.name || `Attachment`; // Use name which is set from file_name
 
                             if (isAudio(att)) {
                               return <AudioPlayer key={att.id} src={url} />;
@@ -1653,7 +1648,7 @@ const CommentList = ({
                     id="new-comment-textarea"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={handleKeyDownOnNewComment}
+                   
                     placeholder="Add a comment..."
                     className="w-full p-2.5 border-none focus:ring-0 text-sm resize-none bg-transparent"
                     rows={1}

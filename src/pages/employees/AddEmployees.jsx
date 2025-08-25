@@ -26,17 +26,16 @@ const AddEmployee = () => {
     phone: "",
     password: "",
     password_confirmation: "",
-    employee_type: "Employee", // Added this field
-    user_role: "3", // Kept this for the API, but removed from the form
+    employee_type: "Employee",
+    user_role: "3",
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    // Check for permission when the component mounts
     if (!canManageEmployees()) {
       toast.error("You are not authorized to perform this action.");
-      navigate("/employees"); // Redirect to the employee list
+      navigate("/employees");
     }
   }, [navigate]);
 
@@ -70,7 +69,7 @@ const AddEmployee = () => {
     } else if (formData.password !== formData.password_confirmation) {
       newErrors.password_confirmation = "Passwords do not match.";
     }
-    if (!formData.employee_type) newErrors.employee_type = "Employee type is required."; // Added validation for employee_type
+    if (!formData.employee_type) newErrors.employee_type = "Employee type is required.";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -94,17 +93,14 @@ const AddEmployee = () => {
       return;
     }
 
-    // The payload now automatically includes employee_type from the state
     const payload = {
       ...formData,
       user_role: parseInt(formData.user_role, 10),
     };
 
     try {
-     
-          
       const apiPath = getApiBasePathForRole("/employee-user");
-      const response = await axios.post(
+      await axios.post(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         payload,
         {
@@ -157,9 +153,7 @@ const AddEmployee = () => {
             type="text"
             name="name"
             id="name"
-            className={`${inputClass} ${
-              errors.name ? "border-danger-500" : ""
-            }`}
+            className={`${inputClass} ${errors.name ? "border-danger-500" : ""}`}
             value={formData.name}
             onChange={handleChange}
             placeholder="Enter full name"
@@ -175,9 +169,7 @@ const AddEmployee = () => {
             type="email"
             name="email"
             id="email"
-            className={`${inputClass} ${
-              errors.email ? "border-danger-500" : ""
-            }`}
+            className={`${inputClass} ${errors.email ? "border-danger-500" : ""}`}
             value={formData.email}
             onChange={handleChange}
             placeholder="Enter email address"
@@ -193,9 +185,7 @@ const AddEmployee = () => {
             type="text"
             name="username"
             id="username"
-            className={`${inputClass} ${
-              errors.username ? "border-danger-500" : ""
-            }`}
+            className={`${inputClass} ${errors.username ? "border-danger-500" : ""}`}
             value={formData.username}
             onChange={handleChange}
             placeholder="Enter username"
@@ -211,9 +201,7 @@ const AddEmployee = () => {
             type="tel"
             name="phone"
             id="phone"
-            className={`${inputClass} ${
-              errors.phone ? "border-danger-500" : ""
-            }`}
+            className={`${inputClass} ${errors.phone ? "border-danger-500" : ""}`}
             value={formData.phone}
             onChange={handleChange}
             placeholder="+923001234567"
@@ -221,7 +209,6 @@ const AddEmployee = () => {
           {errors.phone && <p className={errorClass}>{errors.phone}</p>}
         </div>
 
-        {/* New Employee Type Dropdown */}
         <div>
           <label htmlFor="employee_type" className={labelClass}>
             Employee Type
@@ -229,14 +216,13 @@ const AddEmployee = () => {
           <select
             name="employee_type"
             id="employee_type"
-            className={`${inputClass} ${
-              errors.employee_type ? "border-danger-500" : ""
-            }`}
+            className={`${inputClass} ${errors.employee_type ? "border-danger-500" : ""}`}
             value={formData.employee_type}
             onChange={handleChange}
           >
             <option value="Employee">Employee</option>
             <option value="Manager">Manager</option>
+            <option value="Outsource">Outsource</option>
           </select>
           {errors.employee_type && <p className={errorClass}>{errors.employee_type}</p>}
         </div>
@@ -249,9 +235,7 @@ const AddEmployee = () => {
             type="password"
             name="password"
             id="password"
-            className={`${inputClass} ${
-              errors.password ? "border-danger-500" : ""
-            }`}
+            className={`${inputClass} ${errors.password ? "border-danger-500" : ""}`}
             value={formData.password}
             onChange={handleChange}
             placeholder="Enter password"
@@ -267,9 +251,7 @@ const AddEmployee = () => {
             type="password"
             name="password_confirmation"
             id="password_confirmation"
-            className={`${inputClass} ${
-              errors.password_confirmation ? "border-danger-500" : ""
-            }`}
+            className={`${inputClass} ${errors.password_confirmation ? "border-danger-500" : ""}`}
             value={formData.password_confirmation}
             onChange={handleChange}
             placeholder="Confirm password"
@@ -279,8 +261,6 @@ const AddEmployee = () => {
           )}
         </div>
         
-        {/* User Role dropdown has been removed from here */}
-
         <div className="flex justify-end space-x-3 pt-4">
           <button
             type="button"

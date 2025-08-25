@@ -36,9 +36,7 @@ import stripe from "@/assets/images/e-commerce/cart-icon/stripe.png";
 import truck from "@/assets/images/e-commerce/cart-icon/truck.png";
 import vougepay from "@/assets/images/e-commerce/cart-icon/vougepay.png";
 
-// --- MASTER MENU CONFIGURATION ---
-// Sidebar navigation ke liye ab sirf yeh 'menuItems' array istemal hoga.
-// Ismein 'allowedRoles' se hum control karenge ke kaun sa item kisko dikhega.
+
 export const menuItems = [
   {
     isHeadr: true,

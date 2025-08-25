@@ -17,7 +17,6 @@ const ROLE_MAP = {
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || "https://portal.archilance.net/backend/public";
 const LOGOUT_API_URL = `${BACKEND_BASE_URL}/api/logout`;
 
-
 const AuthContext = createContext({
   user: null,
   token: null,
@@ -30,10 +29,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
       const savedUser = Cookies.get("user");
-      if (savedUser) {
-        return JSON.parse(savedUser);
-      }
-      return null;
+      return savedUser ? JSON.parse(savedUser) : null;
     } catch (e) {
       console.error("Failed to parse user cookie", e);
       Cookies.remove("user");
@@ -96,11 +92,10 @@ export const AuthProvider = ({ children }) => {
 
       Cookies.set("user", JSON.stringify(userToSave), cookieOptions);
       Cookies.set("token", apiResponse.access_token, cookieOptions);
-      const fcmTokenFromFlutter = localStorage.getItem("fcm_token");
-      console.log("fcmtoken",fcmTokenFromFlutter);
       Cookies.set("userRole", userRoleString, cookieOptions);
 
       dispatch(setReduxUser(userToSave));
+      
       if (Number(userData.user_role) === 5 && Number(userData.is_default_pass) === 1) {
         setIsPasswordUpdateRequired(true);
       } else {
@@ -125,7 +120,6 @@ export const AuthProvider = ({ children }) => {
 
     if (currentToken) {
       try {
-       
         await axios.post(
           LOGOUT_API_URL,
           {}, 
@@ -136,7 +130,6 @@ export const AuthProvider = ({ children }) => {
             },
           }
         );
-        
       } catch (error) {
         console.error("Backend logout failed, proceeding with frontend logout:", error);
         toast.error("Could not log out from the server, but you have been logged out locally.");
@@ -155,7 +148,6 @@ export const AuthProvider = ({ children }) => {
     toast.info("You have been logged out.");
     navigate("/login");
   };
-
 
   const handlePasswordUpdateSuccess = () => {
     setIsPasswordUpdateRequired(false);
@@ -195,10 +187,65 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-
   return context;
 };
+
+// --- Utility Functions ---
+
+const VALID_ROLES = ['admin', 'employee', 'customer', 'member'];
+
+const getActualUserRole = () => {
+  const userCookie = Cookies.get("user");
+  if (!userCookie) return null;
+  try {
+    const user = JSON.parse(userCookie);
+    return user?.role?.toLowerCase();
+  } catch (e) {
+    console.error("Error parsing user cookie:", e);
+    return null;
+  }
+};
+
+export const getEmployeeType = () => {
+  const userCookie = Cookies.get("user");
+  if (!userCookie) return null;
+  try {
+    const user = JSON.parse(userCookie);
+    return user?.employee_type; 
+  } catch (e) {
+    console.error("Error parsing user cookie for employee_type:", e);
+    return null;
+  }
+};
+
+export const canManageEmployees = () => {
+  const role = getActualUserRole();
+  const employeeType = getEmployeeType()?.toLowerCase();
+
+  if (role === 'admin') {
+    return true;
+  }
+  
+  if (employeeType === 'manager' || employeeType === 'outsource') {
+    return true;
+  }
+
+  return false;
+};
+
+export const getApiPrefix = () => {
+  const role = getActualUserRole();
+  if (role && VALID_ROLES.includes(role)) {
+    return role;
+  }
+  console.warn(`Unknown or missing role found: '${role}'. Defaulting to 'customer'.`);
+  return 'customer';
+};
+
+export const getUserRole = () => {
+  return getActualUserRole();
+};
+
