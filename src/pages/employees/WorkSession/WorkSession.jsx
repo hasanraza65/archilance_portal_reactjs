@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
 import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
-// --- START: Helper functions ---
+// --- START: Helper functions (These seem correct) ---
 
 const getTodayDateRange = () => {
   const today = new Date();
@@ -56,6 +56,7 @@ const formatDateForAPI = (date) => {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+// --- END: Helper functions ---
 
 const WorkSession = () => {
   const { token, isAuthenticated } = useAuth();
@@ -72,61 +73,38 @@ const WorkSession = () => {
   const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [fetchTrigger, setFetchTrigger] = useState(0);
-  const [hasSearched, setHasSearched] = useState(true);
+
+  // --- FIX: Replaced `hasSearched` with a more reliable state ---
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // =================================================================
-  //  DEBUGGING SECTION FOR FETCHING JOBS
-  // =================================================================
+  // Fetching projects (jobs) - no changes here
   useEffect(() => {
-    if (!isAuthenticated) {
-      // console.log("[DEBUG] User not authenticated. Skipping job fetch.");/
-      return;
-    }
+    if (!isAuthenticated) return;
     const fetchProjects = async () => {
       setProjectsLoading(true);
-      // console.log("[DEBUG] 1. Attempting to fetch jobs from API...");
-      // console.log(`[DEBUG] API URL: ${API_BASE_URL}/project`);
-      
       try {
         const res = await fetch(`${API_BASE_URL}/project`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        // console.log("[DEBUG] 2. Received response from API:", res);
-
-        if (!res.ok) {
-          throw new Error(`Could not fetch jobs. Status: ${res.status}`);
-        }
-        
+        if (!res.ok) throw new Error(`Could not fetch jobs. Status: ${res.status}`);
         const data = await res.json();
-        // console.log("[DEBUG] 3. API data parsed successfully:", data);
-        
-        const jobsData = data || [];
-        // console.log("[DEBUG] 4. Extracted jobs array to set in state:", jobsData);
-
-        setProjects(jobsData);
-
+        setProjects(data || []);
       } catch (error) {
-        // console.error("[DEBUG] 5. An error occurred while fetching jobs:", error);
         toast.error(error.message);
         setProjects([]);
       } finally {
         setProjectsLoading(false);
-        // console.log("[DEBUG] 6. Finished fetching jobs process.");
       }
     };
     fetchProjects();
   }, [isAuthenticated, token, API_BASE_URL]);
-  // =================================================================
-  //  END DEBUGGING SECTION
-  // =================================================================
 
-
+  // Fetching tasks for a selected project - no changes here
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
@@ -139,10 +117,7 @@ const WorkSession = () => {
         const res = await fetch(`${API_BASE_URL}/project/${selectedProject}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok)
-          throw new Error(
-            `Could not fetch details for project ID ${selectedProject}.`
-          );
+        if (!res.ok) throw new Error(`Could not fetch details for project ID ${selectedProject}.`);
         const projectDetails = await res.json();
         setTasks(projectDetails.tasks || []);
       } catch (error) {
@@ -155,72 +130,70 @@ const WorkSession = () => {
     fetchTasksForProject();
   }, [selectedProject, token, API_BASE_URL]);
 
+  // --- FIX: Major change in the data fetching logic ---
+  const fetchWorkSessions = useCallback(async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    window.scrollTo(0, 0);
+
+    const params = new URLSearchParams({ page: currentPage.toString() });
+    if (selectedProject) params.append("project_id", selectedProject);
+    if (selectedTask) params.append("task_id", selectedTask);
+    if (dateRange && dateRange[0]) params.append("start_date", formatDateForAPI(dateRange[0]));
+    if (dateRange && dateRange.length > 1 && dateRange[1]) params.append("end_date", formatDateForAPI(dateRange[1]));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/work-session?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || `Request failed`);
+
+      const fetchedSessions = result.data?.reverse() || [];
+      setSessions(fetchedSessions);
+      setOverallTotalTime(result.overall_total_time || "0h 0m");
+
+      const totalManualSeconds = fetchedSessions
+        .filter((session) => session.type === "Manual")
+        .reduce((acc, session) => acc + Math.abs(session.raw_calculation.net_seconds || 0), 0);
+
+      setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
+
+      setPaginationInfo({
+        currentPage: result.current_page,
+        lastPage: result.last_page,
+      });
+    } catch (err) {
+      toast.error(err.message);
+      setOverallTotalTime("0h 0m");
+      setManualTotalTime("0h 0m");
+      setSessions([]);
+    } finally {
+      setLoading(false);
+      setIsInitialLoad(false); // Mark that the initial load has completed
+    }
+  }, [
+    currentPage,
+    isAuthenticated,
+    token,
+    API_BASE_URL,
+    dateRange,
+    selectedProject,
+    selectedTask,
+  ]);
+
   useEffect(() => {
-    const performFetch = async () => {
-      if (!isAuthenticated || !hasSearched) {
-        setLoading(false);
-        setSessions([]);
-        setManualTotalTime("0h 0m");
-        return;
-      }
-      setLoading(true);
-      window.scrollTo(0, 0);
+    fetchWorkSessions();
+  }, [fetchTrigger, fetchWorkSessions]);
 
-      const params = new URLSearchParams({ page: currentPage.toString() });
-      if (selectedProject) params.append("project_id", selectedProject);
-      if (selectedTask) params.append("task_id", selectedTask);
-      if (dateRange && dateRange[0])
-        params.append("start_date", formatDateForAPI(dateRange[0]));
-      if (dateRange && dateRange.length > 1 && dateRange[1])
-        params.append("end_date", formatDateForAPI(dateRange[1]));
-
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/work-session?${params.toString()}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || `Request failed`);
-
-        const fetchedSessions = result.data?.reverse() || [];
-        setSessions(fetchedSessions);
-        setOverallTotalTime(result.overall_total_time || "0h 0m");
-
-        const totalManualSeconds = fetchedSessions
-          .filter((session) => session.type === "Manual")
-          .reduce(
-            (acc, session) =>
-              acc + Math.abs(session.raw_calculation.net_seconds || 0),
-            0
-          );
-
-        setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
-
-        setPaginationInfo({
-          currentPage: result.current_page,
-          lastPage: result.last_page,
-        });
-      } catch (err) {
-        toast.error(err.message);
-        setOverallTotalTime("0h 0m");
-        setManualTotalTime("0h 0m");
-        setSessions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    performFetch();
-  }, [fetchTrigger, currentPage, isAuthenticated, token, hasSearched, API_BASE_URL, dateRange, selectedProject, selectedTask]);
 
   const handleSearch = () => {
-    setHasSearched(true);
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    } else {
-      setFetchTrigger((t) => t + 1);
-    }
+    setCurrentPage(1); // Reset to the first page for a new search
+    setFetchTrigger((t) => t + 1); // Trigger the fetch
   };
 
   const handleResetFilters = () => {
@@ -228,13 +201,8 @@ const WorkSession = () => {
     setSelectedTask("");
     setTasks([]);
     setDateRange(getTodayDateRange());
-    setHasSearched(true);
-
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    } else {
-      setFetchTrigger((t) => t + 1);
-    }
+    setCurrentPage(1); // Also reset page on reset
+    setFetchTrigger((t) => t + 1); // And trigger a fetch
   };
 
   const handleDelete = (sessionId) => {
@@ -255,7 +223,7 @@ const WorkSession = () => {
           });
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
-          setFetchTrigger((t) => t + 1);
+          setFetchTrigger((t) => t + 1); // Refresh data
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
         }
@@ -265,59 +233,62 @@ const WorkSession = () => {
 
   const handleDeleteScreenshot = (sessionId, screenshotId) => {
     Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete it!",
+        title: "Are you sure?",
+        text: "You won't be able to revert this!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const res = await fetch(`${API_BASE_URL}/screenshot/${screenshotId}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(
-              errorData.message || "Failed to delete the screenshot."
-            );
-          }
-          Swal.fire("Deleted!", "The screenshot has been deleted.", "success");
-          setSessions((currentSessions) =>
-            currentSessions.map((session) => {
-              if (session.id === sessionId) {
-                const updatedScreenshots = session.screenshots.filter(
-                  (ss) => ss.id !== screenshotId
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/screenshot/${screenshotId}`, {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.message || "Failed to delete the screenshot.");
+                }
+                Swal.fire("Deleted!", "The screenshot has been deleted.", "success");
+                setSessions((currentSessions) =>
+                    currentSessions.map((session) => {
+                        if (session.id === sessionId) {
+                            const updatedScreenshots = session.screenshots.filter(
+                                (ss) => ss.id !== screenshotId
+                            );
+                            return { ...session, screenshots: updatedScreenshots };
+                        }
+                        return session;
+                    })
                 );
-                return { ...session, screenshots: updatedScreenshots };
-              }
-              return session;
-            })
-          );
-        } catch (e) {
-          Swal.fire("Error!", e.message, "error");
+            } catch (e) {
+                Swal.fire("Error!", e.message, "error");
+            }
         }
-      }
     });
   };
 
   const handleNextPage = () => {
-    if (paginationInfo?.currentPage < paginationInfo?.lastPage)
+    if (paginationInfo?.currentPage < paginationInfo?.lastPage) {
       setCurrentPage((p) => p + 1);
-  };
-  const handlePrevPage = () => {
-    if (paginationInfo?.currentPage > 1) setCurrentPage((p) => p - 1);
+    }
   };
 
-  if (!isAuthenticated && !loading)
+  const handlePrevPage = () => {
+    if (paginationInfo?.currentPage > 1) {
+      setCurrentPage((p) => p - 1);
+    }
+  };
+
+  if (!isAuthenticated && !loading) {
     return (
       <div className="p-8 text-center">
         <p>Please log in.</p>
       </div>
     );
+  }
 
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen">
@@ -325,7 +296,7 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
           Work Diary
         </h1>
-        {(loading || sessions.length > 0 || hasSearched) && (
+        {(!isInitialLoad || sessions.length > 0) && ( // Show totals if not initial load or if there's data
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 mt-2 mb-6">
             <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
               Total Time: {overallTotalTime}
@@ -341,6 +312,7 @@ const WorkSession = () => {
           </div>
         )}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+          {/* ... Filter UI ... */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <svg
@@ -445,6 +417,7 @@ const WorkSession = () => {
             </div>
           </div>
         </div>
+
         <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
           {loading ? (
             <div className="text-center py-16">
@@ -542,21 +515,15 @@ const WorkSession = () => {
                 </div>
               ))}
             </div>
-          ) : hasSearched ? (
+            ) : !isInitialLoad ? ( // Show "no results" only after the first search
             <div className="text-center py-16">
               <p className="text-slate-500">
                 No work sessions found for the selected criteria.
               </p>
             </div>
-          ) : (
-            <div className="text-center py-16">
-              <p className="text-slate-500">
-                Please select filters and click "Search" to view sessions.
-              </p>
-            </div>
-          )}
+          ) : null} 
           {paginationInfo && paginationInfo.lastPage > 1 && (
-            <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
+             <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
               <button
                 onClick={handlePrevPage}
                 disabled={paginationInfo.currentPage === 1}
