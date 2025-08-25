@@ -17,6 +17,8 @@ const STATUS_OPTIONS = [
   "Completed",
 ];
 
+// --- Helper functions (getStatusClass, getStatusSelectedBarColor) remain the same ---
+
 const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
   switch (s) {
@@ -60,6 +62,7 @@ const getStatusSelectedBarColor = (status) => {
         return "bg-gray-500";
     }
 };
+
 
 const EditableTaskStatus = ({
   taskId,
@@ -142,7 +145,9 @@ const EditableTaskStatus = ({
 
       toast.success(response.data.message || "Status updated successfully!");
       if (onStatusUpdate) {
-        onStatusUpdate();
+        // --- FIX: Pass the new status and task ID back to the parent ---
+        // This avoids a full data refresh.
+        onStatusUpdate(taskId, newStatus);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update status.");
@@ -153,6 +158,7 @@ const EditableTaskStatus = ({
 
   const displayStatus = currentStatus || "To-Do";
 
+  // --- No changes to the JSX ---
   return (
     <div className="relative">
       {isSaving ? (

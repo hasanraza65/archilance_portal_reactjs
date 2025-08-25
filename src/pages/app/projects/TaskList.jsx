@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
-// +++ CHANGE #1: Import getEmployeeType +++
 import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
 
 import Card from "@/components/ui/Card";
@@ -12,6 +11,8 @@ import Icon from "@/components/ui/Icon";
 import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
 import EditableTaskStatus from "./EditableTaskStatus";
+
+// --- Helper components and functions (getAuthToken, getApiBasePathForRole, AvatarStack) remain the same ---
 
 const getAuthToken = () => Cookies.get("token");
 
@@ -63,13 +64,13 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
+
 const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const userRole = getApiPrefix();
-  // +++ CHANGE #2: Get the employeeType +++
   const employeeType = getEmployeeType();
 
   const [editTaskModal, setEditTaskModal] = useState(false);
@@ -128,6 +129,28 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+  
+  // --- FIX #1: Create a function to update the status in the local state ---
+  const handleUpdateTaskStatus = useCallback((taskId, newStatus) => {
+    setTasks(prevTasks =>
+      prevTasks.map(item => {
+        const taskToUpdate = item.sub_task || item.task;
+        if (taskToUpdate && taskToUpdate.id === taskId) {
+          // Create a new updated task object
+          const updatedTask = { ...taskToUpdate, task_status: newStatus };
+          
+          // Reconstruct the item with the updated task/sub-task
+          if (item.sub_task) {
+            return { ...item, sub_task: updatedTask };
+          } else {
+            return { ...item, task: updatedTask };
+          }
+        }
+        return item; // Return the item unchanged if it's not the one
+      })
+    );
+  }, []); // Empty dependency array as we use the functional form of setTasks
+
 
   const transformedData = useMemo(() => {
     if (!tasks || !Array.isArray(tasks)) return [];
@@ -222,7 +245,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -278,8 +301,8 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
           <EditableTaskStatus
             taskId={row.original.id}
             currentStatus={row.original.task_status}
-            onStatusUpdate={() => fetchTasks()}
-            // +++ CHANGE #3: Update the logic for the isEditable prop +++
+            // --- FIX #2: Pass the new handler function as the prop ---
+            onStatusUpdate={handleUpdateTaskStatus}
             isEditable={userRole === "admin" || employeeType === "Manager"}
           />
         ),
@@ -313,8 +336,8 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
         ),
       },
     ],
-    // +++ CHANGE #4: Add employeeType to the dependency array +++
-    [handleOpenEditModal, handleDelete, userRole, employeeType, fetchTasks]
+    // --- FIX #3: Add the new handler to the dependency array ---
+    [handleOpenEditModal, handleDelete, userRole, employeeType, handleUpdateTaskStatus]
   );
   
   const data = useMemo(() => filteredAndMemoizedData, [filteredAndMemoizedData]);
@@ -357,6 +380,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     );
   }
 
+  // --- No changes to the JSX ---
   return (
     <>
       <div className="overflow-x-auto -mx-6">
