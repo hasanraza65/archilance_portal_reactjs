@@ -17,17 +17,14 @@ import "react-toastify/dist/ReactToastify.css";
 import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
-
-export const STATUS_OPTIONS = [
-  "In Progress",
-  "Todo",
-  "Pending",
-  "Completed",
-  "Cancelled",
+const STATUS_OPTIONS = [
+  "To-Do",
   "Backlog",
-  "On Hold",
-  "Archived",
-  "Delayed",
+  "Awaiting Info",
+  "In Progress",
+  "In-house review",
+  "Client Review",
+  "Completed",
 ];
 
 export const getStatusClass = (status) => {
