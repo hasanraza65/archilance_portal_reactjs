@@ -1,62 +1,88 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, NavLink } from "react-router-dom";
-import { menuItems } from "@/constant/data";
 import Icon from "@/components/ui/Icon";
 
 const Breadcrumbs = () => {
   const location = useLocation();
+  const [breadcrumbs, setBreadcrumbs] = useState([]);
   const [isHide, setIsHide] = useState(true);
-  const [groupTitle, setGroupTitle] = useState("");
-  const [pageTitle, setPageTitle] = useState("");
-  const [parentPage, setParentPage] = useState(null);
 
   useEffect(() => {
-    const locationName = location.pathname.replace(/^\//, "");
-    const locationParts = locationName.split("/");
-    let baseRoute = locationParts[0];
+    const pathParts = location.pathname.split("/").filter((part) => part);
+    if (pathParts.length === 0) {
+      setIsHide(true);
+      return;
+    }
 
-    const parentMap = {
-      jobs: "jobs",
-      job: "jobs",
-      project: "jobs",
-      "job-brief": "jobs",
-    };
+    const newBreadcrumbs = [];
+    const baseRoute = pathParts[0];
 
-    const parentBaseRoute = parentMap[baseRoute] || baseRoute;
+    // Routes jo "Jobs" section se related hain
+    const jobRelatedRoutes = ["jobs", "job", "project", "job-brief"];
 
-    const mainMenuItem = menuItems.find(
-      (item) => item.link === parentBaseRoute
-    );
+    if (jobRelatedRoutes.includes(baseRoute)) {
+      setIsHide(false);
 
-    if (mainMenuItem) {
-      setIsHide(mainMenuItem.isHide || false);
-      setGroupTitle("");
+      // 1. Parent Page: Jobs
+      newBreadcrumbs.push({
+        title: "Jobs",
+        link: "/jobs",
+      });
 
-      if (locationParts.length > 1) {
-        setParentPage({
-          title: mainMenuItem.title,
-          link: `/${mainMenuItem.link}`,
+      const jobIdFromUrl = pathParts[1];
+      const jobIdFromState = location.state?.jobId;
+
+      // 2. Intermediate Page: Job Details
+      // Yeh logic check karta hai ke kya hum project page par hain aur hamare paas state mein jobId hai
+      if (baseRoute === "project" && jobIdFromState) {
+        newBreadcrumbs.push({
+          title: "Job Details",
+          link: `/jobs/${jobIdFromState}`,
         });
-
-        let dynamicTitle = baseRoute.replace("-", " ") + " Details";
-        if (baseRoute === "jobs") {
-          dynamicTitle = "Job Details";
-        } else if (baseRoute === "project") {
-          dynamicTitle = "Project Details";
-        } else if (baseRoute === "job") {
-          dynamicTitle = "Kanban Board";
-        } else if (baseRoute === "job-brief") {
-          dynamicTitle = "Brief Details";
-        }
-        setPageTitle(dynamicTitle);
-      } else {
-        setParentPage(null);
-        setPageTitle(mainMenuItem.title);
+      } else if (baseRoute === "job" && jobIdFromUrl) { // Kanban route ke liye
+        newBreadcrumbs.push({
+            title: "Job Details",
+            link: `/jobs/${jobIdFromUrl}`,
+          });
       }
+
+      // 3. Current Page Title
+      let currentPageTitle = "";
+      switch (baseRoute) {
+        case "jobs":
+          if (pathParts.length > 1) currentPageTitle = "Job Details";
+          break;
+        case "project":
+          currentPageTitle = "Project Details";
+          break;
+        case "job":
+          if (pathParts[2] === "kanban") currentPageTitle = "Kanban Board";
+          break;
+        case "job-brief":
+          currentPageTitle = "Brief Details";
+          break;
+        default:
+          break;
+      }
+      
+      // Current page ko breadcrumb mein add karein agar woh pehle se add na ho
+      if (currentPageTitle) {
+        newBreadcrumbs.push({
+           title: currentPageTitle,
+           link: location.pathname,
+        });
+      }
+
     } else {
+      // Baaki routes ke liye breadcrumbs hide karein
       setIsHide(true);
     }
-  }, [location.pathname]);
+
+    setBreadcrumbs(newBreadcrumbs);
+
+  }, [location.pathname, location.state]);
+
+  const lastIndex = breadcrumbs.length - 1;
 
   return (
     <>
@@ -72,31 +98,22 @@ const Breadcrumbs = () => {
               </span>
             </li>
 
-            {groupTitle && groupTitle.toLowerCase() !== "menu" && (
-              <li className="text-primary-500">
-                <button type="button" className="capitalize">
-                  {groupTitle}
-                </button>
-                <span className="breadcrumbs-icon rtl:transform rtl:rotate-180">
-                  <Icon icon="heroicons:chevron-right" />
-                </span>
+            {breadcrumbs.map((crumb, index) => (
+              <li key={index} className={index === lastIndex ? "text-slate-500 dark:text-slate-400" : "text-primary-500"}>
+                {index !== lastIndex ? (
+                  <NavLink to={crumb.link} className="capitalize">
+                    {crumb.title}
+                  </NavLink>
+                ) : (
+                  <span className="capitalize">{crumb.title}</span>
+                )}
+                {index !== lastIndex && (
+                  <span className="breadcrumbs-icon rtl:transform rtl:rotate-180">
+                    <Icon icon="heroicons:chevron-right" />
+                  </span>
+                )}
               </li>
-            )}
-
-            {parentPage && (
-              <li className="text-primary-500">
-                <NavLink to={parentPage.link} className="capitalize">
-                  {parentPage.title}
-                </NavLink>
-                <span className="breadcrumbs-icon rtl:transform rtl:rotate-180">
-                  <Icon icon="heroicons:chevron-right" />
-                </span>
-              </li>
-            )}
-
-            <li className="capitalize text-slate-500 dark:text-slate-400">
-              {pageTitle.replace("-", " ")}
-            </li>
+            ))}
           </ul>
         </div>
       ) : null}

@@ -1,11 +1,12 @@
-// src/pages/TaskDetailsPage.jsx
+// src/pages/app/projects/Task/TaskDetailsPage.jsx
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+// === YAHAN TABDEELI KI GAYI HAI #1 ===
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Cookies from "js-cookie";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import Swal from "sweetalert2"; // +++ ADDED: For delete confirmation
+import Swal from "sweetalert2";
 
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 
@@ -18,11 +19,15 @@ import ErrorState from "./PartialTask/ErrorState";
 import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 import AssigneeModal from "./PartialTask/AssigneeModal";
 import TaskAttachments from "./PartialTask/TaskAttachments";
-import EditTaskModal from "./PartialTask/EditTaskModal"; // +++ ADDED: Import the Edit modal
+import EditTaskModal from "./PartialTask/EditTaskModal";
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
   const navigate = useNavigate();
+
+  // === YAHAN TABDEELI KI GAYI HAI #2 ===
+  const location = useLocation();
+  const jobId = location.state?.jobId; // State se jobId haasil karein
 
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
   const [subTasks, setSubTasks] = useState([]);
@@ -47,7 +52,6 @@ const TaskDetailsPage = () => {
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [isUpdatingAssignees, setIsUpdatingAssignees] = useState(false);
 
-  // +++ ADDED: State for editing a subtask
   const [isEditSubTaskModalOpen, setIsEditSubTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
 
@@ -561,7 +565,6 @@ const TaskDetailsPage = () => {
     }
   };
 
-  // +++ ADDED: Functions to handle subtask edit modal
   const handleOpenEditSubTaskModal = (subTask) => {
     setTaskToEdit(subTask);
     setIsEditSubTaskModalOpen(true);
@@ -576,7 +579,6 @@ const TaskDetailsPage = () => {
     await fetchTaskData(false);
   };
 
-  // +++ ADDED: Function to handle subtask deletion
   const handleDeleteSubTask = async (subTaskId) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -607,7 +609,7 @@ const TaskDetailsPage = () => {
         }
 
         Swal.fire("Deleted!", "The task has been deleted.", "success");
-        await fetchTaskData(false); // Refresh the list
+        await fetchTaskData(false);
       } catch (err) {
         Swal.fire("Error!", err.message, "error");
       }
@@ -680,9 +682,10 @@ const TaskDetailsPage = () => {
                 isEditable={canEditTaskDetails}
               />
             </div>
-            {/* +++ MODIFIED: Pass new handlers to SubTaskList +++ */}
+            {/* === YAHAN TABDEELI KI GAYI HAI #3 === */}
             <SubTaskList
               subTasks={subTasks}
+              jobId={jobId} // jobId ko prop ke tor par pass karein
               onAddSubTaskClick={
                 canManageSubtasks ? () => setIsAddSubTaskModalOpen(true) : null
               }
@@ -740,7 +743,6 @@ const TaskDetailsPage = () => {
             isUpdating={isUpdatingAssignees}
           />
         )}
-      {/* +++ ADDED: The Edit Task Modal for sub-tasks +++ */}
       {canManageSubtasks &&
         isEditSubTaskModalOpen &&
         taskToEdit &&

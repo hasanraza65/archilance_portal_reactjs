@@ -1298,7 +1298,7 @@ const ProjectDetailsPage = () => {
                 >
                   <div
                     className="hidden sm:grid grid-cols-12 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs sm:text-sm cursor-pointer"
-                    onClick={() => navigate(`/project/${task.id}`)}
+                   onClick={() => navigate(`/project/${task.id}`, { state: { jobId: id } })}
                   >
                     <div className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center">
                       <span className="text-slate-900 dark:text-slate-100 truncate">

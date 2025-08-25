@@ -1,4 +1,4 @@
-// src/components/TaskDetails/SubTaskList.jsx
+// src/pages/app/projects/Task/PartialTask/SubTaskList.jsx
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,9 +8,10 @@ import {
   getStatusClass,
 } from "./taskDetailsUtils";
 
-// +++ MODIFIED: Receive new props for edit and delete actions
+// === YAHAN TABDEELI KI GAYI HAI #1: 'jobId' ko props mein receive karein ===
 const SubTaskList = ({
   subTasks,
+  jobId, // jobId yahan receive kiya gaya hai
   onAddSubTaskClick,
   onEditSubTask,
   onDeleteSubTask,
@@ -61,13 +62,18 @@ const SubTaskList = ({
             return (
               <div
                 key={subTask.id || `subtask-${index}`}
-                className="p-6 hover:bg-slate-50/70 transition-colors group" // Added 'group' for hover effects on actions
+                className="p-6 hover:bg-slate-50/70 transition-colors group"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
+                    {/* === YAHAN TABDEELI KI GAYI HAI #2: 'jobId' ko navigate ke state mein pass karein === */}
                     <h3
                       className="text-lg font-semibold text-slate-800 mb-2 hover:text-blue-600 cursor-pointer"
-                      onClick={() => navigate(`/project/${subTask.id}`)}
+                      onClick={() =>
+                        navigate(`/project/${subTask.id}`, {
+                          state: { jobId: jobId },
+                        })
+                      }
                     >
                       {subTask.task_title || "Untitled Task"}
                     </h3>
@@ -155,7 +161,6 @@ const SubTaskList = ({
                         </svg>
                       </div>
                     )}
-                    {/* +++ ADDED: Action buttons for Edit and Delete +++ */}
                     {isEditable && (
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
