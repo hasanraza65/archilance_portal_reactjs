@@ -82,14 +82,14 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:user",
     link: "employees",
-    allowedRoles: ["admin", "manager", "outsource"],
+    allowedRoles: ["admin", "manager", ],
   },
   {
     title: "Customers",
     isHide: false,
     icon: "heroicons-outline:user",
     link: "customers",
-    allowedRoles: ["admin", "manager", "outsource"],
+    allowedRoles: ["admin", "manager", ],
   },
   {
     title: "Work Session",

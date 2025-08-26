@@ -36,7 +36,7 @@ export const canManageEmployees = () => {
     return true;
   }
 
-  if (role === 'manager' || role === 'outsource') {
+  if (role === 'manager' ) {
     return true;
   }
 

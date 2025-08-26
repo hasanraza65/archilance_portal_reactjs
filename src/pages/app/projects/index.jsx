@@ -210,7 +210,7 @@ const ProjectPostPage = () => {
         </h4>
         
         {activeTab === "projects" &&
-          (employeeType === "Manager" || (uiRole !== "employee" && uiRole !== "customer")) && (
+          (employeeType === "Manager" || (uiRole !== "employee" && uiRole !== "customer" && uiRole !== "outsource")) && (
             <Button
               icon="heroicons-outline:plus"
               text="Add Job"
