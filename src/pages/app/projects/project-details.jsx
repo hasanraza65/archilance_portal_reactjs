@@ -10,8 +10,9 @@ import EditBriefModal from "./Brief-task/EditBriefModel";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import DOMPurify from "dompurify";
-import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
-import { useSelector, useDispatch } from "react-redux"; // useSelector import kiya gaya
+// getUserRole ko bhi import karein taake UI logic ke liye alag role istemal ho
+import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
+import { useSelector, useDispatch } from "react-redux";
 import { toggleUpdateAssigneesModal } from "./store";
 import Icon from "@/components/ui/Icon";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
@@ -30,6 +31,7 @@ import {
 
 import EditableProjectStatus from "./EditableProjectStatus";
 
+// ConversationBox Component (is mein koi change nahi hai)
 const ConversationBox = ({
   messages,
   newMessage,
@@ -291,7 +293,6 @@ const ConversationBox = ({
           </h3>
         </div>
       </div>
-
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4">
         {isLoading && (
           <div className="flex justify-center items-center h-full">
@@ -306,7 +307,6 @@ const ConversationBox = ({
             const isSentByMe = message.sender_id === currentUserId;
             const isEditing =
               editingMessage && editingMessage.id === message.id;
-
             return (
               <div
                 key={message.id}
@@ -336,7 +336,6 @@ const ConversationBox = ({
                     </div>
                   )}
                 </div>
-
                 <div
                   className={`group relative max-w-[85%] sm:max-w-md min-w-[120px] px-4 py-2 sm:px-5 sm:py-3 rounded-2xl shadow-lg ${
                     isSentByMe
@@ -403,7 +402,6 @@ const ConversationBox = ({
           })}
         <div ref={chatEndRef} />
       </div>
-
       <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-900 flex-shrink-0 space-y-3">
         {attachments.length > 0 && (
           <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -464,6 +462,7 @@ const ConversationBox = ({
     </div>
   );
 };
+// Helper Functions (in mein bhi koi change nahi hai)
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object")
     return {
@@ -571,25 +570,27 @@ const isImageFile = (fileType) => {
   return fileType.startsWith("image/");
 };
 const getApiBasePathForRole = (basePath) => {
-  const role = getApiPrefix();
+  const apiPrefix = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  if (role) {
-    return `/api/${role}${cleanBasePath}`;
+  if (apiPrefix) {
+    return `/api/${apiPrefix}${cleanBasePath}`;
   }
   return `/api/admin${cleanBasePath}`;
 };
+
+// Main Component
 const ProjectDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // === YAHAN TABDEELI KI GAYI HAI (START) ===
-  // Redux store se `updateAssigneesModal` ki state ko access karein
   const { updateAssigneesModal } = useSelector((state) => state.project);
-  // === YAHAN TABDEELI KI GAYI HAI (END) ===
 
-  const userRole = getApiPrefix();
-  const employeeType = getEmployeeType();
+  // --- YEH HAIN UPDATED VARIABLES ---
+  // Iska istemal sirf UI ki conditions (buttons dikhana/chupana) ke liye hoga
+  const currentUserRole = getUserRole();
+  // --- END OF UPDATED VARIABLES ---
+
   const token = Cookies.get("token");
 
   const [projectDetails, setProjectDetails] = useState(null);
@@ -598,7 +599,6 @@ const ProjectDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [projectFound, setProjectFound] = useState(true);
-
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
@@ -607,8 +607,11 @@ const ProjectDetailsPage = () => {
   const [briefToEdit, setBriefToEdit] = useState(null);
 
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
-  const isManagerOrAdmin = userRole === "admin" || employeeType === "Manager";
+  // isManagerOrAdmin ki condition ab currentUserRole par based hai
+  const isManagerOrAdmin =
+    currentUserRole === "admin" || currentUserRole === "manager";
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+
   const [currentUser, setCurrentUser] = useState(null);
   useEffect(() => {
     const userDataCookie = Cookies.get("user");
@@ -621,6 +624,7 @@ const ProjectDetailsPage = () => {
     }
   }, []);
   const currentUserId = currentUser ? currentUser.id : null;
+
   const [messages, setMessages] = useState([]);
   const [isMessagesLoading, setIsMessagesLoading] = useState(true);
   const [messagesError, setMessagesError] = useState(null);
@@ -629,8 +633,14 @@ const ProjectDetailsPage = () => {
   const [isSending, setIsSending] = useState(false);
 
   const fetchMessages = useCallback(async () => {
-    if ((userRole !== "admin" && userRole !== "employee") || !token || !id)
+    // Chat dekhne ki ijazat currentUserRole par based hai
+    const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
+      currentUserRole
+    );
+    if (!canViewChat || !token || !id) {
+      setIsMessagesLoading(false);
       return;
+    }
     const chatApiPath = getApiBasePathForRole("/project-chat");
     try {
       const response = await fetch(`${API_BASE_URL}${chatApiPath}/${id}`, {
@@ -648,16 +658,18 @@ const ProjectDetailsPage = () => {
     } finally {
       setIsMessagesLoading(false);
     }
-  }, [id, token, userRole, API_BASE_URL]);
+  }, [id, token, currentUserRole, API_BASE_URL]);
+
   useEffect(() => {
-    if (userRole === "admin" || userRole === "employee") {
+    const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
+      currentUserRole
+    );
+    if (canViewChat) {
       fetchMessages();
       const pollInterval = setInterval(fetchMessages, 20000);
       return () => clearInterval(pollInterval);
-    } else {
-      setIsMessagesLoading(false);
     }
-  }, [fetchMessages, userRole]);
+  }, [fetchMessages, currentUserRole]);
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
@@ -754,6 +766,7 @@ const ProjectDetailsPage = () => {
       Swal.fire("Error", `Failed to delete message: ${err.message}`, "error");
     }
   };
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
@@ -767,7 +780,6 @@ const ProjectDetailsPage = () => {
     }
     setLoading(true);
     setError(null);
-
     const token = Cookies.get("token");
     if (!token) {
       setError("Authorization token not found. Please log in.");
@@ -796,9 +808,11 @@ const ProjectDetailsPage = () => {
           setProjectFound(false);
           setError(`Project with ID ${id} not found.`);
         } else {
-          const errorData = await response.json().catch(() => ({
-            message: "Failed to parse error response from server.",
-          }));
+          const errorData = await response
+            .json()
+            .catch(() => ({
+              message: "Failed to parse error response from server.",
+            }));
           setError(
             `Error ${response.status}: ${
               errorData.message || response.statusText
@@ -850,32 +864,25 @@ const ProjectDetailsPage = () => {
     }
   }, [id, navigate]);
 
-  // === YAHAN TABDEELI KI GAYI HAI (START) ===
-  // useRef ka istemaal karke modal ki pichli state ko store karein
   const prevUpdateAssigneesModal = useRef(updateAssigneesModal);
-
   useEffect(() => {
-    // Check karein agar modal pehle khula tha (true) aur ab band ho gaya hai (false)
-    if (prevUpdateAssigneesModal.current === true && updateAssigneesModal === false) {
-      // Agar modal band hua hai, to project details ko dobara fetch karein
-      // taake updated data (jaise ke naye assignees) UI par show ho
+    if (
+      prevUpdateAssigneesModal.current === true &&
+      updateAssigneesModal === false
+    ) {
       fetchProjectAndTasks();
     }
-    // Agli render ke liye ref ki value ko update karein
     prevUpdateAssigneesModal.current = updateAssigneesModal;
-  }, [updateAssigneesModal, fetchProjectAndTasks]); // Yeh effect tab chalega jab in dependencies mein se koi change hoga
-  // === YAHAN TABDEELI KI GAYI HAI (END) ===
+  }, [updateAssigneesModal, fetchProjectAndTasks]);
 
   useEffect(() => {
     fetchProjectAndTasks();
   }, [fetchProjectAndTasks]);
 
-  const handleOpenAssigneesModal = () => {
+  const handleOpenAssigneesModal = () =>
     dispatch(
       toggleUpdateAssigneesModal({ open: true, project: projectDetails })
     );
-  };
-
   const handleOpenAddTaskModal = () => setIsAddTaskModalOpen(true);
   const handleCloseAddTaskModal = () => setIsAddTaskModalOpen(false);
   const handleTaskAdded = () => {
@@ -1023,9 +1030,11 @@ const ProjectDetailsPage = () => {
             }
           );
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({
-              message: "Server error during brief deletion.",
-            }));
+            const errorData = await response
+              .json()
+              .catch(() => ({
+                message: "Server error during brief deletion.",
+              }));
             Swal.fire(
               "Deletion Failed",
               errorData.message ||
@@ -1123,7 +1132,15 @@ const ProjectDetailsPage = () => {
   const projectHasActualDescription =
     sanitizedProjectDescription.replace(/<[^>]*>/g, "").trim().length > 0;
 
-  const canViewBriefs = userRole === "admin" || userRole === "employee";
+  // Briefs dekhne ki ijazat ab currentUserRole par based hai
+  const canViewBriefs = ["admin", "manager", "employee", "outsource"].includes(
+    currentUserRole
+  );
+
+  // Chat dekhne ki ijazat ab currentUserRole par based hai
+  const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
+    currentUserRole
+  );
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -1141,7 +1158,7 @@ const ProjectDetailsPage = () => {
             projectId={projectDetails.id}
             currentStatus={projectDetails.status}
             onStatusUpdate={fetchProjectAndTasks}
-            isEditable={userRole === "admin" || employeeType === "Manager"}
+            isEditable={isManagerOrAdmin}
             apiBaseUrl={API_BASE_URL}
             apiPath={getApiBasePathForRole("/update-project-status")}
             token={token}
@@ -1270,7 +1287,6 @@ const ProjectDetailsPage = () => {
               </button>
             </div>
           </div>
-
           <div className="hidden sm:grid grid-cols-12 bg-slate-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-300 sticky top-0 z-10">
             <div className="col-span-12 sm:col-span-4 p-3 sm:p-4">Name</div>
             <div className="col-span-12 sm:col-span-2 p-3 sm:p-4">
@@ -1283,7 +1299,6 @@ const ProjectDetailsPage = () => {
               Actions
             </div>
           </div>
-
           <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
             {tasks.map((task, index) => {
               const mappedTaskAssignees = (task.assignees || [])
@@ -1298,7 +1313,9 @@ const ProjectDetailsPage = () => {
                 >
                   <div
                     className="hidden sm:grid grid-cols-12 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs sm:text-sm cursor-pointer"
-                   onClick={() => navigate(`/project/${task.id}`, { state: { jobId: id } })}
+                    onClick={() =>
+                      navigate(`/project/${task.id}`, { state: { jobId: id } })
+                    }
                   >
                     <div className="col-span-12 sm:col-span-4 p-3 sm:p-4 flex items-center">
                       <span className="text-slate-900 dark:text-slate-100 truncate">
@@ -1392,7 +1409,7 @@ const ProjectDetailsPage = () => {
                           />
                         </svg>
                       </button>
-                      {(userRole === "admin" || userRole === "employee") && (
+                      {isManagerOrAdmin && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1417,7 +1434,6 @@ const ProjectDetailsPage = () => {
                       )}
                     </div>
                   </div>
-
                   <div
                     className="block sm:hidden p-4 cursor-pointer"
                     onClick={() => navigate(`/project/${task.id}`)}
@@ -1448,7 +1464,7 @@ const ProjectDetailsPage = () => {
                             />
                           </svg>
                         </button>
-                        {(userRole === "admin" || userRole === "employee") && (
+                        {isManagerOrAdmin && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1721,7 +1737,6 @@ const ProjectDetailsPage = () => {
                   <span>Actions</span>
                 </div>
               </div>
-
               <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
                 {briefs.map((brief, index) => (
                   <div
@@ -1924,7 +1939,6 @@ const ProjectDetailsPage = () => {
                         )}
                       </div>
                     </div>
-
                     <div
                       className={`block sm:hidden p-4 ${
                         index % 2 === 0
@@ -1938,7 +1952,6 @@ const ProjectDetailsPage = () => {
                           __html: brief.sanitized_description || "N/A",
                         }}
                       />
-
                       <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                         <div className="flex justify-between items-center mb-4">
                           <div>
@@ -2029,7 +2042,6 @@ const ProjectDetailsPage = () => {
                             )}
                           </div>
                         </div>
-
                         <div className="mt-4">
                           <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
                             ATTACHMENTS
@@ -2112,7 +2124,7 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
-      {(userRole === "admin" || userRole === "employee") && (
+      {canViewChat && (
         <div className="mt-8">
           <div className="h-[700px] relative">
             <ConversationBox

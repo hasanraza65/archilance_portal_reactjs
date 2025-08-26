@@ -186,7 +186,7 @@ function App() {
           <Route
             path="jobs/:id"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "manager","outsource"]}>
                 <ProjectDetailsPage />
               </ProtectedRoute>
             }
@@ -194,7 +194,7 @@ function App() {
           <Route
             path="/project/:taskId"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member","manager", "outsource"]}>
                 <TaskDetailsPage />
               </ProtectedRoute>
             }
@@ -202,7 +202,7 @@ function App() {
           <Route
             path="/job/:id/kanban"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee","member", "outsource"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee","member", "outsource","manager"]}>
                 <KanbanPage />
               </ProtectedRoute>
             }
@@ -210,7 +210,7 @@ function App() {
           <Route
             path="/job-brief/:briefId"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member","manager", "outsource"]}>
                 <ProjectBriefDetailPage />
               </ProtectedRoute>
             }
