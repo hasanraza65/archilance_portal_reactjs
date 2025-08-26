@@ -36,17 +36,18 @@ import stripe from "@/assets/images/e-commerce/cart-icon/stripe.png";
 import truck from "@/assets/images/e-commerce/cart-icon/truck.png";
 import vougepay from "@/assets/images/e-commerce/cart-icon/vougepay.png";
 
+// ... (saare imports waise hi rahenge)
 
 export const menuItems = [
   {
     isHeadr: true,
     title: "menu",
-    allowedRoles: ["admin", "employee", "customer","Manager"], // Sabko dikhega
+    allowedRoles: ["admin", "employee", "customer", "manager", "outsource"],
   },
   {
     title: "Dashboard",
     icon: "heroicons-outline:home",
-    allowedRoles: ["admin", "customer"], 
+    allowedRoles: ["admin", "customer"],
     child: [
       {
         childtitle: "Analytics Dashboard",
@@ -60,89 +61,87 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:document",
     link: "jobs",
-    allowedRoles: ["admin", "employee","customer","member"], 
+    allowedRoles: ["admin", "employee", "customer", "member", "outsource","manager"],
   },
   {
     title: "Chat",
     isHide: false,
     icon: "heroicons-outline:chat",
     link: "chat",
-    allowedRoles: ["admin", "employee"], 
+    allowedRoles: ["admin", "employee", "outsource","manager"],
   },
-   {
+  {
     title: "Leaves",
     isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "leaves",
-    allowedRoles: ["admin"], 
+    allowedRoles: ["admin"],
   },
   {
     title: "Employees",
     isHide: false,
     icon: "heroicons-outline:user",
     link: "employees",
-    allowedRoles: ["admin","Manager"], 
+    allowedRoles: ["admin", "manager", "outsource"],
   },
   {
     title: "Customers",
     isHide: false,
     icon: "heroicons-outline:user",
     link: "customers",
-    allowedRoles: ["admin","Manager"], 
+    allowedRoles: ["admin", "manager", "outsource"],
   },
-   {
+  {
     title: "Work Session",
     isHide: false,
     icon: "heroicons-outline:document",
     link: "work-session",
-    allowedRoles: ["employee"], 
+    allowedRoles: ["employee", "outsource","manager"],
   },
-   {
+  {
     title: "Leaves",
     isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "employeeleaves",
-    allowedRoles: ["employee"], 
+    allowedRoles: ["employee","manager","outsource"], 
   },
   {
     title: "Subscriptions",
     isHide: false,
     icon: "heroicons-outline:receipt-refund",
     link: "subscriptions",
-    allowedRoles: ["customer",], 
+    allowedRoles: ["customer"],
   },
   {
     title: "Subscription",
     isHide: false,
     icon: "heroicons-outline:receipt-refund",
     link: "subscription",
-    allowedRoles: ["admin",], 
+    allowedRoles: ["admin"],
   },
   {
     title: "Customer Team",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "team",
-    allowedRoles: ["customer",], 
+    allowedRoles: ["customer"],
   },
   {
     title: "Customer Team Access",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "teamaccess",
-    allowedRoles: ["member",], 
+    allowedRoles: ["member"],
   },
   {
     title: "Customer Team Members",
     isHide: false,
     icon: "heroicons-outline:user-group",
     link: "customerteam",
-    allowedRoles: ["admin",], 
+    allowedRoles: ["admin"],
   },
 ];
 
-
-// NOTE: Purane 'adminMenuItems' aur 'employeeMenuItems' ab yahan se hata diye gaye hain.
 
 export const topMenu = [
   {

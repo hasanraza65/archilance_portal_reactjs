@@ -2,16 +2,17 @@ import React, { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Submenu from "./Submenu";
-import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
+import { useSelector } from "react-redux"; // useSelector ka istemal karein
 
 const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [activeMultiMenu, setMultiMenu] = useState(null);
   const location = useLocation();
   const locationName = location.pathname.replace("/", "");
-  
-  const currentUserRole = getUserRole();
-  const currentUserEmployeeType = getEmployeeType();
+
+  // Redux store se user ka data hasil karein, yeh sab se behtar tareeqa hai
+  const user = useSelector((state) => state.auth.user);
+  const currentUserRole = user ? user.role : null;
 
   const toggleSubmenu = (i) => {
     if (activeSubmenu === i) {
@@ -22,19 +23,28 @@ const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
   };
   
   const filterMenuItems = (items) => {
+    // Agar user login hi nahi hai, to kuch na dikhayein
+    if (!currentUserRole) {
+      return [];
+    }
+
     return items
       .filter((item) => {
+        // Agar kisi menu item ke liye roles define nahi hain, to usay mat dikhao (security best practice)
         if (!item.allowedRoles || item.allowedRoles.length === 0) {
-          return true;
+          return false;
         }
 
-        const hasRoleAccess = item.allowedRoles.includes(currentUserRole);
-        const isManager = currentUserEmployeeType?.toLowerCase() === "manager";
-        const managerHasAccess = isManager && item.allowedRoles.map(role => role.toLowerCase()).includes("manager");
+        // --- YEH HAI NAYI, STRICT, AUR SAHI LOGIC ---
+        // item.allowedRoles ki list ko lowercase mein convert karein
+        const allowed = item.allowedRoles.map(role => role.toLowerCase());
 
-        return hasRoleAccess || managerHasAccess;
+        // Sirf yeh check karein ke kya user ka role is list mein hai
+        return allowed.includes(currentUserRole);
+        // --- END OF NEW LOGIC ---
       })
       .map((item) => {
+        // Child items ko bhi isi logic se filter karein
         if (item.child) {
           const filteredChildren = filterMenuItems(item.child);
           if (filteredChildren.length > 0) {
@@ -44,7 +54,7 @@ const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
         }
         return item;
       })
-      .filter(Boolean);
+      .filter(Boolean); // null entries ko array se hata dein
   };
 
   const filteredMenus = filterMenuItems(menus);
@@ -65,6 +75,7 @@ const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
     );
   };
 
+  // Active menu set karne ke liye useEffect
   useEffect(() => {
     let submenuIndex = null;
     let multiMenuIndex = null;
@@ -92,7 +103,7 @@ const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
 
     setActiveSubmenu(submenuIndex);
     setMultiMenu(multiMenuIndex);
-  }, [location, menus]);
+  }, [location, menus]); // `menus` ko dependency se hata sakte hain agar performance issue ho
 
   return (
     <>
@@ -105,6 +116,7 @@ const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
               ${activeSubmenu === i ? "open" : ""}
               ${locationName === item.link ? "menu-item-active" : ""}`}
           >
+            {/* ... baaki ka JSX code bilkul waisa hi rahega ... */}
             {!item.child && !item.isHeadr && (
               <NavLink className="menu-link" to={item.link} onClick={closeMobileMenu}>
                 <span className="menu-icon grow-0">

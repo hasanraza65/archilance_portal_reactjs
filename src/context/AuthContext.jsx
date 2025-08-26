@@ -17,7 +17,6 @@ const ROLE_MAP = {
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || "https://portal.archilance.net/backend/public";
 const LOGOUT_API_URL = `${BACKEND_BASE_URL}/api/logout`;
 
-
 const AuthContext = createContext({
   user: null,
   token: null,
@@ -30,10 +29,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
       const savedUser = Cookies.get("user");
-      if (savedUser) {
-        return JSON.parse(savedUser);
-      }
-      return null;
+      return savedUser ? JSON.parse(savedUser) : null;
     } catch (e) {
       console.error("Failed to parse user cookie", e);
       Cookies.remove("user");
@@ -68,21 +64,33 @@ export const AuthProvider = ({ children }) => {
   const login = (apiResponse, rememberMe = false) => {
     if (apiResponse && apiResponse.user && apiResponse.access_token) {
       const userData = apiResponse.user;
-      const userRoleString = ROLE_MAP[userData.user_role] || 'unknown';
+      let userRoleForCookie = ROLE_MAP[userData.user_role] || 'unknown';
 
-      if (userRoleString === 'unknown') {
+      if (userRoleForCookie === 'unknown') {
         toast.error(`Login failed: Unknown user role received from server (ID: ${userData.user_role}).`);
         return null;
       }
+      
+      // --- YAHAN AHEM TABDEELI KI GAYI HAI ---
+      // Agar user employee hai to check karo ke woh manager ya outsource to nahi.
+      // Yeh logic cookie mein sahi role save karega.
+      if (userRoleForCookie === 'employee' && userData.employee_type) {
+        const type = userData.employee_type.toLowerCase();
+        // Agar type 'manager' ya 'outsource' hai, to usko hi role bana do.
+        if (type === 'manager' || type === 'outsource') {
+          userRoleForCookie = type;
+        }
+      }
+      // --- END OF TABDEELI ---
 
       const userToSave = {
         id: userData.id,
         name: userData.name,
         email: userData.email,
-        role: userRoleString,
+        role: userRoleForCookie, // Yahan ab "manager" ya "outsource" save hoga.
         profile_pic: userData.profile_pic,
         is_default_pass: userData.is_default_pass,
-        employee_type: userData.employee_type,
+        employee_type: userData.employee_type, // Original type bhi save kar rahe hain
       };
 
       const cookieOptions = {
@@ -93,21 +101,19 @@ export const AuthProvider = ({ children }) => {
 
       setUser(userToSave);
       setToken(apiResponse.access_token);
-
       Cookies.set("user", JSON.stringify(userToSave), cookieOptions);
       Cookies.set("token", apiResponse.access_token, cookieOptions);
-      const fcmTokenFromFlutter = localStorage.getItem("fcm_token");
-      console.log("fcmtoken",fcmTokenFromFlutter);
-      Cookies.set("userRole", userRoleString, cookieOptions);
-
+      Cookies.set("userRole", userRoleForCookie, cookieOptions);
       dispatch(setReduxUser(userToSave));
+      
       if (Number(userData.user_role) === 5 && Number(userData.is_default_pass) === 1) {
         setIsPasswordUpdateRequired(true);
       } else {
         setIsPasswordUpdateRequired(false);
       }
 
-      if (userRoleString === 'employee' || userRoleString === 'member') {
+      // Manager aur Outsource ko bhi Jobs walay page par bhejain
+      if (['employee', 'member', 'manager', 'outsource'].includes(userRoleForCookie)) {
         navigate("/jobs", { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
@@ -125,7 +131,6 @@ export const AuthProvider = ({ children }) => {
 
     if (currentToken) {
       try {
-       
         await axios.post(
           LOGOUT_API_URL,
           {}, 
@@ -136,7 +141,6 @@ export const AuthProvider = ({ children }) => {
             },
           }
         );
-        
       } catch (error) {
         console.error("Backend logout failed, proceeding with frontend logout:", error);
         toast.error("Could not log out from the server, but you have been logged out locally.");
@@ -156,10 +160,8 @@ export const AuthProvider = ({ children }) => {
     navigate("/login");
   };
 
-
   const handlePasswordUpdateSuccess = () => {
     setIsPasswordUpdateRequired(false);
-
     if (user) {
       const updatedUser = { ...user, is_default_pass: 0 };
       setUser(updatedUser);
@@ -171,17 +173,10 @@ export const AuthProvider = ({ children }) => {
       };
       Cookies.set("user", JSON.stringify(updatedUser), cookieOptions);
     }
-
     toast.info("You can now continue using the application.");
   };
 
-  const value = {
-    user,
-    token,
-    login,
-    logout,
-    isAuthenticated: !!user && !!token,
-  };
+  const value = { user, token, login, logout, isAuthenticated: !!user && !!token };
 
   return (
     <AuthContext.Provider value={value}>
@@ -195,10 +190,8 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-
   return context;
 };

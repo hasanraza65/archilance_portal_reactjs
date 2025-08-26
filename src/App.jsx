@@ -178,7 +178,7 @@ function App() {
           <Route
             path="jobs"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource","manager"]}>
                 <ProjectPostPage />
               </ProtectedRoute>
             }
@@ -186,7 +186,7 @@ function App() {
           <Route
             path="jobs/:id"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource"]}>
                 <ProjectDetailsPage />
               </ProtectedRoute>
             }
@@ -194,7 +194,7 @@ function App() {
           <Route
             path="/project/:taskId"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource"]}>
                 <TaskDetailsPage />
               </ProtectedRoute>
             }
@@ -202,7 +202,7 @@ function App() {
           <Route
             path="/job/:id/kanban"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee","member"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee","member", "outsource"]}>
                 <KanbanPage />
               </ProtectedRoute>
             }
@@ -210,7 +210,7 @@ function App() {
           <Route
             path="/job-brief/:briefId"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource"]}>
                 <ProjectBriefDetailPage />
               </ProtectedRoute>
             }
@@ -228,7 +228,7 @@ function App() {
           <Route
             path="employees"
             element={
-              <ProtectedRoute requireManagerAccess={true}>
+              <ProtectedRoute requireManagerAccess={true} >
                 <Allemployees />
               </ProtectedRoute>
             }
@@ -269,7 +269,7 @@ function App() {
           <Route
             path="work-session"
             element={
-              <ProtectedRoute allowedRoles={["employee"]}>
+              <ProtectedRoute allowedRoles={["employee", "outsource","manager"]}>
                 <WorkSession />
               </ProtectedRoute>
             }
@@ -277,7 +277,7 @@ function App() {
           <Route
             path="employeeleaves"
             element={
-              <ProtectedRoute allowedRoles={["employee"]}>
+              <ProtectedRoute allowedRoles={["employee","manager","outsource"]}>
                 <EmployeeDashboard />
               </ProtectedRoute>
             }
@@ -376,7 +376,7 @@ function App() {
           <Route
             path="chat"
             element={
-              <ProtectedRoute allowedRoles={["admin", "employee"]}>
+              <ProtectedRoute allowedRoles={["admin", "employee", "outsource","manager"]}>
                 <ChatPage />
               </ProtectedRoute>
             }
