@@ -1,7 +1,4 @@
-// src/pages/app/projects/Task/TaskDetailsPage.jsx
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
-// === YAHAN TABDEELI KI GAYI HAI #1 ===
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Cookies from "js-cookie";
 import { ToastContainer, toast } from "react-toastify";
@@ -20,18 +17,19 @@ import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 import AssigneeModal from "./PartialTask/AssigneeModal";
 import TaskAttachments from "./PartialTask/TaskAttachments";
 import EditTaskModal from "./PartialTask/EditTaskModal";
+import TaskBriefsSection from "../TaskBrief/TaskBriefDetail";
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
   const navigate = useNavigate();
-
-  // === YAHAN TABDEELI KI GAYI HAI #2 ===
   const location = useLocation();
-  const jobId = location.state?.jobId; // State se jobId haasil karein
+  const jobId = location.state?.jobId;
 
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
   const [subTasks, setSubTasks] = useState([]);
   const [comments, setComments] = useState([]);
+  const [taskBriefs, setTaskBriefs] = useState([]);
+  
   const [nextPageUrl, setNextPageUrl] = useState(null);
   const [totalCommentsFromApi, setTotalCommentsFromApi] = useState(0);
   const [isLoadingOlderComments, setIsLoadingOlderComments] = useState(false);
@@ -51,7 +49,6 @@ const TaskDetailsPage = () => {
   const [allEmployees, setAllEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [isUpdatingAssignees, setIsUpdatingAssignees] = useState(false);
-
   const [isEditSubTaskModalOpen, setIsEditSubTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
 
@@ -68,16 +65,12 @@ const TaskDetailsPage = () => {
   const canManageAssignees = !isCustomer;
   const canManageSubtasks = !isCustomer;
   const canChangeStatus = !isCustomer;
-  const canManageComments = userRole === "admin" || userRole === "employee";
+  const canManageComments = userRole === "admin" || userRole === "employee" || userRole === "manager";
 
   const apiPrefix = getApiPrefix();
   const taskApiPath = `/api/${apiPrefix}/project-task`;
-  const commentApiPath = canManageComments
-    ? `/api/${apiPrefix}/task-comment`
-    : null;
-  const employeeListApiPath = canManageAssignees
-    ? `/api/${apiPrefix}/employee-user`
-    : null;
+  const commentApiPath = canManageComments ? `/api/${apiPrefix}/task-comment` : null;
+  const employeeListApiPath = canManageAssignees ? `/api/${apiPrefix}/employee-user` : null;
   const bulkAssignApiPath = `/api/${apiPrefix}/bulk-assign`;
 
   const getUserIdFromCookie = () => {
@@ -106,45 +99,28 @@ const TaskDetailsPage = () => {
 
   const initialFetchAndSetup = async (currentTaskId) => {
     if (!canManageComments) return;
-
     const authToken = getAuthToken();
     if (!authToken) return;
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}${commentApiPath}?task_id=${currentTaskId}&page=1`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}${commentApiPath}?task_id=${currentTaskId}&page=1`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
       if (!response.ok) throw new Error("Failed to fetch initial comments");
-
       const apiResponse = await response.json();
-      const fetchedComments =
-        apiResponse.data && Array.isArray(apiResponse.data)
-          ? apiResponse.data
-          : [];
+      const fetchedComments = apiResponse.data && Array.isArray(apiResponse.data) ? apiResponse.data : [];
       const processedComments = fetchedComments.map((comment) => ({
         ...comment,
-        comment_attachments: Array.isArray(comment.comment_attachments)
-          ? comment.comment_attachments
-          : [],
+        comment_attachments: Array.isArray(comment.comment_attachments) ? comment.comment_attachments : [],
         replies: Array.isArray(comment.replies) ? comment.replies : [],
       }));
       setComments(processedComments.reverse());
-      setNextPageUrl(
-        apiResponse.links?.next || apiResponse.next_page_url || null
-      );
-      setTotalCommentsFromApi(
-        apiResponse.meta?.total || apiResponse.total || 0
-      );
-      setAllCommentsLoaded(
-        !apiResponse.links?.next && !apiResponse.next_page_url
-      );
+      setNextPageUrl(apiResponse.links?.next || apiResponse.next_page_url || null);
+      setTotalCommentsFromApi(apiResponse.meta?.total || apiResponse.total || 0);
+      setAllCommentsLoaded(!apiResponse.links?.next && !apiResponse.next_page_url);
     } catch (err) {
       toast.error(`Failed to load comments: ${err.message}`);
     }
@@ -152,17 +128,14 @@ const TaskDetailsPage = () => {
 
   const handleLoadOlderComments = async () => {
     if (!nextPageUrl || isLoadingOlderComments || !parentTaskDetails) return;
-
     const token = getAuthToken();
     if (!token) return;
-
     setIsLoadingOlderComments(true);
     try {
       const url = new URL(nextPageUrl);
       if (!url.searchParams.has("task_id")) {
         url.searchParams.set("task_id", taskId);
       }
-
       const response = await fetch(url.toString(), {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -170,38 +143,26 @@ const TaskDetailsPage = () => {
           Accept: "application/json",
         },
       });
-
       if (!response.ok) throw new Error("Failed to fetch older comments.");
-
       const apiResponse = await response.json();
-      const fetchedComments =
-        apiResponse.data && Array.isArray(apiResponse.data)
-          ? apiResponse.data
-          : [];
+      const fetchedComments = apiResponse.data && Array.isArray(apiResponse.data) ? apiResponse.data : [];
       const processedComments = fetchedComments.map((comment) => ({
         ...comment,
-        comment_attachments: Array.isArray(comment.comment_attachments)
-          ? comment.comment_attachments
-          : [],
+        comment_attachments: Array.isArray(comment.comment_attachments) ? comment.comment_attachments : [],
         replies: Array.isArray(comment.replies) ? comment.replies : [],
       }));
       const reversedBatch = processedComments.reverse();
-
       setComments((prev) => [...reversedBatch, ...prev]);
-      setNextPageUrl(
-        apiResponse.links?.next || apiResponse.next_page_url || null
-      );
-      setAllCommentsLoaded(
-        !apiResponse.links?.next && !apiResponse.next_page_url
-      );
+      setNextPageUrl(apiResponse.links?.next || apiResponse.next_page_url || null);
+      setAllCommentsLoaded(!apiResponse.links?.next && !apiResponse.next_page_url);
     } catch (err) {
       toast.error(err.message);
     } finally {
       setIsLoadingOlderComments(false);
     }
   };
-
-  const fetchTaskData = async (showLoadingSpinner = true) => {
+  
+  const fetchTaskData = useCallback(async (showLoadingSpinner = true) => {
     if (!taskId) {
       setError("Task ID is missing from URL.");
       if (showLoadingSpinner) setLoading(false);
@@ -211,13 +172,11 @@ const TaskDetailsPage = () => {
     if (showLoadingSpinner) setLoading(true);
     setError(null);
     setTaskFound(true);
-
     const token = getAuthToken();
     if (!token) {
       if (showLoadingSpinner) setLoading(false);
       return;
     }
-
     try {
       const response = await fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, {
         method: "GET",
@@ -226,15 +185,15 @@ const TaskDetailsPage = () => {
           Accept: "application/json",
         },
       });
-
       if (!response.ok) {
         const eData = await response.json().catch(() => ({}));
         throw new Error(eData.message || `Error ${response.status}`);
       }
-
       const data = await response.json();
+      
       setParentTaskDetails(data);
       setSubTasks(data.sub_tasks || []);
+      setTaskBriefs(data.all_briefs || []);
 
       if (canManageComments) {
         await initialFetchAndSetup(taskId);
@@ -245,7 +204,7 @@ const TaskDetailsPage = () => {
     } finally {
       if (showLoadingSpinner) setLoading(false);
     }
-  };
+  }, [taskId, API_BASE_URL, taskApiPath, canManageComments, navigate]);
 
   const fetchAllEmployees = async () => {
     if (!employeeListApiPath) {
@@ -275,6 +234,10 @@ const TaskDetailsPage = () => {
       setLoadingEmployees(false);
     }
   };
+  
+  const handleBriefUpdated = useCallback(() => {
+    fetchTaskData(false);
+  }, [fetchTaskData]);
 
   useEffect(() => {
     setCurrentUserId(getUserIdFromCookie());
@@ -286,19 +249,13 @@ const TaskDetailsPage = () => {
       setError("Task ID is missing or invalid in the URL.");
       setTaskFound(false);
     }
-  }, [taskId]);
+  }, [taskId, fetchTaskData]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        priorityDropdownRef.current &&
-        !priorityDropdownRef.current.contains(event.target)
-      )
+      if (priorityDropdownRef.current && !priorityDropdownRef.current.contains(event.target))
         setIsPriorityDropdownOpen(false);
-      if (
-        statusDropdownRef.current &&
-        !statusDropdownRef.current.contains(event.target)
-      )
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target))
         setIsStatusDropdownOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -331,11 +288,8 @@ const TaskDetailsPage = () => {
         body: JSON.stringify(payload),
       });
       const responseData = await response.json();
-      if (!response.ok)
-        throw new Error(responseData.message || "Failed to update the task.");
-      toast.success(
-        `Project ${fieldName.replace(/_/g, " ")} updated successfully!`
-      );
+      if (!response.ok) throw new Error(responseData.message || "Failed to update the task.");
+      toast.success(`Task ${fieldName.replace(/_/g, " ")} updated successfully!`);
       await fetchTaskData(false);
       if (fieldName === "priority") setIsPriorityDropdownOpen(false);
       if (fieldName === "status") setIsStatusDropdownOpen(false);
@@ -346,26 +300,18 @@ const TaskDetailsPage = () => {
     }
   };
 
-  const handleUpdateTaskAssignees = async (
-    currentTaskId,
-    selectedEmployeeIdsArray
-  ) => {
+  const handleUpdateTaskAssignees = async (currentTaskId, selectedEmployeeIdsArray) => {
     if (!currentTaskId || isUpdatingAssignees) return;
     const token = getAuthToken();
     if (!token) return;
-
     setIsUpdatingAssignees(true);
     const formData = new FormData();
     formData.append("task_id", String(currentTaskId));
-
     if (selectedEmployeeIdsArray.length > 0) {
-      selectedEmployeeIdsArray.forEach((id) =>
-        formData.append("employee_ids[]", String(id))
-      );
+      selectedEmployeeIdsArray.forEach((id) => formData.append("employee_ids[]", String(id)));
     } else {
       formData.append("employee_ids[]", "");
     }
-
     try {
       const response = await fetch(`${API_BASE_URL}${bulkAssignApiPath}`, {
         method: "POST",
@@ -377,8 +323,7 @@ const TaskDetailsPage = () => {
       });
       const responseData = await response.json().catch(() => ({}));
       if (!response.ok) {
-        let errorMessage =
-          responseData.message || "Failed to update assignees.";
+        let errorMessage = responseData.message || "Failed to update assignees.";
         if (response.status === 422 && responseData.errors) {
           errorMessage = Object.values(responseData.errors).flat().join(" ");
         }
@@ -402,28 +347,20 @@ const TaskDetailsPage = () => {
       setIsSubmittingComment(false);
       return false;
     }
-
     try {
       const response = await fetch(`${API_BASE_URL}${commentApiPath}`, {
         method: "POST",
-        headers: isFormData
-          ? { Authorization: `Bearer ${token}`, Accept: "application/json" }
-          : {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-              "Content-Type": "application/json",
-            },
+        headers: isFormData ? { Authorization: `Bearer ${token}`, Accept: "application/json" } : {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
         body: isFormData ? payload : JSON.stringify(payload),
       });
-
       const responseData = await response.json();
       if (!response.ok) {
-        throw new Error(
-          responseData.message ||
-            `Failed to post comment (status ${response.status})`
-        );
+        throw new Error(responseData.message || `Failed to post comment (status ${response.status})`);
       }
-
       await initialFetchAndSetup(taskId);
       setNewComment("");
       toast.success(responseData.message || "Comment posted!");
@@ -441,28 +378,19 @@ const TaskDetailsPage = () => {
     setCommentError(null);
     const token = getAuthToken();
     if (!token) return false;
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}${commentApiPath}/${commentId}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-          body: formData,
-        }
-      );
-
+      const response = await fetch(`${API_BASE_URL}${commentApiPath}/${commentId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: formData,
+      });
       const responseData = await response.json();
       if (!response.ok) {
-        throw new Error(
-          responseData.message ||
-            `Failed to update comment (status ${response.status})`
-        );
+        throw new Error(responseData.message || `Failed to update comment (status ${response.status})`);
       }
-
       await initialFetchAndSetup(taskId);
       toast.success("Comment updated successfully!");
       return true;
@@ -477,27 +405,18 @@ const TaskDetailsPage = () => {
     setCommentError(null);
     const token = getAuthToken();
     if (!token) return false;
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}${commentApiPath}/${commentId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
-
+      const response = await fetch(`${API_BASE_URL}${commentApiPath}/${commentId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
       if (response.status !== 200 && response.status !== 204) {
         const responseData = await response.json().catch(() => ({}));
-        throw new Error(
-          responseData.message ||
-            `Failed to delete comment (status ${response.status})`
-        );
+        throw new Error(responseData.message || `Failed to delete comment (status ${response.status})`);
       }
-
       await initialFetchAndSetup(taskId);
       return true;
     } catch (err) {
@@ -510,53 +429,29 @@ const TaskDetailsPage = () => {
   const onLoadRepliesForComment = async (parentCommentId) => {
     const token = getAuthToken();
     if (!token) return;
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}${commentApiPath}/${parentCommentId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
-
+      const response = await fetch(`${API_BASE_URL}${commentApiPath}/${parentCommentId}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message ||
-            `Error ${response.status}: Could not load replies.`
-        );
+        throw new Error(errorData.message || `Error ${response.status}: Could not load replies.`);
       }
-
       const fetchedParentCommentData = await response.json();
-      const parentCommentDetail =
-        fetchedParentCommentData.data || fetchedParentCommentData;
-      const newReplies = Array.isArray(parentCommentDetail.replies)
-        ? parentCommentDetail.replies
-        : [];
-
+      const parentCommentDetail = fetchedParentCommentData.data || fetchedParentCommentData;
+      const newReplies = Array.isArray(parentCommentDetail.replies) ? parentCommentDetail.replies : [];
       if (newReplies.length > 0) {
         setComments((prevComments) => {
           const existingCommentIds = new Set(prevComments.map((c) => c.id));
-          const uniqueNewReplies = newReplies.filter(
-            (reply) => !existingCommentIds.has(reply.id)
-          );
-
+          const uniqueNewReplies = newReplies.filter((reply) => !existingCommentIds.has(reply.id));
           let combinedComments = [...prevComments, ...uniqueNewReplies];
-
           const updatedComments = combinedComments.map((c) => {
             if (c.id === parentCommentId) {
-              return {
-                ...c,
-                replies_count: parentCommentDetail.replies.length,
-              };
+              return { ...c, replies_count: parentCommentDetail.replies.length };
             }
             return c;
           });
-
           return updatedComments;
         });
       }
@@ -569,10 +464,12 @@ const TaskDetailsPage = () => {
     setTaskToEdit(subTask);
     setIsEditSubTaskModalOpen(true);
   };
+
   const handleCloseEditSubTaskModal = () => {
     setTaskToEdit(null);
     setIsEditSubTaskModalOpen(false);
   };
+
   const handleSubTaskUpdated = async () => {
     handleCloseEditSubTaskModal();
     toast.success("Task updated successfully!");
@@ -589,25 +486,18 @@ const TaskDetailsPage = () => {
       cancelButtonColor: "#d33",
       confirmButtonText: "Yes, delete it!",
     });
-
     if (result.isConfirmed) {
       const token = getAuthToken();
       if (!token) return;
-
       try {
         const response = await fetch(`${API_BASE_URL}${taskApiPath}/${subTaskId}`, {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         });
-
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || "Failed to delete the task.");
         }
-
         Swal.fire("Deleted!", "The task has been deleted.", "success");
         await fetchTaskData(false);
       } catch (err) {
@@ -618,34 +508,16 @@ const TaskDetailsPage = () => {
 
   if (loading) return <LoadingState />;
   if (error || !taskFound || !parentTaskDetails)
-    return (
-      <ErrorState
-        title={!taskFound ? "Task Not Found" : "Error"}
-        message={error}
-      />
-    );
+    return <ErrorState title={!taskFound ? "Task Not Found" : "Error"} message={error} />;
 
   const currentAssignees = parentTaskDetails.assignees || [];
-  const currentAssigneeUserIds = currentAssignees
-    .map((a) => a?.user?.id)
-    .filter((id) => id != null);
-
-  const gridLayoutClass = canManageComments
-    ? "grid lg:grid-cols-3 gap-6"
-    : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
-
-  const mainContentClass = canManageComments
-    ? "lg:col-span-2 space-y-6"
-    : "space-y-6";
+  const currentAssigneeUserIds = currentAssignees.map((a) => a?.user?.id).filter((id) => id != null);
+  const gridLayoutClass = canManageComments ? "grid lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
+  const mainContentClass = canManageComments ? "lg:col-span-2 space-y-6" : "space-y-6";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100">
-      <ToastContainer
-        {...toastContainerStyle}
-        position="top-right"
-        autoClose={3000}
-        theme="colored"
-      />
+      <ToastContainer {...toastContainerStyle} position="top-right" autoClose={3000} theme="colored" />
       <div className="container mx-auto px-4 py-6">
         <div className={gridLayoutClass}>
           <div className={mainContentClass}>
@@ -665,39 +537,42 @@ const TaskDetailsPage = () => {
                 priority={parentTaskDetails.priority}
                 dueDate={parentTaskDetails.due_date}
                 currentAssignees={currentAssignees}
-                onOpenAssigneeModal={
-                  canManageAssignees ? () => setIsAssigneeModalOpen(true) : null
-                }
+                onOpenAssigneeModal={canManageAssignees ? () => setIsAssigneeModalOpen(true) : null}
                 isPriorityDropdownOpen={isPriorityDropdownOpen}
                 setIsPriorityDropdownOpen={setIsPriorityDropdownOpen}
                 priorityDropdownRef={priorityDropdownRef}
                 handleUpdateTaskField={handleUpdateTaskField}
                 onDescriptionUpdate={
                   canEditTaskDetails
-                    ? (newDescription) =>
-                        handleUpdateTaskField("description", newDescription)
+                    ? (newDescription) => handleUpdateTaskField("description", newDescription)
                     : null
                 }
                 isUpdatingField={isUpdatingField}
                 isEditable={canEditTaskDetails}
               />
             </div>
-            {/* === YAHAN TABDEELI KI GAYI HAI #3 === */}
+            
+            <TaskBriefsSection 
+                briefs={taskBriefs} 
+                taskId={taskId} 
+                onBriefsUpdated={handleBriefUpdated} 
+            />
+
             <SubTaskList
               subTasks={subTasks}
-              jobId={jobId} // jobId ko prop ke tor par pass karein
-              onAddSubTaskClick={
-                canManageSubtasks ? () => setIsAddSubTaskModalOpen(true) : null
-              }
+              jobId={jobId}
+              onAddSubTaskClick={canManageSubtasks ? () => setIsAddSubTaskModalOpen(true) : null}
               onEditSubTask={handleOpenEditSubTaskModal}
               onDeleteSubTask={handleDeleteSubTask}
               isEditable={canManageSubtasks}
             />
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
           </div>
-
-          {canManageComments && (
-            <div className="lg:col-span-1">
+          
+          {/* === YAHAN AHEM TABDEELI KI GAYI HAI === */}
+          {/* Ab yeh div hamesha render hoga taake state barqarar rahe */}
+          <div className="lg:col-span-1">
+            {canManageComments && (
               <CommentList
                 comments={comments}
                 newComment={newComment}
@@ -715,8 +590,8 @@ const TaskDetailsPage = () => {
                 totalCommentsFromApi={totalCommentsFromApi}
                 onLoadRepliesForComment={onLoadRepliesForComment}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -729,32 +604,26 @@ const TaskDetailsPage = () => {
           onSubTaskAdded={async () => await fetchTaskData(false)}
         />
       )}
-      {canManageAssignees &&
-        isAssigneeModalOpen &&
-        parentTaskDetails &&
-        !loadingEmployees && (
-          <AssigneeModal
-            isOpen={isAssigneeModalOpen}
-            onClose={() => setIsAssigneeModalOpen(false)}
-            allEmployees={allEmployees}
-            currentAssigneeIds={currentAssigneeUserIds}
-            onSaveAssignees={handleUpdateTaskAssignees}
-            taskId={parentTaskDetails.id}
-            isUpdating={isUpdatingAssignees}
-          />
-        )}
-      {canManageSubtasks &&
-        isEditSubTaskModalOpen &&
-        taskToEdit &&
-        parentTaskDetails && (
-          <EditTaskModal
-            isOpen={isEditSubTaskModalOpen}
-            onClose={handleCloseEditSubTaskModal}
-            onTaskUpdated={handleSubTaskUpdated}
-            taskData={taskToEdit}
-            projectId={parentTaskDetails.project_id}
-          />
-        )}
+      {canManageAssignees && isAssigneeModalOpen && parentTaskDetails && !loadingEmployees && (
+        <AssigneeModal
+          isOpen={isAssigneeModalOpen}
+          onClose={() => setIsAssigneeModalOpen(false)}
+          allEmployees={allEmployees}
+          currentAssigneeIds={currentAssigneeUserIds}
+          onSaveAssignees={handleUpdateTaskAssignees}
+          taskId={parentTaskDetails.id}
+          isUpdating={isUpdatingAssignees}
+        />
+      )}
+      {canManageSubtasks && isEditSubTaskModalOpen && taskToEdit && parentTaskDetails && (
+        <EditTaskModal
+          isOpen={isEditSubTaskModalOpen}
+          onClose={handleCloseEditSubTaskModal}
+          onTaskUpdated={handleSubTaskUpdated}
+          taskData={taskToEdit}
+          projectId={parentTaskDetails.project_id}
+        />
+      )}
     </div>
   );
 };
