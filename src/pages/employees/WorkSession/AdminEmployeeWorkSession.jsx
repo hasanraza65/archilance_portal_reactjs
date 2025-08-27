@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext"; // Ensure useAuth provides user.role
 import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
+// import { getApiPrefix } from "@/pages/utility/apiHelper"; // We will NOT use getApiPrefix from apiHelper.js directly
 
 // --- START: Helper functions and presets configuration ---
-
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
@@ -22,6 +22,7 @@ const getWeekDateRange = (date = new Date()) => {
   const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
   return [monday, sunday];
 };
+
 const getLastWeekDateRange = () => {
   const today = new Date();
   const lastWeekDate = new Date(
@@ -31,12 +32,14 @@ const getLastWeekDateRange = () => {
   );
   return getWeekDateRange(lastWeekDate);
 };
+
 const getCurrentMonthDateRange = () => {
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
   const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   return [firstDay, lastDay];
 };
+
 const getLastMonthDateRange = () => {
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -114,7 +117,8 @@ const formatDateForAPI = (date) => {
 
 const AdminEmployeeWorkSession = () => {
   const { employeeId } = useParams();
-  const { token, logout, isAuthenticated } = useAuth();
+  // Ensure that useAuth provides the 'user' object with a 'role' property
+  const { token, logout, isAuthenticated, user } = useAuth(); 
 
   // States
   const [employeeName, setEmployeeName] = useState("");
@@ -130,12 +134,30 @@ const AdminEmployeeWorkSession = () => {
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
-
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
   const [activePreset, setActivePreset] = useState("Today");
   const presetDropdownRef = useRef(null);
 
-  const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/admin`;
+  // Determine the API endpoint prefix and work session path dynamically based on the logged-in user's role
+  const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
+
+  // Derive the API prefix for routing within this component
+  // Assuming user.role can be 'admin', 'manager', 'outsource', or 'employee'
+  const endpointPrefix = 
+    user?.role === 'admin' ? 'admin' : // If user is admin, use 'admin' prefix
+    (user?.role === 'manager' || user?.role === 'outsource' || user?.role === 'employee' ? 'employee' : 'admin'); // For manager, outsource, or employee, use 'employee'. Default to 'admin' if role is unknown or not set.
+
+  // Base URL for API calls, e.g., https://portal.archilance.net/backend/public/api/admin
+  // or https://portal.archilance.net/backend/public/api/employee
+  const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
+
+  // Specific path for fetching work sessions based on the role logic provided
+  const workSessionPath = 
+    (user?.role === 'manager' || user?.role === 'outsource' || user?.role === 'employee') 
+    ? '/other-work-session' // For managers/outsource/employees, use this specific path
+    : '/work-session';       // For admin, use the general work-session path
+
+
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
   // useEffect hooks remain the same
@@ -153,9 +175,12 @@ const AdminEmployeeWorkSession = () => {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || !employeeId) return;
+    // Only proceed if authenticated and employeeId is available, and user object is loaded
+    if (!isAuthenticated || !employeeId || !user) return; 
+
     const fetchEmployeeDetails = async () => {
       try {
+        // Construct URL using the dynamically determined API_BASE_URL
         const res = await fetch(`${API_BASE_URL}/employee-user/${employeeId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -168,12 +193,14 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchEmployeeDetails();
-  }, [isAuthenticated, token, employeeId]);
+  }, [isAuthenticated, token, employeeId, API_BASE_URL, user]); // Add user to dependencies
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return; // Wait for user object to be available
+
     const fetchProjects = async () => {
       try {
+        // Construct URL using the dynamically determined API_BASE_URL
         const res = await fetch(`${API_BASE_URL}/project`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -185,10 +212,10 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchProjects();
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, API_BASE_URL, user]); // Add user to dependencies
 
   useEffect(() => {
-    if (!selectedProject) {
+    if (!selectedProject || !user) { // Wait for user object
       setTasks([]);
       setSelectedTask("");
       return;
@@ -196,6 +223,7 @@ const AdminEmployeeWorkSession = () => {
     const fetchTasksForProject = async () => {
       setTasksLoading(true);
       try {
+        // Construct URL using the dynamically determined API_BASE_URL
         const res = await fetch(`${API_BASE_URL}/project/${selectedProject}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -213,26 +241,28 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchTasksForProject();
-  }, [selectedProject, token]);
+  }, [selectedProject, token, API_BASE_URL, user]); // Add user to dependencies
 
   const fetchWorkSessions = useCallback(async () => {
-    if (!employeeId) return;
+    // Only proceed if employeeId, token, and user object are available
+    if (!employeeId || !token || !user) return; 
     setLoading(true);
     window.scrollTo(0, 0);
+
     const params = new URLSearchParams({
       page: currentPage.toString(),
       employee_id: employeeId,
     });
     if (selectedTask) params.append("task_id", selectedTask);
-    
     if (dateRange && dateRange[0])
       params.append("start_date", formatDateForAPI(dateRange[0]));
     if (dateRange && dateRange.length > 1 && dateRange[1])
       params.append("end_date", formatDateForAPI(dateRange[1]));
-    
+
     try {
+      // Construct the full API URL for work sessions using the dynamic base and path
       const response = await fetch(
-        `${API_BASE_URL}/work-session?${params.toString()}`,
+        `${API_BASE_URL}${workSessionPath}?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (response.status === 401) {
@@ -264,18 +294,21 @@ const AdminEmployeeWorkSession = () => {
     } finally {
       setLoading(false);
     }
-  }, [employeeId, currentPage, selectedTask, dateRange, token, logout]);
+  }, [employeeId, currentPage, selectedTask, dateRange, token, logout, API_BASE_URL, workSessionPath, user]); // All dynamic parts and user in dependencies
 
   useEffect(() => {
-    if (isAuthenticated) fetchWorkSessions();
-    else setLoading(false);
-  }, [fetchWorkSessions, isAuthenticated]);
-  
+    // Only fetch work sessions if authenticated and the user object is available
+    if (isAuthenticated && user) fetchWorkSessions();
+    else if (!isAuthenticated) setLoading(false);
+  }, [fetchWorkSessions, isAuthenticated, user]); // Add user to dependencies
+
   useEffect(() => {
+    // This useEffect will trigger `fetchWorkSessions` via its dependency on currentPage
+    // if currentPage changes, or directly if other filters change and currentPage is 1.
     if (currentPage !== 1) setCurrentPage(1);
-    else if (isAuthenticated) fetchWorkSessions();
-  }, [selectedTask, dateRange, selectedProject]);
-  
+    else if (isAuthenticated && user) fetchWorkSessions(); // Ensure user is available here too
+  }, [selectedTask, dateRange, selectedProject, isAuthenticated, user]); // Add user to dependencies
+
   // Handlers remain the same
   const handleResetFilters = () => {
     setSelectedProject("");
@@ -299,6 +332,7 @@ const AdminEmployeeWorkSession = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
+          // Construct URL using the dynamically determined API_BASE_URL
           const res = await fetch(`${API_BASE_URL}/work-session/${sessionId}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
@@ -317,6 +351,7 @@ const AdminEmployeeWorkSession = () => {
     if (paginationInfo?.currentPage < paginationInfo?.lastPage)
       setCurrentPage((p) => p + 1);
   };
+
   const handlePrevPage = () => {
     if (paginationInfo?.currentPage > 1) setCurrentPage((p) => p - 1);
   };
@@ -327,10 +362,12 @@ const AdminEmployeeWorkSession = () => {
     setIsPresetDropdownOpen(false);
   };
 
-  if (!isAuthenticated)
+  // Render loading state if user object is not yet available,
+  // as many parts depend on user.role
+  if (!isAuthenticated || !user)
     return (
       <div className="p-8 text-center">
-        <p>Please log in.</p>
+        <p>Loading user data or please log in...</p>
       </div>
     );
 
@@ -352,7 +389,10 @@ const AdminEmployeeWorkSession = () => {
               </div>
               {manualTotalTime !== "0h 0m" && (
                 <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                   Manual: <span className="font-semibold text-sky-700 dark:text-sky-400">({manualTotalTime})</span>
+                  Manual:{" "}
+                  <span className="font-semibold text-sky-700 dark:text-sky-400">
+                    ({manualTotalTime})
+                  </span>
                 </div>
               )}
             </div>
@@ -514,7 +554,7 @@ const AdminEmployeeWorkSession = () => {
                           ({session.total_time})
                         </span>
                       </p>
-                      {session.type === 'Manual' && (
+                      {session.type === "Manual" && (
                         <span className="px-2 py-0.5 bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 rounded-full text-xs font-medium">
                           Manual
                         </span>
