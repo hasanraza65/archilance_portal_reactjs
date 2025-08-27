@@ -59,7 +59,7 @@ const formatDateForAPI = (date) => {
 // --- END: Helper functions ---
 
 const WorkSession = () => {
-  const { token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated, user } = useAuth(); // Destructure user from useAuth
 
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
@@ -74,7 +74,6 @@ const WorkSession = () => {
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [fetchTrigger, setFetchTrigger] = useState(0);
 
-  // --- FIX: Replaced `hasSearched` with a more reliable state ---
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
@@ -82,13 +81,20 @@ const WorkSession = () => {
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // Fetching projects (jobs) - no changes here
+  // Fetching projects (jobs) - MODIFIED HERE
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return; // Ensure user is available
+
     const fetchProjects = async () => {
       setProjectsLoading(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/project`, {
+        let url = `${API_BASE_URL}/project`;
+        // Check if the user is a manager and append assigned_me=1
+        if (user.role === 'manager') {
+          url += '?assigned_me=1';
+        }
+
+        const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error(`Could not fetch jobs. Status: ${res.status}`);
@@ -102,7 +108,7 @@ const WorkSession = () => {
       }
     };
     fetchProjects();
-  }, [isAuthenticated, token, API_BASE_URL]);
+  }, [isAuthenticated, token, API_BASE_URL, user]); // Added user to dependency array
 
   // Fetching tasks for a selected project - no changes here
   useEffect(() => {
@@ -130,7 +136,6 @@ const WorkSession = () => {
     fetchTasksForProject();
   }, [selectedProject, token, API_BASE_URL]);
 
-  // --- FIX: Major change in the data fetching logic ---
   const fetchWorkSessions = useCallback(async () => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -296,7 +301,7 @@ const WorkSession = () => {
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
           Work Diary
         </h1>
-        {(!isInitialLoad || sessions.length > 0) && ( // Show totals if not initial load or if there's data
+        {(!isInitialLoad || sessions.length > 0) && (
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 mt-2 mb-6">
             <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
               Total Time: {overallTotalTime}
@@ -312,7 +317,6 @@ const WorkSession = () => {
           </div>
         )}
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
-          {/* ... Filter UI ... */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <svg
@@ -515,13 +519,13 @@ const WorkSession = () => {
                 </div>
               ))}
             </div>
-            ) : !isInitialLoad ? ( // Show "no results" only after the first search
+            ) : !isInitialLoad ? (
             <div className="text-center py-16">
               <p className="text-slate-500">
                 No work sessions found for the selected criteria.
               </p>
             </div>
-          ) : null} 
+          ) : null}
           {paginationInfo && paginationInfo.lastPage > 1 && (
              <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
               <button
