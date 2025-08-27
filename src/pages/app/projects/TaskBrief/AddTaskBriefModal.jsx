@@ -34,12 +34,15 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // === YAHAN TABDEELI KI GAYI HAI #1: Validation Schema se taskId ko hata diya gaya hai ===
-  // Ab yeh form ka hissa nahi hai, isliye yup isay validate nahi karega.
-  const FormValidationSchema = yup.object({
+  const FormValidationSchema = yup
+    .object({
       brief_description: yup.string().required("Brief description is required"),
-      brief_date: yup.date().required("Brief date is required").typeError("Invalid date format"),
-    }).required();
+      brief_date: yup
+        .date()
+        .required("Brief date is required")
+        .typeError("Invalid date format"),
+    })
+    .required();
 
   const {
     register,
@@ -51,19 +54,19 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
   } = useForm({
     resolver: yupResolver(FormValidationSchema),
     mode: "onChange",
-    // taskId ko default values se bhi hata diya gaya hai
     defaultValues: {
       brief_description: "",
       brief_date: new Date(),
     },
   });
 
-  // Quill editor ki value ko react-hook-form ke sath sync karna
   useEffect(() => {
-    setValue("brief_description", quillDescription, { shouldValidate: true, shouldDirty: true });
+    setValue("brief_description", quillDescription, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
   }, [quillDescription, setValue]);
 
-  // Modal khulne par form ko reset karna
   useEffect(() => {
     if (isOpen) {
       reset({
@@ -82,17 +85,17 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
   };
 
   const removeAttachment = (indexToRemove) => {
-    setAttachments((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setAttachments((prev) =>
+      prev.filter((_, index) => index !== indexToRemove)
+    );
   };
 
   const onSubmitForm = async (data) => {
-    // === YAHAN TABDEELI KI GAYI HAI #2: Manual check wapas daal diya gaya hai ===
-    // Form submit hone se pehle hum check kar rahe hain ke taskId prop maujood hai ya nahi.
     if (!taskId) {
       toast.error("Task ID is missing. Cannot create brief.");
       return;
     }
-    
+
     setIsSubmitting(true);
     const token = Cookies.get("token");
     if (!token) {
@@ -103,22 +106,33 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
 
     try {
       const formData = new FormData();
-      // === YAHAN TABDEELI KI GAYI HAI #3: Ab `taskId` prop se direct aa rahi hai ===
-      // Hum `data` object se nahi, balke component ke prop se `taskId` le rahe hain.
       formData.append("task_id", String(taskId));
       formData.append("brief_description", data.brief_description);
-      formData.append("brief_date", new Date(data.brief_date).toISOString().split("T")[0]);
-      
-      attachments.forEach((file) => {
-        formData.append("attachments[]", file);
-      });
-      
+      formData.append(
+        "brief_date",
+        new Date(data.brief_date).toISOString().split("T")[0]
+      );
+
+      // === YAHAN AHEM TABDEELI KI GAYI HAI ===
+      // Hum check kar rahe hain ke agar user ne attachments select ki hain, to hi unhein FormData mein add karein.
+      if (attachments.length > 0) {
+        attachments.forEach((file) => {
+          formData.append("attachments[]", file);
+        });
+      }
+
       const apiPath = getApiBasePathForRole("/task-brief");
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-        body: formData,
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+          body: formData,
+        }
+      );
 
       const responseData = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -135,7 +149,12 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
   };
 
   return (
-    <Modal title="Add New Task Brief" activeModal={isOpen} onClose={onClose} unmountOnClose>
+    <Modal
+      title="Add New Task Brief"
+      activeModal={isOpen}
+      onClose={onClose}
+      unmountOnClose
+    >
       <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
         <FormGroup label="Brief Description" error={errors.brief_description}>
           <input type="hidden" {...register("brief_description")} />
@@ -144,7 +163,9 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
             value={quillDescription}
             onChange={setQuillDescription}
             readOnly={isSubmitting}
-            className={`h-32 mb-12 ${errors.brief_description ? "ql-error border-danger-500" : ""}`}
+            className={`h-32 mb-12 ${
+              errors.brief_description ? "ql-error border-danger-500" : ""
+            }`}
             placeholder="Enter the details for the task brief..."
           />
         </FormGroup>
@@ -156,7 +177,11 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
               <Flatpickr
                 {...field}
                 className="form-control h-[48px]"
-                options={{ altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d" }}
+                options={{
+                  altInput: true,
+                  altFormat: "F j, Y",
+                  dateFormat: "Y-m-d",
+                }}
                 value={field.value}
                 onChange={(date) => field.onChange(date[0] || null)}
                 disabled={isSubmitting}
@@ -167,23 +192,54 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
         <FormGroup label="Attachments (Optional)">
           <label className="flex items-center justify-center w-full px-3 py-4 border-2 border-slate-300 border-dashed rounded-md cursor-pointer hover:bg-slate-50">
             <span>Click to upload files</span>
-            <input type="file" multiple onChange={handleFileSelect} className="hidden" disabled={isSubmitting} />
+            <input
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={isSubmitting}
+            />
           </label>
           {attachments.length > 0 && (
             <div className="space-y-1 mt-2">
-              <p className="text-xs font-medium text-slate-600">Selected files:</p>
+              <p className="text-xs font-medium text-slate-600">
+                Selected files:
+              </p>
               {attachments.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-slate-100 rounded text-xs">
-                  <span className="truncate pr-2">{file.name} ({formatFileSize(file.size)})</span>
-                  <button type="button" onClick={() => removeAttachment(index)} className="text-red-500 hover:text-red-700 font-bold" disabled={isSubmitting}>&times;</button>
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 bg-slate-100 rounded text-xs"
+                >
+                  <span className="truncate pr-2">
+                    {file.name} ({formatFileSize(file.size)})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(index)}
+                    className="text-red-500 hover:text-red-700 font-bold"
+                    disabled={isSubmitting}
+                  >
+                    &times;
+                  </button>
                 </div>
               ))}
             </div>
           )}
         </FormGroup>
         <div className="ltr:text-right rtl:text-left pt-2 space-x-2">
-          <Button text="Cancel" type="button" className="btn-outline-secondary" onClick={onClose} disabled={isSubmitting} />
-          <Button text={isSubmitting ? "Adding..." : "Add Brief"} type="submit" className="btn-dark" isLoading={isSubmitting} />
+          <Button
+            text="Cancel"
+            type="button"
+            className="btn-outline-secondary"
+            onClick={onClose}
+            disabled={isSubmitting}
+          />
+          <Button
+            text={isSubmitting ? "Adding..." : "Add Brief"}
+            type="submit"
+            className="btn-dark"
+            isLoading={isSubmitting}
+          />
         </div>
       </form>
     </Modal>
