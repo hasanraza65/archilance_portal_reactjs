@@ -5,6 +5,9 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Swal from "sweetalert2";
 
+// ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
+import { useBreadcrumbs } from "../../../../components/ui/BreadcrumbsContext"; 
+
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 
 import TaskHeader from "./PartialTask/TaskHeader";
@@ -25,7 +28,11 @@ const TaskDetailsPage = () => {
   const location = useLocation();
   const jobId = location.state?.jobId;
 
+  // ++ BREADCRUMB CONTEXT SE 'setBreadcrumbs' FUNCTION HASIL KIYA GAYA HAI ++
+  const { setBreadcrumbs } = useBreadcrumbs();
+
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
+  const [jobDetails, setJobDetails] = useState(null); // Job details ke liye nayi state
   const [subTasks, setSubTasks] = useState([]);
   const [comments, setComments] = useState([]);
   const [taskBriefs, setTaskBriefs] = useState([]);
@@ -69,6 +76,7 @@ const TaskDetailsPage = () => {
 
   const apiPrefix = getApiPrefix();
   const taskApiPath = `/api/${apiPrefix}/project-task`;
+  const jobApiPath = `/api/${apiPrefix}/project`; // Job details ke liye API path
   const commentApiPath = canManageComments ? `/api/${apiPrefix}/task-comment` : null;
   const employeeListApiPath = canManageAssignees ? `/api/${apiPrefix}/employee-user` : null;
   const bulkAssignApiPath = `/api/${apiPrefix}/bulk-assign`;
@@ -96,6 +104,85 @@ const TaskDetailsPage = () => {
     }
     return token;
   };
+
+  const fetchAllDetails = useCallback(async (showLoadingSpinner = true) => {
+    if (!taskId) {
+        setError("Task ID is missing from URL.");
+        if (showLoadingSpinner) setLoading(false);
+        setTaskFound(false);
+        return;
+    }
+    if (showLoadingSpinner) setLoading(true);
+    setError(null);
+    setTaskFound(true);
+
+    const token = getAuthToken();
+    if (!token) {
+        if (showLoadingSpinner) setLoading(false);
+        return;
+    }
+
+    try {
+        const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+        
+        // Dono API calls ko Promise.all ke zariye ek saath bheja jayega
+        const [taskResponse, jobResponse] = await Promise.all([
+            // Task (Project) details fetch karna
+            fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, { headers }),
+            // Job details fetch karna (agar jobId maujood hai to)
+            jobId ? fetch(`${API_BASE_URL}${jobApiPath}/${jobId}`, { headers }) : Promise.resolve(null)
+        ]);
+
+        if (!taskResponse.ok) {
+            const eData = await taskResponse.json().catch(() => ({}));
+            throw new Error(eData.message || `Error fetching task: ${taskResponse.status}`);
+        }
+        if (jobResponse && !jobResponse.ok) {
+            // Agar job details fetch na hon to error na dikhayein, sirf console mein warn karein
+            console.warn(`Could not fetch job details for breadcrumb: Status ${jobResponse.status}`);
+        }
+
+        const taskData = await taskResponse.json();
+        const jobData = jobResponse ? await jobResponse.json().catch(() => null) : null;
+        
+        setParentTaskDetails(taskData);
+        setJobDetails(jobData?.data || jobData); // Job data set karein
+        setSubTasks(taskData.sub_tasks || []);
+        setTaskBriefs(taskData.all_briefs || []);
+
+        if (canManageComments) {
+            await initialFetchAndSetup(taskId);
+        }
+    } catch (err) {
+        setError(err.message || "An unknown error occurred.");
+        setTaskFound(false);
+    } finally {
+        if (showLoadingSpinner) setLoading(false);
+    }
+  }, [taskId, jobId, API_BASE_URL, taskApiPath, jobApiPath, canManageComments, navigate]);
+  
+  // ++ YEH useEffect DYNAMIC BREADCRUMB SET KARNE KE LIYE HAI ++
+  useEffect(() => {
+    // Yeh effect tab chalega jab jobDetails ya parentTaskDetails update honge
+    if (jobDetails && parentTaskDetails) {
+        setBreadcrumbs([
+            { title: "Jobs", link: "/jobs" },
+            { title: jobDetails.project_name, link: `/jobs/${jobId}` },
+            { title: parentTaskDetails.task_title, link: `/project/${taskId}` }
+        ]);
+    } else if (parentTaskDetails) {
+        // Fallback agar job details load na hon
+        setBreadcrumbs([
+            { title: "Jobs", link: "/jobs" },
+            { title: parentTaskDetails.task_title, link: `/project/${taskId}` }
+        ]);
+    }
+
+    // Cleanup function: Jab component unmount ho to breadcrumbs ko saaf kar dein
+    return () => {
+        setBreadcrumbs([]);
+    };
+  }, [jobDetails, parentTaskDetails, setBreadcrumbs, jobId, taskId]);
 
   const initialFetchAndSetup = async (currentTaskId) => {
     if (!canManageComments) return;
@@ -161,50 +248,6 @@ const TaskDetailsPage = () => {
       setIsLoadingOlderComments(false);
     }
   };
-  
-  const fetchTaskData = useCallback(async (showLoadingSpinner = true) => {
-    if (!taskId) {
-      setError("Task ID is missing from URL.");
-      if (showLoadingSpinner) setLoading(false);
-      setTaskFound(false);
-      return;
-    }
-    if (showLoadingSpinner) setLoading(true);
-    setError(null);
-    setTaskFound(true);
-    const token = getAuthToken();
-    if (!token) {
-      if (showLoadingSpinner) setLoading(false);
-      return;
-    }
-    try {
-      const response = await fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
-      if (!response.ok) {
-        const eData = await response.json().catch(() => ({}));
-        throw new Error(eData.message || `Error ${response.status}`);
-      }
-      const data = await response.json();
-      
-      setParentTaskDetails(data);
-      setSubTasks(data.sub_tasks || []);
-      setTaskBriefs(data.all_briefs || []);
-
-      if (canManageComments) {
-        await initialFetchAndSetup(taskId);
-      }
-    } catch (err) {
-      setError(err.message || "An unknown error occurred.");
-      setTaskFound(false);
-    } finally {
-      if (showLoadingSpinner) setLoading(false);
-    }
-  }, [taskId, API_BASE_URL, taskApiPath, canManageComments, navigate]);
 
   const fetchAllEmployees = async () => {
     if (!employeeListApiPath) {
@@ -236,20 +279,20 @@ const TaskDetailsPage = () => {
   };
   
   const handleBriefUpdated = useCallback(() => {
-    fetchTaskData(false);
-  }, [fetchTaskData]);
+    fetchAllDetails(false);
+  }, [fetchAllDetails]);
 
   useEffect(() => {
     setCurrentUserId(getUserIdFromCookie());
     if (taskId && taskId.trim() !== "") {
-      fetchTaskData();
+      fetchAllDetails();
       fetchAllEmployees();
     } else {
       setLoading(false);
       setError("Task ID is missing or invalid in the URL.");
       setTaskFound(false);
     }
-  }, [taskId, fetchTaskData]);
+  }, [taskId, fetchAllDetails]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -290,7 +333,7 @@ const TaskDetailsPage = () => {
       const responseData = await response.json();
       if (!response.ok) throw new Error(responseData.message || "Failed to update the task.");
       toast.success(`Task ${fieldName.replace(/_/g, " ")} updated successfully!`);
-      await fetchTaskData(false);
+      await fetchAllDetails(false);
       if (fieldName === "priority") setIsPriorityDropdownOpen(false);
       if (fieldName === "status") setIsStatusDropdownOpen(false);
     } catch (err) {
@@ -330,7 +373,7 @@ const TaskDetailsPage = () => {
         throw new Error(errorMessage);
       }
       toast.success(responseData.message || "Assignees updated successfully!");
-      await fetchTaskData(false);
+      await fetchAllDetails(false);
       setIsAssigneeModalOpen(false);
     } catch (err) {
       toast.error(`Update failed: ${err.message}`);
@@ -473,7 +516,7 @@ const TaskDetailsPage = () => {
   const handleSubTaskUpdated = async () => {
     handleCloseEditSubTaskModal();
     toast.success("Task updated successfully!");
-    await fetchTaskData(false);
+    await fetchAllDetails(false);
   };
 
   const handleDeleteSubTask = async (subTaskId) => {
@@ -499,7 +542,7 @@ const TaskDetailsPage = () => {
           throw new Error(errorData.message || "Failed to delete the task.");
         }
         Swal.fire("Deleted!", "The task has been deleted.", "success");
-        await fetchTaskData(false);
+        await fetchAllDetails(false);
       } catch (err) {
         Swal.fire("Error!", err.message, "error");
       }
@@ -569,8 +612,6 @@ const TaskDetailsPage = () => {
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
           </div>
           
-          {/* === YAHAN AHEM TABDEELI KI GAYI HAI === */}
-          {/* Ab yeh div hamesha render hoga taake state barqarar rahe */}
           <div className="lg:col-span-1">
             {canManageComments && (
               <CommentList
@@ -601,7 +642,7 @@ const TaskDetailsPage = () => {
           onClose={() => setIsAddSubTaskModalOpen(false)}
           parentTaskId={taskId}
           projectId={parentTaskDetails.project_id}
-          onSubTaskAdded={async () => await fetchTaskData(false)}
+          onSubTaskAdded={async () => await fetchAllDetails(false)}
         />
       )}
       {canManageAssignees && isAssigneeModalOpen && parentTaskDetails && !loadingEmployees && (

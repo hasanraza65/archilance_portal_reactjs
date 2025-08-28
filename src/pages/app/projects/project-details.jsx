@@ -1,5 +1,3 @@
-// src/pages/projects/ProjectDetailsPage.js
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -10,7 +8,6 @@ import EditBriefModal from "./Brief-task/EditBriefModel";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import DOMPurify from "dompurify";
-// getUserRole ko bhi import karein taake UI logic ke liye alag role istemal ho
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 import { useSelector, useDispatch } from "react-redux";
 import { toggleUpdateAssigneesModal } from "./store";
@@ -28,10 +25,12 @@ import {
   XCircle,
   Undo2,
 } from "lucide-react";
-
 import EditableProjectStatus from "./EditableProjectStatus";
 
-// ConversationBox Component (is mein koi change nahi hai)
+// ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
+import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
+
+// ConversationBox Component
 const ConversationBox = ({
   messages,
   newMessage,
@@ -462,7 +461,7 @@ const ConversationBox = ({
     </div>
   );
 };
-// Helper Functions (in mein bhi koi change nahi hai)
+// Helper Functions
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object")
     return {
@@ -584,13 +583,11 @@ const ProjectDetailsPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  // ++ CONTEXT SE 'setBreadcrumbs' FUNCTION HASIL KIYA GAYA HAI ++
+  const { setBreadcrumbs } = useBreadcrumbs();
+
   const { updateAssigneesModal } = useSelector((state) => state.project);
-
-  // --- YEH HAIN UPDATED VARIABLES ---
-  // Iska istemal sirf UI ki conditions (buttons dikhana/chupana) ke liye hoga
   const currentUserRole = getUserRole();
-  // --- END OF UPDATED VARIABLES ---
-
   const token = Cookies.get("token");
 
   const [projectDetails, setProjectDetails] = useState(null);
@@ -607,9 +604,8 @@ const ProjectDetailsPage = () => {
   const [briefToEdit, setBriefToEdit] = useState(null);
 
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
-  // isManagerOrAdmin ki condition ab currentUserRole par based hai
   const isManagerOrAdmin =
-    currentUserRole === "admin" || currentUserRole === "manager";
+    currentUserRole === "admin" || currentUserRole === "manager" || currentUserRole === "employee";
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -633,7 +629,6 @@ const ProjectDetailsPage = () => {
   const [isSending, setIsSending] = useState(false);
 
   const fetchMessages = useCallback(async () => {
-    // Chat dekhne ki ijazat currentUserRole par based hai
     const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
       currentUserRole
     );
@@ -878,6 +873,22 @@ const ProjectDetailsPage = () => {
   useEffect(() => {
     fetchProjectAndTasks();
   }, [fetchProjectAndTasks]);
+
+  // ++ YEH useEffect DYNAMIC BREADCRUMB SET KARNE KE LIYE HAI ++
+  useEffect(() => {
+    // Check karein ke projectDetails ka data load ho chuka hai aur usmein naam maujood hai
+    if (projectDetails && projectDetails.project_name) {
+      setBreadcrumbs([
+        { title: "Jobs", link: "/jobs" },
+        { title: projectDetails.project_name, link: `/jobs/${id}` }, // Dynamic job ka naam
+      ]);
+    }
+
+    // Cleanup function: Jab component unmount ho to breadcrumbs ko saaf kar dein
+    return () => {
+      setBreadcrumbs([]);
+    };
+  }, [projectDetails, setBreadcrumbs, id]); // Yeh effect tab chalega jab 'projectDetails' state update hogi
 
   const handleOpenAssigneesModal = () =>
     dispatch(
@@ -1132,12 +1143,10 @@ const ProjectDetailsPage = () => {
   const projectHasActualDescription =
     sanitizedProjectDescription.replace(/<[^>]*>/g, "").trim().length > 0;
 
-  // Briefs dekhne ki ijazat ab currentUserRole par based hai
   const canViewBriefs = ["admin", "manager", "employee", "outsource"].includes(
     currentUserRole
   );
 
-  // Chat dekhne ki ijazat ab currentUserRole par based hai
   const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
     currentUserRole
   );

@@ -13,10 +13,13 @@ import AddProject from "./AddProject";
 import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// getUserRole ke saath getEmployeeType bhi import kiya gaya hai
 import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
+
+// ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
+import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
+
 const STATUS_OPTIONS = [
   "To-Do",
   "Backlog",
@@ -78,26 +81,21 @@ export const StatusFilterBar = ({
 );
 
 const ProjectPostPage = () => {
+  // ++ CONTEXT SE 'setBreadcrumbs' FUNCTION HASIL KIYA GAYA HAI ++
+  const { setBreadcrumbs } = useBreadcrumbs();
+  
   const [searchParams] = useSearchParams();
-
-  // State initialization with defaults
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem("projectPageActiveTab") || "projects");
   const [filler, setFiller] = useState(() => sessionStorage.getItem("projectView") || "grid");
   const [projectStatusFilter, setProjectStatusFilter] = useState("All");
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
-
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
-
-  // "Assigned to me" filter ke liye state (Jobs Tab)
   const [assignedToMeFilter, setAssignedToMeFilter] = useState(false);
-  
-  // +++ CHANGE #1: ADDED NEW STATE FOR THE 'PROJECTS' TAB FILTER +++
   const [taskAssignedToMeFilter, setTaskAssignedToMeFilter] = useState(false);
-
   const actualUserRole = getUserRole();
-  const employeeType = getEmployeeType(); // Employee type haasil kiya
+  const employeeType = getEmployeeType();
   const uiRole = actualUserRole === "member" ? "customer" : actualUserRole;
 
   const dispatch = useDispatch();
@@ -110,6 +108,17 @@ const ProjectPostPage = () => {
     error: projectsError,
   } = useSelector((state) => state.project);
   
+  // ++ YEH useEffect BREADCRUMB KO SET KARNE KE LIYE ADD KIYA GAYA HAI ++
+  useEffect(() => {
+    // Jab yeh page load hoga, to breadcrumb ko set karein
+    setBreadcrumbs([{ title: "Jobs", link: "/jobs" }]);
+    
+    // Jab component unmount hoga (user doosre page par chala jaye), to breadcrumb ko saaf karein
+    return () => {
+        setBreadcrumbs([]);
+    }
+  }, [setBreadcrumbs]);
+
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
     const statusFromUrl = searchParams.get("status");
@@ -374,7 +383,6 @@ const ProjectPostPage = () => {
                 </div>
               </div>
               
-              {/* +++ CHANGE #2: ADDED THE BUTTON FOR 'PROJECTS' TAB +++ */}
               <div className="flex items-center justify-end">
                 {employeeType === "Manager" && (
                   <Button
@@ -400,7 +408,6 @@ const ProjectPostPage = () => {
           </Card>
 
           <Card noBorder>
-            {/* +++ CHANGE #3: PASSED THE NEW PROP TO TaskList +++ */}
             <TaskList
               statusFilter={taskStatusFilter}
               searchQuery={taskSearchQuery}
