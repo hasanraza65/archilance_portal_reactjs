@@ -244,8 +244,8 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
               >
                 <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
               </button>
-              {(userRole === "admin" || employeeType === "Manager") && (
-                <>
+                            {/* Edit Button ki alag condition */}
+              {(userRole === "admin" || employeeType === "Manager" || userRole === "employee") && (
                   <button
                     onClick={(e) => handleEdit(projectItem, e)}
                     disabled={actionsDisabled}
@@ -254,6 +254,10 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
                   >
                     <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
                   </button>
+              )}
+
+              {/* Delete Button ki alag condition */}
+              {(userRole === "admin" || employeeType === "Manager") && (
                   <button
                     onClick={(e) => handleDelete(projectItem, e)}
                     disabled={actionsDisabled}
@@ -262,7 +266,6 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
                   >
                     <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
                   </button>
-                </>
               )}
             </div>
           );

@@ -10,12 +10,12 @@ import * as yup from "yup";
 import { toast } from "react-toastify";
 import FormGroup from "@/components/ui/FormGroup";
 import Textinput from "@/components/ui/Textinput";
-import axios from "axios";
 import Cookies from "js-cookie";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
+// Styles aur dusre components waise hi rahenge
 const selectStyles = {
   control: (base) => ({
     ...base,
@@ -49,34 +49,31 @@ const selectStyles = {
   }),
 };
 
-const OptionComponent = ({ data, ...props }) => {
-  return (
-    <components.Option {...props}>
-      <span className="flex items-center space-x-4">
-        {data.image && (
-          <div className="flex-none">
-            <div className="h-7 w-7 rounded-full">
-              <img
-                src={data.image}
-                alt=""
-                className="w-full h-full rounded-full"
-              />
-            </div>
+const OptionComponent = ({ data, ...props }) => (
+  <components.Option {...props}>
+    <span className="flex items-center space-x-4">
+      {data.image && (
+        <div className="flex-none">
+          <div className="h-7 w-7 rounded-full">
+            <img
+              src={data.image}
+              alt=""
+              className="w-full h-full rounded-full"
+            />
           </div>
-        )}
-        <span className="flex-1">{data.label}</span>
-      </span>
-    </components.Option>
-  );
-};
+        </div>
+      )}
+      <span className="flex-1">{data.label}</span>
+    </span>
+  </components.Option>
+);
+
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
-  if (role) {
-    return `/api/${role}${cleanBasePath}`;
-  }
-  return `/api/admin${cleanBasePath}`;
+  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
 };
+
 const EditProject = () => {
   const {
     editModal,
@@ -140,11 +137,8 @@ const EditProject = () => {
       setLoadingCustomers(true);
       try {
         const token = Cookies.get("token");
-        if (!token) {
-          toast.error("Authentication required to load customers.");
-          setLoadingCustomers(false);
-          return;
-        }
+        if (!token) throw new Error("Authentication required.");
+
         const apiPath = getApiBasePathForRole("/customer-user");
         const response = await fetch(
           `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
@@ -156,24 +150,19 @@ const EditProject = () => {
           }
         );
 
-        // +++ FIX: Check if the response was successful +++
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || "Failed to load customers");
         }
 
-        // +++ FIX: Correctly parse the JSON data from the response +++
         const data = await response.json();
-
         const customerOptions = data.map((customer) => ({
           value: customer.id.toString(),
           label: customer.name,
         }));
         setCustomers(customerOptions);
       } catch (error) {
-        console.error("Error fetching customers:", error);
-        // +++ FIX: Display the correct error message from the caught error object +++
-        toast.error(error.message || "An unknown error occurred while fetching customers.");
+        toast.error(error.message);
       } finally {
         setLoadingCustomers(false);
       }
@@ -183,24 +172,26 @@ const EditProject = () => {
     }
   }, [editModal]);
 
+  // +++ MUKHYA BADLAV YAHAN KIYA GAYA HAI +++
   useEffect(() => {
     if (editModal && editItem?.id) {
       setCurrentProjectId(editItem.id);
-      const effectiveEndDate = editItem.endDate || editItem.due_date;
+
       const selectedCustomer = customers.find(
         (c) => c.value === String(editItem.customer_id)
       );
 
+      // Sahi property naamo ka istemal karein
       const defaultValues = {
-        project_name: editItem.name || "",
-        project_description: editItem.des || "",
-        start_date: editItem.startDate ? new Date(editItem.startDate) : null,
-        due_date: effectiveEndDate ? new Date(effectiveEndDate) : null,
+        project_name: editItem.project_name || "", // 'name' ki jagah 'project_name' behtar hai
+        project_description: editItem.project_description || "", // 'des' ki jagah 'project_description'
+        start_date: editItem.start_date ? new Date(editItem.start_date) : null, // 'startDate' ki jagah 'start_date'
+        due_date: editItem.due_date ? new Date(editItem.due_date) : null, // 'endDate' ki jagah 'due_date'
         customer_id: selectedCustomer || null,
       };
 
       reset(defaultValues);
-      setQuillDescription(editItem.des || "");
+      setQuillDescription(editItem.project_description || ""); // 'des' ki jagah 'project_description'
     } else {
       reset({});
       setQuillDescription("");
@@ -213,7 +204,6 @@ const EditProject = () => {
     try {
       if (!currentProjectId) {
         toast.error("Job ID is missing. Cannot update.");
-        setLocalIsLoading(false);
         return;
       }
       const textContent = (data.project_description || "")
@@ -233,6 +223,7 @@ const EditProject = () => {
 
       await dispatch(saveEditedProjectAPI(payload)).unwrap();
     } catch (error) {
+      // Error toast pehle se hi thunk mein hai, yahan console log kar sakte hain
       console.error("Update failed:", error);
     } finally {
       setLocalIsLoading(false);
@@ -264,11 +255,7 @@ const EditProject = () => {
   ];
 
   return (
-    <Modal
-      title="Edit Job"
-      activeModal={editModal}
-      onClose={handleCloseModal}
-    >
+    <Modal title="Edit Job" activeModal={editModal} onClose={handleCloseModal}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Textinput
           name="project_name"
@@ -302,11 +289,6 @@ const EditProject = () => {
                 />
               )}
             />
-            {errors.start_date && (
-              <div className="mt-1 text-danger-500 text-xs">
-                {errors.start_date.message}
-              </div>
-            )}
           </FormGroup>
           <FormGroup
             label="Due Date (Optional)"
@@ -327,23 +309,10 @@ const EditProject = () => {
                     altInput: true,
                     altFormat: "F j, Y",
                     dateFormat: "Y-m-d",
-                    minDate: control._formValues.start_date
-                      ? new Date(
-                          new Date(control._formValues.start_date).getTime() +
-                            24 * 60 * 60 * 1000
-                        )
-                          .toISOString()
-                          .split("T")[0]
-                      : null,
                   }}
                 />
               )}
             />
-            {errors.due_date && (
-              <div className="mt-1 text-danger-500 text-xs">
-                {errors.due_date.message}
-              </div>
-            )}
           </FormGroup>
         </div>
         <FormGroup
@@ -374,19 +343,14 @@ const EditProject = () => {
               />
             )}
           />
-          {errors.customer_id && (
-            <div className="mt-1 text-danger-500 text-xs">
-              {errors.customer_id.message || errors.customer_id.value?.message}
-            </div>
-          )}
         </FormGroup>
-
         <FormGroup
           label="Description (Optional)"
           id="edit_project_description_quill_fg"
         >
-          <input type="hidden" {...register("project_description")} />
-          <div className="pb-10">
+          <div style={{ height: "200px" }}>
+            {" "}
+            {/* Wrapper with explicit height */}
             <ReactQuill
               theme="snow"
               value={quillDescription}
@@ -394,26 +358,18 @@ const EditProject = () => {
               modules={quillModules}
               formats={quillFormats}
               placeholder="Enter Job description..."
-              className="h-32"
+              style={{ height: "150px" }} // Quill editor height
               readOnly={localIsLoading || projectIsUpdating}
             />
           </div>
-          {errors.project_description && (
-            <div className="mt-1 text-danger-500 text-xs">
-              {errors.project_description.message}
-            </div>
-          )}
         </FormGroup>
-
-        <div className="ltr:text-right rtl:text-left pt-2">
+        <div className="ltr:text-right rtl:text-left pt-8">
           <button
             type="submit"
             className="btn btn-dark text-center"
             disabled={localIsLoading || projectIsUpdating}
           >
-            {localIsLoading || projectIsUpdating
-              ? "Updating..."
-              : "Update Job"}
+            {localIsLoading || projectIsUpdating ? "Updating..." : "Update Job"}
           </button>
         </div>
       </form>

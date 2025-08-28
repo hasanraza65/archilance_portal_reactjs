@@ -59,15 +59,15 @@ const Avatar = ({ user }) => {
 // +++ CHANGE #1: Add 'employeeType' to the component's props +++
 const ProjectGrid = ({ project, userRole, employeeType }) => {
   const {
-    id,
-    name,
-    customer,
-    des,
-    startDate,
-    endDate,
-    status,
-    project_assignees = [],
-  } = project;
+  id,
+  name,
+  customer,
+  project_description: des, 
+  start_date: startDate,    
+  due_date: endDate,        
+  status,
+  project_assignees = [],
+} = project;
   const dispatch = useDispatch();
   const { isDeleting, isUpdating } = useSelector((state) => state.project);
   const navigate = useNavigate();
@@ -166,9 +166,8 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
               <Icon icon="heroicons:eye" />
             </button>
             
-            {/* +++ CHANGE #2: Update the condition to include the Manager +++ */}
-            {(userRole === "admin" || employeeType === "Manager") && (
-              <>
+                       {/* Edit Button ki Condition */}
+            {(userRole === "admin" || employeeType === "Manager" || userRole === "employee") && (
                 <button
                   type="button"
                   title="Edit Project"
@@ -178,6 +177,10 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
                 >
                   <Icon icon="heroicons-outline:pencil-alt" />
                 </button>
+            )}
+            
+            {/* Delete Button ki Condition */}
+            {(userRole === "admin" || employeeType === "Manager") && (
                 <button
                   type="button"
                   title="Delete Project"
@@ -187,7 +190,6 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
                 >
                   <Icon icon="heroicons-outline:trash" />
                 </button>
-              </>
             )}
           </div>
         )}

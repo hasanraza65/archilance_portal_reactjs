@@ -29,7 +29,10 @@ const formatProjectFromAPI = (project) => ({
   project_description: project.project_description || "",
   start_date: project.start_date || new Date().toISOString().split("T")[0],
   due_date: project.due_date,
-  progress: typeof project.progress === "number" ? project.progress : project.project_progress || 0,
+  progress:
+    typeof project.progress === "number"
+      ? project.progress
+      : project.project_progress || 0,
   customer_id: project.customer_id || null,
   status: project.status || "ongoing",
   project_assignees: project.project_assignees || [],
@@ -89,7 +92,7 @@ export const fetchProjectsAPI = createAsyncThunk(
 
 export const addProjectAPI = createAsyncThunk(
   "project/addProject",
-  async (projectData, { dispatch, rejectWithValue }) => {
+  async (projectData, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
@@ -102,9 +105,11 @@ export const addProjectAPI = createAsyncThunk(
         },
       });
 
-      if (response.data && (response.status === 201 || response.status === 200)) {
+      if (
+        response.data &&
+        (response.status === 201 || response.status === 200)
+      ) {
         toast.success("Job added successfully!");
-        dispatch(fetchProjectsAPI());
         if (response.data.data && typeof response.data.data === "object") {
           return formatProjectFromAPI(response.data.data);
         }
@@ -127,7 +132,7 @@ export const addProjectAPI = createAsyncThunk(
 
 export const saveEditedProjectAPI = createAsyncThunk(
   "project/saveEditedProject",
-  async (projectData, { dispatch, rejectWithValue }) => {
+  async (projectData, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
@@ -146,10 +151,11 @@ export const saveEditedProjectAPI = createAsyncThunk(
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        dispatch(fetchProjectsAPI());
-        if (response.data.data && typeof response.data.data === "object") {
-          return formatProjectFromAPI(response.data.data);
+        // API response se naya, updated project return karein
+        if (response.data.project && typeof response.data.project === "object") {
+          return formatProjectFromAPI(response.data.project);
         }
+        // Fallback ke liye, agar structure alag hai
         return { id: projectData.id, ...projectData };
       } else {
         const errorMsg = response.data?.message || "Failed to update project.";
@@ -169,7 +175,7 @@ export const saveEditedProjectAPI = createAsyncThunk(
 
 export const deleteProjectAPI = createAsyncThunk(
   "project/deleteProjectAPI",
-  async (projectId, { dispatch, rejectWithValue }) => {
+  async (projectId, { rejectWithValue }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found");
@@ -184,8 +190,7 @@ export const deleteProjectAPI = createAsyncThunk(
 
       if (response.status === 200 || response.status === 204) {
         toast.success("Project deleted successfully!");
-        dispatch(fetchProjectsAPI());
-        return projectId;
+        return projectId; // Sirf ID return karein
       } else {
         const errorMsg = response.data?.message || "Failed to delete project.";
         toast.error(errorMsg);
@@ -210,12 +215,10 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
       if (!token) return rejectWithValue("Authentication token not found.");
 
       const payload = { project_id, employee_ids };
-
       const role = getApiPrefix();
       if (!role) {
         return rejectWithValue("User role could not be determined.");
       }
-
       const updatePath = `/${role}/update-project-assignees`;
 
       const response = await axios.post(`${API_ROOT}${updatePath}`, payload, {
@@ -227,8 +230,10 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
 
       return {
         projectId: project_id,
-        updatedProject: formatProjectFromAPI(response.data.data || response.data),
-        employeeIds: employee_ids
+        updatedProject: formatProjectFromAPI(
+          response.data.data || response.data
+        ),
+        employeeIds: employee_ids,
       };
     } catch (error) {
       const errorMessage =
@@ -263,11 +268,13 @@ export const updateProjectFieldAPI = createAsyncThunk(
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        return { 
-          projectId, 
-          field, 
+        return {
+          projectId,
+          field,
           value,
-          updatedProject: formatProjectFromAPI(response.data.data || response.data)
+          updatedProject: formatProjectFromAPI(
+            response.data.data || response.data
+          ),
         };
       } else {
         const errorMsg = response.data?.message || "Failed to update field.";
@@ -334,16 +341,16 @@ export const appProjectSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
         state.projects = [];
-        state.currentPage = 1;
-        state.totalPages = 1;
-        state.totalProjects = 0;
       })
       .addCase(addProjectAPI.pending, (state) => {
         state.isAdding = true;
       })
-      .addCase(addProjectAPI.fulfilled, (state) => {
+      .addCase(addProjectAPI.fulfilled, (state, action) => {
         state.isAdding = false;
         state.openProjectModal = false;
+        // Naye project ko projects array mein add karein
+        state.projects.unshift(action.payload);
+        state.totalProjects += 1;
       })
       .addCase(addProjectAPI.rejected, (state, action) => {
         state.isAdding = false;
@@ -352,9 +359,18 @@ export const appProjectSlice = createSlice({
       .addCase(saveEditedProjectAPI.pending, (state) => {
         state.isUpdating = true;
       })
-      .addCase(saveEditedProjectAPI.fulfilled, (state) => {
+      .addCase(saveEditedProjectAPI.fulfilled, (state, action) => {
         state.isUpdating = false;
         state.editModal = false;
+
+        // **FIX:** Projects array mein project ko update karein
+        const updatedProject = action.payload;
+        const projectIndex = state.projects.findIndex(
+          (p) => p.id === updatedProject.id
+        );
+        if (projectIndex !== -1) {
+          state.projects[projectIndex] = updatedProject;
+        }
       })
       .addCase(saveEditedProjectAPI.rejected, (state, action) => {
         state.isUpdating = false;
@@ -363,8 +379,14 @@ export const appProjectSlice = createSlice({
       .addCase(deleteProjectAPI.pending, (state) => {
         state.isDeleting = true;
       })
-      .addCase(deleteProjectAPI.fulfilled, (state) => {
+      .addCase(deleteProjectAPI.fulfilled, (state, action) => {
         state.isDeleting = false;
+        // **FIX:** Project ko projects array se filter karke hatayein
+        const deletedProjectId = action.payload;
+        state.projects = state.projects.filter(
+          (p) => p.id !== deletedProjectId
+        );
+        state.totalProjects -= 1;
       })
       .addCase(deleteProjectAPI.rejected, (state, action) => {
         state.isDeleting = false;
@@ -376,16 +398,15 @@ export const appProjectSlice = createSlice({
       .addCase(updateProjectAssigneesAPI.fulfilled, (state, action) => {
         state.isUpdating = false;
         state.updateAssigneesModal = false;
-        
-        // Update the specific project in the projects array
         const { projectId, updatedProject } = action.payload;
-        const projectIndex = state.projects.findIndex(p => p.id === projectId);
+        const projectIndex = state.projects.findIndex((p) => p.id === projectId);
         if (projectIndex !== -1) {
           state.projects[projectIndex] = updatedProject;
         }
-        
-        // Also update the projectToUpdateAssignees if it's the same project
-        if (state.projectToUpdateAssignees && state.projectToUpdateAssignees.id === projectId) {
+        if (
+          state.projectToUpdateAssignees &&
+          state.projectToUpdateAssignees.id === projectId
+        ) {
           state.projectToUpdateAssignees = updatedProject;
         }
       })
@@ -395,15 +416,14 @@ export const appProjectSlice = createSlice({
       })
       .addCase(updateProjectFieldAPI.fulfilled, (state, action) => {
         const { projectId, updatedProject } = action.payload;
-        
-        // Update projects array
-        const projectIndex = state.projects.findIndex(p => p.id === projectId);
+        const projectIndex = state.projects.findIndex((p) => p.id === projectId);
         if (projectIndex !== -1) {
           state.projects[projectIndex] = updatedProject;
         }
-        
-        // Update projectToUpdateAssignees if it exists
-        if (state.projectToUpdateAssignees && state.projectToUpdateAssignees.id === projectId) {
+        if (
+          state.projectToUpdateAssignees &&
+          state.projectToUpdateAssignees.id === projectId
+        ) {
           state.projectToUpdateAssignees = updatedProject;
         }
       });
