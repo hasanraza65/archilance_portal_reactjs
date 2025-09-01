@@ -50,11 +50,7 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
   const FormValidationSchema = yup.object({
     task_title: yup.string().required("Project title is required"),
     task_description: yup.string().nullable(), // Quill content, can be empty
-        // .test( // Optional: Add custom validation for Quill content if needed
-        //   'has-content',
-        //   'Description cannot be just empty tags.',
-        //   (value) => !value || value.replace(/<[^>]*>/g, '').trim().length > 0
-        // ),
+        
     due_date: yup.date().nullable().typeError("Invalid date format"),
     priority: yup.string().required("Priority is required"),
   }).required();

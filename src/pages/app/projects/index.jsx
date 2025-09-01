@@ -22,12 +22,14 @@ import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 const STATUS_OPTIONS = [
   "To-Do",
+   "On Hold", 
   "Backlog",
   "Awaiting Info",
   "In Progress",
   "In-house review",
   "Client Review",
   "Completed",
+ 
 ];
 
 export const getStatusClass = (status) => {
@@ -41,7 +43,7 @@ export const getStatusClass = (status) => {
   if (s.includes("cancel")) return "bg-red-100 text-red-800 border-red-200";
   if (s.includes("backlog"))
     return "bg-purple-100 text-purple-800 border-purple-200";
-  if (s.includes("on hold"))
+  if (s.includes("on hold"))  // This condition already exists for "on hold"
     return "bg-orange-100 text-orange-800 border-orange-200";
   if (s.includes("archived"))
     return "bg-gray-100 text-gray-800 border-gray-200";

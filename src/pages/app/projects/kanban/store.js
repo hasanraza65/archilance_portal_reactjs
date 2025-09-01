@@ -3,25 +3,32 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 
-// --- YEH HAI SAB SE ZAROORI TABDEELI ---
 // Hum apne central helper se getApiPrefix function import karenge
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
-export const STATUS_TO_COLUMN_MAP = {
+// STATUS_TO_COLUMN_MAP_HELPER ko ab initial state ke andar move kiya gaya hai
+// taake isse state ke andar se access kiya ja sake.
+// Keys wahi rakhe gaye hain jo backend se `task_status` mein aa sakte hain.
+// Names aur Colors user ki demand ke mutabiq adjust kiye gaye hain.
+export const STATUS_TO_COLUMN_MAP_HELPER = {
   Todo: { name: "To Do", color: "#4669FA", order: 1 },
-  "In Progress": { name: "In Progress", color: "#FA916B", order: 2 },
-  Completed: { name: "Completed", color: "#50C793", order: 3 },
+  Backlog: { name: "Backlog", color: "#A855F7", order: 2 }, // purple-500
+  "On Hold": { name: "On Hold", color: "#F59E0B", order: 3 }, // amber-500
+  "Awaiting Info": { name: "Awaiting Info", color: "#FACC15", order: 4 }, // yellow-400
+  "In Progress": { name: "In Progress", color: "#3B82F6", order: 5 }, // blue-500
+  "In-house review": { name: "In-house review", color: "#EC4899", order: 6 }, // pink-500
+  "Client Review": { name: "Client Review", color: "#F97316", order: 7 }, // orange-500
+  Completed: { name: "Completed", color: "#22C55E", order: 8 }, // green-500
 };
 
 export const fetchKanbanData = createAsyncThunk(
   "kanban/fetchKanbanData",
-  async (projectId, { rejectWithValue }) => {
+  async (projectId, { rejectWithValue, getState }) => {
     const token = Cookies.get("token");
     if (!token) {
       return rejectWithValue("No token found");
     }
 
-    // Naye function ka istemal karein jo hamesha sahi prefix dega
     const apiPrefix = getApiPrefix();
     if (!apiPrefix) {
       toast.error("Authentication error: Could not determine API endpoint.");
@@ -50,18 +57,21 @@ export const fetchKanbanData = createAsyncThunk(
       }
       const apiResponse = await response.json();
 
+      // STATUS_TO_COLUMN_MAP_HELPER ko state se access karein
+      const globalStatusToColumnMap = getState().kanban.STATUS_TO_COLUMN_MAP_HELPER;
+
       const columnsMap = {};
-      Object.keys(STATUS_TO_COLUMN_MAP)
+      Object.keys(globalStatusToColumnMap)
         .sort(
           (a, b) =>
-            STATUS_TO_COLUMN_MAP[a].order - STATUS_TO_COLUMN_MAP[b].order
+            globalStatusToColumnMap[a].order - globalStatusToColumnMap[b].order
         )
         .forEach((statusKey) => {
           columnsMap[statusKey] = {
             id: uuidv4(),
-            name: STATUS_TO_COLUMN_MAP[statusKey].name,
-            color: STATUS_TO_COLUMN_MAP[statusKey].color,
-            order: STATUS_TO_COLUMN_MAP[statusKey].order,
+            name: globalStatusToColumnMap[statusKey].name,
+            color: globalStatusToColumnMap[statusKey].color,
+            order: globalStatusToColumnMap[statusKey].order,
             tasks: [],
           };
         });
@@ -96,7 +106,7 @@ export const fetchKanbanData = createAsyncThunk(
             });
           } else {
             console.warn(
-              `fetchKanbanData: Status '${status}' for task ID ${task.id} ('${task.task_title}') not in STATUS_TO_COLUMN_MAP. Task not added to any column.`
+              `fetchKanbanData: Status '${status}' for task ID ${task.id} ('${task.task_title}') not in STATUS_TO_COLUMN_MAP_HELPER. Task not added to any column.`
             );
           }
         });
@@ -363,6 +373,8 @@ export const appKanbanSlice = createSlice({
     openTaskId: null,
     columns: [],
     error: null,
+    // STATUS_TO_COLUMN_MAP_HELPER ko yahan state mein daal diya gaya hai
+    STATUS_TO_COLUMN_MAP_HELPER: STATUS_TO_COLUMN_MAP_HELPER,
   },
   reducers: {
     sort: (state, action) => {
@@ -415,8 +427,8 @@ export const appKanbanSlice = createSlice({
           String(source.droppableId) !== String(destination.droppableId) &&
           removedTask.apiData
         ) {
-          const newStatusKey = Object.keys(STATUS_TO_COLUMN_MAP).find(
-            (key) => STATUS_TO_COLUMN_MAP[key].name === destColumn.name
+          const newStatusKey = Object.keys(state.STATUS_TO_COLUMN_MAP_HELPER).find(
+            (key) => state.STATUS_TO_COLUMN_MAP_HELPER[key].name === destColumn.name
           );
           if (newStatusKey) {
             const targetColIndex = state.columns.findIndex(
@@ -447,32 +459,44 @@ export const appKanbanSlice = createSlice({
     },
     addColumnBoard: (state, action) => {
       const newColumnName = action.payload.title;
-      const predefinedStatusKey = Object.keys(STATUS_TO_COLUMN_MAP).find(
+      // Find a predefined status key that matches the new column name (case-insensitive)
+      const predefinedStatusKey = Object.keys(state.STATUS_TO_COLUMN_MAP_HELPER).find(
         (key) =>
-          STATUS_TO_COLUMN_MAP[key].name.toLowerCase() ===
+          state.STATUS_TO_COLUMN_MAP_HELPER[key].name.toLowerCase() ===
           newColumnName.toLowerCase()
       );
-      let color = action.payload.color;
+      let color = action.payload.color; // User-selected color from the form
       let order =
         state.columns.length > 0
-          ? Math.max(...state.columns.map((c) => c.order)) + 1
+          ? Math.max(...state.columns.map((c) => c.order)) + 1 // Default order if not predefined
           : 1;
-      if (predefinedStatusKey && STATUS_TO_COLUMN_MAP[predefinedStatusKey]) {
-        color = STATUS_TO_COLUMN_MAP[predefinedStatusKey].color;
-        order = STATUS_TO_COLUMN_MAP[predefinedStatusKey].order;
+
+      if (predefinedStatusKey && state.STATUS_TO_COLUMN_MAP_HELPER[predefinedStatusKey]) {
+        // Agar yeh ek predefined status hai, to uska color aur order istemal karein
+        color = state.STATUS_TO_COLUMN_MAP_HELPER[predefinedStatusKey].color;
+        order = state.STATUS_TO_COLUMN_MAP_HELPER[predefinedStatusKey].order;
+
+        // Predefined column ko dobara add karne se roken
         if (
           state.columns.some(
             (col) =>
               col.name.toLowerCase() ===
-              STATUS_TO_COLUMN_MAP[predefinedStatusKey].name.toLowerCase()
+              state.STATUS_TO_COLUMN_MAP_HELPER[predefinedStatusKey].name.toLowerCase()
           )
         ) {
           toast.error(
-            `Column "${STATUS_TO_COLUMN_MAP[predefinedStatusKey].name}" already exists.`
+            `Column "${state.STATUS_TO_COLUMN_MAP_HELPER[predefinedStatusKey].name}" already exists.`
           );
           return;
         }
+      } else {
+        // Agar predefined nahin hai, to custom column name duplicates check karein
+        if (state.columns.some(col => col.name.toLowerCase() === newColumnName.toLowerCase())) {
+          toast.error(`Column "${newColumnName}" already exists.`);
+          return;
+        }
       }
+
       state.columns.push({
         id: uuidv4(),
         name: newColumnName,
@@ -480,8 +504,8 @@ export const appKanbanSlice = createSlice({
         tasks: [],
         order: order,
       });
-      state.columns.sort((a, b) => a.order - b.order);
-      toast.success("Board Added Successfully (Frontend Only)", {
+      state.columns.sort((a, b) => a.order - b.order); // Sabhi columns ko re-sort karein
+      toast.success("Board Added Successfully", {
         autoClose: 1500,
       });
     },
@@ -513,9 +537,9 @@ export const appKanbanSlice = createSlice({
       );
       if (column) {
         const taskStatusKey =
-          Object.keys(STATUS_TO_COLUMN_MAP).find(
-            (key) => STATUS_TO_COLUMN_MAP[key].name === column.name
-          ) || "Todo";
+          Object.keys(state.STATUS_TO_COLUMN_MAP_HELPER).find(
+            (key) => state.STATUS_TO_COLUMN_MAP_HELPER[key].name === column.name
+          ) || "Todo"; // Default to "Todo" if not found
         const currentProjectId = action.payload.projectId;
         if (!currentProjectId) {
           toast.error("Project ID is missing. Cannot add task.");
@@ -652,6 +676,7 @@ export const appKanbanSlice = createSlice({
             `extraReducers: Task ${backendTaskId} updated in backend, but NOT FOUND in Redux for final sync.`
           );
         }
+        toast.success(updatedTaskDataFromApi.message || "Task status updated!");
       })
       .addCase(updateTaskStatusInBackend.rejected, (state, action) => {
         console.error(
@@ -659,11 +684,13 @@ export const appKanbanSlice = createSlice({
           action.payload,
           `For Task API ID: ${action.meta.arg.taskId}`
         );
+        // Error toast already handled inside the thunk
       })
       .addCase(updateTaskOrderInBackend.fulfilled, (state, action) => {
         console.log(
           `Task order successfully updated for task ID: ${action.payload.taskId}`
         );
+        toast.success(action.payload.message || "Task order updated!");
       })
       .addCase(updateTaskOrderInBackend.rejected, (state, action) => {
         console.error(
@@ -671,6 +698,7 @@ export const appKanbanSlice = createSlice({
           action.payload,
           `For Task API ID: ${action.meta.arg.taskId}`
         );
+        // Error toast already handled inside the thunk
       })
       .addCase(deleteTaskFromBackend.fulfilled, (state, action) => {
         const { frontendTaskId } = action.payload;
@@ -680,6 +708,7 @@ export const appKanbanSlice = createSlice({
             (task) => String(task.id) !== String(frontendTaskId)
           ),
         }));
+        // Success toast for delete is inside the thunk as well.
       })
       .addCase(deleteTaskFromBackend.rejected, (state, action) => {
         console.error(
@@ -687,6 +716,7 @@ export const appKanbanSlice = createSlice({
           action.payload,
           `Frontend ID: ${action.meta.arg.frontendTaskId}`
         );
+        // Error toast for delete is inside the thunk.
       });
   },
 });

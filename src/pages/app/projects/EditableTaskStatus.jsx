@@ -9,6 +9,7 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const STATUS_OPTIONS = [
   "To-Do",
+  "On Hold",  // Added On Hold before Backlog
   "Backlog",
   "Awaiting Info",
   "In Progress",
@@ -16,8 +17,6 @@ const STATUS_OPTIONS = [
   "Client Review",
   "Completed",
 ];
-
-// --- Helper functions (getStatusClass, getStatusSelectedBarColor) remain the same ---
 
 const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
@@ -36,6 +35,8 @@ const getStatusClass = (status) => {
       return "bg-purple-100 text-purple-800 border-purple-200";
     case "to-do":
       return "bg-slate-100 text-slate-800 border-slate-200";
+    case "on hold":  // Added On Hold case
+      return "bg-amber-100 text-amber-800 border-amber-200";
     default:
       return "bg-gray-100 text-gray-800 border-gray-200";
   }
@@ -58,11 +59,12 @@ const getStatusSelectedBarColor = (status) => {
         return "bg-purple-500";
       case "to-do":
         return "bg-slate-500";
+      case "on hold":  // Added On Hold case
+        return "bg-amber-500";
       default:
         return "bg-gray-500";
     }
 };
-
 
 const EditableTaskStatus = ({
   taskId,

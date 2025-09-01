@@ -96,6 +96,8 @@ export const getStatusClass = (status) => {
   switch (s) {
     case "todo":
       return "bg-slate-100 text-slate-700 border-slate-300";
+    case "on hold": // Added On Hold case
+      return "bg-orange-100 text-orange-800 border-orange-300";
     case "backlog":
       return "bg-gray-100 text-gray-700 border-gray-300";
     case "awaiting info":
@@ -119,6 +121,8 @@ export const getStatusSelectedBarColor = (status) => {
   switch (s) {
     case "todo":
       return "bg-slate-500";
+    case "on hold": // Added On Hold case
+      return "bg-orange-500";
     case "backlog":
       return "bg-gray-500";
     case "awaiting info":
@@ -179,6 +183,8 @@ export const getCurrentPriorityDetails = (priorityValue) => {
 
 // ***** SUDHAAR: Status options ko naye workflow ke hisab se update kiya gaya hai *****
 export const statusUpdateOptions = [
+  { apiValue: "Todo", displayLabel: "To-Do" },
+  { apiValue: "On Hold", displayLabel: "On Hold" }, // Added On Hold option
   { apiValue: "Backlog", displayLabel: "Backlog" },
   { apiValue: "Awaiting Info", displayLabel: "Awaiting Info" },
   { apiValue: "In Progress", displayLabel: "In Progress" },

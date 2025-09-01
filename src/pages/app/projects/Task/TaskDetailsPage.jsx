@@ -697,9 +697,9 @@ const TaskDetailsPage = () => {
         <EditTaskModal
           isOpen={isEditMainTaskModalOpen}
           onClose={handleCloseEditMainTaskModal}
-          onTaskUpdated={handleMainTaskUpdated} // This will re-fetch all details for the main task
-          taskData={parentTaskDetails} // Pass the main task details
-          projectId={parentTaskDetails.project_id} // Project ID is needed for the API call
+          onTaskUpdated={handleMainTaskUpdated} 
+          taskData={parentTaskDetails} 
+          projectId={parentTaskDetails.project_id} 
         />
       )}
     </div>

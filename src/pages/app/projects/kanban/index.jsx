@@ -8,7 +8,6 @@ import {
   fetchKanbanData,
   updateTaskStatusInBackend,
   updateTaskOrderInBackend,
-  STATUS_TO_COLUMN_MAP,
 } from "./store";
 
 import store from "@/store/index";
@@ -20,6 +19,67 @@ import EditTaskModal from "../Task/PartialTask/EditTaskModal";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useParams } from "react-router-dom";
+
+// === User ne provide kiye hue status options aur helper functions ===
+const STATUS_OPTIONS = [
+  "To-Do",
+  "On Hold",
+  "Backlog",
+  "Awaiting Info",
+  "In Progress",
+  "In-house review",
+  "Client Review",
+  "Completed",
+];
+
+const getStatusClass = (status) => {
+  const s = String(status || "").toLowerCase();
+  switch (s) {
+    case "completed":
+      return "bg-green-100 text-green-800 border-green-200";
+    case "in progress":
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    case "awaiting info":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    case "client review":
+      return "bg-orange-100 text-orange-800 border-orange-200";
+    case "in-house review":
+      return "bg-pink-100 text-pink-800 border-pink-200";
+    case "backlog":
+      return "bg-purple-100 text-purple-800 border-purple-200";
+    case "to-do":
+      return "bg-slate-100 text-slate-800 border-slate-200";
+    case "on hold":
+      return "bg-amber-100 text-amber-800 border-amber-200";
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200";
+  }
+};
+
+const getStatusSelectedBarColor = (status) => {
+    const s = String(status || "").toLowerCase();
+    switch (s) {
+      case "completed":
+        return "bg-green-500";
+      case "in progress":
+        return "bg-blue-500";
+      case "awaiting info":
+        return "bg-yellow-500";
+      case "client review":
+        return "bg-orange-500";
+      case "in-house review":
+        return "bg-pink-500";
+      case "backlog":
+        return "bg-purple-500";
+      case "to-do":
+        return "bg-slate-500";
+      case "on hold":
+        return "bg-amber-500";
+      default:
+        return "bg-gray-500";
+    }
+};
+// === End of user-provided functions ===
 
 const KanbanPage = () => {
   const {
@@ -52,7 +112,7 @@ const KanbanPage = () => {
     ) {
       return;
     }
-    
+
     let taskBeingMovedApiData = null;
     if (type === "task") {
       const sourceColFromState = columns.find(
@@ -74,8 +134,7 @@ const KanbanPage = () => {
 
     if (type === "task" && taskBeingMovedApiData?.id) {
       const taskId = taskBeingMovedApiData.id;
-      
-      // === THE FIX IS HERE ===
+
       // The drag-and-drop library gives a 0-based index.
       // Your API likely expects a 1-based order. So, we add 1.
       const newBoardOrder = destination.index + 1;
@@ -95,16 +154,19 @@ const KanbanPage = () => {
         console.log(
           `Task ${taskId} moved to new column. Sending order: ${newBoardOrder}.`
         );
-        
+
         const latestGlobalState = store.getState();
         const destColumnDefinition = latestGlobalState.kanban?.columns?.find(
           (col) => String(col.id) === String(destination.droppableId)
         );
 
-        if (destColumnDefinition?.name) {
-          const newStatusKey = Object.keys(STATUS_TO_COLUMN_MAP).find(
+        // Ab STATUS_TO_COLUMN_MAP_HELPER ko state se access kar rahe hain
+        const globalStatusToColumnMap = latestGlobalState.kanban.STATUS_TO_COLUMN_MAP_HELPER;
+
+        if (destColumnDefinition?.name && globalStatusToColumnMap) {
+          const newStatusKey = Object.keys(globalStatusToColumnMap).find(
             (key) =>
-              STATUS_TO_COLUMN_MAP[key].name === destColumnDefinition.name
+              globalStatusToColumnMap[key].name === destColumnDefinition.name
           );
 
           if (newStatusKey) {
@@ -128,7 +190,7 @@ const KanbanPage = () => {
           }
         } else {
           console.warn(
-            `Could not find dest column definition. Dest ID: ${destination.droppableId}`
+            `Could not find dest column definition or STATUS_TO_COLUMN_MAP_HELPER. Dest ID: ${destination.droppableId}`
           );
         }
       }
@@ -234,7 +296,8 @@ const KanbanPage = () => {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="flex space-x-6 overflow-hidden overflow-x-auto pb-4 rtl:space-x-reverse"
+                  // Wrapping aur gaps ke liye classes
+                  className="flex flex-wrap gap-x-6 gap-y-6 pb-4"
                 >
                   {columns.map((column, i) => {
                     if (!column || column.id === undefined) {
@@ -255,6 +318,8 @@ const KanbanPage = () => {
                           <div
                             ref={providedDraggable.innerRef}
                             {...providedDraggable.draggableProps}
+                            // Column ke liye wrapper jo Drag Handle banega
+                            // Note: DragHandleProps ko column header par move kiya gaya hai
                           >
                             <div
                               className={`w-[320px] flex-none h-full rounded-md transition-all duration-100 ${
@@ -264,8 +329,9 @@ const KanbanPage = () => {
                               }`}
                             >
                               <div
-                                className="relative flex justify-between items-center bg-white dark:bg-slate-800 rounded-t-md shadow-sm px-6 py-5"
-                                {...providedDraggable.dragHandleProps}
+                                // Yahan 'border-b' aur uske color classes add kiye gaye hain
+                                className="relative flex justify-between items-center bg-white dark:bg-slate-800 rounded-t-md shadow-sm px-6 py-5 border-b border-slate-300 dark:border-slate-600"
+                                {...providedDraggable.dragHandleProps} // Drag handle ab header par hai
                               >
                                 <div
                                   className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full"

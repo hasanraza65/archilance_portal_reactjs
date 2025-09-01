@@ -10,7 +10,6 @@ import { toast } from "react-toastify";
 import DOMPurify from "dompurify";
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 import { useSelector, useDispatch } from "react-redux";
-// Import toggleUpdateAssigneesModal and setEditModalAndItem from the store
 import { toggleUpdateAssigneesModal, setEditModalAndItem } from "./store";
 import Icon from "@/components/ui/Icon";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
@@ -21,20 +20,17 @@ import {
   Loader,
   ImageIcon,
   FileText,
-  Edit, // <--- Import Edit icon
+  Edit, 
   Trash2,
   XCircle,
   Undo2,
 } from "lucide-react";
 import EditableProjectStatus from "./EditableProjectStatus";
 
-// Import the EditProject modal component
-import EditProject from "./EditProject"; // <--- Import EditProject
+import EditProject from "./EditProject"; 
 
-// ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
-// ConversationBox Component (unchanged, for context)
 const ConversationBox = ({
   messages,
   newMessage,
@@ -541,8 +537,12 @@ const getStatusClass = (status) => {
     case "completed":
     case "done":
       return "bg-green-100 text-green-800 border-green-200";
+    case "on hold":  // Added On Hold case
+      return "bg-orange-100 text-orange-800 border-orange-200";
+    case "backlog":  // Added Backlog case
+      return "bg-purple-100 text-purple-800 border-purple-200";
     default:
-      return `bg-yellow-100 text-yellow-800 border-yellow-200`;
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
   }
 };
 const getPriorityClass = (priority) => {

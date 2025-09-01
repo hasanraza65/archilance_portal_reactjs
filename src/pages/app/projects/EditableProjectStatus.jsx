@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { toast } from "react-toastify";
 import Icon from "@/components/ui/Icon";
 import { FiLoader } from "react-icons/fi";
+import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const STATUS_OPTIONS = [
   "To-Do",
+  "On Hold",  // Added On Hold
   "Backlog",
   "Awaiting Info",
   "In Progress",
@@ -31,6 +33,8 @@ const getStatusClass = (status) => {
       return "bg-purple-100 text-purple-800 border-purple-200";
     case "to-do":
       return "bg-slate-100 text-slate-800 border-slate-200";
+    case "on hold":  // Added On Hold case
+      return "bg-amber-100 text-amber-800 border-amber-200";
     default:
       return "bg-gray-100 text-gray-800 border-gray-200";
   }
@@ -53,18 +57,27 @@ const getStatusSelectedBarColor = (status) => {
         return "bg-purple-500";
       case "to-do":
         return "bg-slate-500";
+      case "on hold":  // Added On Hold case
+        return "bg-amber-500";
       default:
         return "bg-gray-500";
     }
 };
-
+const getApiBasePathForRole = (basePath) => {
+  const role = getApiPrefix();
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
+};
 const EditableProjectStatus = ({
   projectId,
   currentStatus,
   onStatusUpdate,
   isEditable,
-  apiBaseUrl,
-  apiPath,
+  
   token,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -127,9 +140,12 @@ const EditableProjectStatus = ({
     const formData = new FormData();
     formData.append("project_id", projectId);
     formData.append("status", newStatus);
-
+//update-project-status
     try {
-      const response = await fetch(`${apiBaseUrl}${apiPath}`, {
+      const apiBaseUrl = getApiBasePathForRole("/update-project-status");
+       const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}${apiBaseUrl}`,
+          {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         body: formData,
