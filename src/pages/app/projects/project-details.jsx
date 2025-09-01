@@ -10,7 +10,8 @@ import { toast } from "react-toastify";
 import DOMPurify from "dompurify";
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 import { useSelector, useDispatch } from "react-redux";
-import { toggleUpdateAssigneesModal } from "./store";
+// Import toggleUpdateAssigneesModal and setEditModalAndItem from the store
+import { toggleUpdateAssigneesModal, setEditModalAndItem } from "./store";
 import Icon from "@/components/ui/Icon";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import {
@@ -20,17 +21,20 @@ import {
   Loader,
   ImageIcon,
   FileText,
-  Edit,
+  Edit, // <--- Import Edit icon
   Trash2,
   XCircle,
   Undo2,
 } from "lucide-react";
 import EditableProjectStatus from "./EditableProjectStatus";
 
+// Import the EditProject modal component
+import EditProject from "./EditProject"; // <--- Import EditProject
+
 // ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
-// ConversationBox Component
+// ConversationBox Component (unchanged, for context)
 const ConversationBox = ({
   messages,
   newMessage,
@@ -461,7 +465,7 @@ const ConversationBox = ({
     </div>
   );
 };
-// Helper Functions
+// Helper Functions (unchanged, for context)
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object")
     return {
@@ -586,7 +590,10 @@ const ProjectDetailsPage = () => {
   // ++ CONTEXT SE 'setBreadcrumbs' FUNCTION HASIL KIYA GAYA HAI ++
   const { setBreadcrumbs } = useBreadcrumbs();
 
-  const { updateAssigneesModal } = useSelector((state) => state.project);
+  // Access editModal status from Redux store
+  const { updateAssigneesModal, editModal: isEditProjectModalOpen } = useSelector(
+    (state) => state.project
+  );
   const currentUserRole = getUserRole();
   const token = Cookies.get("token");
 
@@ -622,7 +629,7 @@ const ProjectDetailsPage = () => {
   const currentUserId = currentUser ? currentUser.id : null;
 
   const [messages, setMessages] = useState([]);
-  const [isMessagesLoading, setIsMessagesLoading] = useState(true);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(true); // Correct variable name
   const [messagesError, setMessagesError] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const [attachments, setAttachments] = useState([]);
@@ -860,7 +867,11 @@ const ProjectDetailsPage = () => {
   }, [id, navigate]);
 
   const prevUpdateAssigneesModal = useRef(updateAssigneesModal);
+  // Also track the edit project modal state to refetch when it closes
+  const prevEditProjectModalOpen = useRef(isEditProjectModalOpen);
+
   useEffect(() => {
+    // Refetch when assignees modal closes
     if (
       prevUpdateAssigneesModal.current === true &&
       updateAssigneesModal === false
@@ -868,7 +879,17 @@ const ProjectDetailsPage = () => {
       fetchProjectAndTasks();
     }
     prevUpdateAssigneesModal.current = updateAssigneesModal;
-  }, [updateAssigneesModal, fetchProjectAndTasks]);
+
+    // Refetch when edit project modal closes
+    if (
+      prevEditProjectModalOpen.current === true &&
+      isEditProjectModalOpen === false
+    ) {
+      fetchProjectAndTasks();
+    }
+    prevEditProjectModalOpen.current = isEditProjectModalOpen;
+  }, [updateAssigneesModal, isEditProjectModalOpen, fetchProjectAndTasks]);
+
 
   useEffect(() => {
     fetchProjectAndTasks();
@@ -889,6 +910,17 @@ const ProjectDetailsPage = () => {
       setBreadcrumbs([]);
     };
   }, [projectDetails, setBreadcrumbs, id]); // Yeh effect tab chalega jab 'projectDetails' state update hogi
+
+  // Handler to open the EditProject modal for the current project
+  const handleOpenEditProjectModal = (e) => {
+    if (e) e.stopPropagation(); // Prevent parent click handlers if any
+    if (projectDetails) {
+      dispatch(setEditModalAndItem({ open: true, project: projectDetails }));
+    } else {
+      toast.error("Job details not loaded yet.");
+    }
+  };
+
 
   const handleOpenAssigneesModal = () =>
     dispatch(
@@ -1155,13 +1187,19 @@ const ProjectDetailsPage = () => {
     <div className="container mx-auto p-4 space-y-6">
       <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-start gap-4">
-          <div>
+          <div className="flex items-center gap-2"> {/* Added flex container for Job Name and Edit icon */}
             <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">
               {projectDetails.project_name}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Job #{projectDetails.id}
-            </p>
+            {isManagerOrAdmin && (
+              <button
+                onClick={handleOpenEditProjectModal}
+                className="p-1.5 bg-gray-100 dark:bg-slate-700 rounded-full shadow-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                title="Edit Job Name"
+              >
+                <Edit size={16} className="text-gray-600 dark:text-slate-300" />
+              </button>
+            )}
           </div>
           <EditableProjectStatus
             projectId={projectDetails.id}
@@ -1173,11 +1211,17 @@ const ProjectDetailsPage = () => {
             token={token}
           />
         </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Job #{projectDetails.id}
+        </p>
 
         <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
-          <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">
-            DESCRIPTION
-          </h3>
+          <div className="flex items-center gap-2 mb-3"> {/* Added flex container for Description heading and Edit icon */}
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              DESCRIPTION
+            </h3>
+            
+          </div>
           {projectHasActualDescription ? (
             <div
               className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300"
@@ -1191,7 +1235,10 @@ const ProjectDetailsPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          <div className="bg-white/50 dark:bg-slate-700/50 p-4 rounded-xl">
+          <div
+            className="bg-white/50 dark:bg-slate-700/50 p-4 rounded-xl relative group cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition" // Added group for hover effect
+            onClick={handleOpenEditProjectModal} // Open modal on clicking this entire card
+          >
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               DUE DATE
             </p>
@@ -1209,6 +1256,7 @@ const ProjectDetailsPage = () => {
                   : "Not Set"}
               </p>
             </div>
+          
           </div>
           <div
             className="bg-white/50 dark:bg-slate-700/50 p-4 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition"
@@ -2146,7 +2194,7 @@ const ProjectDetailsPage = () => {
               onUpdateMessage={handleUpdateMessage}
               onDeleteMessage={handleDeleteMessage}
               isSending={isSending}
-              isLoading={isMessagesLoading}
+              isLoading={isMessagesLoading} 
               error={messagesError}
               currentUserId={currentUserId}
               apiBaseUrl={API_BASE_URL}
@@ -2187,6 +2235,8 @@ const ProjectDetailsPage = () => {
         />
       )}
       <UpdateAssigneesModal showUpdateButton={false} />
+      {/* Render the EditProject modal here */}
+      <EditProject /> {/* <--- Make sure this line is present */}
     </div>
   );
 };

@@ -6,7 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 import Swal from "sweetalert2";
 
 // ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
-import { useBreadcrumbs } from "../../../../components/ui/BreadcrumbsContext"; 
+import { useBreadcrumbs } from "../../../../components/ui/BreadcrumbsContext";
 
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 
@@ -19,7 +19,7 @@ import ErrorState from "./PartialTask/ErrorState";
 import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 import AssigneeModal from "./PartialTask/AssigneeModal";
 import TaskAttachments from "./PartialTask/TaskAttachments";
-import EditTaskModal from "./PartialTask/EditTaskModal";
+import EditTaskModal from "./PartialTask/EditTaskModal"; // Already imported for subtasks, will reuse for main task
 import TaskBriefsSection from "../TaskBrief/TaskBriefDetail";
 
 const TaskDetailsPage = () => {
@@ -36,7 +36,7 @@ const TaskDetailsPage = () => {
   const [subTasks, setSubTasks] = useState([]);
   const [comments, setComments] = useState([]);
   const [taskBriefs, setTaskBriefs] = useState([]);
-  
+
   const [nextPageUrl, setNextPageUrl] = useState(null);
   const [totalCommentsFromApi, setTotalCommentsFromApi] = useState(0);
   const [isLoadingOlderComments, setIsLoadingOlderComments] = useState(false);
@@ -56,8 +56,12 @@ const TaskDetailsPage = () => {
   const [allEmployees, setAllEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [isUpdatingAssignees, setIsUpdatingAssignees] = useState(false);
+
+  // State for editing a subtask
   const [isEditSubTaskModalOpen, setIsEditSubTaskModalOpen] = useState(false);
-  const [taskToEdit, setTaskToEdit] = useState(null);
+  // State for editing the main task
+  const [isEditMainTaskModalOpen, setIsEditMainTaskModalOpen] = useState(false); // New state for main task edit modal
+  const [taskToEdit, setTaskToEdit] = useState(null); // This state will be used for both main task and subtask edits
 
   const priorityDropdownRef = useRef(null);
   const statusDropdownRef = useRef(null);
@@ -68,7 +72,7 @@ const TaskDetailsPage = () => {
   const userRole = getUserRole();
   const isCustomer = userRole === "customer";
 
-  const canEditTaskDetails = !isCustomer;
+  const canEditTaskDetails = !isCustomer; // Use this for enabling/disabling edit functionality
   const canManageAssignees = !isCustomer;
   const canManageSubtasks = !isCustomer;
   const canChangeStatus = !isCustomer;
@@ -124,7 +128,7 @@ const TaskDetailsPage = () => {
 
     try {
         const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
-        
+
         // Dono API calls ko Promise.all ke zariye ek saath bheja jayega
         const [taskResponse, jobResponse] = await Promise.all([
             // Task (Project) details fetch karna
@@ -144,7 +148,7 @@ const TaskDetailsPage = () => {
 
         const taskData = await taskResponse.json();
         const jobData = jobResponse ? await jobResponse.json().catch(() => null) : null;
-        
+
         setParentTaskDetails(taskData);
         setJobDetails(jobData?.data || jobData); // Job data set karein
         setSubTasks(taskData.sub_tasks || []);
@@ -160,7 +164,7 @@ const TaskDetailsPage = () => {
         if (showLoadingSpinner) setLoading(false);
     }
   }, [taskId, jobId, API_BASE_URL, taskApiPath, jobApiPath, canManageComments, navigate]);
-  
+
   // ++ YEH useEffect DYNAMIC BREADCRUMB SET KARNE KE LIYE HAI ++
   useEffect(() => {
     // Yeh effect tab chalega jab jobDetails ya parentTaskDetails update honge
@@ -277,7 +281,7 @@ const TaskDetailsPage = () => {
       setLoadingEmployees(false);
     }
   };
-  
+
   const handleBriefUpdated = useCallback(() => {
     fetchAllDetails(false);
   }, [fetchAllDetails]);
@@ -504,7 +508,7 @@ const TaskDetailsPage = () => {
   };
 
   const handleOpenEditSubTaskModal = (subTask) => {
-    setTaskToEdit(subTask);
+    setTaskToEdit(subTask); // Set the subtask to be edited
     setIsEditSubTaskModalOpen(true);
   };
 
@@ -515,8 +519,8 @@ const TaskDetailsPage = () => {
 
   const handleSubTaskUpdated = async () => {
     handleCloseEditSubTaskModal();
-    toast.success("Task updated successfully!");
-    await fetchAllDetails(false);
+    toast.success("Subtask updated successfully!");
+    await fetchAllDetails(false); // Refresh parent task details and subtasks
   };
 
   const handleDeleteSubTask = async (subTaskId) => {
@@ -549,6 +553,28 @@ const TaskDetailsPage = () => {
     }
   };
 
+  // --- New handlers for Main Task Edit Modal ---
+  const handleOpenEditMainTaskModal = () => {
+    if (parentTaskDetails) {
+      setTaskToEdit(parentTaskDetails); // Set the main task to be edited
+      setIsEditMainTaskModalOpen(true);
+    } else {
+      toast.error("Main task details not loaded yet.");
+    }
+  };
+
+  const handleCloseEditMainTaskModal = () => {
+    setTaskToEdit(null); // Clear taskToEdit
+    setIsEditMainTaskModalOpen(false);
+  };
+
+  const handleMainTaskUpdated = async () => {
+    handleCloseEditMainTaskModal();
+    toast.success("Main task updated successfully!");
+    await fetchAllDetails(false); // Re-fetch all details to update the page
+  };
+  // --- End New handlers ---
+
   if (loading) return <LoadingState />;
   if (error || !taskFound || !parentTaskDetails)
     return <ErrorState title={!taskFound ? "Task Not Found" : "Error"} message={error} />;
@@ -572,8 +598,8 @@ const TaskDetailsPage = () => {
                 setIsStatusDropdownOpen={setIsStatusDropdownOpen}
                 statusDropdownRef={statusDropdownRef}
                 handleUpdateTaskField={handleUpdateTaskField}
-                isUpdatingField={isUpdatingField}
                 isEditable={canChangeStatus}
+                onEditTaskClick={canEditTaskDetails ? handleOpenEditMainTaskModal : null} // Pass handler for main task edit
               />
               <TaskMetadata
                 description={parentTaskDetails.task_description}
@@ -594,11 +620,11 @@ const TaskDetailsPage = () => {
                 isEditable={canEditTaskDetails}
               />
             </div>
-            
-            <TaskBriefsSection 
-                briefs={taskBriefs} 
-                taskId={taskId} 
-                onBriefsUpdated={handleBriefUpdated} 
+
+            <TaskBriefsSection
+                briefs={taskBriefs}
+                taskId={taskId}
+                onBriefsUpdated={handleBriefUpdated}
             />
 
             <SubTaskList
@@ -611,7 +637,7 @@ const TaskDetailsPage = () => {
             />
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
           </div>
-          
+
           <div className="lg:col-span-1">
             {canManageComments && (
               <CommentList
@@ -656,6 +682,7 @@ const TaskDetailsPage = () => {
           isUpdating={isUpdatingAssignees}
         />
       )}
+      {/* Edit modal for SUBTASKS */}
       {canManageSubtasks && isEditSubTaskModalOpen && taskToEdit && parentTaskDetails && (
         <EditTaskModal
           isOpen={isEditSubTaskModalOpen}
@@ -663,6 +690,16 @@ const TaskDetailsPage = () => {
           onTaskUpdated={handleSubTaskUpdated}
           taskData={taskToEdit}
           projectId={parentTaskDetails.project_id}
+        />
+      )}
+      {/* Edit modal for the MAIN TASK */}
+      {canEditTaskDetails && isEditMainTaskModalOpen && parentTaskDetails && (
+        <EditTaskModal
+          isOpen={isEditMainTaskModalOpen}
+          onClose={handleCloseEditMainTaskModal}
+          onTaskUpdated={handleMainTaskUpdated} // This will re-fetch all details for the main task
+          taskData={parentTaskDetails} // Pass the main task details
+          projectId={parentTaskDetails.project_id} // Project ID is needed for the API call
         />
       )}
     </div>
