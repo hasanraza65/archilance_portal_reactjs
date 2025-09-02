@@ -5,9 +5,11 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Swal from "sweetalert2";
 
-// ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
-import { useBreadcrumbs } from "../../../../components/ui/BreadcrumbsContext";
+// ++ STEP 1: useAuth HOOK KO AUTH CONTEXT SE IMPORT KIYA GAYA HAI ++
+// Note: Apne project ke structure ke mutabiq is path ko theek kar lein.
+import { useAuth } from "../../../../context/AuthContext"; 
 
+import { useBreadcrumbs } from "../../../../components/ui/BreadcrumbsContext";
 import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 
 import TaskHeader from "./PartialTask/TaskHeader";
@@ -19,8 +21,10 @@ import ErrorState from "./PartialTask/ErrorState";
 import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
 import AssigneeModal from "./PartialTask/AssigneeModal";
 import TaskAttachments from "./PartialTask/TaskAttachments";
-import EditTaskModal from "./PartialTask/EditTaskModal"; // Already imported for subtasks, will reuse for main task
+import EditTaskModal from "./PartialTask/EditTaskModal";
 import TaskBriefsSection from "../TaskBrief/TaskBriefDetail";
+import TimeLogSummary from "./PartialTask/TimeLogSummary";
+
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
@@ -28,14 +32,17 @@ const TaskDetailsPage = () => {
   const location = useLocation();
   const jobId = location.state?.jobId;
 
-  // ++ BREADCRUMB CONTEXT SE 'setBreadcrumbs' FUNCTION HASIL KIYA GAYA HAI ++
+  // ++ STEP 2: useAuth HOOK KO CALL KARKE USER KI MALOOMAT HASIL KI GAYI HAI ++
+  const { user } = useAuth();
+
   const { setBreadcrumbs } = useBreadcrumbs();
 
   const [parentTaskDetails, setParentTaskDetails] = useState(null);
-  const [jobDetails, setJobDetails] = useState(null); // Job details ke liye nayi state
+  const [jobDetails, setJobDetails] = useState(null);
   const [subTasks, setSubTasks] = useState([]);
   const [comments, setComments] = useState([]);
   const [taskBriefs, setTaskBriefs] = useState([]);
+  const [timeLogs, setTimeLogs] = useState([]);
 
   const [nextPageUrl, setNextPageUrl] = useState(null);
   const [totalCommentsFromApi, setTotalCommentsFromApi] = useState(0);
@@ -57,11 +64,9 @@ const TaskDetailsPage = () => {
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [isUpdatingAssignees, setIsUpdatingAssignees] = useState(false);
 
-  // State for editing a subtask
   const [isEditSubTaskModalOpen, setIsEditSubTaskModalOpen] = useState(false);
-  // State for editing the main task
-  const [isEditMainTaskModalOpen, setIsEditMainTaskModalOpen] = useState(false); // New state for main task edit modal
-  const [taskToEdit, setTaskToEdit] = useState(null); // This state will be used for both main task and subtask edits
+  const [isEditMainTaskModalOpen, setIsEditMainTaskModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState(null);
 
   const priorityDropdownRef = useRef(null);
   const statusDropdownRef = useRef(null);
@@ -72,7 +77,7 @@ const TaskDetailsPage = () => {
   const userRole = getUserRole();
   const isCustomer = userRole === "customer";
 
-  const canEditTaskDetails = !isCustomer; // Use this for enabling/disabling edit functionality
+  const canEditTaskDetails = !isCustomer;
   const canManageAssignees = !isCustomer;
   const canManageSubtasks = !isCustomer;
   const canChangeStatus = !isCustomer;
@@ -80,7 +85,7 @@ const TaskDetailsPage = () => {
 
   const apiPrefix = getApiPrefix();
   const taskApiPath = `/api/${apiPrefix}/project-task`;
-  const jobApiPath = `/api/${apiPrefix}/project`; // Job details ke liye API path
+  const jobApiPath = `/api/${apiPrefix}/project`;
   const commentApiPath = canManageComments ? `/api/${apiPrefix}/task-comment` : null;
   const employeeListApiPath = canManageAssignees ? `/api/${apiPrefix}/employee-user` : null;
   const bulkAssignApiPath = `/api/${apiPrefix}/bulk-assign`;
@@ -111,10 +116,10 @@ const TaskDetailsPage = () => {
 
   const fetchAllDetails = useCallback(async (showLoadingSpinner = true) => {
     if (!taskId) {
-        setError("Task ID is missing from URL.");
-        if (showLoadingSpinner) setLoading(false);
-        setTaskFound(false);
-        return;
+      setError("Task ID is missing from URL.");
+      if (showLoadingSpinner) setLoading(false);
+      setTaskFound(false);
+      return;
     }
     if (showLoadingSpinner) setLoading(true);
     setError(null);
@@ -122,52 +127,51 @@ const TaskDetailsPage = () => {
 
     const token = getAuthToken();
     if (!token) {
-        if (showLoadingSpinner) setLoading(false);
-        return;
+      if (showLoadingSpinner) setLoading(false);
+      return;
     }
 
     try {
-        const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+      const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
 
-        // Dono API calls ko Promise.all ke zariye ek saath bheja jayega
-        const [taskResponse, jobResponse] = await Promise.all([
-            // Task (Project) details fetch karna
-            fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, { headers }),
-            // Job details fetch karna (agar jobId maujood hai to)
-            jobId ? fetch(`${API_BASE_URL}${jobApiPath}/${jobId}`, { headers }) : Promise.resolve(null)
-        ]);
+      const [taskResponse, jobResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, { headers }),
+        jobId ? fetch(`${API_BASE_URL}${jobApiPath}/${jobId}`, { headers }) : Promise.resolve(null),
+      ]);
 
-        if (!taskResponse.ok) {
-            const eData = await taskResponse.json().catch(() => ({}));
-            throw new Error(eData.message || `Error fetching task: ${taskResponse.status}`);
+      if (!taskResponse.ok) {
+        let errorMessage = `Error fetching task: ${taskResponse.status} ${taskResponse.statusText}`;
+        try {
+          const errorData = await taskResponse.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // Ignore if response is not JSON
         }
-        if (jobResponse && !jobResponse.ok) {
-            // Agar job details fetch na hon to error na dikhayein, sirf console mein warn karein
-            console.warn(`Could not fetch job details for breadcrumb: Status ${jobResponse.status}`);
-        }
+        throw new Error(errorMessage);
+      }
 
-        const taskData = await taskResponse.json();
-        const jobData = jobResponse ? await jobResponse.json().catch(() => null) : null;
+      const taskData = await taskResponse.json();
+      const jobData = jobResponse && jobResponse.ok ? await jobResponse.json().catch(() => null) : null;
 
-        setParentTaskDetails(taskData);
-        setJobDetails(jobData?.data || jobData); // Job data set karein
-        setSubTasks(taskData.sub_tasks || []);
-        setTaskBriefs(taskData.all_briefs || []);
+      setParentTaskDetails(taskData);
+      setJobDetails(jobData?.data || jobData);
+      setSubTasks(taskData.sub_tasks || []);
+      setTaskBriefs(taskData.all_briefs || []);
+      setTimeLogs(taskData.assignees_with_hours || []);
 
-        if (canManageComments) {
-            await initialFetchAndSetup(taskId);
-        }
+      if (canManageComments) {
+        await initialFetchAndSetup(taskId);
+      }
     } catch (err) {
-        setError(err.message || "An unknown error occurred.");
-        setTaskFound(false);
+      console.error("Failed to fetch details:", err);
+      setError(err.message || "An unknown error occurred while fetching data.");
+      setTaskFound(false);
     } finally {
-        if (showLoadingSpinner) setLoading(false);
+      if (showLoadingSpinner) setLoading(false);
     }
   }, [taskId, jobId, API_BASE_URL, taskApiPath, jobApiPath, canManageComments, navigate]);
-
-  // ++ YEH useEffect DYNAMIC BREADCRUMB SET KARNE KE LIYE HAI ++
+  
   useEffect(() => {
-    // Yeh effect tab chalega jab jobDetails ya parentTaskDetails update honge
     if (jobDetails && parentTaskDetails) {
         setBreadcrumbs([
             { title: "Jobs", link: "/jobs" },
@@ -175,14 +179,11 @@ const TaskDetailsPage = () => {
             { title: parentTaskDetails.task_title, link: `/project/${taskId}` }
         ]);
     } else if (parentTaskDetails) {
-        // Fallback agar job details load na hon
         setBreadcrumbs([
             { title: "Jobs", link: "/jobs" },
             { title: parentTaskDetails.task_title, link: `/project/${taskId}` }
         ]);
     }
-
-    // Cleanup function: Jab component unmount ho to breadcrumbs ko saaf kar dein
     return () => {
         setBreadcrumbs([]);
     };
@@ -290,13 +291,13 @@ const TaskDetailsPage = () => {
     setCurrentUserId(getUserIdFromCookie());
     if (taskId && taskId.trim() !== "") {
       fetchAllDetails();
-      fetchAllEmployees();
+      if(canManageAssignees) fetchAllEmployees();
     } else {
       setLoading(false);
       setError("Task ID is missing or invalid in the URL.");
       setTaskFound(false);
     }
-  }, [taskId, fetchAllDetails]);
+  }, [taskId, fetchAllDetails, canManageAssignees]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -508,7 +509,7 @@ const TaskDetailsPage = () => {
   };
 
   const handleOpenEditSubTaskModal = (subTask) => {
-    setTaskToEdit(subTask); // Set the subtask to be edited
+    setTaskToEdit(subTask); 
     setIsEditSubTaskModalOpen(true);
   };
 
@@ -520,7 +521,7 @@ const TaskDetailsPage = () => {
   const handleSubTaskUpdated = async () => {
     handleCloseEditSubTaskModal();
     toast.success("Subtask updated successfully!");
-    await fetchAllDetails(false); // Refresh parent task details and subtasks
+    await fetchAllDetails(false); 
   };
 
   const handleDeleteSubTask = async (subTaskId) => {
@@ -553,10 +554,9 @@ const TaskDetailsPage = () => {
     }
   };
 
-  // --- New handlers for Main Task Edit Modal ---
   const handleOpenEditMainTaskModal = () => {
     if (parentTaskDetails) {
-      setTaskToEdit(parentTaskDetails); // Set the main task to be edited
+      setTaskToEdit(parentTaskDetails); 
       setIsEditMainTaskModalOpen(true);
     } else {
       toast.error("Main task details not loaded yet.");
@@ -564,25 +564,31 @@ const TaskDetailsPage = () => {
   };
 
   const handleCloseEditMainTaskModal = () => {
-    setTaskToEdit(null); // Clear taskToEdit
+    setTaskToEdit(null); 
     setIsEditMainTaskModalOpen(false);
   };
 
   const handleMainTaskUpdated = async () => {
     handleCloseEditMainTaskModal();
     toast.success("Main task updated successfully!");
-    await fetchAllDetails(false); // Re-fetch all details to update the page
+    await fetchAllDetails(false); 
   };
-  // --- End New handlers ---
 
-  if (loading) return <LoadingState />;
-  if (error || !taskFound || !parentTaskDetails)
+  if (loading) {
+    return <LoadingState />;
+  }
+
+  if (error || !taskFound || !parentTaskDetails) {
     return <ErrorState title={!taskFound ? "Task Not Found" : "Error"} message={error} />;
-
+  }
+  
   const currentAssignees = parentTaskDetails.assignees || [];
   const currentAssigneeUserIds = currentAssignees.map((a) => a?.user?.id).filter((id) => id != null);
   const gridLayoutClass = canManageComments ? "grid lg:grid-cols-3 gap-6" : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
   const mainContentClass = canManageComments ? "lg:col-span-2 space-y-6" : "space-y-6";
+
+  // ++ STEP 3: YEH VARIABLE CHECK KAREGA KE USER ADMIN HAI YA NAHI ++
+  const isAdmin = user && user.role === 'admin';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100">
@@ -599,7 +605,7 @@ const TaskDetailsPage = () => {
                 statusDropdownRef={statusDropdownRef}
                 handleUpdateTaskField={handleUpdateTaskField}
                 isEditable={canChangeStatus}
-                onEditTaskClick={canEditTaskDetails ? handleOpenEditMainTaskModal : null} // Pass handler for main task edit
+                onEditTaskClick={canEditTaskDetails ? handleOpenEditMainTaskModal : null}
               />
               <TaskMetadata
                 description={parentTaskDetails.task_description}
@@ -637,8 +643,8 @@ const TaskDetailsPage = () => {
             />
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
           </div>
-
-          <div className="lg:col-span-1">
+          
+          <div className="lg:col-span-1 space-y-6">
             {canManageComments && (
               <CommentList
                 comments={comments}
@@ -658,6 +664,8 @@ const TaskDetailsPage = () => {
                 onLoadRepliesForComment={onLoadRepliesForComment}
               />
             )}
+            
+            {isAdmin && <TimeLogSummary timeLogs={timeLogs} />}
           </div>
         </div>
       </div>
@@ -682,7 +690,6 @@ const TaskDetailsPage = () => {
           isUpdating={isUpdatingAssignees}
         />
       )}
-      {/* Edit modal for SUBTASKS */}
       {canManageSubtasks && isEditSubTaskModalOpen && taskToEdit && parentTaskDetails && (
         <EditTaskModal
           isOpen={isEditSubTaskModalOpen}
@@ -692,7 +699,6 @@ const TaskDetailsPage = () => {
           projectId={parentTaskDetails.project_id}
         />
       )}
-      {/* Edit modal for the MAIN TASK */}
       {canEditTaskDetails && isEditMainTaskModalOpen && parentTaskDetails && (
         <EditTaskModal
           isOpen={isEditMainTaskModalOpen}

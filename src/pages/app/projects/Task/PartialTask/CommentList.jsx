@@ -13,7 +13,6 @@ const isAudio = (attachment) => {
   if (mime) {
     return mime.startsWith("audio/");
   }
-  // Use 'name' which is derived from file_name from API
   const name = attachment.name || "";
   if (name) {
     const extension = name.split(".").pop().toLowerCase();
@@ -82,16 +81,13 @@ const DropdownMenu = ({ options, onSelect, onClose }) => {
 
 const buildCommentTree = (commentsList) => {
   if (!commentsList || commentsList.length === 0) return [];
-
   const validComments = commentsList.filter(
     (c) => c && typeof c === "object" && c.id !== undefined
   );
-
   const commentsMap = new Map();
   validComments.forEach((comment) => {
     commentsMap.set(comment.id, { ...comment, children: [] });
   });
-
   const rootComments = [];
   for (const comment of commentsMap.values()) {
     if (comment.reply_to && commentsMap.has(comment.reply_to)) {
@@ -103,16 +99,13 @@ const buildCommentTree = (commentsList) => {
       rootComments.push(comment);
     }
   }
-
   const sortComments = (arr) =>
     arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
   for (const node of commentsMap.values()) {
     if (node.children.length > 0) {
       sortComments(node.children);
     }
   }
-
   return sortComments(rootComments);
 };
 
@@ -150,24 +143,22 @@ const CommentList = ({
   const [loadingRepliesForCommentId, setLoadingRepliesForCommentId] =
     useState(null);
   const [hiddenRepliesParentIds, setHiddenRepliesParentIds] = useState([]);
-
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
   const audioChunksRef = useRef([]);
-
   const commentRefs = useRef({});
   const newCommentFormRef = useRef(null);
   const commentsListRef = useRef(null);
   const loadMoreTriggerRef = useRef(null);
   const textareaRef = useRef(null);
-
   const prevCommentsLength = useRef(comments ? comments.length : 0);
   const initialLoadScrollAttempted = useRef(false);
   const prevScrollHeight = useRef(0);
 
+  // Allowed file types...
   const allowedMimeTypes = [
     "image/jpeg",
     "image/png",
@@ -278,14 +269,11 @@ const CommentList = ({
       });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
-
       mediaRecorder.ondataavailable = (event) =>
         audioChunksRef.current.push(event.data);
-
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         if (audioChunksRef.current.length === 0) return;
-
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/webm",
         });
@@ -294,20 +282,17 @@ const CommentList = ({
           `voice-comment-${Date.now()}.webm`,
           { type: "audio/webm" }
         );
-
         const payload = new FormData();
         payload.append("task_id", taskId.toString());
         payload.append("comment_message", "");
         if (replyingToComment)
           payload.append("reply_to", replyingToComment.id.toString());
         payload.append("attachments[]", audioFile, audioFile.name);
-
         const success = await handleCommentSubmit(payload, true);
         if (success) {
           handleCancelReply();
         }
       };
-
       mediaRecorder.start();
       setIsRecording(true);
       recordingIntervalRef.current = setInterval(() => {
@@ -423,7 +408,8 @@ const CommentList = ({
           fill="currentColor"
           viewBox="0 0 20 20"
         >
-          <path d="M18 3a1 1 0 00-1.447-.894L4 6.424V2.5a1 1 0 00-2 0v15a1 1 0 002 0V13.576l12.553 4.37A1 1 0 0018 17V3z"></path>
+          {" "}
+          <path d="M18 3a1 1 0 00-1.447-.894L4 6.424V2.5a1 1 0 00-2 0v15a1 1 0 002 0V13.576l12.553 4.37A1 1 0 0018 17V3z"></path>{" "}
         </svg>
       );
     if (mt?.startsWith("image/"))
@@ -512,7 +498,6 @@ const CommentList = ({
       return;
     }
     if (isSubmittingComment || isProcessingEditOrDelete) return;
-
     let payload,
       isFormData = false;
     if (attachments.length > 0) {
@@ -562,7 +547,6 @@ const CommentList = ({
       newAttachmentsForEdit.forEach((att) =>
         formData.append("attachments[]", att.file, att.file.name)
       );
-
     const success = await onEditComment(commentId, formData);
     setIsProcessingEditOrDelete(false);
     if (success) handleCancelEdit();
@@ -598,7 +582,7 @@ const CommentList = ({
           if (!att) return null;
           const fp = att.file_path;
           const fn =
-            att.file_name || // UPDATED: Use file_name from API
+            att.file_name ||
             (fp
               ? fp.substring(fp.lastIndexOf("/") + 1)
               : `att_edit_${idx + 1}`);
@@ -619,7 +603,7 @@ const CommentList = ({
           return {
             id: att.id,
             file_path: fp,
-            file_name: fn, // UPDATED: Keep consistent
+            file_name: fn,
             name: fn,
             file_type: ft,
             file_size: att.file_size || null,
@@ -632,6 +616,7 @@ const CommentList = ({
     setAttachmentIdsToDeleteInEdit([]);
     setReplyingToComment(null);
   };
+
   const handleCancelEdit = () => {
     setEditingCommentId(null);
     setEditedCommentText("");
@@ -680,42 +665,16 @@ const CommentList = ({
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
+  // This useEffect for auto-scrolling is simplified, as page scroll is now default.
   useEffect(() => {
-    if (!commentsListRef.current) return;
-    const listEl = commentsListRef.current,
-      len = comments.length;
-    if (
-      !initialLoadScrollAttempted.current &&
-      len > 0 &&
-      listEl.scrollHeight > listEl.clientHeight
-    ) {
-      listEl.scrollTop = listEl.scrollHeight;
+    // Only scroll to bottom on initial load.
+    if (!initialLoadScrollAttempted.current && comments.length > 0) {
+      window.scrollTo(0, document.body.scrollHeight);
       initialLoadScrollAttempted.current = true;
-    } else if (len > prevCommentsLength.current) {
-      if (prevCommentsLength.current === 0)
-        listEl.scrollTop = listEl.scrollHeight;
-      else {
-        const olderLoaded =
-          comments[0]?.id !== comments[len - prevCommentsLength.current]?.id &&
-          prevCommentsLength.current > 0;
-        if (olderLoaded) {
-          const newH = listEl.scrollHeight,
-            diff = newH - prevScrollHeight.current;
-          if (diff > 0) listEl.scrollTop += diff;
-        } else {
-          const nearBottom =
-            listEl.scrollHeight - listEl.clientHeight <= listEl.scrollTop + 150;
-          if (nearBottom)
-            requestAnimationFrame(() => {
-              listEl.scrollTop = listEl.scrollHeight;
-            });
-        }
-      }
     }
-    prevCommentsLength.current = len;
-    prevScrollHeight.current = listEl.scrollHeight;
   }, [comments]);
 
+  // ++ INTERSECTION OBSERVER KO UPDATE KIYA GAYA HAI TAKAY PAGE SCROLL PAR KAAM KARE ++
   useEffect(() => {
     const obs = new IntersectionObserver(
       (e) => {
@@ -724,10 +683,12 @@ const CommentList = ({
           !isLoadingOlderComments &&
           !allCommentsLoaded &&
           comments.length > 0
-        )
+        ) {
           onLoadOlderComments();
+        }
       },
-      { root: commentsListRef.current, threshold: 0.1 }
+      // root: null viewport par observe karta hai
+      { root: null, threshold: 0.1 }
     );
     if (loadMoreTriggerRef.current) obs.observe(loadMoreTriggerRef.current);
     return () => {
@@ -788,7 +749,7 @@ const CommentList = ({
           if (!att) return null;
           const fp = att.file_path;
           const fn =
-            att.file_name || // UPDATED: Use file_name from API
+            att.file_name ||
             (fp
               ? fp.substring(fp.lastIndexOf("/") + 1)
               : `att_${commentNode.id}_${idx + 1}`);
@@ -810,7 +771,7 @@ const CommentList = ({
               : `att-disp-idx-${commentNode.id}-${idx}`,
             db_id: att.id,
             file_path: fp,
-            file_name: fn, // UPDATED: Keep consistent
+            file_name: fn,
             name: fn,
             file_type: ft,
             file_size: att.file_size || null,
@@ -818,11 +779,9 @@ const CommentList = ({
         })
         .filter(Boolean);
     }, [commentNode.comment_attachments, commentNode.id]);
-
     const numLoadedChildren = commentNode.children?.length || 0;
     const totalServerReplies = commentNode.replies_count || 0;
     const isHidden = hiddenRepliesParentIds.includes(commentNode.id);
-
     const canLoadMore =
       totalServerReplies > 0 &&
       numLoadedChildren < totalServerReplies &&
@@ -830,7 +789,6 @@ const CommentList = ({
     const toLoadCount = totalServerReplies - numLoadedChildren;
     const canHide = numLoadedChildren > 0 && !isHidden;
     const canShow = numLoadedChildren > 0 && isHidden;
-
     return (
       <div
         className={`${
@@ -899,7 +857,7 @@ const CommentList = ({
                             url = base + seg;
                           }
                           const img = att.file_type?.startsWith("image/");
-                          const name = att.name || `Attachment`; // Use name which is set from file_name
+                          const name = att.name || `Attachment`;
                           return (
                             <div
                               key={att.id}
@@ -1117,14 +1075,11 @@ const CommentList = ({
                                 : url;
                               url = base + seg;
                             } else url = "";
-                            const name = att.name || `Attachment`; // Use name which is set from file_name
-
+                            const name = att.name || `Attachment`;
                             if (isAudio(att)) {
                               return <AudioPlayer key={att.id} src={url} />;
                             }
-
                             const img = att.file_type?.startsWith("image/");
-
                             return (
                               <div
                                 key={att.id}
@@ -1151,11 +1106,10 @@ const CommentList = ({
                                   </a>
                                 ) : (
                                   <div className="flex items-center space-x-3">
-                                    {" "}
                                     <div className="flex-shrink-0 p-2 bg-slate-100 rounded-md">
                                       {" "}
                                       {getFileIcon(att.file_type, false)}{" "}
-                                    </div>{" "}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                       {" "}
                                       <p
@@ -1171,7 +1125,7 @@ const CommentList = ({
                                           ? formatFileSize(att.file_size)
                                           : "Unknown size"}{" "}
                                       </p>{" "}
-                                    </div>{" "}
+                                    </div>
                                     {url && (
                                       <a
                                         href={url}
@@ -1182,7 +1136,7 @@ const CommentList = ({
                                         {" "}
                                         View{" "}
                                       </a>
-                                    )}{" "}
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -1328,8 +1282,9 @@ const CommentList = ({
     );
   };
 
+  // ++ YAHAN ROOT DIV SE STICKY, TOP-6 AUR MAX-H CLASSES HATA DI GAYI HAIN ++
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 sticky top-6 max-h-[calc(100vh-3rem)] flex flex-col">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
       <div className="p-6 border-b border-slate-200 bg-slate-50/50 rounded-t-2xl">
         <h3 className="text-lg font-bold text-slate-800 flex items-center">
           <svg
@@ -1356,11 +1311,9 @@ const CommentList = ({
             : `${comments.length} comment${comments.length !== 1 ? "s" : ""}`}
         </p>
       </div>
-      <div
-        ref={commentsListRef}
-        className="flex-1 overflow-y-auto p-6 space-y-2"
-        style={{ maxHeight: "calc(100vh - 23rem)" }}
-      >
+
+      {/* ++ YAHAN SE INTERNAL SCROLLING AUR FIXED HEIGHT KI STYLING HATA DI GAYI HAI ++ */}
+      <div ref={commentsListRef} className="p-6 space-y-2">
         {isLoadingOlderComments && (
           <div className="flex justify-center items-center py-3">
             <svg
@@ -1648,7 +1601,6 @@ const CommentList = ({
                     id="new-comment-textarea"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                   
                     placeholder="Add a comment..."
                     className="w-full p-2.5 border-none focus:ring-0 text-sm resize-none bg-transparent"
                     rows={1}
