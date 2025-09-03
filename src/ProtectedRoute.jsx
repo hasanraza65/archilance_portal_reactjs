@@ -19,15 +19,7 @@ const ProtectedRoute = ({ children, allowedRoles, requireManagerAccess = false }
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // --- YEH HAI NAYI DEFAULT PATH LOGIC ---
-    let defaultPath = '/jobs'; // Default page for roles like 'employee', 'member'
-    
-    // Roles that should go to the dashboard
-    if (['admin', 'customer', 'manager', 'outsource'].includes(user.role)) {
-      defaultPath = '/dashboard';
-    }
-    
-    return <Navigate to={defaultPath} replace />;
+    return <Navigate to="/404" replace />;
   }
 
   return children;

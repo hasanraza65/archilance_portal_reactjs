@@ -4,9 +4,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useSelector, useDispatch } from "react-redux";
 import { connectSocket, disconnectSocket } from "./socket";
-
-// ++ YAHAN BREADCRUMB PROVIDER KO IMPORT KIYA GAYA HAI ++
-import { BreadcrumbProvider } from "./components/ui/BreadcrumbsContext"; 
+import { BreadcrumbProvider } from "./components/ui/BreadcrumbsContext";
 
 import Layout from "./layout/Layout";
 import AuthLayout from "./layout/AuthLayout";
@@ -20,17 +18,37 @@ import AddCustomerTeam from "./pages/customers/CustomerTeam/AddCustomerTeam";
 import EditCustomerTeam from "./pages/customers/CustomerTeam/EditCustomerTeam";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
-const WorkSession = lazy(() => import("./pages/employees/WorkSession/WorkSession"));
-const AdminEmployeeWorkSession = lazy(() => import("./pages/employees/WorkSession/AdminEmployeeWorkSession"));
-const OrderDetailsPage = lazy(() => import("./pages/customers/OrderPage/OrderDetailPage"));
-const Subscription = lazy(() => import("./pages/customers/Subscription/Subscription"));
-const UpgradePlan = lazy(() => import("./pages/customers/Subscription/UpgradePlan"));
+const WorkSession = lazy(() =>
+  import("./pages/employees/WorkSession/WorkSession")
+);
+const AdminEmployeeWorkSession = lazy(() =>
+  import("./pages/employees/WorkSession/AdminEmployeeWorkSession")
+);
+const OrderDetailsPage = lazy(() =>
+  import("./pages/customers/OrderPage/OrderDetailPage")
+);
+const Subscription = lazy(() =>
+  import("./pages/customers/Subscription/Subscription")
+);
+const UpgradePlan = lazy(() =>
+  import("./pages/customers/Subscription/UpgradePlan")
+);
 const Checkout = lazy(() => import("./pages/customers/Subscription/Checkout"));
-const WorkDiaryPage = lazy(() => import("./pages/customers/WorkDiaryPage/WorkDiaryPage"));
-const CustomerKanbanPage = lazy(() => import("./pages/customers/CustomerKanbanPage/CustomerKanbanPage"));
-const EmployeeDashboard = lazy(() => import("./pages/employees/Leave/EmployeeDashboard"));
-const LeaveManagementPage = lazy(() => import("./pages/AdminLeave/LeaveManagementPage"));
-const PaymentStatusPage = lazy(() => import("./pages/customers/Subscription/PaymentMethod"));
+const WorkDiaryPage = lazy(() =>
+  import("./pages/customers/WorkDiaryPage/WorkDiaryPage")
+);
+const CustomerKanbanPage = lazy(() =>
+  import("./pages/customers/CustomerKanbanPage/CustomerKanbanPage")
+);
+const EmployeeDashboard = lazy(() =>
+  import("./pages/employees/Leave/EmployeeDashboard")
+);
+const LeaveManagementPage = lazy(() =>
+  import("./pages/AdminLeave/LeaveManagementPage")
+);
+const PaymentStatusPage = lazy(() =>
+  import("./pages/customers/Subscription/PaymentMethod")
+);
 const Dashboard = lazy(() => import("./pages/dashboard"));
 const Ecommerce = lazy(() => import("./pages/dashboard/ecommerce"));
 const Login = lazy(() => import("./pages/auth/login"));
@@ -38,7 +56,9 @@ const ForgotPass = lazy(() => import("./pages/auth/forgot-password"));
 const Profile = lazy(() => import("./pages/utility/profile"));
 const EditProfile = lazy(() => import("./pages/utility/edit-profile"));
 const ProjectPostPage = lazy(() => import("./pages/app/projects"));
-const ProjectDetailsPage = lazy(() => import("./pages/app/projects/project-details"));
+const ProjectDetailsPage = lazy(() =>
+  import("./pages/app/projects/project-details")
+);
 const Allemployees = lazy(() => import("./pages/employees/AllEmployees"));
 const AddEmployee = lazy(() => import("./pages/employees/AddEmployees"));
 const AllCustomers = lazy(() => import("./pages/customers/AllCustomers"));
@@ -47,11 +67,14 @@ const CustomerView = lazy(() => import("./pages/customers/ViewCustomer"));
 const UpdateCustomer = lazy(() => import("./pages/customers/UpdateCustomer"));
 const ShowEmployee = lazy(() => import("./pages/employees/ShowEmployee"));
 const EditEmployee = lazy(() => import("./pages/employees/UpdateEmployee"));
-const TaskDetailsPage = lazy(() => import("./pages/app/projects/Task/TaskDetailsPage"));
+const TaskDetailsPage = lazy(() =>
+  import("./pages/app/projects/Task/TaskDetailsPage")
+);
 const KanbanPage = lazy(() => import("./pages/app/projects/kanban"));
-const ProjectBriefDetailPage = lazy(() => import("./pages/app/projects/Brief-task/ProjectBriefDetailPage"));
+const ProjectBriefDetailPage = lazy(() =>
+  import("./pages/app/projects/Brief-task/ProjectBriefDetailPage")
+);
 const Error = lazy(() => import("./pages/404"));
-
 
 function App() {
   const loggedInUser = useSelector((state) => state.auth.user);
@@ -81,7 +104,6 @@ function App() {
         theme="light"
       />
 
-      {/* ++ POORI APPLICATION KO BREADCRUMBPROVIDER SE WRAP KIYA GAYA HAI ++ */}
       <BreadcrumbProvider>
         <Routes>
           <Route element={<AuthLayout />}>
@@ -105,16 +127,19 @@ function App() {
           </Route>
 
           <Route element={<Layout />}>
-            <Route
-              path="dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["admin", "customer","member"]}>
-                  <Suspense fallback={<Loading />}>
-                    <Dashboard />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
+            {loggedInUser &&
+              ["admin", "customer", "member"].includes(loggedInUser.role) && (
+                <Route
+                  path="dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Suspense fallback={<Loading />}>
+                        <Dashboard />
+                      </Suspense>
+                    </ProtectedRoute>
+                  }
+                />
+              )}
             <Route
               path="ecommerce"
               element={
@@ -128,7 +153,9 @@ function App() {
             <Route
               path="profile"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "customer", "member"]}
+                >
                   <Suspense fallback={<Loading />}>
                     <Profile />
                   </Suspense>
@@ -138,7 +165,9 @@ function App() {
             <Route
               path="profile/edit"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee", "customer","member"]}>
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "customer", "member"]}
+                >
                   <Suspense fallback={<Loading />}>
                     <EditProfile />
                   </Suspense>
@@ -158,7 +187,16 @@ function App() {
             <Route
               path="jobs"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "outsource","manager"]}>
+                <ProtectedRoute
+                  allowedRoles={[
+                    "admin",
+                    "employee",
+                    "customer",
+                    "member",
+                    "outsource",
+                    "manager",
+                  ]}
+                >
                   <ProjectPostPage />
                 </ProtectedRoute>
               }
@@ -166,7 +204,16 @@ function App() {
             <Route
               path="jobs/:id"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee", "customer","member", "manager","outsource"]}>
+                <ProtectedRoute
+                  allowedRoles={[
+                    "admin",
+                    "employee",
+                    "customer",
+                    "member",
+                    "manager",
+                    "outsource",
+                  ]}
+                >
                   <ProjectDetailsPage />
                 </ProtectedRoute>
               }
@@ -174,7 +221,16 @@ function App() {
             <Route
               path="/project/:taskId"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee", "customer","member","manager", "outsource"]}>
+                <ProtectedRoute
+                  allowedRoles={[
+                    "admin",
+                    "employee",
+                    "customer",
+                    "member",
+                    "manager",
+                    "outsource",
+                  ]}
+                >
                   <TaskDetailsPage />
                 </ProtectedRoute>
               }
@@ -182,7 +238,15 @@ function App() {
             <Route
               path="/job/:id/kanban"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee","member", "outsource","manager"]}>
+                <ProtectedRoute
+                  allowedRoles={[
+                    "admin",
+                    "employee",
+                    "member",
+                    "outsource",
+                    "manager",
+                  ]}
+                >
                   <KanbanPage />
                 </ProtectedRoute>
               }
@@ -190,12 +254,20 @@ function App() {
             <Route
               path="/job-brief/:briefId"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee", "customer","member","manager", "outsource"]}>
+                <ProtectedRoute
+                  allowedRoles={[
+                    "admin",
+                    "employee",
+                    "customer",
+                    "member",
+                    "manager",
+                    "outsource",
+                  ]}
+                >
                   <ProjectBriefDetailPage />
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="leaves"
               element={
@@ -204,11 +276,10 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
             <Route
               path="employees"
               element={
-                <ProtectedRoute requireManagerAccess={true} >
+                <ProtectedRoute requireManagerAccess={true}>
                   <Allemployees />
                 </ProtectedRoute>
               }
@@ -245,11 +316,12 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="work-session"
               element={
-                <ProtectedRoute allowedRoles={["employee", "outsource","manager"]}>
+                <ProtectedRoute
+                  allowedRoles={["employee", "outsource", "manager"]}
+                >
                   <WorkSession />
                 </ProtectedRoute>
               }
@@ -257,12 +329,13 @@ function App() {
             <Route
               path="employeeleaves"
               element={
-                <ProtectedRoute allowedRoles={["employee","manager","outsource"]}>
+                <ProtectedRoute
+                  allowedRoles={["employee", "manager", "outsource"]}
+                >
                   <EmployeeDashboard />
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="customers"
               element={
@@ -290,16 +363,15 @@ function App() {
             <Route
               path="/customers/edit/:customerId"
               element={
-                 <ProtectedRoute requireManagerAccess={true}>
+                <ProtectedRoute requireManagerAccess={true}>
                   <UpdateCustomer />
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/order-details/:id"
               element={
-                <ProtectedRoute allowedRoles={["customer","member"]}>
+                <ProtectedRoute allowedRoles={["customer", "member"]}>
                   <OrderDetailsPage />
                 </ProtectedRoute>
               }
@@ -352,17 +424,17 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="chat"
               element={
-                <ProtectedRoute allowedRoles={["admin", "employee", "outsource","manager"]}>
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "outsource", "manager"]}
+                >
                   <ChatPage />
                 </ProtectedRoute>
               }
             />
-         
-               <Route
+            <Route
               path="team"
               element={
                 <ProtectedRoute allowedRoles={["customer"]}>
@@ -370,7 +442,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-              <Route
+            <Route
               path="team/add"
               element={
                 <ProtectedRoute allowedRoles={["customer"]}>
@@ -378,12 +450,11 @@ function App() {
                 </ProtectedRoute>
               }
             />
-          
-              <Route
+            <Route
               path="team/edit/:id"
               element={
                 <ProtectedRoute allowedRoles={["customer"]}>
-                  <EditCustomerTeam/>
+                  <EditCustomerTeam />
                 </ProtectedRoute>
               }
             />
