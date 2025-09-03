@@ -6,9 +6,7 @@ import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
-// import { getApiPrefix } from "@/pages/utility/apiHelper"; // We will NOT use getApiPrefix from apiHelper.js directly
 
-// --- START: Helper functions and presets configuration ---
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
@@ -117,10 +115,8 @@ const formatDateForAPI = (date) => {
 
 const AdminEmployeeWorkSession = () => {
   const { employeeId } = useParams();
-  // Ensure that useAuth provides the 'user' object with a 'role' property
-  const { token, logout, isAuthenticated, user } = useAuth(); 
+  const { token, logout, isAuthenticated, user } = useAuth();
 
-  // States
   const [employeeName, setEmployeeName] = useState("");
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
@@ -137,30 +133,45 @@ const AdminEmployeeWorkSession = () => {
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
   const [activePreset, setActivePreset] = useState("Today");
   const presetDropdownRef = useRef(null);
+  const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
+  const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
 
-  // Determine the API endpoint prefix and work session path dynamically based on the logged-in user's role
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
+  const endpointPrefix =
+    user?.role === "admin"
+      ? "admin"
+      : user?.role === "manager" ||
+        user?.role === "outsource" ||
+        user?.role === "employee"
+      ? "employee"
+      : "admin";
 
-  // Derive the API prefix for routing within this component
-  // Assuming user.role can be 'admin', 'manager', 'outsource', or 'employee'
-  const endpointPrefix = 
-    user?.role === 'admin' ? 'admin' : // If user is admin, use 'admin' prefix
-    (user?.role === 'manager' || user?.role === 'outsource' || user?.role === 'employee' ? 'employee' : 'admin'); // For manager, outsource, or employee, use 'employee'. Default to 'admin' if role is unknown or not set.
-
-  // Base URL for API calls, e.g., https://portal.archilance.net/backend/public/api/admin
-  // or https://portal.archilance.net/backend/public/api/employee
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
-
-  // Specific path for fetching work sessions based on the role logic provided
-  const workSessionPath = 
-    (user?.role === 'manager' || user?.role === 'outsource' || user?.role === 'employee') 
-    ? '/other-work-session' // For managers/outsource/employees, use this specific path
-    : '/work-session';       // For admin, use the general work-session path
-
+  const workSessionPath =
+    user?.role === "manager" ||
+    user?.role === "outsource" ||
+    user?.role === "employee"
+      ? "/other-work-session"
+      : "/work-session";
 
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // useEffect hooks remain the same
+  // Effect to handle body scroll when idle time modal is open
+  useEffect(() => {
+    if (isIdleTimeModalOpen) {
+      // Prevent background scrolling
+      document.body.style.overflow = "hidden";
+    } else {
+      // Restore background scrolling
+      document.body.style.overflow = "unset";
+    }
+
+    // Cleanup function to restore scrolling when the component unmounts
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isIdleTimeModalOpen]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -175,12 +186,10 @@ const AdminEmployeeWorkSession = () => {
   }, []);
 
   useEffect(() => {
-    // Only proceed if authenticated and employeeId is available, and user object is loaded
-    if (!isAuthenticated || !employeeId || !user) return; 
+    if (!isAuthenticated || !employeeId || !user) return;
 
     const fetchEmployeeDetails = async () => {
       try {
-        // Construct URL using the dynamically determined API_BASE_URL
         const res = await fetch(`${API_BASE_URL}/employee-user/${employeeId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -193,14 +202,13 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchEmployeeDetails();
-  }, [isAuthenticated, token, employeeId, API_BASE_URL, user]); // Add user to dependencies
+  }, [isAuthenticated, token, employeeId, API_BASE_URL, user]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user) return; // Wait for user object to be available
+    if (!isAuthenticated || !user) return;
 
     const fetchProjects = async () => {
       try {
-        // Construct URL using the dynamically determined API_BASE_URL
         const res = await fetch(`${API_BASE_URL}/project`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -212,10 +220,10 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchProjects();
-  }, [isAuthenticated, token, API_BASE_URL, user]); // Add user to dependencies
+  }, [isAuthenticated, token, API_BASE_URL, user]);
 
   useEffect(() => {
-    if (!selectedProject || !user) { // Wait for user object
+    if (!selectedProject || !user) {
       setTasks([]);
       setSelectedTask("");
       return;
@@ -223,7 +231,6 @@ const AdminEmployeeWorkSession = () => {
     const fetchTasksForProject = async () => {
       setTasksLoading(true);
       try {
-        // Construct URL using the dynamically determined API_BASE_URL
         const res = await fetch(`${API_BASE_URL}/project/${selectedProject}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -241,11 +248,10 @@ const AdminEmployeeWorkSession = () => {
       }
     };
     fetchTasksForProject();
-  }, [selectedProject, token, API_BASE_URL, user]); // Add user to dependencies
+  }, [selectedProject, token, API_BASE_URL, user]);
 
   const fetchWorkSessions = useCallback(async () => {
-    // Only proceed if employeeId, token, and user object are available
-    if (!employeeId || !token || !user) return; 
+    if (!employeeId || !token || !user) return;
     setLoading(true);
     window.scrollTo(0, 0);
 
@@ -260,7 +266,6 @@ const AdminEmployeeWorkSession = () => {
       params.append("end_date", formatDateForAPI(dateRange[1]));
 
     try {
-      // Construct the full API URL for work sessions using the dynamic base and path
       const response = await fetch(
         `${API_BASE_URL}${workSessionPath}?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -279,8 +284,12 @@ const AdminEmployeeWorkSession = () => {
       setOverallTotalTime(result.overall_total_time || "0h 0m");
 
       const totalManualSeconds = fetchedSessions
-        .filter(session => session.type === 'Manual')
-        .reduce((acc, session) => acc + Math.abs(session.raw_calculation?.net_seconds || 0), 0);
+        .filter((session) => session.type === "Manual")
+        .reduce(
+          (acc, session) =>
+            acc + Math.abs(session.raw_calculation?.net_seconds || 0),
+          0
+        );
       setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
 
       setPaginationInfo({
@@ -294,22 +303,28 @@ const AdminEmployeeWorkSession = () => {
     } finally {
       setLoading(false);
     }
-  }, [employeeId, currentPage, selectedTask, dateRange, token, logout, API_BASE_URL, workSessionPath, user]); // All dynamic parts and user in dependencies
+  }, [
+    employeeId,
+    currentPage,
+    selectedTask,
+    dateRange,
+    token,
+    logout,
+    API_BASE_URL,
+    workSessionPath,
+    user,
+  ]);
 
   useEffect(() => {
-    // Only fetch work sessions if authenticated and the user object is available
     if (isAuthenticated && user) fetchWorkSessions();
     else if (!isAuthenticated) setLoading(false);
-  }, [fetchWorkSessions, isAuthenticated, user]); // Add user to dependencies
+  }, [fetchWorkSessions, isAuthenticated, user]);
 
   useEffect(() => {
-    // This useEffect will trigger `fetchWorkSessions` via its dependency on currentPage
-    // if currentPage changes, or directly if other filters change and currentPage is 1.
     if (currentPage !== 1) setCurrentPage(1);
-    else if (isAuthenticated && user) fetchWorkSessions(); // Ensure user is available here too
-  }, [selectedTask, dateRange, selectedProject, isAuthenticated, user]); // Add user to dependencies
+    else if (isAuthenticated && user) fetchWorkSessions();
+  }, [selectedTask, dateRange, selectedProject, isAuthenticated, user]);
 
-  // Handlers remain the same
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
@@ -332,11 +347,13 @@ const AdminEmployeeWorkSession = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          // Construct URL using the dynamically determined API_BASE_URL
-          const res = await fetch(`${API_BASE_URL}/work-session/${sessionId}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const res = await fetch(
+            `${API_BASE_URL}/work-session/${sessionId}`,
+            {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
           fetchWorkSessions();
@@ -362,8 +379,20 @@ const AdminEmployeeWorkSession = () => {
     setIsPresetDropdownOpen(false);
   };
 
-  // Render loading state if user object is not yet available,
-  // as many parts depend on user.role
+  const handleShowIdleTime = (idleTimes) => {
+    setSelectedSessionIdleTimes(idleTimes);
+    setIsIdleTimeModalOpen(true);
+  };
+
+  const calculateIdleDuration = (startTime, endTime) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diff = (end.getTime() - start.getTime()) / 1000;
+    const minutes = Math.floor(diff / 60);
+    const seconds = Math.floor(diff % 60);
+    return `${minutes}m ${seconds}s`;
+  };
+
   if (!isAuthenticated || !user)
     return (
       <div className="p-8 text-center">
@@ -373,7 +402,6 @@ const AdminEmployeeWorkSession = () => {
 
   return (
     <Card>
-      {/* --- MODIFIED FOR RESPONSIVENESS --- */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 gap-4">
         <div>
           <h4 className="card-title">
@@ -452,7 +480,6 @@ const AdminEmployeeWorkSession = () => {
           </div>
 
           <div className="flex flex-col justify-end lg:col-span-3">
-            {/* --- MODIFIED FOR RESPONSIVENESS --- */}
             <div className="flex flex-col lg:flex-row lg:items-end gap-2">
               <div className="flex-shrink-0 w-full lg:w-auto">
                 <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -464,7 +491,6 @@ const AdminEmployeeWorkSession = () => {
                     onClick={() =>
                       setIsPresetDropdownOpen(!isPresetDropdownOpen)
                     }
-                    // --- MODIFIED FOR RESPONSIVENESS ---
                     className="form-input w-full lg:w-48 flex items-center justify-between text-left"
                   >
                     <span className="text-slate-800 dark:text-slate-300 truncate">
@@ -509,7 +535,6 @@ const AdminEmployeeWorkSession = () => {
               <div className="flex-shrink-0 w-full lg:w-auto">
                 <button
                   onClick={handleResetFilters}
-                  // --- MODIFIED FOR RESPONSIVENESS ---
                   className="btn bg-slate-800 hover:bg-slate-900 text-white font-bold whitespace-nowrap h-10 w-full lg:w-auto"
                 >
                   Reset Filters
@@ -546,7 +571,7 @@ const AdminEmployeeWorkSession = () => {
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-700 dark:text-slate-300">
                         {formatTime(session.start_time)} –{" "}
                         {formatTime(session.end_time)}
@@ -558,6 +583,14 @@ const AdminEmployeeWorkSession = () => {
                         <span className="px-2 py-0.5 bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 rounded-full text-xs font-medium">
                           Manual
                         </span>
+                      )}
+                      {session.idle_times && session.idle_times.length > 0 && (
+                        <button
+                          onClick={() => handleShowIdleTime(session.idle_times)}
+                          className="px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 rounded-full text-xs font-medium"
+                        >
+                          Show Idle Time
+                        </button>
                       )}
                     </div>
                     <button
@@ -634,6 +667,60 @@ const AdminEmployeeWorkSession = () => {
           </div>
         )}
       </div>
+
+      {isIdleTimeModalOpen && (
+       
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur-[2px]">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg border dark:border-slate-700">
+            <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200">
+              Idle Time Details
+            </h3>
+            <div className="max-h-96 overflow-y-auto">
+              <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400">
+                  <tr>
+                    <th scope="col" className="px-6 py-3">
+                      Start Time
+                    </th>
+                    <th scope="col" className="px-6 py-3">
+                      End Time
+                    </th>
+                    <th scope="col" className="px-6 py-3">
+                      Duration
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedSessionIdleTimes.map((idle) => (
+                    <tr
+                      key={idle.id}
+                      className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
+                    >
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                        {formatTime(idle.start_time.split(" ")[1])}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                        {formatTime(idle.end_time.split(" ")[1])}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                        {calculateIdleDuration(idle.start_time, idle.end_time)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setIsIdleTimeModalOpen(false)}
+                className="btn bg-slate-800 hover:bg-slate-900 text-white font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };

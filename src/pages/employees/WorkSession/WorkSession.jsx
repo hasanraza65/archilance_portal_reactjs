@@ -5,7 +5,7 @@ import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
-// --- START: Helper functions (These seem correct) ---
+// --- START: Helper functions ---
 
 const getTodayDateRange = () => {
   const today = new Date();
@@ -31,7 +31,11 @@ const TrashIcon = () => (
 
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
-  const [h, m] = timeStr.split(":");
+  // Handles time strings like "HH:mm:ss"
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return "";
+  const h = parts[0];
+  const m = parts[1];
   const d = new Date(0, 0, 0, h, m);
   return d.toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -56,10 +60,21 @@ const formatDateForAPI = (date) => {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+// New helper function to calculate idle duration
+const calculateIdleDuration = (startTime, endTime) => {
+  if (!startTime || !endTime) return "N/A";
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const diff = Math.abs(end - start) / 1000; // difference in seconds
+  const minutes = Math.floor(diff / 60);
+  const seconds = Math.floor(diff % 60);
+  return `${minutes}m ${seconds}s`;
+};
 // --- END: Helper functions ---
 
 const WorkSession = () => {
-  const { token, isAuthenticated, user } = useAuth(); // Destructure user from useAuth
+  const { token, isAuthenticated, user } = useAuth();
 
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
@@ -73,31 +88,47 @@ const WorkSession = () => {
   const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [fetchTrigger, setFetchTrigger] = useState(0);
-
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
 
+  // State for Idle Time Modal
+  const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
+  const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
+
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // Fetching projects (jobs) - MODIFIED HERE
+  // Effect to handle body scroll when idle time modal is open
   useEffect(() => {
-    if (!isAuthenticated || !user) return; // Ensure user is available
+    if (isIdleTimeModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    // Cleanup function
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isIdleTimeModalOpen]);
+
+  // Fetching projects (jobs)
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
 
     const fetchProjects = async () => {
       setProjectsLoading(true);
       try {
         let url = `${API_BASE_URL}/project`;
-        // Check if the user is a manager and append assigned_me=1
-        if (user.role === 'manager') {
-          url += '?assigned_me=1';
+        if (user.role === "manager") {
+          url += "?assigned_me=1";
         }
 
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error(`Could not fetch jobs. Status: ${res.status}`);
+        if (!res.ok)
+          throw new Error(`Could not fetch jobs. Status: ${res.status}`);
         const data = await res.json();
         setProjects(data || []);
       } catch (error) {
@@ -108,9 +139,9 @@ const WorkSession = () => {
       }
     };
     fetchProjects();
-  }, [isAuthenticated, token, API_BASE_URL, user]); // Added user to dependency array
+  }, [isAuthenticated, token, API_BASE_URL, user]);
 
-  // Fetching tasks for a selected project - no changes here
+  // Fetching tasks for a selected project
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
@@ -123,7 +154,10 @@ const WorkSession = () => {
         const res = await fetch(`${API_BASE_URL}/project/${selectedProject}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error(`Could not fetch details for project ID ${selectedProject}.`);
+        if (!res.ok)
+          throw new Error(
+            `Could not fetch details for project ID ${selectedProject}.`
+          );
         const projectDetails = await res.json();
         setTasks(projectDetails.tasks || []);
       } catch (error) {
@@ -148,13 +182,18 @@ const WorkSession = () => {
     const params = new URLSearchParams({ page: currentPage.toString() });
     if (selectedProject) params.append("project_id", selectedProject);
     if (selectedTask) params.append("task_id", selectedTask);
-    if (dateRange && dateRange[0]) params.append("start_date", formatDateForAPI(dateRange[0]));
-    if (dateRange && dateRange.length > 1 && dateRange[1]) params.append("end_date", formatDateForAPI(dateRange[1]));
+    if (dateRange && dateRange[0])
+      params.append("start_date", formatDateForAPI(dateRange[0]));
+    if (dateRange && dateRange.length > 1 && dateRange[1])
+      params.append("end_date", formatDateForAPI(dateRange[1]));
 
     try {
-      const response = await fetch(`${API_BASE_URL}/work-session?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/work-session?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Request failed`);
 
@@ -164,7 +203,11 @@ const WorkSession = () => {
 
       const totalManualSeconds = fetchedSessions
         .filter((session) => session.type === "Manual")
-        .reduce((acc, session) => acc + Math.abs(session.raw_calculation.net_seconds || 0), 0);
+        .reduce(
+          (acc, session) =>
+            acc + Math.abs(session.raw_calculation?.net_seconds || 0),
+          0
+        );
 
       setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
 
@@ -179,7 +222,7 @@ const WorkSession = () => {
       setSessions([]);
     } finally {
       setLoading(false);
-      setIsInitialLoad(false); // Mark that the initial load has completed
+      setIsInitialLoad(false);
     }
   }, [
     currentPage,
@@ -193,21 +236,26 @@ const WorkSession = () => {
 
   useEffect(() => {
     fetchWorkSessions();
-  }, [fetchTrigger, fetchWorkSessions]);
-
+  }, [fetchTrigger, currentPage]); // Changed to trigger on page change as well
 
   const handleSearch = () => {
-    setCurrentPage(1); // Reset to the first page for a new search
-    setFetchTrigger((t) => t + 1); // Trigger the fetch
+    if (currentPage !== 1) {
+      setCurrentPage(1); // This will trigger the useEffect for fetching
+    } else {
+      setFetchTrigger((t) => t + 1); // Or trigger manually if already on page 1
+    }
   };
-
+  
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
     setTasks([]);
     setDateRange(getTodayDateRange());
-    setCurrentPage(1); // Also reset page on reset
-    setFetchTrigger((t) => t + 1); // And trigger a fetch
+    if (currentPage !== 1) {
+        setCurrentPage(1);
+    } else {
+        setFetchTrigger((t) => t + 1);
+    }
   };
 
   const handleDelete = (sessionId) => {
@@ -228,7 +276,7 @@ const WorkSession = () => {
           });
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
-          setFetchTrigger((t) => t + 1); // Refresh data
+          setFetchTrigger((t) => t + 1);
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
         }
@@ -238,41 +286,49 @@ const WorkSession = () => {
 
   const handleDeleteScreenshot = (sessionId, screenshotId) => {
     Swal.fire({
-        title: "Are you sure?",
-        text: "You won't be able to revert this!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#6b7280",
-        confirmButtonText: "Yes, delete it!",
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
-        if (result.isConfirmed) {
-            try {
-                const res = await fetch(`${API_BASE_URL}/screenshot/${screenshotId}`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.message || "Failed to delete the screenshot.");
-                }
-                Swal.fire("Deleted!", "The screenshot has been deleted.", "success");
-                setSessions((currentSessions) =>
-                    currentSessions.map((session) => {
-                        if (session.id === sessionId) {
-                            const updatedScreenshots = session.screenshots.filter(
-                                (ss) => ss.id !== screenshotId
-                            );
-                            return { ...session, screenshots: updatedScreenshots };
-                        }
-                        return session;
-                    })
+      if (result.isConfirmed) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/screenshot/${screenshotId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(
+              errorData.message || "Failed to delete the screenshot."
+            );
+          }
+          Swal.fire("Deleted!", "The screenshot has been deleted.", "success");
+          setSessions((currentSessions) =>
+            currentSessions.map((session) => {
+              if (session.id === sessionId) {
+                const updatedScreenshots = session.screenshots.filter(
+                  (ss) => ss.id !== screenshotId
                 );
-            } catch (e) {
-                Swal.fire("Error!", e.message, "error");
-            }
+                return { ...session, screenshots: updatedScreenshots };
+              }
+              return session;
+            })
+          );
+        } catch (e) {
+          Swal.fire("Error!", e.message, "error");
         }
+      }
     });
+  };
+
+  // Handler to open the idle time modal
+  const handleShowIdleTime = (idleTimes) => {
+    setSelectedSessionIdleTimes(idleTimes);
+    setIsIdleTimeModalOpen(true);
   };
 
   const handleNextPage = () => {
@@ -415,7 +471,7 @@ const WorkSession = () => {
                   disabled={loading}
                   className="btn btn-dark w-full"
                 >
-                  {loading ? "Loading..." : "Search"}
+                  {loading ? "Searching..." : "Search"}
                 </button>
               </div>
             </div>
@@ -461,6 +517,18 @@ const WorkSession = () => {
                             Manual
                           </span>
                         )}
+                        {/* --- NEW: Idle Time Button --- */}
+                        {session.idle_times &&
+                          session.idle_times.length > 0 && (
+                            <button
+                              onClick={() =>
+                                handleShowIdleTime(session.idle_times)
+                              }
+                              className="px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 rounded-full text-xs font-medium hover:bg-amber-200"
+                            >
+                              Show Idle Time
+                            </button>
+                          )}
                       </div>
                       <button
                         onClick={() => handleDelete(session.id)}
@@ -519,7 +587,7 @@ const WorkSession = () => {
                 </div>
               ))}
             </div>
-            ) : !isInitialLoad ? (
+          ) : !isInitialLoad ? (
             <div className="text-center py-16">
               <p className="text-slate-500">
                 No work sessions found for the selected criteria.
@@ -527,7 +595,7 @@ const WorkSession = () => {
             </div>
           ) : null}
           {paginationInfo && paginationInfo.lastPage > 1 && (
-             <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
+            <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
               <button
                 onClick={handlePrevPage}
                 disabled={paginationInfo.currentPage === 1}
@@ -551,6 +619,60 @@ const WorkSession = () => {
           )}
         </div>
       </div>
+
+      {/* --- NEW: Idle Time Modal --- */}
+      {isIdleTimeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur-[2px]">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg border dark:border-slate-700">
+            <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200">
+              Idle Time Details
+            </h3>
+            <div className="max-h-96 overflow-y-auto">
+              <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400">
+                  <tr>
+                    <th scope="col" className="px-6 py-3">
+                      Start Time
+                    </th>
+                    <th scope="col" className="px-6 py-3">
+                      End Time
+                    </th>
+                    <th scope="col" className="px-6 py-3">
+                      Duration
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedSessionIdleTimes.map((idle) => (
+                    <tr
+                      key={idle.id}
+                      className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
+                    >
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                        {formatTime(idle.start_time.split(" ")[1])}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                        {formatTime(idle.end_time.split(" ")[1])}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                        {calculateIdleDuration(idle.start_time, idle.end_time)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setIsIdleTimeModalOpen(false)}
+                className="btn btn-dark"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
