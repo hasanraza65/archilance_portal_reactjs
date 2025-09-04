@@ -127,19 +127,18 @@ function App() {
           </Route>
 
           <Route element={<Layout />}>
-            {loggedInUser &&
-              ["admin", "customer", "member"].includes(loggedInUser.role) && (
-                <Route
-                  path="dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<Loading />}>
-                        <Dashboard />
-                      </Suspense>
-                    </ProtectedRoute>
-                  }
-                />
-              )}
+            {/* Updated dashboard route - only for admin and customer */}
+            <Route
+              path="dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "customer"]}>
+                  <Suspense fallback={<Loading />}>
+                    <Dashboard />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            
             <Route
               path="ecommerce"
               element={
@@ -154,7 +153,7 @@ function App() {
               path="profile"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "employee", "customer", "member"]}
+                  allowedRoles={["admin", "employee", "customer", "member", "manager", "outsource"]}
                 >
                   <Suspense fallback={<Loading />}>
                     <Profile />
@@ -166,7 +165,7 @@ function App() {
               path="profile/edit"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "employee", "customer", "member"]}
+                  allowedRoles={["admin", "employee", "customer", "member", "manager", "outsource"]}
                 >
                   <Suspense fallback={<Loading />}>
                     <EditProfile />

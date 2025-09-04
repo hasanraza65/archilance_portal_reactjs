@@ -9,15 +9,9 @@ import axios from "axios";
 
 // ====================================================================
 // SECTION 1: HELPER FUNCTIONS & CONSTANTS
-// Is section mein hum woh chotay functions aur variables rakhenge jo poori file mein istemaal honge.
 // ====================================================================
 
-/**
- * Yeh function check karta hai ke user mobile device par hai ya nahi.
- * @returns {boolean} - true agar mobile hai, warna false.
- */
 const isMobile = () => {
-  // typeof navigator === 'undefined' server-side rendering ke waqt error se bachata hai.
   if (typeof navigator === 'undefined') {
     return false;
   }
@@ -35,10 +29,8 @@ const ROLE_MAP = {
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const LOGOUT_API_URL = `${BACKEND_BASE_URL}/api/logout`;
 
-
 // ====================================================================
 // SECTION 2: AUTH CONTEXT SETUP
-// Yahan hum React Context banayenge.
 // ====================================================================
 
 const AuthContext = createContext({
@@ -49,30 +41,23 @@ const AuthContext = createContext({
   logout: () => {},
 });
 
-
 // ====================================================================
 // SECTION 3: AUTH PROVIDER COMPONENT
-// Yeh component poori application ko wrap karega aur authentication state manage karega.
 // ====================================================================
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // --- YEH SAB SE AHEM LOGIC HAI ---
-  // Yeh function app ke start hone par authentication state ko set karta hai.
   const initializeAuthState = () => {
     try {
-      // Step 1: Hamesha pehle Cookies ko check karein. Yeh desktop aur active mobile sessions ke liye hai.
       const userFromCookie = Cookies.get("user");
       const tokenFromCookie = Cookies.get("token");
 
       if (userFromCookie && tokenFromCookie) {
-        // Agar cookie mein data hai, to session active hai.
         return { user: JSON.parse(userFromCookie), token: tokenFromCookie };
       }
 
-      // Step 2: Agar cookie nahi mili AUR hum mobile device par hain, to localStorage (backup) check karein.
       if (isMobile()) {
         const userFromBackup = localStorage.getItem("user");
         const tokenFromBackup = localStorage.getItem("token");
@@ -81,23 +66,18 @@ export const AuthProvider = ({ children }) => {
           console.log("Session cookie not found. Restoring session from localStorage backup.");
           const parsedUser = JSON.parse(userFromBackup);
           
-          // Step 3: Backup se data utha kar Cookies ko dobara bana dein.
-          // Is se aapka baaki ka project (apiHelper, axios) sahi se kaam karega.
           Cookies.set("user", userFromBackup);
           Cookies.set("token", tokenFromBackup);
           Cookies.set("userRole", parsedUser.role);
 
-          // Ab state ko is restored data se set karein.
           return { user: parsedUser, token: tokenFromBackup };
         }
       }
 
-      // Agar kahin bhi kuch nahi mila, to iska matlab hai user logged out hai.
       return { user: null, token: null };
 
     } catch (error) {
       console.error("Failed to initialize auth state. Clearing storage.", error);
-      // Ghalat data hone ki soorat mein har jagah se safai kar dein.
       Cookies.remove("user");
       Cookies.remove("token");
       Cookies.remove("userRole");
@@ -107,13 +87,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // initializeAuthState ko sirf ek baar call karne ke liye useState ka istemaal karein.
   const [initialState] = useState(initializeAuthState);
-
   const [user, setUser] = useState(initialState.user);
   const [token, setToken] = useState(initialState.token);
 
-  // Yeh state check karegi ke member ko password update karna hai ya nahi.
   const [isPasswordUpdateRequired, setIsPasswordUpdateRequired] = useState(() => {
     if (initialState.user) {
       return initialState.user.role === 'member' && initialState.user.is_default_pass === 1;
@@ -121,16 +98,12 @@ export const AuthProvider = ({ children }) => {
     return false;
   });
 
-  // Redux state ko React context ke sath sync rakhein.
   useEffect(() => {
     if (user) {
       dispatch(setReduxUser(user));
     }
   }, [dispatch, user]);
 
-  /**
-   * User ko login karwata hai aur session data save karta hai.
-   */
   const login = (apiResponse, rememberMe = false) => {
     if (!apiResponse?.user || !apiResponse?.access_token) {
       toast.error("Login failed: Invalid data received from server.");
@@ -168,31 +141,27 @@ export const AuthProvider = ({ children }) => {
       expires: rememberMe ? 7 : undefined,
     };
 
-    // Step 1: Data ko hamesha Cookies mein save karein (taake poora project kaam kare).
     Cookies.set("user", JSON.stringify(userToSave), cookieOptions);
     Cookies.set("token", accessToken, cookieOptions);
     Cookies.set("userRole", userRole, cookieOptions);
 
-    // Step 2: Agar mobile hai, to localStorage mein ek "backup" bhi save kar dein.
     if (isMobile()) {
       localStorage.setItem("user", JSON.stringify(userToSave));
       localStorage.setItem("token", accessToken);
     }
 
-    // State update karna
     setUser(userToSave);
     setToken(accessToken);
     dispatch(setReduxUser(userToSave));
     
-    // Password update check
     if (Number(userData.user_role) === 5 && Number(userData.is_default_pass) === 1) {
       setIsPasswordUpdateRequired(true);
     } else {
       setIsPasswordUpdateRequired(false);
     }
 
-    // Role ke hisab se redirect karna
-    const jobsRoles = ['employee', 'member', 'manager', 'outsource'];
+    // Updated role-based redirection logic
+    const jobsRoles = ['employee', 'manager', 'outsource', 'member'];
     if (jobsRoles.includes(userRole)) {
       navigate("/jobs", { replace: true });
     } else {
@@ -202,11 +171,8 @@ export const AuthProvider = ({ children }) => {
     return userToSave;
   };
 
-  /**
-   * User ko logout karwata hai, session clear karta hai, aur redirect karta hai.
-   */
   const logout = async () => {
-    const currentToken = Cookies.get("token"); // Token hamesha cookie se hi lein.
+    const currentToken = Cookies.get("token");
 
     if (currentToken) {
       try {
@@ -219,7 +185,6 @@ export const AuthProvider = ({ children }) => {
       }
     }
     
-    // Step 1: State, Redux, Cookies, aur localStorage (backup) sab ko clear karein.
     setUser(null);
     setToken(null);
     setIsPasswordUpdateRequired(false);
@@ -232,16 +197,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
 
-    // Step 2: Foran login page par redirect karein.
     navigate("/login", { replace: true });
-
-    // Step 3: Aakhir mein user ko message dikhayein.
     toast.info("You have been successfully logged out.");
   };
 
-  /**
-   * Password update hone ke baad user data ko update karta hai.
-   */
   const handlePasswordUpdateSuccess = () => {
     setIsPasswordUpdateRequired(false);
     if (user) {
@@ -255,7 +214,6 @@ export const AuthProvider = ({ children }) => {
       };
       
       const userString = JSON.stringify(updatedUser);
-      // Updated user ko Cookies aur localStorage backup dono mein save karein.
       Cookies.set("user", userString, cookieOptions);
       if (isMobile()) {
           localStorage.setItem("user", userString);
@@ -278,7 +236,6 @@ export const AuthProvider = ({ children }) => {
 
 // ====================================================================
 // SECTION 4: CUSTOM HOOK
-// Is hook se hum aasani se context ko kisi bhi component mein istemaal kar sakte hain.
 // ====================================================================
 
 export const useAuth = () => {

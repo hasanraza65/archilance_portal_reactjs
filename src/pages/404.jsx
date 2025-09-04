@@ -8,15 +8,16 @@ function Error() {
 
   const getHomepageLink = () => {
     if (!user) {
-      return "/"; // Logged-out users ke liye login page
+      return "/";
     }
 
-    const rolesWithDashboard = ["admin", "customer", "member"];
-    if (rolesWithDashboard.includes(user.role)) {
+    // Only admin and customer can access dashboard
+    const dashboardRoles = ["admin", "customer"];
+    if (dashboardRoles.includes(user.role)) {
       return "/dashboard";
     }
 
-    // Baaki sabhi logged-in users ke liye (employee, manager, etc.)
+    // All other roles (employee, manager, outsource, member) go to jobs
     return "/jobs";
   };
 
