@@ -103,12 +103,11 @@ const AddProject = ({ onProjectAdded }) => {
         })
         .nullable()
         .required("Customer is required"),
-      employee_ids: yup
-        .array()
-        .min(1, "At least one employee must be assigned")
-        .of(yup.object())
-        .nullable()
-        .required("Assigning employees is required"),
+     employee_ids: yup
+  .array()
+  .of(yup.object())
+  .nullable(),
+        
     })
     .required();
 

@@ -22,7 +22,7 @@ import { useParams } from "react-router-dom";
 
 // === User ne provide kiye hue status options aur helper functions ===
 const STATUS_OPTIONS = [
-  "To-Do",
+  // "To-Do",
   "On Hold",
   "Backlog",
   "Awaiting Info",
@@ -47,8 +47,8 @@ const getStatusClass = (status) => {
       return "bg-pink-100 text-pink-800 border-pink-200";
     case "backlog":
       return "bg-purple-100 text-purple-800 border-purple-200";
-    case "to-do":
-      return "bg-slate-100 text-slate-800 border-slate-200";
+    // case "to-do":
+    //   return "bg-slate-100 text-slate-800 border-slate-200";
     case "on hold":
       return "bg-amber-100 text-amber-800 border-amber-200";
     default:
@@ -70,8 +70,8 @@ const getStatusSelectedBarColor = (status) => {
       case "in-house review":
         return "bg-pink-500";
       case "backlog":
-        return "bg-purple-500";
-      case "to-do":
+      //   return "bg-purple-500";
+      // case "to-do":
         return "bg-slate-500";
       case "on hold":
         return "bg-amber-500";

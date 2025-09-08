@@ -20,7 +20,8 @@ const TaskHeader = ({
 }) => {
   const navigate = useNavigate();
   const currentStatusLabel = getCurrentStatusDisplayLabel(taskStatus);
-  const currentStatusForNull = taskStatus === null ? "Todo" : taskStatus;
+  // Changed from "Todo" to "Backlog" as default
+  const currentStatusForNull = taskStatus === null ? "Backlog" : taskStatus;
 
   return (
     <div className="bg-gradient-to-r from-blue-200 to-indigo-300 p-6">
@@ -68,7 +69,7 @@ const TaskHeader = ({
             </button>
             {isStatusDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-30 border border-slate-200 overflow-y-auto max-h-60 py-1">
-                {/* ***** SUDHAAR: Yahan button ko div se badal diya hai ***** */}
+                {/* Default option ko Backlog ke liye update kiya hai */}
                 <div
                   className={`w-full text-left px-3 py-2.5 text-sm flex items-center relative cursor-default ${
                     taskStatus === null
@@ -79,7 +80,7 @@ const TaskHeader = ({
                   {taskStatus === null && (
                     <span
                       className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusSelectedBarColor(
-                        null
+                        "Backlog" // Changed from null to "Backlog"
                       )}`}
                     ></span>
                   )}
@@ -99,7 +100,7 @@ const TaskHeader = ({
                     <span className="w-4 h-4 mr-2.5 shrink-0"></span>
                   )}
                   <span className="italic text-slate-500">
-                    — Default (To-Do) —
+                    — Default (Backlog) —
                   </span>
                 </div>
                 <div className="border-t border-slate-100 my-1 mx-1"></div>

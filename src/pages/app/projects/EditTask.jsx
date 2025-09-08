@@ -83,7 +83,7 @@ const quillFormats = [
 
 // Constants for dropdown options
 const TASK_STATUS_OPTIONS = [
-  { value: "Todo", label: "To Do" },
+  // { value: "Todo", label: "To Do" },
   { value: "In Progress", label: "In Progress" },
   { value: "Completed", label: "Completed" },
   { value: "On Hold", label: "On Hold" },

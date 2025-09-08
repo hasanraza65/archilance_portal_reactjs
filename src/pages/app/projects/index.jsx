@@ -21,7 +21,7 @@ import Icon from "@/components/ui/Icon";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 const STATUS_OPTIONS = [
-  "To-Do",
+
    "On Hold", 
   "Backlog",
   "Awaiting Info",
@@ -34,8 +34,7 @@ const STATUS_OPTIONS = [
 
 export const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
-  if (s.includes("todo") || s.includes("pending"))
-    return "bg-yellow-100 text-yellow-800 border-yellow-200";
+
   if (s === "completed" || s === "done")
     return "bg-green-100 text-green-800 border-green-200";
   if (s.includes("progress"))
@@ -43,7 +42,7 @@ export const getStatusClass = (status) => {
   if (s.includes("cancel")) return "bg-red-100 text-red-800 border-red-200";
   if (s.includes("backlog"))
     return "bg-purple-100 text-purple-800 border-purple-200";
-  if (s.includes("on hold"))  // This condition already exists for "on hold"
+  if (s.includes("on hold"))  
     return "bg-orange-100 text-orange-800 border-orange-200";
   if (s.includes("archived"))
     return "bg-gray-100 text-gray-800 border-gray-200";

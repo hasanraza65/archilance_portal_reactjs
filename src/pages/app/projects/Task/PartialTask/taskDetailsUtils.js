@@ -91,15 +91,14 @@ export const mapApiUserToLocal = (apiUser) => {
 
 // ***** SUDHAAR: Naye status ke hisab se styling update ki gayi hai *****
 export const getStatusClass = (status) => {
-  const s = status === null ? "todo" : String(status).toLowerCase();
+  // Remove "todo" case and make "backlog" the default
+  const s = status === null ? "backlog" : String(status).toLowerCase();
 
   switch (s) {
-    case "todo":
-      return "bg-slate-100 text-slate-700 border-slate-300";
-    case "on hold": // Added On Hold case
-      return "bg-orange-100 text-orange-800 border-orange-300";
     case "backlog":
       return "bg-gray-100 text-gray-700 border-gray-300";
+    case "on hold":
+      return "bg-orange-100 text-orange-800 border-orange-300";
     case "awaiting info":
       return "bg-amber-100 text-amber-800 border-amber-300";
     case "in progress":
@@ -115,16 +114,15 @@ export const getStatusClass = (status) => {
   }
 };
 
-// ***** SUDHAAR: Naye status ke hisab se dropdown indicator color update kiya gaya hai *****
+
 export const getStatusSelectedBarColor = (status) => {
-  const s = status === null ? "todo" : String(status).toLowerCase();
+  // Remove "todo" case and make "backlog" the default
+  const s = status === null ? "backlog" : String(status).toLowerCase();
   switch (s) {
-    case "todo":
-      return "bg-slate-500";
-    case "on hold": // Added On Hold case
-      return "bg-orange-500";
     case "backlog":
       return "bg-gray-500";
+    case "on hold":
+      return "bg-orange-500";
     case "awaiting info":
       return "bg-amber-500";
     case "in progress":
@@ -139,6 +137,7 @@ export const getStatusSelectedBarColor = (status) => {
       return "bg-gray-500";
   }
 };
+
 
 export const priorityUpdateOptions = [
   {
@@ -181,11 +180,9 @@ export const getCurrentPriorityDetails = (priorityValue) => {
   };
 };
 
-// ***** SUDHAAR: Status options ko naye workflow ke hisab se update kiya gaya hai *****
 export const statusUpdateOptions = [
-  { apiValue: "Todo", displayLabel: "To-Do" },
-  { apiValue: "On Hold", displayLabel: "On Hold" }, // Added On Hold option
   { apiValue: "Backlog", displayLabel: "Backlog" },
+  { apiValue: "On Hold", displayLabel: "On Hold" }, 
   { apiValue: "Awaiting Info", displayLabel: "Awaiting Info" },
   { apiValue: "In Progress", displayLabel: "In Progress" },
   { apiValue: "In-house review", displayLabel: "In-house review" },
@@ -194,10 +191,8 @@ export const statusUpdateOptions = [
 ];
 
 export const getCurrentStatusDisplayLabel = (statusApiValue) => {
-  if (!statusApiValue) return "To-Do";
-  // The special `null` status in the header component isn't listed in the options, so we handle it first.
-  if (statusApiValue === "Todo") return "To-Do";
-
+  if (!statusApiValue) return "Backlog"; // Changed from "To-Do" to "Backlog"
+  
   const option = statusUpdateOptions.find(
     (opt) => opt.apiValue.toLowerCase() === String(statusApiValue).toLowerCase()
   );

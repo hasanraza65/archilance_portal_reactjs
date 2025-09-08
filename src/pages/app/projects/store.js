@@ -110,10 +110,11 @@ export const addProjectAPI = createAsyncThunk(
         (response.status === 201 || response.status === 200)
       ) {
         toast.success("Job added successfully!");
-        if (response.data.data && typeof response.data.data === "object") {
-          return formatProjectFromAPI(response.data.data);
-        }
-        return response.data;
+        
+        const newProjectData = response.data.project;
+        
+        return formatProjectFromAPI(newProjectData);
+       
       } else {
         const errorMsg = response.data?.message || "Failed to add project.";
         toast.error(errorMsg);
@@ -151,11 +152,9 @@ export const saveEditedProjectAPI = createAsyncThunk(
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        // API response se naya, updated project return karein
         if (response.data.project && typeof response.data.project === "object") {
           return formatProjectFromAPI(response.data.project);
         }
-        // Fallback ke liye, agar structure alag hai
         return { id: projectData.id, ...projectData };
       } else {
         const errorMsg = response.data?.message || "Failed to update project.";
@@ -190,7 +189,7 @@ export const deleteProjectAPI = createAsyncThunk(
 
       if (response.status === 200 || response.status === 204) {
         toast.success("Project deleted successfully!");
-        return projectId; // Sirf ID return karein
+        return projectId; 
       } else {
         const errorMsg = response.data?.message || "Failed to delete project.";
         toast.error(errorMsg);
@@ -281,7 +280,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
         toast.error(errorMsg);
         return rejectWithValue(errorMsg);
       }
-    } catch (error) {
+    } catch (error)      {
       const errorMessage =
         error.response?.data?.message || error.message || "An error occurred.";
       toast.error(errorMessage);
@@ -348,7 +347,6 @@ export const appProjectSlice = createSlice({
       .addCase(addProjectAPI.fulfilled, (state, action) => {
         state.isAdding = false;
         state.openProjectModal = false;
-        // Naye project ko projects array mein add karein
         state.projects.unshift(action.payload);
         state.totalProjects += 1;
       })
@@ -362,8 +360,6 @@ export const appProjectSlice = createSlice({
       .addCase(saveEditedProjectAPI.fulfilled, (state, action) => {
         state.isUpdating = false;
         state.editModal = false;
-
-        // **FIX:** Projects array mein project ko update karein
         const updatedProject = action.payload;
         const projectIndex = state.projects.findIndex(
           (p) => p.id === updatedProject.id
@@ -381,7 +377,6 @@ export const appProjectSlice = createSlice({
       })
       .addCase(deleteProjectAPI.fulfilled, (state, action) => {
         state.isDeleting = false;
-        // **FIX:** Project ko projects array se filter karke hatayein
         const deletedProjectId = action.payload;
         state.projects = state.projects.filter(
           (p) => p.id !== deletedProjectId
