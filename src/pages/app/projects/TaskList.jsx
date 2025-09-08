@@ -6,14 +6,14 @@ import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
 
-import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
 import EditableTaskStatus from "./EditableTaskStatus";
+import EditableDueDate from "./EditableDueDate";
 
-// --- Helper components and functions (getAuthToken, getApiBasePathForRole, AvatarStack) remain the same ---
-
+// ... (Helper components and functions: getAuthToken, getApiBasePathForRole, AvatarStack) ...
+// (Yeh functions waise hi rahenge jaise aapke paas hain)
 const getAuthToken = () => Cookies.get("token");
 
 const getApiBasePathForRole = (basePath) => {
@@ -110,12 +110,9 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
       if (Array.isArray(response.data)) {
         setTasks(response.data);
       } else {
-        console.error("API did not return an array:", response.data);
-        setError("Invalid data format received from the server.");
         setTasks([]);
       }
     } catch (err) {
-      console.error("Failed to fetch tasks:", err);
       if (err.response?.status === 404) {
         setTasks([]);
       } else {
@@ -130,26 +127,39 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     fetchTasks();
   }, [fetchTasks]);
   
-  // --- FIX #1: Create a function to update the status in the local state ---
   const handleUpdateTaskStatus = useCallback((taskId, newStatus) => {
     setTasks(prevTasks =>
       prevTasks.map(item => {
         const taskToUpdate = item.sub_task || item.task;
         if (taskToUpdate && taskToUpdate.id === taskId) {
-          // Create a new updated task object
           const updatedTask = { ...taskToUpdate, task_status: newStatus };
-          
-          // Reconstruct the item with the updated task/sub-task
           if (item.sub_task) {
             return { ...item, sub_task: updatedTask };
           } else {
             return { ...item, task: updatedTask };
           }
         }
-        return item; // Return the item unchanged if it's not the one
+        return item;
       })
     );
-  }, []); // Empty dependency array as we use the functional form of setTasks
+  }, []);
+
+  const handleUpdateTaskDueDate = useCallback((taskId, newDueDate) => {
+    setTasks(prevTasks =>
+      prevTasks.map(item => {
+        const taskToUpdate = item.sub_task || item.task;
+        if (taskToUpdate && taskToUpdate.id === taskId) {
+          const updatedTask = { ...taskToUpdate, due_date: newDueDate };
+          if (item.sub_task) {
+            return { ...item, sub_task: updatedTask };
+          } else {
+            return { ...item, task: updatedTask };
+          }
+        }
+        return item;
+      })
+    );
+  }, []);
 
 
   const transformedData = useMemo(() => {
@@ -172,7 +182,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     });
   }, [tasks]);
 
-  const filteredAndMemoizedData = useMemo(() => {
+  const data = useMemo(() => {
     let dataToFilter = transformedData;
 
     if (statusFilter && statusFilter.toLowerCase() !== "all") {
@@ -193,6 +203,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
     return dataToFilter;
   }, [transformedData, statusFilter, searchQuery]);
+
 
   const handleOpenEditModal = useCallback((task, e) => {
     e.stopPropagation();
@@ -252,7 +263,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     });
   };
 
-  const COLUMNS = useMemo(
+  const columns = useMemo(
     () => [
       {
         Header: "Jobs",
@@ -290,9 +301,16 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
         Cell: ({ value }) => <span>{formatDate(value)}</span>,
       },
       {
-        Header: "End Date",
+        Header: "Due Date",
         accessor: "due_date",
-        Cell: ({ value }) => <span>{formatDate(value)}</span>,
+        Cell: ({ row }) => (
+          <EditableDueDate
+            taskId={row.original.id}
+            currentDueDate={row.original.due_date}
+            onDateUpdate={handleUpdateTaskDueDate}
+            isEditable={userRole === "admin" || employeeType === "Manager"}
+          />
+        ),
       },
       {
         Header: "Status",
@@ -301,7 +319,6 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
           <EditableTaskStatus
             taskId={row.original.id}
             currentStatus={row.original.task_status}
-            // --- FIX #2: Pass the new handler function as the prop ---
             onStatusUpdate={handleUpdateTaskStatus}
             isEditable={userRole === "admin" || employeeType === "Manager"}
           />
@@ -336,16 +353,13 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
         ),
       },
     ],
-    // --- FIX #3: Add the new handler to the dependency array ---
-    [handleOpenEditModal, handleDelete, userRole, employeeType, handleUpdateTaskStatus]
+    [handleOpenEditModal, handleDelete, userRole, employeeType, handleUpdateTaskStatus, handleUpdateTaskDueDate]
   );
   
-  const data = useMemo(() => filteredAndMemoizedData, [filteredAndMemoizedData]);
-
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable(
       {
-        columns: COLUMNS,
+        columns,
         data,
       },
       useSortBy
@@ -365,12 +379,12 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     return (
       <div className="p-16 text-center text-slate-500">
         <Icon icon="heroicons-outline:inbox" className="mx-auto h-12 w-12" />
-        <h4 className="mt-2 text-lg font-medium">No Projects Found</h4>
+        <h4 className="mt-2 text-lg font-medium">No Tasks Found</h4>
         {searchQuery ? (
-           <p className="mt-1">No projects match your search for "<span className="font-semibold">{searchQuery}</span>".</p>
+           <p className="mt-1">No tasks match your search for "<span className="font-semibold">{searchQuery}</span>".</p>
         ) : statusFilter.toLowerCase() !== "all" ? (
           <p className="mt-1">
-            There are no projects with the status "
+            There are no tasks with the status "
             <span className="font-semibold capitalize">{statusFilter}</span>".
           </p>
         ) : (
@@ -380,7 +394,6 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     );
   }
 
-  // --- No changes to the JSX ---
   return (
     <>
       <div className="overflow-x-auto -mx-6">
@@ -444,7 +457,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
         activeModal={editTaskModal}
         onClose={() => setEditTaskModal(false)}
         task={currentTask}
-        onUpdate={() => fetchTasks()}
+        onUpdate={fetchTasks}
       />
     </>
   );
