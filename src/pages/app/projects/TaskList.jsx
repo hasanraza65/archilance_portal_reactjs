@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useTable, useSortBy } from "react-table";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -12,8 +11,6 @@ import EditTask from "./EditTask";
 import EditableTaskStatus from "./EditableTaskStatus";
 import EditableDueDate from "./EditableDueDate";
 
-// ... (Helper components and functions: getAuthToken, getApiBasePathForRole, AvatarStack) ...
-// (Yeh functions waise hi rahenge jaise aapke paas hain)
 const getAuthToken = () => Cookies.get("token");
 
 const getApiBasePathForRole = (basePath) => {
@@ -64,7 +61,6 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
-
 const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,6 +71,7 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
   const [editTaskModal, setEditTaskModal] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
+  const [expandedSections, setExpandedSections] = useState({});
 
   useEffect(() => {
     if (onLoadingChange) {
@@ -109,12 +106,27 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
       if (Array.isArray(response.data)) {
         setTasks(response.data);
+        
+        // Initialize expanded sections - open backlog by default, others collapsed
+        const statuses = [...new Set(response.data.map(item => {
+          const taskToShow = item.sub_task || item.task;
+          return taskToShow.task_status?.toLowerCase();
+        }))];
+        
+        const initialExpandedState = {};
+        statuses.forEach(status => {
+          initialExpandedState[status] = status === 'backlog';
+        });
+        
+        setExpandedSections(initialExpandedState);
       } else {
         setTasks([]);
+        setExpandedSections({});
       }
     } catch (err) {
       if (err.response?.status === 404) {
         setTasks([]);
+        setExpandedSections({});
       } else {
         setError("Failed to load tasks. Please try again.");
       }
@@ -161,6 +173,12 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     );
   }, []);
 
+  const toggleSection = (status) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [status]: !prev[status]
+    }));
+  };
 
   const transformedData = useMemo(() => {
     if (!tasks || !Array.isArray(tasks)) return [];
@@ -182,28 +200,49 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     });
   }, [tasks]);
 
-  const data = useMemo(() => {
-    let dataToFilter = transformedData;
+  const groupedData = useMemo(() => {
+    const grouped = {};
+    
+    transformedData.forEach(item => {
+      const status = item.task_status?.toLowerCase() || 'unknown';
+      if (!grouped[status]) {
+        grouped[status] = [];
+      }
+      grouped[status].push(item);
+    });
+    
+    return grouped;
+  }, [transformedData]);
 
-    if (statusFilter && statusFilter.toLowerCase() !== "all") {
-      dataToFilter = dataToFilter.filter(
-        (row) => row.task_status?.toLowerCase() === statusFilter.toLowerCase()
-      );
-    }
-
-    if (searchQuery && searchQuery.trim() !== "") {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      dataToFilter = dataToFilter.filter(
-        (row) =>
-          row.project_name?.toLowerCase().includes(lowerCaseQuery) ||
-          row.project_title?.toLowerCase().includes(lowerCaseQuery) ||
-          row.task_title?.toLowerCase().includes(lowerCaseQuery)
-      );
-    }
-
-    return dataToFilter;
-  }, [transformedData, statusFilter, searchQuery]);
-
+  const filteredData = useMemo(() => {
+    const result = {};
+    
+    Object.keys(groupedData).forEach(status => {
+      // Apply status filter if specified
+      if (statusFilter && statusFilter.toLowerCase() !== "all" && status !== statusFilter.toLowerCase()) {
+        return;
+      }
+      
+      // Apply search filter
+      let dataToFilter = groupedData[status];
+      
+      if (searchQuery && searchQuery.trim() !== "") {
+        const lowerCaseQuery = searchQuery.toLowerCase();
+        dataToFilter = dataToFilter.filter(
+          (row) =>
+            row.project_name?.toLowerCase().includes(lowerCaseQuery) ||
+            row.project_title?.toLowerCase().includes(lowerCaseQuery) ||
+            row.task_title?.toLowerCase().includes(lowerCaseQuery)
+        );
+      }
+      
+      if (dataToFilter.length > 0) {
+        result[status] = dataToFilter;
+      }
+    });
+    
+    return result;
+  }, [groupedData, statusFilter, searchQuery]);
 
   const handleOpenEditModal = useCallback((task, e) => {
     e.stopPropagation();
@@ -263,119 +302,19 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     });
   };
 
-  const columns = useMemo(
-    () => [
-      {
-        Header: "Jobs",
-        accessor: "project_name",
-        Cell: ({ value }) => (
-          <span className="font-medium text-slate-700 dark:text-slate-300">
-            {value}
-          </span>
-        ),
-      },
-      {
-        Header: "Projects",
-        accessor: "project_title",
-        Cell: ({ value }) => (
-          <span className="font-medium text-slate-600 capitalize">{value}</span>
-        ),
-      },
-      {
-        Header: "Task",
-        accessor: "task_title",
-        Cell: ({ value }) => (
-          <span className="text-slate-500 capitalize">
-            {value || 'N/A'}
-          </span>
-        ),
-      },
-      {
-        Header: "Assigned To",
-        accessor: "assignees",
-        Cell: ({ value }) => <AvatarStack assignees={value} />,
-      },
-      {
-        Header: "Start Date",
-        accessor: "created_at",
-        Cell: ({ value }) => <span>{formatDate(value)}</span>,
-      },
-      {
-        Header: "Due Date",
-        accessor: "due_date",
-        Cell: ({ row }) => (
-          <EditableDueDate
-            taskId={row.original.id}
-            currentDueDate={row.original.due_date}
-            onDateUpdate={handleUpdateTaskDueDate}
-            isEditable={userRole === "admin" || employeeType === "Manager"}
-          />
-        ),
-      },
-      {
-        Header: "Status",
-        accessor: "task_status",
-        Cell: ({ row }) => (
-          <EditableTaskStatus
-            taskId={row.original.id}
-            currentStatus={row.original.task_status}
-            onStatusUpdate={handleUpdateTaskStatus}
-            isEditable={userRole === "admin" || employeeType === "Manager"}
-          />
-        ),
-      },
-      {
-        Header: "Action",
-        accessor: "action",
-        Cell: ({ row }) => (
-          <div
-            className="flex items-center justify-center space-x-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
-              title="Edit Task"
-              onClick={(e) => handleOpenEditModal(row.original.original_task_data, e)}
-            >
-              <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
-            </button>
-            <button
-              className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
-              title="Delete Task"
-              onClick={(e) => {
-                 const titleToDelete = row.original.task_title || row.original.project_title;
-                 handleDelete(row.original.id, titleToDelete, e);
-              }}
-            >
-              <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
-            </button>
-          </div>
-        ),
-      },
-    ],
-    [handleOpenEditModal, handleDelete, userRole, employeeType, handleUpdateTaskStatus, handleUpdateTaskDueDate]
-  );
-  
-  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
-    useTable(
-      {
-        columns,
-        data,
-      },
-      useSortBy
-    );
-
-  const handleRowClick = (row) => {
+  const handleRowClick = (rowData) => {
     if (userRole === "customer") {
       return;
     }
-    navigate(`/project/${row.original.id}`);
+    navigate(`/project/${rowData.id}`);
   };
 
   if (isLoading) return <TableLoading count={10} />;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
 
-  if (data.length === 0) {
+  const hasData = Object.keys(filteredData).length > 0;
+
+  if (!hasData) {
     return (
       <div className="p-16 text-center text-slate-500">
         <Icon icon="heroicons-outline:inbox" className="mx-auto h-12 w-12" />
@@ -399,56 +338,112 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
       <div className="overflow-x-auto -mx-6">
         <div className="inline-block min-w-full align-middle">
           <div className="overflow-hidden">
-            <table
-              className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700"
-              {...getTableProps()}
-            >
-              <thead className="bg-slate-50 dark:bg-slate-700">
-                {headerGroups.map((headerGroup) => (
-                  <tr {...headerGroup.getHeaderGroupProps()}>
-                    {headerGroup.headers.map((column) => (
-                      <th
-                        {...column.getHeaderProps(
-                          column.getSortByToggleProps()
-                        )}
-                        scope="col"
-                        className="table-th"
-                      >
-                        {column.render("Header")}
-                        <span>
-                          {column.isSorted
-                            ? column.isSortedDesc
-                              ? " 🔽"
-                              : " 🔼"
-                            : ""}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody
-                className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700"
-                {...getTableBodyProps()}
-              >
-                {rows.map((row) => {
-                  prepareRow(row);
-                  return (
-                    <tr
-                      {...row.getRowProps()}
-                      onClick={() => handleRowClick(row)}
-                      className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
-                    >
-                      {row.cells.map((cell) => (
-                        <td {...cell.getCellProps()} className="table-td">
-                          {cell.render("Cell")}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {Object.entries(filteredData).map(([status, tasks]) => (
+              <div key={status} className="mb-6">
+                <div 
+                  className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-700 cursor-pointer"
+                  onClick={() => toggleSection(status)}
+                >
+                  <h3 className="text-lg font-medium capitalize">
+                    {status} ({tasks.length})
+                  </h3>
+                  <Icon 
+                    icon={expandedSections[status] ? "heroicons:chevron-up" : "heroicons:chevron-down"} 
+                    className="w-5 h-5" 
+                  />
+                </div>
+                
+                {expandedSections[status] && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700">
+                      <thead className="bg-slate-50 dark:bg-slate-700">
+                        <tr>
+                          <th className="table-th">Jobs</th>
+                          <th className="table-th">Projects</th>
+                          <th className="table-th">Task</th>
+                          <th className="table-th">Assigned To</th>
+                          <th className="table-th">Start Date</th>
+                          <th className="table-th">Due Date</th>
+                          <th className="table-th">Status</th>
+                          <th className="table-th">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700">
+                        {tasks.map((rowData, index) => (
+                          <tr
+                            key={index}
+                            onClick={() => handleRowClick(rowData)}
+                            className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
+                          >
+                            <td className="table-td">
+                              <span className="font-medium text-slate-700 dark:text-slate-300">
+                                {rowData.project_name}
+                              </span>
+                            </td>
+                            <td className="table-td">
+                              <span className="font-medium text-slate-600 capitalize">
+                                {rowData.project_title}
+                              </span>
+                            </td>
+                            <td className="table-td">
+                              <span className="text-slate-500 capitalize">
+                                {rowData.task_title || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="table-td">
+                              <AvatarStack assignees={rowData.assignees} />
+                            </td>
+                            <td className="table-td">
+                              <span>{formatDate(rowData.created_at)}</span>
+                            </td>
+                            <td className="table-td">
+                              <EditableDueDate
+                                taskId={rowData.id}
+                                currentDueDate={rowData.due_date}
+                                onDateUpdate={handleUpdateTaskDueDate}
+                                isEditable={userRole === "admin" || employeeType === "Manager"}
+                              />
+                            </td>
+                            <td className="table-td">
+                              <EditableTaskStatus
+                                taskId={rowData.id}
+                                currentStatus={rowData.task_status}
+                                onStatusUpdate={handleUpdateTaskStatus}
+                                isEditable={userRole === "admin" || employeeType === "Manager"}
+                              />
+                            </td>
+                            <td className="table-td">
+                              <div
+                                className="flex items-center justify-center space-x-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
+                                  title="Edit Task"
+                                  onClick={(e) => handleOpenEditModal(rowData.original_task_data, e)}
+                                >
+                                  <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+                                </button>
+                                <button
+                                  className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                                  title="Delete Task"
+                                  onClick={(e) => {
+                                    const titleToDelete = rowData.task_title || rowData.project_title;
+                                    handleDelete(rowData.id, titleToDelete, e);
+                                  }}
+                                >
+                                  <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
