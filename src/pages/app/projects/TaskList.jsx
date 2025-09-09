@@ -10,6 +10,81 @@ import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
 import EditableTaskStatus from "./EditableTaskStatus";
 import EditableDueDate from "./EditableDueDate";
+import EditableStartDate from "./EditableStartDate"; // Import the new component
+
+// In-file CSS component for mobile responsiveness (Final Version)
+const ResponsiveTableStyles = () => {
+  useEffect(() => {
+    const styleId = "responsive-task-list-styles";
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      .responsive-task-table {
+        /* CRITICAL: Prevents table width from being determined by content */
+        table-layout: fixed;
+        width: 100%;
+      }
+      .responsive-task-table td, .responsive-task-table th {
+        /* CRITICAL: Forces long text to wrap instead of overflowing */
+        word-break: break-word;
+      }
+      @media (max-width: 767px) {
+        .responsive-task-table thead {
+          display: none;
+        }
+        .responsive-task-table tbody tr {
+          display: block;
+          margin-bottom: 1rem;
+          border-radius: 0.75rem;
+          border: 1px solid #e2e8f0; /* slate-200 */
+          box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+          padding: 0.25rem;
+          background-color: #ffffff; /* white */
+        }
+        .dark .responsive-task-table tbody tr {
+          border-color: #334155; /* slate-700 */
+          background-color: #1e293b; /* slate-800 */
+        }
+        .responsive-task-table td {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 1rem;
+          text-align: right;
+          border-bottom: 1px solid #f1f5f9; /* slate-100 */
+        }
+        .dark .responsive-task-table td {
+          border-bottom-color: #334155; /* slate-700 */
+        }
+        .responsive-task-table tr td:last-child {
+          border-bottom: none;
+        }
+        .responsive-task-table td::before {
+          content: attr(data-label);
+          font-weight: 600;
+          text-align: left;
+          margin-right: 1rem;
+          color: #475569; /* slate-600 */
+        }
+        .dark .responsive-task-table td::before {
+          color: #94a3b8; /* slate-400 */
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      const styleElement = document.getElementById(styleId);
+      if (styleElement) {
+        document.head.removeChild(styleElement);
+      }
+    };
+  }, []);
+
+  return null;
+};
+
 
 const getAuthToken = () => Cookies.get("token");
 
@@ -36,7 +111,7 @@ const AvatarStack = ({ assignees }) => {
           <div
             key={user.id}
             title={user.name}
-            className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-xs font-medium"
+            className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-xs font-medium shadow-sm"
           >
             {avatarUrl ? (
               <img
@@ -45,7 +120,7 @@ const AvatarStack = ({ assignees }) => {
                 className="w-full h-full object-cover rounded-full"
               />
             ) : (
-              <span className="text-slate-600 dark:text-slate-300">
+              <span className="text-blue-700 dark:text-blue-800">
                 {getInitials(user.name)}
               </span>
             )}
@@ -53,7 +128,7 @@ const AvatarStack = ({ assignees }) => {
         );
       })}
       {assignees.length > 3 && (
-        <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
+        <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-700 shadow-sm">
           +{assignees.length - 3}
         </div>
       )}
@@ -61,7 +136,40 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
-const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) => {
+const StatusBadge = ({ status }) => {
+  const statusColors = {
+    backlog:
+      "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200",
+    todo: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    "in progress":
+      "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+    review:
+      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+    done: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    completed:
+      "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  };
+
+  const defaultColor =
+    "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+
+  return (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
+        statusColors[status?.toLowerCase()] || defaultColor
+      }`}
+    >
+      {status || "Unknown"}
+    </span>
+  );
+};
+
+const TaskList = ({
+  statusFilter,
+  searchQuery,
+  onLoadingChange,
+  assignedToMe,
+}) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -106,18 +214,22 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
       if (Array.isArray(response.data)) {
         setTasks(response.data);
-        
-        // Initialize expanded sections - open backlog by default, others collapsed
-        const statuses = [...new Set(response.data.map(item => {
-          const taskToShow = item.sub_task || item.task;
-          return taskToShow.task_status?.toLowerCase();
-        }))];
-        
+
+        const statuses = [
+          ...new Set(
+            response.data.map((item) => {
+              const taskToShow = item.sub_task || item.task;
+              return taskToShow.task_status?.toLowerCase();
+            })
+          ),
+        ];
+
         const initialExpandedState = {};
-        statuses.forEach(status => {
-          initialExpandedState[status] = status === 'backlog';
+        statuses.forEach((status) => {
+          // MODIFICATION: Set all sections to be expanded by default
+          initialExpandedState[status] = true;
         });
-        
+
         setExpandedSections(initialExpandedState);
       } else {
         setTasks([]);
@@ -138,10 +250,10 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
-  
+
   const handleUpdateTaskStatus = useCallback((taskId, newStatus) => {
-    setTasks(prevTasks =>
-      prevTasks.map(item => {
+    setTasks((prevTasks) =>
+      prevTasks.map((item) => {
         const taskToUpdate = item.sub_task || item.task;
         if (taskToUpdate && taskToUpdate.id === taskId) {
           const updatedTask = { ...taskToUpdate, task_status: newStatus };
@@ -156,9 +268,27 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     );
   }, []);
 
+  const handleUpdateTaskStartDate = useCallback((taskId, newStartDate) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((item) => {
+        const taskToUpdate = item.sub_task || item.task;
+        if (taskToUpdate && taskToUpdate.id === taskId) {
+          // Assuming the API returns 'start_date'. If it returns 'created_at', use that.
+          const updatedTask = { ...taskToUpdate, created_at: newStartDate };
+          if (item.sub_task) {
+            return { ...item, sub_task: updatedTask };
+          } else {
+            return { ...item, task: updatedTask };
+          }
+        }
+        return item;
+      })
+    );
+  }, []);
+
   const handleUpdateTaskDueDate = useCallback((taskId, newDueDate) => {
-    setTasks(prevTasks =>
-      prevTasks.map(item => {
+    setTasks((prevTasks) =>
+      prevTasks.map((item) => {
         const taskToUpdate = item.sub_task || item.task;
         if (taskToUpdate && taskToUpdate.id === taskId) {
           const updatedTask = { ...taskToUpdate, due_date: newDueDate };
@@ -174,22 +304,22 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
   }, []);
 
   const toggleSection = (status) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
-      [status]: !prev[status]
+      [status]: !prev[status],
     }));
   };
 
   const transformedData = useMemo(() => {
     if (!tasks || !Array.isArray(tasks)) return [];
-    
-    return tasks.map(item => {
+
+    return tasks.map((item) => {
       const taskToShow = item.sub_task || item.task;
-      
+
       return {
         id: taskToShow.id,
-        project_name: item.project?.project_name || 'N/A',
-        project_title: item.task?.task_title || 'N/A',
+        project_name: item.project?.project_name || "N/A",
+        project_title: item.task?.task_title || "N/A",
         task_title: item.sub_task?.task_title || null,
         assignees: taskToShow.assignees || [],
         created_at: taskToShow.created_at,
@@ -202,30 +332,32 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
   const groupedData = useMemo(() => {
     const grouped = {};
-    
-    transformedData.forEach(item => {
-      const status = item.task_status?.toLowerCase() || 'unknown';
+
+    transformedData.forEach((item) => {
+      const status = item.task_status?.toLowerCase() || "unknown";
       if (!grouped[status]) {
         grouped[status] = [];
       }
       grouped[status].push(item);
     });
-    
+
     return grouped;
   }, [transformedData]);
 
   const filteredData = useMemo(() => {
     const result = {};
-    
-    Object.keys(groupedData).forEach(status => {
-      // Apply status filter if specified
-      if (statusFilter && statusFilter.toLowerCase() !== "all" && status !== statusFilter.toLowerCase()) {
+
+    Object.keys(groupedData).forEach((status) => {
+      if (
+        statusFilter &&
+        statusFilter.toLowerCase() !== "all" &&
+        status !== statusFilter.toLowerCase()
+      ) {
         return;
       }
-      
-      // Apply search filter
+
       let dataToFilter = groupedData[status];
-      
+
       if (searchQuery && searchQuery.trim() !== "") {
         const lowerCaseQuery = searchQuery.toLowerCase();
         dataToFilter = dataToFilter.filter(
@@ -235,12 +367,12 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
             row.task_title?.toLowerCase().includes(lowerCaseQuery)
         );
       }
-      
+
       if (dataToFilter.length > 0) {
         result[status] = dataToFilter;
       }
     });
-    
+
     return result;
   }, [groupedData, statusFilter, searchQuery]);
 
@@ -264,7 +396,9 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
       }).then((result) => {
         if (result.isConfirmed) {
           const token = getAuthToken();
-          const deleteApiPath = getApiBasePathForRole(`/project-task/${taskId}`);
+          const deleteApiPath = getApiBasePathForRole(
+            `/project-task/${taskId}`
+          );
           axios
             .delete(
               `${import.meta.env.VITE_BACKEND_BASE_URL}${deleteApiPath}`,
@@ -283,7 +417,8 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
             .catch((error) => {
               Swal.fire(
                 "Failed!",
-                error.response?.data?.message || "The task could not be deleted.",
+                error.response?.data?.message ||
+                  "The task could not be deleted.",
                 "error"
               );
             });
@@ -309,6 +444,26 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
     navigate(`/project/${rowData.id}`);
   };
 
+  const getStatusGradient = (status) => {
+    const statusGradients = {
+      backlog:
+        "from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800",
+      todo: "from-blue-50 to-blue-100 dark:from-blue-800 dark:to-blue-900",
+      "in progress":
+        "from-amber-50 to-amber-100 dark:from-amber-800 dark:to-amber-900",
+      review:
+        "from-purple-50 to-purple-100 dark:from-purple-800 dark:to-purple-900",
+      done: "from-green-50 to-green-100 dark:from-green-800 dark:to-green-900",
+      completed:
+        "from-green-50 to-green-100 dark:from-green-800 dark:to-green-900",
+    };
+
+    return (
+      statusGradients[status] ||
+      "from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900"
+    );
+  };
+
   if (isLoading) return <TableLoading count={10} />;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
 
@@ -316,18 +471,34 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
   if (!hasData) {
     return (
-      <div className="p-16 text-center text-slate-500">
-        <Icon icon="heroicons-outline:inbox" className="mx-auto h-12 w-12" />
-        <h4 className="mt-2 text-lg font-medium">No Tasks Found</h4>
+      <div className="p-16 text-center text-slate-500 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-900 rounded-xl">
+        <Icon
+          icon="heroicons-outline:inbox"
+          className="mx-auto h-16 w-16 text-blue-400"
+        />
+        <h4 className="mt-4 text-xl font-medium text-slate-700 dark:text-slate-300">
+          No Tasks Found
+        </h4>
         {searchQuery ? (
-           <p className="mt-1">No tasks match your search for "<span className="font-semibold">{searchQuery}</span>".</p>
+          <p className="mt-2 text-slate-600 dark:text-slate-400">
+            No tasks match your search for "
+            <span className="font-semibold text-blue-600 dark:text-blue-400">
+              {searchQuery}
+            </span>
+            ".
+          </p>
         ) : statusFilter.toLowerCase() !== "all" ? (
-          <p className="mt-1">
+          <p className="mt-2 text-slate-600 dark:text-slate-400">
             There are no tasks with the status "
-            <span className="font-semibold capitalize">{statusFilter}</span>".
+            <span className="font-semibold capitalize text-blue-600 dark:text-blue-400">
+              {statusFilter}
+            </span>
+            ".
           </p>
         ) : (
-          <p>There are currently no tasks to display.</p>
+          <p className="text-slate-600 dark:text-slate-400">
+            There are currently no tasks to display.
+          </p>
         )}
       </div>
     );
@@ -335,104 +506,147 @@ const TaskList = ({ statusFilter, searchQuery, onLoadingChange, assignedToMe }) 
 
   return (
     <>
-      <div className="overflow-x-auto -mx-6">
-        <div className="inline-block min-w-full align-middle">
-          <div className="overflow-hidden">
+      <ResponsiveTableStyles />
+      <div className="w-full">
+        <div className="w-full align-middle">
+          <div className="w-full space-y-4">
             {Object.entries(filteredData).map(([status, tasks]) => (
-              <div key={status} className="mb-6">
-                <div 
-                  className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-700 cursor-pointer"
+              <div
+                key={status}
+                className="mb-6 rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
+              >
+                <div
+                  className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
+                    status
+                  )}`}
                   onClick={() => toggleSection(status)}
                 >
-                  <h3 className="text-lg font-medium capitalize">
-                    {status} ({tasks.length})
-                  </h3>
-                  <Icon 
-                    icon={expandedSections[status] ? "heroicons:chevron-up" : "heroicons:chevron-down"} 
-                    className="w-5 h-5" 
-                  />
+                  <div className="flex items-center space-x-3">
+                    <Icon
+                      icon={
+                        expandedSections[status]
+                          ? "heroicons:chevron-down"
+                          : "heroicons:chevron-right"
+                      }
+                      className="w-5 h-5 text-slate-600 dark:text-slate-300"
+                    />
+                    <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+                      {status}
+                    </h3>
+                    <span className="px-2 py-1 bg-white dark:bg-slate-700 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
+                      {tasks.length}
+                    </span>
+                  </div>
+                  <StatusBadge status={status} />
                 </div>
-                
+
                 {expandedSections[status] && (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700">
-                      <thead className="bg-slate-50 dark:bg-slate-700">
+                  <div className="w-full bg-slate-50 dark:bg-slate-900/50 p-2 md:p-0">
+                    <table className="min-w-full responsive-task-table">
+                      <thead className="hidden md:table-header-group bg-slate-50 dark:bg-slate-700">
                         <tr>
-                          <th className="table-th">Jobs</th>
-                          <th className="table-th">Projects</th>
-                          <th className="table-th">Task</th>
-                          <th className="table-th">Assigned To</th>
-                          <th className="table-th">Start Date</th>
-                          <th className="table-th">Due Date</th>
-                          <th className="table-th">Status</th>
-                          <th className="table-th">Action</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">Jobs</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">Projects</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/8">Task</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Assigned To</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Start Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Due Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/10">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700">
+                      <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
                         {tasks.map((rowData, index) => (
                           <tr
                             key={index}
                             onClick={() => handleRowClick(rowData)}
-                            className="even:bg-slate-50 dark:even:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
+                            className="block md:table-row md:hover:bg-slate-50 md:dark:hover:bg-slate-700/50 cursor-pointer transition-colors duration-150"
                           >
-                            <td className="table-td">
-                              <span className="font-medium text-slate-700 dark:text-slate-300">
+                            <td data-label="Job" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                              <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
                                 {rowData.project_name}
                               </span>
                             </td>
-                            <td className="table-td">
-                              <span className="font-medium text-slate-600 capitalize">
+                            <td data-label="Project" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                              <span className="font-medium text-blue-600 dark:text-blue-400 capitalize text-sm">
                                 {rowData.project_title}
                               </span>
                             </td>
-                            <td className="table-td">
-                              <span className="text-slate-500 capitalize">
-                                {rowData.task_title || 'N/A'}
+                            <td data-label="Task" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                              <span className="text-slate-700 dark:text-slate-300 capitalize text-sm">
+                                {rowData.task_title || "N/A"}
                               </span>
                             </td>
-                            <td className="table-td">
+                            <td data-label="Assigned To" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
                               <AvatarStack assignees={rowData.assignees} />
                             </td>
-                            <td className="table-td">
-                              <span>{formatDate(rowData.created_at)}</span>
+                            <td data-label="Start Date" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                              <EditableStartDate
+                                taskId={rowData.id}
+                                currentStartDate={rowData.created_at}
+                                onDateUpdate={handleUpdateTaskStartDate}
+                                isEditable={
+                                  userRole === "admin" ||
+                                  employeeType === "Manager"
+                                }
+                              />
                             </td>
-                            <td className="table-td">
+                            <td data-label="Due Date" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
                               <EditableDueDate
                                 taskId={rowData.id}
                                 currentDueDate={rowData.due_date}
                                 onDateUpdate={handleUpdateTaskDueDate}
-                                isEditable={userRole === "admin" || employeeType === "Manager"}
+                                isEditable={
+                                  userRole === "admin" ||
+                                  employeeType === "Manager"
+                                }
                               />
                             </td>
-                            <td className="table-td">
+                            <td data-label="Status" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
                               <EditableTaskStatus
                                 taskId={rowData.id}
                                 currentStatus={rowData.task_status}
                                 onStatusUpdate={handleUpdateTaskStatus}
-                                isEditable={userRole === "admin" || employeeType === "Manager"}
+                                isEditable={
+                                  userRole === "admin" ||
+                                  employeeType === "Manager"
+                                }
                               />
                             </td>
-                            <td className="table-td">
+                            <td data-label="Action" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
                               <div
-                                className="flex items-center justify-center space-x-2"
+                                className="flex items-center justify-end space-x-2"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button
-                                  className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
+                                  className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors duration-200"
                                   title="Edit Task"
-                                  onClick={(e) => handleOpenEditModal(rowData.original_task_data, e)}
+                                  onClick={(e) =>
+                                    handleOpenEditModal(
+                                      rowData.original_task_data,
+                                      e
+                                    )
+                                  }
                                 >
-                                  <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+                                  <Icon
+                                    icon="heroicons:pencil-square"
+                                    className="w-4 h-4"
+                                  />
                                 </button>
                                 <button
-                                  className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                                  className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors duration-200"
                                   title="Delete Task"
                                   onClick={(e) => {
-                                    const titleToDelete = rowData.task_title || rowData.project_title;
+                                    const titleToDelete =
+                                      rowData.task_title ||
+                                      rowData.project_title;
                                     handleDelete(rowData.id, titleToDelete, e);
                                   }}
                                 >
-                                  <Icon icon="heroicons-outline:trash" className="w-4 h-4" />
+                                  <Icon
+                                    icon="heroicons-outline:trash"
+                                    className="w-4 h-4"
+                                  />
                                 </button>
                               </div>
                             </td>

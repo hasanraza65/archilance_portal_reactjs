@@ -8,8 +8,7 @@ import Cookies from "js-cookie";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const STATUS_OPTIONS = [
-  // "To-Do",
-  "On Hold",  // Added On Hold before Backlog
+  "On Hold",
   "Backlog",
   "Awaiting Info",
   "In Progress",
@@ -33,9 +32,7 @@ const getStatusClass = (status) => {
       return "bg-pink-100 text-pink-800 border-pink-200";
     case "backlog":
       return "bg-purple-100 text-purple-800 border-purple-200";
-    // case "to-do":
-    //   return "bg-slate-100 text-slate-800 border-slate-200";
-    case "on hold":  // Added On Hold case
+    case "on hold":
       return "bg-amber-100 text-amber-800 border-amber-200";
     default:
       return "bg-gray-100 text-gray-800 border-gray-200";
@@ -57,9 +54,7 @@ const getStatusSelectedBarColor = (status) => {
         return "bg-pink-500";
       case "backlog":
         return "bg-purple-500";
-      // case "to-do":
-      //   return "bg-slate-500";
-      case "on hold":  // Added On Hold case
+      case "on hold":
         return "bg-amber-500";
       default:
         return "bg-gray-500";
@@ -147,8 +142,6 @@ const EditableTaskStatus = ({
 
       toast.success(response.data.message || "Status updated successfully!");
       if (onStatusUpdate) {
-        // --- FIX: Pass the new status and task ID back to the parent ---
-        // This avoids a full data refresh.
         onStatusUpdate(taskId, newStatus);
       }
     } catch (error) {
@@ -160,11 +153,10 @@ const EditableTaskStatus = ({
 
   const displayStatus = currentStatus || "To-Do";
 
-  // --- No changes to the JSX ---
   return (
     <div className="relative">
       {isSaving ? (
-        <div className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border flex items-center justify-center ${getStatusClass(displayStatus)}`}>
+        <div className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border flex items-center justify-center ${getStatusClass(displayStatus)}`}>
           <FiLoader className="animate-spin" />
         </div>
       ) : isEditable ? (
@@ -175,7 +167,7 @@ const EditableTaskStatus = ({
               e.stopPropagation();
               setIsOpen((prev) => !prev);
             }}
-            className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border focus:outline-none focus:ring-2 focus:ring-offset-1 flex items-center ${getStatusClass(displayStatus)}`}
+            className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border focus:outline-none focus:ring-2 focus:ring-offset-1 flex items-center ${getStatusClass(displayStatus)}`} // CHANGE HERE
             aria-haspopup="true"
             aria-expanded={isOpen}
             disabled={isSaving}
@@ -213,7 +205,7 @@ const EditableTaskStatus = ({
           )}
         </>
       ) : (
-        <div className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold border ${getStatusClass(displayStatus)}`}>
+        <div className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border ${getStatusClass(displayStatus)}`}> {/* CHANGE HERE */}
           {(displayStatus).toUpperCase()}
         </div>
       )}

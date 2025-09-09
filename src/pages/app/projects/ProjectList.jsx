@@ -19,6 +19,9 @@ import {
   fetchProjectsAPI,
 } from "./store";
 import EditableProjectStatus from "./EditableProjectStatus";
+// Import the new editable date components
+import EditableProjectStartDate from "./EditableProjectStartDate";
+import EditableProjectDueDate from "./EditableProjectDueDate";
 
 // AvatarStack component (no change)
 const AvatarStack = ({ assignees }) => {
@@ -84,21 +87,12 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
     e.stopPropagation();
     dispatch(toggleUpdateAssigneesModal({ open: true, project }));
   };
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    try {
-      const d = new Date(dateString);
-      return isNaN(d.getTime())
-        ? "Invalid Date"
-        : d.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-    } catch (e) {
-      return "Invalid Date";
-    }
+
+  // NEW: Handler to refresh project data after an update
+  const handleDataUpdate = () => {
+    dispatch(fetchProjectsAPI(currentPage));
   };
+  
   const handleRowNavigation = (projectId) => {
     if (!projectId) return;
     if (userRole === "customer") navigate(`/order-details/${projectId}`);
@@ -142,18 +136,20 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
   };
 
   const COLUMNS = useMemo(() => {
+    const isEditable = userRole === "admin" || employeeType === "Manager";
+
     const baseColumns = [
       {
         Header: "Name",
-        accessor: "name",
+        accessor: "project_name", // Corrected accessor
         Cell: ({ row }) => (
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="flex-none">
               <div className="h-10 w-10 rounded-full text-sm bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-medium -tracking-[1px]">
-                {row.original.name
+                {row.original.project_name
                   ? (
-                      row.original.name.charAt(0) +
-                      (row.original.name.charAt(1) || "")
+                      row.original.project_name.charAt(0) +
+                      (row.original.project_name.split(' ')[1]?.charAt(0) || "")
                     ).toUpperCase()
                   : "NA"}
               </div>
@@ -161,9 +157,9 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
             <div className="flex-1 min-w-0">
               <h4
                 className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate"
-                title={row.original.name}
+                title={row.original.project_name}
               >
-                {row.original.name || "N/A"}
+                {row.original.project_name || "N/A"}
               </h4>
               {row.original.customer?.name && (
                 <div className="text-slate-500 dark:text-slate-400 text-xs mt-1 truncate">
@@ -188,20 +184,28 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
       },
       {
         Header: "Start Date",
-        accessor: "startDate",
-        Cell: ({ cell: { value } }) => (
-          <span className="text-sm text-slate-600 dark:text-slate-300">
-            {formatDate(value)}
-          </span>
+        accessor: "start_date", // Corrected accessor based on your JSON
+        Cell: ({ cell: { value }, row }) => (
+          <EditableProjectStartDate
+            projectId={row.original.id}
+            currentStartDate={value}
+            onDateUpdate={handleDataUpdate}
+            isEditable={isEditable}
+            userRole={userRole}
+          />
         ),
       },
       {
-        Header: "End Date",
-        accessor: "endDate",
-        Cell: ({ cell: { value } }) => (
-          <div className="text-sm text-slate-600 dark:text-slate-300">
-            {formatDate(value)}
-          </div>
+        Header: "Due Date", // Renamed from "End Date" for clarity
+        accessor: "due_date", // Corrected accessor based on your JSON
+        Cell: ({ cell: { value }, row }) => (
+          <EditableProjectDueDate
+            projectId={row.original.id}
+            currentDueDate={value}
+            onDateUpdate={handleDataUpdate}
+            isEditable={isEditable}
+            userRole={userRole}
+          />
         ),
       },
       {
@@ -211,9 +215,8 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
           <EditableProjectStatus
             projectId={row.original.id}
             currentStatus={value}
-            onStatusUpdate={() => dispatch(fetchProjectsAPI(currentPage))}
-            // +++ YAHAN PAR TABDEELI KI GAYI HAI +++
-            isEditable={userRole === "admin" || employeeType === "Manager"}
+            onStatusUpdate={handleDataUpdate}
+            isEditable={isEditable}
             apiBaseUrl={API_BASE_URL}
             apiPath={getApiBasePathForRole("/update-project-status")}
             token={token}
@@ -244,8 +247,8 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
               >
                 <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
               </button>
-                            {/* Edit Button ki alag condition */}
-              {(userRole === "admin" || employeeType === "Manager" || userRole === "employee") && (
+              {/* Edit Button with corrected logic */}
+              {(userRole === "admin" || employeeType === "Manager") && (
                   <button
                     onClick={(e) => handleEdit(projectItem, e)}
                     disabled={actionsDisabled}
@@ -255,8 +258,7 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
                     <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
                   </button>
               )}
-
-              {/* Delete Button ki alag condition */}
+              {/* Delete Button */}
               {(userRole === "admin" || employeeType === "Manager") && (
                   <button
                     onClick={(e) => handleDelete(projectItem, e)}
@@ -337,13 +339,13 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
                   return (
                     <tr
                       {...row.getRowProps()}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors duration-200"
+                      className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors duration-200 cursor-pointer"
                       onClick={() => handleRowNavigation(row.original.id)}
                     >
                       {row.cells.map((cell) => (
                         <td
                           {...cell.getCellProps()}
-                          className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                          className="px-6 py-4 whitespace-nowrap"
                         >
                           {cell.render("Cell")}
                         </td>
