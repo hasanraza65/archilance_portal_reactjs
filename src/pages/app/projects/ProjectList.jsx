@@ -20,8 +20,8 @@ import {
 } from "./store";
 import EditableProjectStatus from "./EditableProjectStatus";
 // Import the new editable date components
-import EditableProjectStartDate from "./EditableProjectStartDate";
-import EditableProjectDueDate from "./EditableProjectDueDate";
+import EditableProjectStartDate from "./EditProjectDate/EditableProjectStartDate";
+import EditableProjectDueDate from "./EditProjectDate/EditableProjectDueDate";
 
 // AvatarStack component (no change)
 const AvatarStack = ({ assignees }) => {

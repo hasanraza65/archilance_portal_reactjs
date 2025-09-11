@@ -196,6 +196,11 @@ const AddSubTaskModal = ({
       formDataPayload.append("task_description", data.task_description);
       formDataPayload.append("project_id", numericProjectId.toString());
 
+      // === YAHAN TABDEELI KI GAYI HAI ===
+      // Default status hamesha "Backlog" set karein
+      formDataPayload.append("task_status", "Backlog");
+      // ===================================
+
       if (numericParentTaskId !== null) {
         formDataPayload.append(
           "parent_task_id",
@@ -243,23 +248,20 @@ const AddSubTaskModal = ({
 
       toast.success(
         responseData.message ||
-          (numericParentTaskId ? "task added!" : "Task added!")
+          (numericParentTaskId ? "Task added!" : "Project added!")
       );
 
-      // --- FIX: DELAY CLOSING THE MODAL TO ALLOW TOAST TO BE SEEN ---
       setTimeout(() => {
         if (onSubTaskAdded) {
           onSubTaskAdded();
         }
         onClose();
-      }, 300); // 300ms delay
+      }, 300);
     } catch (error) {
       toast.error(error.message || "An unexpected error occurred.");
       console.error("Error during task submission:", error);
     } finally {
-      // We don't set isSubmitting to false here anymore because the component will unmount.
-      // If there's an error, it will be set to false below.
-      if (!isSubmitting) setIsSubmitting(false);
+      setIsSubmitting(false); // Ensure this is always called on error or success
     }
   };
 
@@ -321,11 +323,7 @@ const AddSubTaskModal = ({
           />
         </FormGroup>
 
-        <FormGroup
-          label="Due Date (Optional)"
-          error={errors.due_date}
-        x
-        >
+        <FormGroup label="Due Date (Optional)" error={errors.due_date}>
           <Controller
             name="due_date"
             control={control}

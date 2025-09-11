@@ -242,6 +242,10 @@ const AddProject = ({ onProjectAdded }) => {
         : null,
       customer_id: data.customer_id.value,
       employee_ids: data.employee_ids.map((emp) => emp.value),
+      // === YAHAN TABDEELI KI GAYI HAI ===
+      // Default status "Backlog" send karein taake UI foran theek ho
+      status: 'Backlog',
+      // ===================================
     };
 
     dispatch(addProjectAPI(payload))

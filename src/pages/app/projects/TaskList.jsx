@@ -9,8 +9,8 @@ import Icon from "@/components/ui/Icon";
 import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
 import EditableTaskStatus from "./EditableTaskStatus";
-import EditableDueDate from "./EditableDueDate";
-import EditableStartDate from "./EditableStartDate"; // Import the new component
+import EditableDueDate from "./EditTaskDate/EditableDueDate";
+import EditableStartDate from "./EditTaskDate/EditableStartDate"; // Import the new component
 
 // In-file CSS component for mobile responsiveness (Final Version)
 const ResponsiveTableStyles = () => {
