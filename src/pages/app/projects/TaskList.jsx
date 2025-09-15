@@ -318,6 +318,9 @@ const TaskList = ({
 
       return {
         id: taskToShow.id,
+        // ++ YEH DONO IDs BREADCRUMB AUR NAVIGATION KE LIYE ZAROORI HAIN ++
+        project_id: item.project?.id,
+        parent_task_id: item.task?.id,
         project_name: item.project?.project_name || "N/A",
         project_title: item.task?.task_title || "N/A",
         task_title: item.sub_task?.task_title || null,
@@ -437,11 +440,47 @@ const TaskList = ({
     });
   };
 
+  // ++ YEH FUNCTION MUKAMMAL TOR PAR UPDATE KIYA GAYA HAI ++
   const handleRowClick = (rowData) => {
     if (userRole === "customer") {
       return;
     }
-    navigate(`/project/${rowData.id}`);
+
+    // Task ka title hasil karein. Agar sub-task hai to uska title, warna main task ka title.
+    const finalTaskTitle = rowData.task_title || rowData.project_title;
+    
+    // Breadcrumb ka structure banayein
+    const breadcrumbsToPass = [{ title: "Jobs", link: "/jobs" }];
+
+    // Agar project (job) ka naam hai to usko breadcrumb mein add karein
+    if (rowData.project_name && rowData.project_name !== "N/A" && rowData.project_id) {
+        breadcrumbsToPass.push({
+            title: rowData.project_name,
+            link: `/jobs/${rowData.project_id}` // Job/Project detail page ka link
+        });
+    }
+
+    // Agar yeh ek sub-task hai (task_title mojood hai), to parent task ko breadcrumb mein add karein
+    if(rowData.task_title && rowData.project_title !== 'N/A' && rowData.parent_task_id) {
+        breadcrumbsToPass.push({
+            title: rowData.project_title,
+            link: `/project/${rowData.parent_task_id}` // Parent task ka link
+        });
+    }
+
+    // Aakhir mein, current task (jis par click hua) ko breadcrumb mein add karein
+    breadcrumbsToPass.push({
+      title: finalTaskTitle
+      // Aakhri item ka link nahi hota
+    });
+
+    // `navigate` function ke `state` mein data pass karein
+    navigate(`/project/${rowData.id}`, {
+      state: {
+        breadcrumbs: breadcrumbsToPass,
+        jobId: rowData.project_id // jobId ko bhi state mein pass karein
+      },
+    });
   };
 
   const getStatusGradient = (status) => {
@@ -581,26 +620,32 @@ const TaskList = ({
                               <AvatarStack assignees={rowData.assignees} />
                             </td>
                             <td data-label="Start Date" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
-                              <EditableStartDate
-                                taskId={rowData.id}
-                                currentStartDate={rowData.created_at}
-                                onDateUpdate={handleUpdateTaskStartDate}
-                                isEditable={
-                                  userRole === "admin" ||
-                                  employeeType === "Manager"
-                                }
-                              />
+                              <div className="flex items-center space-x-2">
+                                <Icon icon="heroicons-outline:calendar" className="w-9 h-9 text-slate-500 dark:text-slate-400" />
+                                <EditableStartDate
+                                  taskId={rowData.id}
+                                  currentStartDate={rowData.created_at}
+                                  onDateUpdate={handleUpdateTaskStartDate}
+                                  isEditable={
+                                    userRole === "admin" ||
+                                    employeeType === "Manager"
+                                  }
+                                />
+                              </div>
                             </td>
                             <td data-label="Due Date" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
-                              <EditableDueDate
-                                taskId={rowData.id}
-                                currentDueDate={rowData.due_date}
-                                onDateUpdate={handleUpdateTaskDueDate}
-                                isEditable={
-                                  userRole === "admin" ||
-                                  employeeType === "Manager"
-                                }
-                              />
+                              <div className="flex items-center space-x-2">
+                                <Icon icon="heroicons-outline:calendar" className="w-9 h-9 text-slate-500 dark:text-slate-400" />
+                                <EditableDueDate
+                                  taskId={rowData.id}
+                                  currentDueDate={rowData.due_date}
+                                  onDateUpdate={handleUpdateTaskDueDate}
+                                  isEditable={
+                                    userRole === "admin" ||
+                                    employeeType === "Manager"
+                                  }
+                                />
+                              </div>
                             </td>
                             <td data-label="Status" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
                               <EditableTaskStatus

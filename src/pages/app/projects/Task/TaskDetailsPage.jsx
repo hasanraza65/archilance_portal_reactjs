@@ -30,6 +30,8 @@ const TaskDetailsPage = () => {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // ++ jobId ko state se hasil karein, lekin agar state na ho to null rakhein ++
   const jobId = location.state?.jobId;
 
   // ++ STEP 2: useAuth HOOK KO CALL KARKE USER KI MALOOMAT HASIL KI GAYI HAI ++
@@ -133,35 +135,38 @@ const TaskDetailsPage = () => {
 
     try {
       const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
-
-      const [taskResponse, jobResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, { headers }),
-        jobId ? fetch(`${API_BASE_URL}${jobApiPath}/${jobId}`, { headers }) : Promise.resolve(null),
-      ]);
-
+      
+      const taskResponse = await fetch(`${API_BASE_URL}${taskApiPath}/${taskId}`, { headers });
+      
       if (!taskResponse.ok) {
         let errorMessage = `Error fetching task: ${taskResponse.status} ${taskResponse.statusText}`;
         try {
           const errorData = await taskResponse.json();
           errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // Ignore if response is not JSON
-        }
+        } catch (e) { /* Ignore if response is not JSON */ }
         throw new Error(errorMessage);
       }
-
+      
       const taskData = await taskResponse.json();
-      const jobData = jobResponse && jobResponse.ok ? await jobResponse.json().catch(() => null) : null;
-
       setParentTaskDetails(taskData);
-      setJobDetails(jobData?.data || jobData);
       setSubTasks(taskData.sub_tasks || []);
       setTaskBriefs(taskData.all_briefs || []);
       setTimeLogs(taskData.assignees_with_hours || []);
+      
+      // Agar job/project ID mojood hai to uski details bhi fetch karein (page refresh ke liye)
+      const project_id_to_fetch = jobId || taskData.project_id;
+      if (project_id_to_fetch) {
+        const jobResponse = await fetch(`${API_BASE_URL}${jobApiPath}/${project_id_to_fetch}`, { headers });
+        if (jobResponse.ok) {
+            const jobData = await jobResponse.json();
+            setJobDetails(jobData?.data || jobData);
+        }
+      }
 
       if (canManageComments) {
         await initialFetchAndSetup(taskId);
       }
+
     } catch (err) {
       console.error("Failed to fetch details:", err);
       setError(err.message || "An unknown error occurred while fetching data.");
@@ -171,23 +176,36 @@ const TaskDetailsPage = () => {
     }
   }, [taskId, jobId, API_BASE_URL, taskApiPath, jobApiPath, canManageComments, navigate]);
   
+  // ++ BREADCRUMB LOGIC KO IS NAYE useEffect MEIN UPDATE KIYA GAYA HAI ++
   useEffect(() => {
-    if (jobDetails && parentTaskDetails) {
-        setBreadcrumbs([
-            { title: "Jobs", link: "/jobs" },
-            { title: jobDetails.project_name, link: `/jobs/${jobId}` },
-            { title: parentTaskDetails.task_title, link: `/project/${taskId}` }
-        ]);
-    } else if (parentTaskDetails) {
-        setBreadcrumbs([
-            { title: "Jobs", link: "/jobs" },
-            { title: parentTaskDetails.task_title, link: `/project/${taskId}` }
-        ]);
+    // SCENARIO 1: Agar breadcrumbs navigation ke state mein pass kiye gaye hain
+    if (location.state?.breadcrumbs) {
+      setBreadcrumbs(location.state.breadcrumbs);
+    } 
+    // SCENARIO 2: Agar state mein nahi hain (page refresh hua hai), to API data se banayein
+    else if (parentTaskDetails) {
+        const newCrumbs = [{ title: "Jobs", link: "/jobs" }];
+        
+        if (jobDetails) {
+            newCrumbs.push({ title: jobDetails.project_name, link: `/jobs/${jobDetails.id}` });
+        }
+
+        // Agar parent task hai (yani yeh ek sub-task hai) to usko bhi add karein
+        if (parentTaskDetails.parent_task) {
+            newCrumbs.push({ title: parentTaskDetails.parent_task.task_title, link: `/project/${parentTaskDetails.parent_task.id}` });
+        }
+        
+        newCrumbs.push({ title: parentTaskDetails.task_title }); // Current page, no link
+        
+        setBreadcrumbs(newCrumbs);
     }
+
+    // Cleanup function: Jab component unmount ho to breadcrumbs khali kar dein
     return () => {
         setBreadcrumbs([]);
     };
-  }, [jobDetails, parentTaskDetails, setBreadcrumbs, jobId, taskId]);
+  }, [location.state, jobDetails, parentTaskDetails, setBreadcrumbs]);
+
 
   const initialFetchAndSetup = async (currentTaskId) => {
     if (!canManageComments) return;

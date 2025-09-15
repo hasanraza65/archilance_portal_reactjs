@@ -16,20 +16,17 @@ import "react-toastify/dist/ReactToastify.css";
 import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
 import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
-
-// ++ BREADCRUMB HOOK KO IMPORT KIYA GAYA HAI ++
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
+import MembersView from "./MembersView/MembersView";
 
 const STATUS_OPTIONS = [
-
-   "On Hold", 
+  "On Hold",
   "Backlog",
   "Awaiting Info",
   "In Progress",
   "In-house review",
   "Client Review",
   "Completed",
- 
 ];
 
 export const getStatusClass = (status) => {
@@ -42,7 +39,7 @@ export const getStatusClass = (status) => {
   if (s.includes("cancel")) return "bg-red-100 text-red-800 border-red-200";
   if (s.includes("backlog"))
     return "bg-purple-100 text-purple-800 border-purple-200";
-  if (s.includes("on hold"))  
+  if (s.includes("on hold"))
     return "bg-orange-100 text-orange-800 border-orange-200";
   if (s.includes("archived"))
     return "bg-gray-100 text-gray-800 border-gray-200";
@@ -82,14 +79,20 @@ export const StatusFilterBar = ({
 );
 
 const ProjectPostPage = () => {
-  // ++ CONTEXT SE 'setBreadcrumbs' FUNCTION HASIL KIYA GAYA HAI ++
   const { setBreadcrumbs } = useBreadcrumbs();
-  
+  const TASK_FILTER_STORAGE_KEY = "projectPostPage_taskFilter";
+
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem("projectPageActiveTab") || "projects");
-  const [filler, setFiller] = useState(() => sessionStorage.getItem("projectView") || "grid");
+  const [activeTab, setActiveTab] = useState(
+    () => sessionStorage.getItem("projectPageActiveTab") || "projects"
+  );
+  const [filler, setFiller] = useState(
+    () => sessionStorage.getItem("projectView") || "grid"
+  );
   const [projectStatusFilter, setProjectStatusFilter] = useState("All");
-  const [taskStatusFilter, setTaskStatusFilter] = useState("All");
+  const [taskStatusFilter, setTaskStatusFilter] = useState(() => {
+    return localStorage.getItem(TASK_FILTER_STORAGE_KEY) || "All";
+  });
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
@@ -108,35 +111,39 @@ const ProjectPostPage = () => {
     isUpdating,
     error: projectsError,
   } = useSelector((state) => state.project);
-  
-  // ++ YEH useEffect BREADCRUMB KO SET KARNE KE LIYE ADD KIYA GAYA HAI ++
+
   useEffect(() => {
-    // Jab yeh page load hoga, to breadcrumb ko set karein
     setBreadcrumbs([{ title: "Jobs", link: "/jobs" }]);
-    
-    // Jab component unmount hoga (user doosre page par chala jaye), to breadcrumb ko saaf karein
     return () => {
-        setBreadcrumbs([]);
-    }
+      setBreadcrumbs([]);
+    };
   }, [setBreadcrumbs]);
+
+  useEffect(() => {
+    localStorage.setItem(TASK_FILTER_STORAGE_KEY, taskStatusFilter);
+  }, [taskStatusFilter]);
 
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
     const statusFromUrl = searchParams.get("status");
 
-    if (tabFromUrl === 'tasks' || tabFromUrl === 'projects') {
+    if (
+      tabFromUrl === "tasks" ||
+      tabFromUrl === "projects" ||
+      tabFromUrl === "members"
+    ) {
       setActiveTab(tabFromUrl);
     }
 
     if (statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)) {
       const targetTab = tabFromUrl || activeTab;
-      if (targetTab === 'projects') {
+      if (targetTab === "projects") {
         setProjectStatusFilter(statusFromUrl);
-      } else if (targetTab === 'tasks') {
+      } else if (targetTab === "tasks") {
         setTaskStatusFilter(statusFromUrl);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, activeTab]);
 
   useEffect(() => {
     const apiParams = {};
@@ -184,6 +191,13 @@ const ProjectPostPage = () => {
         : "bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600"
     }`;
 
+  const pageTitle = useMemo(() => {
+    if (activeTab === "projects") return "Jobs";
+    if (activeTab === "tasks") return "Projects";
+    if (activeTab === "members") return "Members View";
+    return "Jobs";
+  }, [activeTab]);
+
   return (
     <div>
       <ToastContainer
@@ -199,7 +213,8 @@ const ProjectPostPage = () => {
         theme="light"
       />
 
-      <div className="flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-800 space-x-1 mb-5 w-min">
+      {/* --- MODIFIED LINE: Changed `flex w-min` to `inline-flex` --- */}
+      <div className="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-800 space-x-1 mb-5">
         <button
           className={getTabClassName("projects")}
           onClick={() => setActiveTab("projects")}
@@ -212,15 +227,24 @@ const ProjectPostPage = () => {
         >
           Projects
         </button>
+        <button
+          className={getTabClassName("members")}
+          onClick={() => setActiveTab("members")}
+        >
+          Members View
+        </button>
       </div>
 
       <div className="flex justify-between items-center mb-6">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
-          {activeTab === "projects" ? "Jobs" : "Projects"}
+          {pageTitle}
         </h4>
-        
+
         {activeTab === "projects" &&
-          (employeeType === "Manager" || (uiRole !== "employee" && uiRole !== "customer" && uiRole !== "outsource")) && (
+          (employeeType === "Manager" ||
+            (uiRole !== "employee" &&
+              uiRole !== "customer" &&
+              uiRole !== "outsource")) && (
             <Button
               icon="heroicons-outline:plus"
               text="Add Job"
@@ -258,14 +282,12 @@ const ProjectPostPage = () => {
                     text="Assigned to me"
                     disabled={anyOperationPending}
                     className={`py-2 px-4 text-sm font-medium transition-colors ${
-                      assignedToMeFilter
-                        ? "btn-dark"
-                        : "btn-outline-dark"
+                      assignedToMeFilter ? "btn-dark" : "btn-outline-dark"
                     }`}
-                    onClick={() => setAssignedToMeFilter(prev => !prev)}
+                    onClick={() => setAssignedToMeFilter((prev) => !prev)}
                   />
                 )}
-                
+
                 <Button
                   icon="heroicons:list-bullet"
                   disabled={anyOperationPending}
@@ -329,7 +351,7 @@ const ProjectPostPage = () => {
                         project={project}
                         key={project.id}
                         userRole={uiRole}
-                         employeeType={employeeType}
+                        employeeType={employeeType}
                       />
                     ))}
                   </div>
@@ -383,18 +405,16 @@ const ProjectPostPage = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-end">
                 {employeeType === "Manager" && (
                   <Button
                     text="Assigned to me"
                     disabled={isTaskListLoading}
                     className={`py-2 px-4 text-sm font-medium transition-colors ${
-                      taskAssignedToMeFilter
-                        ? "btn-dark"
-                        : "btn-outline-dark"
+                      taskAssignedToMeFilter ? "btn-dark" : "btn-outline-dark"
                     }`}
-                    onClick={() => setTaskAssignedToMeFilter(prev => !prev)}
+                    onClick={() => setTaskAssignedToMeFilter((prev) => !prev)}
                   />
                 )}
               </div>
@@ -418,6 +438,8 @@ const ProjectPostPage = () => {
           </Card>
         </>
       )}
+
+      {activeTab === "members" && <MembersView />}
 
       <AddProject />
       <EditProject />

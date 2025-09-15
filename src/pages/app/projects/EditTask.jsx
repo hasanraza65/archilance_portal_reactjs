@@ -81,13 +81,17 @@ const quillFormats = [
   "link",
 ];
 
-// Constants for dropdown options
+// --- MODIFIED: Added all new status options ---
 const TASK_STATUS_OPTIONS = [
-  // { value: "Todo", label: "To Do" },
-  { value: "In Progress", label: "In Progress" },
-  { value: "Completed", label: "Completed" },
   { value: "On Hold", label: "On Hold" },
+  { value: "Backlog", label: "Backlog" },
+  { value: "Awaiting Info", label: "Awaiting Info" },
+  { value: "In Progress", label: "In Progress" },
+  { value: "In-house review", label: "In-house review" },
+  { value: "Client Review", label: "Client Review" },
+  { value: "Completed", label: "Completed" },
 ];
+
 const PRIORITY_OPTIONS = [
   { value: "Low", label: "Low" },
   { value: "Normal", label: "Normal" },
@@ -326,6 +330,8 @@ const EditTask = ({ activeModal, onClose, task, onUpdate }) => {
               value={quillDescription}
               onChange={setQuillDescription}
               className="h-32"
+              modules={quillModules}
+              formats={quillFormats}
               placeholder="Enter task description..."
             />
           </div>
