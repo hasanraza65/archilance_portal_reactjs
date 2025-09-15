@@ -960,11 +960,9 @@ const ProjectDetailsPage = () => {
           setProjectFound(false);
           setError(`Project with ID ${id} not found.`);
         } else {
-          const errorData = await response
-            .json()
-            .catch(() => ({
-              message: "Failed to parse error response from server.",
-            }));
+          const errorData = await response.json().catch(() => ({
+            message: "Failed to parse error response from server.",
+          }));
           setError(
             `Error ${response.status}: ${
               errorData.message || response.statusText
@@ -1264,11 +1262,9 @@ const ProjectDetailsPage = () => {
             }
           );
           if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({
-                message: "Server error during brief deletion.",
-              }));
+            const errorData = await response.json().catch(() => ({
+              message: "Server error during brief deletion.",
+            }));
             Swal.fire(
               "Deletion Failed",
               errorData.message ||
@@ -1376,7 +1372,8 @@ const ProjectDetailsPage = () => {
     <div className="container mx-auto p-4 space-y-6">
       <ResponsiveTableStyles />
       <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
-        <div className="flex justify-between items-start gap-4">
+        {/* === RESPONSIVE FIX APPLIED HERE === */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">
               {projectDetails.project_name}
@@ -1391,15 +1388,17 @@ const ProjectDetailsPage = () => {
               </button>
             )}
           </div>
-          <EditableProjectStatus
-            projectId={projectDetails.id}
-            currentStatus={projectDetails.status}
-            onStatusUpdate={fetchProjectAndTasks}
-            isEditable={isManagerOrAdmin}
-            apiBaseUrl={API_BASE_URL}
-            apiPath={getApiBasePathForRole("/update-project-status")}
-            token={token}
-          />
+          <div className="w-full md:w-auto flex justify-end">
+            <EditableProjectStatus
+              projectId={projectDetails.id}
+              currentStatus={projectDetails.status}
+              onStatusUpdate={fetchProjectAndTasks}
+              isEditable={isManagerOrAdmin}
+              apiBaseUrl={API_BASE_URL}
+              apiPath={getApiBasePathForRole("/update-project-status")}
+              token={token}
+            />
+          </div>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           Job #{projectDetails.id}

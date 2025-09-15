@@ -256,7 +256,7 @@ const LeaveManagementPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-4 sm:p-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
@@ -384,20 +384,28 @@ const LeaveManagementPage = () => {
                   key={request.id}
                   className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 overflow-hidden group"
                 >
-                  <div className="p-6">
-                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center overflow-hidden shrink-0">
-                          {userAvatar}
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+                      {/* --- Main Info Section --- */}
+                      <div className="flex-1">
+                        {/* User Info */}
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                            {userAvatar}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-bold text-gray-900">
+                              {request.user?.name || "Unknown Employee"}
+                            </h3>
+                            <p className="text-sm text-gray-500 break-all">
+                              {request.user?.email || "No email provided"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-900">
-                            {request.user?.name || "Unknown Employee"}
-                          </h3>
-                          <p className="text-sm text-gray-500 mb-2">
-                            {request.user?.email || "No email provided"}
-                          </p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600 mb-3">
+
+                        {/* Leave Details */}
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-4 h-4 text-gray-500" />{" "}
                               {formatDate(request.start_date)} to{" "}
@@ -412,7 +420,7 @@ const LeaveManagementPage = () => {
                               days
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2 mb-3">
+                          <div className="flex flex-wrap gap-2">
                             <span
                               className={`px-2 py-1 text-xs font-medium rounded-full ${getLeaveTypeColor(
                                 request.leave_type
@@ -424,21 +432,22 @@ const LeaveManagementPage = () => {
                               Applied: {formatDate(request.created_at)}
                             </span>
                           </div>
-                          <p className="text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <p className="text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200 break-words">
                             <span className="font-medium">Reason:</span>{" "}
                             {request.reason}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-center gap-4 lg:items-end w-full lg:w-auto self-stretch lg:self-center">
+                      {/* --- Status & Actions Section --- */}
+                      <div className="w-full lg:w-auto flex flex-col items-stretch lg:items-end gap-3 border-t lg:border-t-0 pt-4 lg:pt-0">
                         <div
-                          className={`flex items-center gap-2 px-4 py-2 rounded-full border ${statusConfig.color} mt-2 lg:mt-0`}
+                          className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full border ${statusConfig.color}`}
                         >
                           <StatusIcon className="w-4 h-4" />
                           <span className="font-medium">{request.status}</span>
                         </div>
-                        <div className="flex gap-2 w-full justify-end mt-auto">
+                        <div className="flex gap-2 w-full justify-end">
                           {request.status === "Pending" ? (
                             <>
                               <button
@@ -448,7 +457,7 @@ const LeaveManagementPage = () => {
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors shadow-md"
                               >
                                 <CheckCircle className="w-4 h-4" />
-                                Approve
+                                <span>Approve</span>
                               </button>
                               <button
                                 onClick={() =>
@@ -457,16 +466,17 @@ const LeaveManagementPage = () => {
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors shadow-md"
                               >
                                 <XCircle className="w-4 h-4" />
-                                Reject
+                                <span>Reject</span>
                               </button>
                             </>
                           ) : (
                             <button
                               onClick={() => handleDeleteRequest(request.id)}
-                              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors shadow-md"
+                              className="w-full lg:w-auto flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors shadow-md"
                               aria-label="Delete Request"
                             >
-                              <Trash2 className="w-4 h-4" /> Delete
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete</span>
                             </button>
                           )}
                         </div>

@@ -111,7 +111,6 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
   const [currentTask, setCurrentTask] = useState(null);
 
   useEffect(() => {
-    // Automatically expand the first status section that has tasks
     const firstStatusWithTasks = STATUS_ORDER.find(
       (status) => memberTasksByStatus[status]?.count > 0
     );
@@ -411,14 +410,10 @@ const MembersView = () => {
     fetchMembersData();
   }, [fetchMembersData]);
 
-  // --- FIX APPLIED HERE ---
-  // This effect now only runs when `membersData` changes. It won't re-run
-  // when you collapse a card, fixing the "re-opening" bug.
   useEffect(() => {
     if (membersData.length > 0 && openMemberId === null) {
       setOpenMemberId(membersData[0].id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [membersData]);
 
   const handleToggleMember = (memberId) => {
@@ -459,9 +454,10 @@ const MembersView = () => {
       {membersData.map((member) => (
         <Card key={member.id} bodyClass="p-0">
           <div
-            className="flex justify-between items-center p-4 cursor-pointer"
+            className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 cursor-pointer"
             onClick={() => handleToggleMember(member.id)}
           >
+            {/* -- Member Info Section (Top on mobile, Left on desktop) -- */}
             <div className="flex items-center space-x-4">
               <img
                 src={`${VITE_BASE_URL}/storage/${member.profile_pic}`}
@@ -472,10 +468,14 @@ const MembersView = () => {
                 <h5 className="font-semibold text-slate-700 dark:text-slate-200">
                   {member.name}
                 </h5>
-                <p className="text-sm text-slate-500">{member.email}</p>
+                <p className="text-sm text-slate-500 break-all">
+                  {member.email}
+                </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+
+            {/* -- Task Info Section (Bottom on mobile, Right on desktop) -- */}
+            <div className="flex items-center justify-between w-full sm:w-auto mt-4 sm:mt-0 sm:space-x-4">
               <span className="inline-block px-3 py-1 text-sm font-semibold text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 rounded-full">
                 {member.total_tasks} Tasks
               </span>
@@ -489,6 +489,7 @@ const MembersView = () => {
               />
             </div>
           </div>
+
           {openMemberId === member.id && (
             <div className="border-t border-slate-200 dark:border-slate-700 p-4">
               <MemberTaskTable
