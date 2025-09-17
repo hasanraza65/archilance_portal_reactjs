@@ -606,34 +606,40 @@ const AdminEmployeeWorkSession = () => {
                       {session.memo_content}
                     </p>
                   )}
-                  <div className="mt-4">
-                    {session.screenshots.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                        {session.screenshots.map((ss) => (
-                          <div key={ss.id} className="text-center">
-                            <a
-                              href={`${STORAGE_URL}/${ss.screenshot_file}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <img
-                                src={`${STORAGE_URL}/${ss.screenshot_file}`}
-                                alt={`Screenshot`}
-                                className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
-                              />
-                            </a>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                              {formatTime(ss.created_at.split("T")[1])}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-400 italic">
-                        No screenshots for this session.
-                      </p>
-                    )}
-                  </div>
+                  
+                  {/* MODIFICATION START: Show screenshots only to admin */}
+                  {user?.role === "admin" && (
+                    <div className="mt-4">
+                      {session.screenshots.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                          {session.screenshots.map((ss) => (
+                            <div key={ss.id} className="text-center">
+                              <a
+                                href={`${STORAGE_URL}/${ss.screenshot_file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <img
+                                  src={`${STORAGE_URL}/${ss.screenshot_file}`}
+                                  alt={`Screenshot`}
+                                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
+                                />
+                              </a>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                                {formatTime(ss.created_at.split("T")[1])}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-400 italic">
+                          No screenshots for this session.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                   {/* MODIFICATION END */}
+
                 </div>
               </div>
             ))}
