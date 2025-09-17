@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react"; // useMemo ko import kiya
+import React, { useState, useEffect, useMemo } from "react";
 import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
 import { MenuItem } from "@headlessui/react";
@@ -6,15 +6,14 @@ import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
-
-// AuthContext se user ka role lene ke liye useAuth ko import kiya
 import { useAuth } from "@/context/AuthContext";
-
 import UserAvatar from "@/assets/images/all-img/user.png";
 
 const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || DEFAULT_BACKEND_URL;
-const API_DOMAIN_FOR_ASSETS = import.meta.env.VITE_ASSETS_DOMAIN || `${BACKEND_BASE_URL}/storage`;
+const BACKEND_BASE_URL =
+  import.meta.env.VITE_BACKEND_BASE_URL || DEFAULT_BACKEND_URL;
+const API_DOMAIN_FOR_ASSETS =
+  import.meta.env.VITE_ASSETS_DOMAIN || `${BACKEND_BASE_URL}/storage`;
 const API_BASE_URL_FOR_API_CALLS = `${BACKEND_BASE_URL}/api`;
 const PROFILE_API_URL = `${API_BASE_URL_FOR_API_CALLS}/me`;
 
@@ -23,7 +22,7 @@ const fetchProfileData = async () => {
   if (!token) {
     throw new Error("No authentication token found.");
   }
-  const response = await axios.get(PROFILE_API_URL, { 
+  const response = await axios.get(PROFILE_API_URL, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
@@ -34,10 +33,9 @@ const fetchProfileData = async () => {
 
 const Profile = () => {
   const navigate = useNavigate();
-  // useAuth se user aur logout function nikala
   const { logout, user } = useAuth();
-  
-  const [profilePicSrc, setProfilePicSrc] = useState(UserAvatar);
+
+  const [profilePicSrc, setProfilePicSrc] = useState(null);
 
   const { data: userProfile, isLoading } = useQuery({
     queryKey: ["profileData"],
@@ -45,20 +43,22 @@ const Profile = () => {
     refetchOnWindowFocus: false,
     onError: (error) => {
       console.error("Error fetching profile data:", error);
-    }
+    },
   });
 
   useEffect(() => {
     if (userProfile && userProfile.profile_pic) {
       const picPath = String(userProfile.profile_pic);
       let imageUrl;
-      if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
+      if (picPath.startsWith("http://") || picPath.startsWith("https://")) {
         imageUrl = picPath;
       } else {
-        const cleanPicPath = picPath.replace(/^\//, '');
-        imageUrl = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`; 
+        const cleanPicPath = picPath.replace(/^\//, "");
+        imageUrl = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`;
       }
       setProfilePicSrc(imageUrl);
+    } else {
+      setProfilePicSrc(null);
     }
   }, [userProfile]);
 
@@ -69,16 +69,20 @@ const Profile = () => {
   const profileLabel = () => (
     <div className="flex items-center">
       <div className="flex-1 ltr:mr-[10px] rtl:ml-[10px]">
-        <div className="lg:h-8 lg:w-8 h-7 w-7 rounded-full">
-          <img
-            src={profilePicSrc}
-            alt="User Profile"
-            className="block w-full h-full object-cover rounded-full"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = UserAvatar;
-            }}
-          />
+        <div className="flex justify-center items-center lg:h-8 lg:w-8 h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700">
+          {profilePicSrc ? (
+            <img
+              src={profilePicSrc}
+              alt="User Profile"
+              className="block w-full h-full object-cover rounded-full"
+              onError={(e) => {
+                e.target.onerror = null; 
+                e.target.style.display = "none"; 
+              }}
+            />
+          ) : (
+            <Icon icon="heroicons-outline:user" className="text-slate-500" />
+          )}
         </div>
       </div>
       <div className="flex-none text-slate-600 dark:text-white text-sm font-normal items-center lg:flex hidden overflow-hidden text-ellipsis whitespace-nowrap">
@@ -92,17 +96,16 @@ const Profile = () => {
     </div>
   );
 
-  // ProfileMenu ab useMemo ke andar define kiya gaya hai taake yeh dynamic ho sake
   const ProfileMenu = useMemo(() => {
-    // Ye menu items sab roles ke liye hain
     const baseMenu = [
-      { label: "Profile", icon: "heroicons-outline:user", action: () => navigate("/profile") },
-      // ... baaki common menu items yahan add kar sakte hain
+      {
+        label: "Profile",
+        icon: "heroicons-outline:user",
+        action: () => navigate("/profile"),
+      },
     ];
 
-    // Yahan hum condition check kar rahe hain
-    // Agar user ka role "customer" ya "member" NAHI hai, tab hi "Chat" ka item add karo
-    const forbiddenRoles = ['customer', 'member'];
+    const forbiddenRoles = ["customer", "member"];
     if (user && !forbiddenRoles.includes(user.role)) {
       baseMenu.push({
         label: "Chat",
@@ -111,7 +114,6 @@ const Profile = () => {
       });
     }
 
-    // Logout ka button hamesha akhir mein add hoga
     baseMenu.push({
       label: "Logout",
       icon: "heroicons-outline:login",
@@ -119,7 +121,7 @@ const Profile = () => {
     });
 
     return baseMenu;
-  }, [user, navigate]); // Jab 'user' change ho, to yeh menu dobara calculate ho
+  }, [user, navigate]);
 
   return (
     <Dropdown label={profileLabel()} classMenuItems="w-[180px] top-[58px]">
@@ -133,7 +135,9 @@ const Profile = () => {
                   ? "bg-slate-100 text-slate-900 dark:bg-slate-600 dark:text-slate-300 dark:bg-opacity-50"
                   : "text-slate-600 dark:text-slate-300"
               } block ${
-                item.hasDivider ? "border-t border-slate-100 dark:border-slate-700" : ""
+                item.hasDivider
+                  ? "border-t border-slate-100 dark:border-slate-700"
+                  : ""
               }`}
             >
               <div className="block cursor-pointer px-4 py-2">

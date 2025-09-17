@@ -2,7 +2,6 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
-import BasicArea from "../chart/appex-chart/BasicArea"; // Ensure this path is correct
 import Loading from "@/components/Loading";
 
 import axios from "axios";
@@ -13,8 +12,6 @@ import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
 import UpdatePassword from "./UpdatePassword";
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-const ASSETS_DOMAIN =
-  import.meta.env.VITE_ASSETS_DOMAIN || `${BACKEND_BASE_URL}/storage`;
 const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
 const PROFILE_API_URL = `${API_BASE_URL}/me`;
 
@@ -45,7 +42,9 @@ const Profile = () => {
     queryFn: fetchProfileData,
   });
 
-  let profilePicSrc = DefaultProfileImage;
+  // --- CHANGE 1: 'profilePicSrc' ko shuru mein 'null' set kiya gaya hai ---
+  // Pehle yahan 'DefaultProfileImage' tha.
+  let profilePicSrc = null;
 
   if (userProfile && userProfile.profile_pic) {
     const picPath = String(userProfile.profile_pic);
@@ -91,16 +90,27 @@ const Profile = () => {
           <div className="profile-box flex-none md:text-start text-center">
             <div className="md:flex items-end md:space-x-6 rtl:space-x-reverse">
               <div className="flex-none">
-                <div className="md:h-[186px] md:w-[186px] h-[140px] w-[140px] md:ml-0 md:mr-0 ml-auto mr-auto md:mb-0 mb-4 rounded-full ring-4 ring-slate-100 relative">
-                  <img
-                    src={profilePicSrc}
-                    alt={userProfile?.name || "Profile"}
-                    className="w-full h-full object-cover rounded-full"
-                    onError={(e) => {
-                      e.target.onerror = null; // prevent infinite loop
-                      e.target.src = DefaultProfileImage;
-                    }}
-                  />
+                {/* --- CHANGE 2: Yahan par conditional rendering add ki gayi hai --- */}
+                <div className="md:h-[186px] md:w-[186px] h-[140px] w-[140px] md:ml-0 md:mr-0 ml-auto mr-auto md:mb-0 mb-4 rounded-full ring-4 ring-slate-100 relative flex items-center justify-center bg-slate-200 dark:bg-slate-700">
+                  {profilePicSrc ? (
+                    // Agar image hai to <img> tag dikhao
+                    <img
+                      src={profilePicSrc}
+                      alt={userProfile?.name || "Profile"}
+                      className="w-full h-full object-cover rounded-full"
+                      onError={(e) => {
+                        e.target.onerror = null; // infinite loop se bachne ke liye
+                        e.target.src = DefaultProfileImage; // fallback agar link toota hua ho
+                      }}
+                    />
+                  ) : (
+                    // Agar image nahi hai to Icon dikhao
+                    <Icon
+                      icon="heroicons-outline:user"
+                      className="h-24 w-24 text-slate-500"
+                    />
+                  )}
+                  {/* Edit ka button hamesha nazar aayega */}
                   <Link
                     to="/profile/edit"
                     className="absolute right-2 h-8 w-8 bg-slate-50 text-slate-600 rounded-full shadow-xs flex flex-col items-center justify-center md:top-[140px] top-[100px]"
@@ -120,38 +130,10 @@ const Profile = () => {
               </div>
             </div>
           </div>
-
-          <div className="profile-info-500 md:flex md:text-start text-center flex-1 max-w-[516px] md:space-y-0 space-y-4">
-            <div className="flex-1">
-              <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                {userProfile?.totalBalance || "$30.00"}
-              </div>
-              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Total Balance
-              </div>
-            </div>
-            <div className="flex-1">
-              <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                {userProfile?.boardCardsCount || 90}
-              </div>
-              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Board Cards
-              </div>
-            </div>
-            <div className="flex-1">
-              <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                {userProfile?.calendarEventsCount || 20}
-              </div>
-              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Calendar Events
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="grid grid-cols-12 gap-6">
           <div className="lg:col-span-4 col-span-12">
-            {/* --- THIS IS THE ONLY CHANGE --- */}
             <Card className="h-full">
               <div className="flex justify-between items-center mb-4">
                 <h5 className="card-title text-slate-900 dark:text-white">
