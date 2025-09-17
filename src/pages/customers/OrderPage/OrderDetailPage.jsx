@@ -36,6 +36,9 @@ import {
 } from "lucide-react";
 
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+// +++ STEP 1: useBreadcrumbs hook ko import kiya gaya hai +++
+// Path ko apne project ke structure ke mutabiq adjust kar lein
+import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 const stripHtml = (html) => {
   if (!html) return "";
@@ -140,13 +143,11 @@ const OrderStatusStep = ({ status, text, isLast = false }) => {
   );
 };
 
-// +++ YEH COMPONENT UPDATE KIYA GAYA HAI +++
-const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
-  const tasksPerPage = 4; // Har baar kitne tasks load karne hain
+const ProjectTasksList = ({ tasks, apiBaseUrl, onTaskClick }) => {
+  const tasksPerPage = 4;
   const [displayedTasks, setDisplayedTasks] = useState([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Jab `tasks` prop change ho (yani data fetch ho), to initial tasks set karein
   useEffect(() => {
     if (tasks && tasks.length > 0) {
       setDisplayedTasks(tasks.slice(0, tasksPerPage));
@@ -157,7 +158,6 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
 
   const handleLoadMore = () => {
     setIsLoadingMore(true);
-    // Loader dikhane ke liye thoda delay add kiya hai taake UX behtar ho
     setTimeout(() => {
       const currentLength = displayedTasks.length;
       const newTasksToAdd = tasks.slice(
@@ -166,7 +166,7 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
       );
       setDisplayedTasks((prevTasks) => [...prevTasks, ...newTasksToAdd]);
       setIsLoadingMore(false);
-    }, 700); // 700ms ka delay
+    }, 700);
   };
 
   if (!tasks || tasks.length === 0) {
@@ -211,11 +211,11 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {/* Ab `displayedTasks` se map hoga */}
         {displayedTasks.map((task, index) => (
           <div
             key={task.id}
-            className="group p-6 bg-white/80 backdrop-blur-sm border border-white/40 rounded-2xl hover:shadow-xl hover:bg-white/90 transition-all duration-300 hover:-translate-y-1"
+            onClick={() => onTaskClick(task.id)}
+            className="group p-6 bg-white/80 backdrop-blur-sm border border-white/40 rounded-2xl hover:shadow-xl hover:bg-white/90 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
             style={{ animationDelay: `${index * 100}ms` }}
           >
             <div className="flex justify-between items-start mb-4 gap-4">
@@ -296,7 +296,6 @@ const ProjectTasksList = ({ tasks, apiBaseUrl }) => {
         ))}
       </div>
 
-      {/* +++ PAGINATION KI JAGAH YEH NAYA "LOAD MORE" SECTION +++ */}
       <div className="flex-shrink-0 p-4 bg-slate-50/50 flex items-center justify-center border-t border-white/20">
         {isLoadingMore ? (
           <div className="flex items-center gap-3 text-gray-700 font-semibold">
@@ -736,6 +735,9 @@ const OrderDetailsPage = () => {
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const token = Cookies.get("token");
 
+  // +++ STEP 2: Breadcrumb context ko initialize kiya gaya hai +++
+  const { setBreadcrumbs } = useBreadcrumbs();
+
   const rolePrefix = getApiPrefix();
 
   const CURRENT_USER_ID = 20;
@@ -751,6 +753,25 @@ const OrderDetailsPage = () => {
   const [newMessage, setNewMessage] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
+
+  // +++ STEP 3: Naya useEffect breadcrumbs set karne ke liye +++
+  useEffect(() => {
+    // Jab projectData load ho jaye to breadcrumbs set karein
+    if (projectData) {
+      setBreadcrumbs([
+        { title: "Jobs", link: "/jobs" },
+        { title: projectData.project_name }, // Yeh current page hai, isliye link nahi
+      ]);
+    }
+    // Jab component unmount ho to breadcrumbs ko saaf kar dein
+    return () => {
+      setBreadcrumbs([]);
+    };
+  }, [projectData, setBreadcrumbs]);
+
+  const handleTaskClick = (taskId) => {
+    navigate(`/project/${taskId}`, { state: { jobId: projectId } });
+  };
 
   const fetchMessages = async () => {
     if (!token || !projectId) return;
@@ -1034,7 +1055,11 @@ const OrderDetailsPage = () => {
                     Due:{" "}
                     {new Date(projectData.due_date).toLocaleDateString(
                       "en-US",
-                      { month: "short", day: "numeric", year: "numeric" }
+                      {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }
                     )}
                   </span>
                 </div>
@@ -1068,6 +1093,7 @@ const OrderDetailsPage = () => {
                 <ProjectTasksList
                   tasks={projectData.tasks}
                   apiBaseUrl={API_BASE_URL}
+                  onTaskClick={handleTaskClick}
                 />
               </div>
               <div className="xl:col-span-1 flex flex-col gap-6">
