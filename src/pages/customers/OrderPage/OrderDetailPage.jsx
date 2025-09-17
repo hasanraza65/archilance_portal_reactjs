@@ -1049,7 +1049,7 @@ const OrderDetailsPage = () => {
             </div>
             <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
               <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg">
+                {/* <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg">
                   <Calendar size={16} />
                   <span>
                     Due:{" "}
@@ -1062,7 +1062,7 @@ const OrderDetailsPage = () => {
                       }
                     )}
                   </span>
-                </div>
+                </div> */}
                 <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg">
                   <Activity size={16} />
                   <span>{projectData.status}</span>
