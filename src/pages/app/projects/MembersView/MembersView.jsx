@@ -4,21 +4,18 @@ import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 
-// --- UI & Utility Imports ---
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import GridLoading from "@/components/skeleton/Grid";
-import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
+import { getEmployeeType, getApiPrefix } from "@/pages/utility/apiHelper";
 
-// --- Reusable Child Components ---
 import EditableTaskStatus from "../EditableTaskStatus";
 import EditableDueDate from "../EditTaskDate/EditableDueDate";
 import EditableStartDate from "../EditTaskDate/EditableStartDate";
 import EditTask from "../EditTask";
 
-// --- Constants ---
 const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-const API_TOKEN = Cookies.get("token");
+
 const STATUS_ORDER = [
   "On Hold",
   "Backlog",
@@ -29,15 +26,16 @@ const STATUS_ORDER = [
   "Completed",
 ];
 
-// --- Helper Functions & Components ---
-
-const getAuthToken = () => Cookies.get("token");
-
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
+  if (role) {
+    return `/api/${role}${cleanBasePath}`;
+  }
+  return `/api/admin${cleanBasePath}`;
 };
+
+const getAuthToken = () => Cookies.get("token");
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -48,7 +46,6 @@ const formatDate = (dateString) => {
   });
 };
 
-// --- Enhanced Status Configuration ---
 const statusConfig = {
   "On Hold": {
     badge: "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200",
@@ -393,11 +390,33 @@ const MembersView = () => {
 
   const fetchMembersData = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
+
+    const userRole = getApiPrefix();
+    const employeeType = getEmployeeType();
+
+    if (userRole !== "admin" && employeeType !== "Manager") {
+      setError("You are not authorized to view this information.");
+      setIsLoading(false);
+      return;
+    }
+
+    const token = Cookies.get("token");
+    if (!token) {
+      setError("Authentication failed. Please log in again.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await axios.get(
-        `${VITE_BASE_URL}/api/admin/projects-with-members`,
-        { headers: { Authorization: `Bearer ${API_TOKEN}` } }
-      );
+      const apiPath = getApiBasePathForRole("/projects-with-members");
+      const apiUrl = `${VITE_BASE_URL}${apiPath}`;
+      const response = await axios.get(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
       setMembersData(response.data);
     } catch (err) {
       setError("Failed to fetch members data.");
@@ -414,7 +433,7 @@ const MembersView = () => {
     if (membersData.length > 0 && openMemberId === null) {
       setOpenMemberId(membersData[0].id);
     }
-  }, [membersData]);
+  }, [membersData, openMemberId]);
 
   const handleToggleMember = (memberId) => {
     setOpenMemberId((prevId) => (prevId === memberId ? null : memberId));
@@ -457,7 +476,6 @@ const MembersView = () => {
             className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 cursor-pointer"
             onClick={() => handleToggleMember(member.id)}
           >
-            {/* -- Member Info Section (Top on mobile, Left on desktop) -- */}
             <div className="flex items-center space-x-4">
               <img
                 src={`${VITE_BASE_URL}/storage/${member.profile_pic}`}
@@ -474,7 +492,6 @@ const MembersView = () => {
               </div>
             </div>
 
-            {/* -- Task Info Section (Bottom on mobile, Right on desktop) -- */}
             <div className="flex items-center justify-between w-full sm:w-auto mt-4 sm:mt-0 sm:space-x-4">
               <span className="inline-block px-3 py-1 text-sm font-semibold text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 rounded-full">
                 {member.total_tasks} Tasks

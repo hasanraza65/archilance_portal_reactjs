@@ -213,7 +213,6 @@ const ProjectPostPage = () => {
         theme="light"
       />
 
-      {/* --- MODIFIED LINE: Changed `flex w-min` to `inline-flex` --- */}
       <div className="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-800 space-x-1 mb-5">
         <button
           className={getTabClassName("projects")}
@@ -227,12 +226,14 @@ const ProjectPostPage = () => {
         >
           Projects
         </button>
-        <button
-          className={getTabClassName("members")}
-          onClick={() => setActiveTab("members")}
-        >
-          Members View
-        </button>
+         {(actualUserRole === "admin" || employeeType === "Manager") && (
+          <button
+            className={getTabClassName("members")}
+            onClick={() => setActiveTab("members")}
+          >
+            Members View
+          </button>
+        )}
       </div>
 
       <div className="flex justify-between items-center mb-6">
