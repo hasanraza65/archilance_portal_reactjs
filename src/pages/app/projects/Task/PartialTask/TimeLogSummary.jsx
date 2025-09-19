@@ -23,17 +23,18 @@ const TimeLogSummary = ({ timeLogs }) => {
     }
   }, [timeLogs]);
 
-  // ++ DETAILS POPUP KO UPDATE KIYA GAYA HAI TAFAKE ZYADA MALOOMAT DIKHAYE ++
   const handleDetailsClick = (log) => {
     Swal.fire({
       title: `Details for ${log.user.name}`,
       html: `
         <div style="text-align: left; padding: 0 1rem;">
-          <p><strong>Email:</strong> ${log.user.email || 'N/A'}</p>
-          <p><strong>Phone:</strong> ${log.user.phone || 'N/A'}</p>
-          <p><strong>Role:</strong> ${log.user.employee_type || 'N/A'}</p>
+          <p><strong>Email:</strong> ${log.user.email || "N/A"}</p>
+          <p><strong>Phone:</strong> ${log.user.phone || "N/A"}</p>
+          <p><strong>Role:</strong> ${log.user.employee_type || "N/A"}</p>
           <hr style="margin: 1rem 0;" />
-          <p><strong>Time Spent on Task:</strong> ${log.total_working_hours_formatted}</p>
+          <p><strong>Time Spent on Task:</strong> ${
+            log.total_working_hours_formatted
+          }</p>
         </div>
       `,
       icon: "info",
@@ -56,24 +57,28 @@ const TimeLogSummary = ({ timeLogs }) => {
               <th className="p-3 text-left font-semibold text-slate-600 border-r border-slate-300 last:border-r-0">
                 Time Spent
               </th>
-             
             </tr>
           </thead>
           <tbody>
             {timeLogs && timeLogs.length > 0 ? (
               timeLogs.map((log) => (
-                <tr key={log.user.id} className="border-b border-slate-300 last:border-0 hover:bg-slate-50">
-                 
+                <tr
+                  key={log.user.id}
+                  className="border-b border-slate-300 last:border-0 hover:bg-slate-50"
+                >
                   <td className="p-3 align-top border-r border-slate-300 last:border-r-0">
                     <div>
-                      <div className="font-semibold text-slate-800">{log.user.name}</div>
-                      <div className="text-xs text-slate-500 mt-1">{log.user.email}</div>
+                      <div className="font-semibold text-slate-800">
+                        {log.user.name}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {log.user.email}
+                      </div>
                     </div>
                   </td>
                   <td className="p-3 align-top text-slate-600 border-r border-slate-300 last:border-r-0">
                     {log.total_working_hours_formatted}
                   </td>
-                  
                 </tr>
               ))
             ) : (

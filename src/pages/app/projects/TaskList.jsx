@@ -85,7 +85,6 @@ const ResponsiveTableStyles = () => {
   return null;
 };
 
-
 const getAuthToken = () => Cookies.get("token");
 
 const getApiBasePathForRole = (basePath) => {
@@ -442,35 +441,39 @@ const TaskList = ({
 
   // ++ YEH FUNCTION MUKAMMAL TOR PAR UPDATE KIYA GAYA HAI ++
   const handleRowClick = (rowData) => {
-    if (userRole === "customer") {
-      return;
-    }
-
     // Task ka title hasil karein. Agar sub-task hai to uska title, warna main task ka title.
     const finalTaskTitle = rowData.task_title || rowData.project_title;
-    
+
     // Breadcrumb ka structure banayein
     const breadcrumbsToPass = [{ title: "Jobs", link: "/jobs" }];
 
     // Agar project (job) ka naam hai to usko breadcrumb mein add karein
-    if (rowData.project_name && rowData.project_name !== "N/A" && rowData.project_id) {
-        breadcrumbsToPass.push({
-            title: rowData.project_name,
-            link: `/jobs/${rowData.project_id}` // Job/Project detail page ka link
-        });
+    if (
+      rowData.project_name &&
+      rowData.project_name !== "N/A" &&
+      rowData.project_id
+    ) {
+      breadcrumbsToPass.push({
+        title: rowData.project_name,
+        link: `/jobs/${rowData.project_id}`, // Job/Project detail page ka link
+      });
     }
 
     // Agar yeh ek sub-task hai (task_title mojood hai), to parent task ko breadcrumb mein add karein
-    if(rowData.task_title && rowData.project_title !== 'N/A' && rowData.parent_task_id) {
-        breadcrumbsToPass.push({
-            title: rowData.project_title,
-            link: `/project/${rowData.parent_task_id}` // Parent task ka link
-        });
+    if (
+      rowData.task_title &&
+      rowData.project_title !== "N/A" &&
+      rowData.parent_task_id
+    ) {
+      breadcrumbsToPass.push({
+        title: rowData.project_title,
+        link: `/project/${rowData.parent_task_id}`, // Parent task ka link
+      });
     }
 
     // Aakhir mein, current task (jis par click hua) ko breadcrumb mein add karein
     breadcrumbsToPass.push({
-      title: finalTaskTitle
+      title: finalTaskTitle,
       // Aakhri item ka link nahi hota
     });
 
@@ -478,7 +481,7 @@ const TaskList = ({
     navigate(`/project/${rowData.id}`, {
       state: {
         breadcrumbs: breadcrumbsToPass,
-        jobId: rowData.project_id // jobId ko bhi state mein pass karein
+        jobId: rowData.project_id, // jobId ko bhi state mein pass karein
       },
     });
   };
@@ -584,14 +587,30 @@ const TaskList = ({
                     <table className="min-w-full responsive-task-table">
                       <thead className="hidden md:table-header-group bg-slate-50 dark:bg-slate-700">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">Jobs</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">Projects</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/8">Task</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Assigned To</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Start Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Due Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/10">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">Action</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">
+                            Jobs
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">
+                            Projects
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/8">
+                            Task
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                            Assigned To
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                            Start Date
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                            Due Date
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/10">
+                            Status
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                            Action
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
@@ -601,27 +620,45 @@ const TaskList = ({
                             onClick={() => handleRowClick(rowData)}
                             className="block md:table-row md:hover:bg-slate-50 md:dark:hover:bg-slate-700/50 cursor-pointer transition-colors duration-150"
                           >
-                            <td data-label="Job" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Job"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
                                 {rowData.project_name}
                               </span>
                             </td>
-                            <td data-label="Project" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Project"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <span className="font-medium text-blue-600 dark:text-blue-400 capitalize text-sm">
                                 {rowData.project_title}
                               </span>
                             </td>
-                            <td data-label="Task" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Task"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <span className="text-slate-700 dark:text-slate-300 capitalize text-sm">
                                 {rowData.task_title || "N/A"}
                               </span>
                             </td>
-                            <td data-label="Assigned To" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Assigned To"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <AvatarStack assignees={rowData.assignees} />
                             </td>
-                            <td data-label="Start Date" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Start Date"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <div className="flex items-center space-x-2">
-                                <Icon icon="heroicons-outline:calendar" className="w-9 h-9 text-slate-500 dark:text-slate-400" />
+                                <Icon
+                                  icon="heroicons-outline:calendar"
+                                  className="w-9 h-9 text-slate-500 dark:text-slate-400"
+                                />
                                 <EditableStartDate
                                   taskId={rowData.id}
                                   currentStartDate={rowData.created_at}
@@ -633,9 +670,15 @@ const TaskList = ({
                                 />
                               </div>
                             </td>
-                            <td data-label="Due Date" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Due Date"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <div className="flex items-center space-x-2">
-                                <Icon icon="heroicons-outline:calendar" className="w-9 h-9 text-slate-500 dark:text-slate-400" />
+                                <Icon
+                                  icon="heroicons-outline:calendar"
+                                  className="w-9 h-9 text-slate-500 dark:text-slate-400"
+                                />
                                 <EditableDueDate
                                   taskId={rowData.id}
                                   currentDueDate={rowData.due_date}
@@ -647,7 +690,10 @@ const TaskList = ({
                                 />
                               </div>
                             </td>
-                            <td data-label="Status" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Status"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <EditableTaskStatus
                                 taskId={rowData.id}
                                 currentStatus={rowData.task_status}
@@ -658,7 +704,10 @@ const TaskList = ({
                                 }
                               />
                             </td>
-                            <td data-label="Action" className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto">
+                            <td
+                              data-label="Action"
+                              className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                            >
                               <div
                                 className="flex items-center justify-end space-x-2"
                                 onClick={(e) => e.stopPropagation()}

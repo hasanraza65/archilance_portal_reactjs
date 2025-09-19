@@ -36,8 +36,6 @@ import {
 } from "lucide-react";
 
 import { getApiPrefix } from "@/pages/utility/apiHelper";
-// +++ STEP 1: useBreadcrumbs hook ko import kiya gaya hai +++
-// Path ko apne project ke structure ke mutabiq adjust kar lein
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 const stripHtml = (html) => {
@@ -48,10 +46,9 @@ const stripHtml = (html) => {
 
 const AnimatedBackground = () => (
   <div className="fixed inset-0 -z-10 overflow-hidden">
-    {" "}
-    <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse" />{" "}
-    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-emerald-400/20 to-cyan-600/20 rounded-full blur-3xl animate-pulse delay-1000" />{" "}
-    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-pink-400/10 to-orange-600/10 rounded-full blur-3xl animate-pulse delay-500" />{" "}
+    <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse" />
+    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-emerald-400/20 to-cyan-600/20 rounded-full blur-3xl animate-pulse delay-1000" />
+    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-pink-400/10 to-orange-600/10 rounded-full blur-3xl animate-pulse delay-500" />
   </div>
 );
 
@@ -734,19 +731,13 @@ const OrderDetailsPage = () => {
   const { id: projectId } = useParams();
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const token = Cookies.get("token");
-
-  // +++ STEP 2: Breadcrumb context ko initialize kiya gaya hai +++
   const { setBreadcrumbs } = useBreadcrumbs();
-
   const rolePrefix = getApiPrefix();
-
   const CURRENT_USER_ID = 20;
-
   const [projectData, setProjectData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeLeft, setTimeLeft] = useState({});
-
   const [messages, setMessages] = useState([]);
   const [isMessagesLoading, setIsMessagesLoading] = useState(true);
   const [messagesError, setMessagesError] = useState(null);
@@ -754,16 +745,13 @@ const OrderDetailsPage = () => {
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
 
-  // +++ STEP 3: Naya useEffect breadcrumbs set karne ke liye +++
   useEffect(() => {
-    // Jab projectData load ho jaye to breadcrumbs set karein
     if (projectData) {
       setBreadcrumbs([
         { title: "Jobs", link: "/jobs" },
-        { title: projectData.project_name }, // Yeh current page hai, isliye link nahi
+        { title: projectData.project_name },
       ]);
     }
-    // Jab component unmount ho to breadcrumbs ko saaf kar dein
     return () => {
       setBreadcrumbs([]);
     };
@@ -1029,7 +1017,8 @@ const OrderDetailsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative">
       <AnimatedBackground />
       <div className="relative z-10 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* +++ YAHAN LAYOUT KI TABDEELI KI GAYI HAI +++ */}
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-6">
               <button
@@ -1049,20 +1038,6 @@ const OrderDetailsPage = () => {
             </div>
             <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
               <div className="flex flex-wrap gap-3">
-                {/* <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg">
-                  <Calendar size={16} />
-                  <span>
-                    Due:{" "}
-                    {new Date(projectData.due_date).toLocaleDateString(
-                      "en-US",
-                      {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      }
-                    )}
-                  </span>
-                </div> */}
                 <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-full font-semibold shadow-lg">
                   <Activity size={16} />
                   <span>{projectData.status}</span>
@@ -1088,15 +1063,15 @@ const OrderDetailsPage = () => {
           </div>
           <OrderRequirements htmlContent={projectData.project_description} />
           <div className="flex flex-col gap-8">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-              <div className="xl:col-span-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
                 <ProjectTasksList
                   tasks={projectData.tasks}
                   apiBaseUrl={API_BASE_URL}
                   onTaskClick={handleTaskClick}
                 />
               </div>
-              <div className="xl:col-span-1 flex flex-col gap-6">
+              <div className="lg:col-span-1 flex flex-col gap-6">
                 <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-6 hover:shadow-3xl transition-all duration-500">
                   <div className="flex items-center space-x-3 mb-6">
                     <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl text-white">

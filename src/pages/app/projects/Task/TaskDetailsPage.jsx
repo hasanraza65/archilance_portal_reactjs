@@ -196,20 +196,13 @@ const TaskDetailsPage = () => {
     ]
   );
 
-  // +++ YEH SECTION UPDATE KIYA GAYA HAI +++
   useEffect(() => {
-    // SCENARIO 1: Agar breadcrumbs navigation ke state mein pass kiye gaye hain
     if (location.state?.breadcrumbs) {
       setBreadcrumbs(location.state.breadcrumbs);
-    }
-    // SCENARIO 2: Agar state mein nahi hain (page refresh hua hai), to API data se banayein
-    else if (parentTaskDetails) {
+    } else if (parentTaskDetails) {
       const newCrumbs = [{ title: "Jobs", link: "/jobs" }];
 
       if (jobDetails) {
-        // User role ke mutabiq project ka link set karein.
-        // Agar customer hai, to woh /order-details/[id] par wapis jayega.
-        // Warna doosre users /jobs/[id] par jayenge.
         const projectLink = isCustomer
           ? `/order-details/${jobDetails.id}`
           : `/jobs/${jobDetails.id}`;
@@ -220,7 +213,6 @@ const TaskDetailsPage = () => {
         });
       }
 
-      // Agar parent task hai (yani yeh ek sub-task hai) to usko bhi add karein
       if (parentTaskDetails.parent_task) {
         newCrumbs.push({
           title: parentTaskDetails.parent_task.task_title,
@@ -228,12 +220,11 @@ const TaskDetailsPage = () => {
         });
       }
 
-      newCrumbs.push({ title: parentTaskDetails.task_title }); // Current page, no link
+      newCrumbs.push({ title: parentTaskDetails.task_title });
 
       setBreadcrumbs(newCrumbs);
     }
 
-    // Cleanup function: Jab component unmount ho to breadcrumbs khali kar dein
     return () => {
       setBreadcrumbs([]);
     };
@@ -725,14 +716,21 @@ const TaskDetailsPage = () => {
   const currentAssigneeUserIds = currentAssignees
     .map((a) => a?.user?.id)
     .filter((id) => id != null);
-  const gridLayoutClass = canManageComments
-    ? "grid lg:grid-cols-3 gap-6"
-    : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
-  const mainContentClass = canManageComments
-    ? "lg:col-span-2 space-y-6"
-    : "space-y-6";
 
   const isAdmin = user && user.role === "admin";
+
+  // +++ YEH SECTION MUKAMMAL TOR PAR UPDATE KIYA GAYA HAI +++
+  // Ab layout is baat par depend karega ke sidebar mein kuch dikhana hai ya nahi
+  const showSidebar = canManageComments || isAdmin || isCustomer;
+
+  const gridLayoutClass = showSidebar
+    ? "grid lg:grid-cols-3 gap-6"
+    : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
+
+  const mainContentClass = showSidebar
+    ? "lg:col-span-2 space-y-6"
+    : "space-y-6";
+  // +++ END OF UPDATED SECTION +++
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100">
@@ -800,29 +798,34 @@ const TaskDetailsPage = () => {
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
           </div>
 
-          <div className="lg:col-span-1 space-y-6">
-            {canManageComments && (
-              <CommentList
-                comments={comments}
-                newComment={newComment}
-                setNewComment={setNewComment}
-                handleCommentSubmit={handleCommentSubmit}
-                isSubmittingComment={isSubmittingComment}
-                commentError={commentError}
-                taskId={taskId}
-                onEditComment={handleEditComment}
-                onDeleteComment={handleDeleteComment}
-                currentUserId={currentUserId}
-                onLoadOlderComments={handleLoadOlderComments}
-                isLoadingOlderComments={isLoadingOlderComments}
-                allCommentsLoaded={allCommentsLoaded}
-                totalCommentsFromApi={totalCommentsFromApi}
-                onLoadRepliesForComment={onLoadRepliesForComment}
-              />
-            )}
+          {/* ++ YEH DIV AB SIRF TAB DIKHEGA JAB SIDEBAR MEIN CONTENT HO ++ */}
+          {showSidebar && (
+            <div className="lg:col-span-1 space-y-6">
+              {canManageComments && (
+                <CommentList
+                  comments={comments}
+                  newComment={newComment}
+                  setNewComment={setNewComment}
+                  handleCommentSubmit={handleCommentSubmit}
+                  isSubmittingComment={isSubmittingComment}
+                  commentError={commentError}
+                  taskId={taskId}
+                  onEditComment={handleEditComment}
+                  onDeleteComment={handleDeleteComment}
+                  currentUserId={currentUserId}
+                  onLoadOlderComments={handleLoadOlderComments}
+                  isLoadingOlderComments={isLoadingOlderComments}
+                  allCommentsLoaded={allCommentsLoaded}
+                  totalCommentsFromApi={totalCommentsFromApi}
+                  onLoadRepliesForComment={onLoadRepliesForComment}
+                />
+              )}
 
-            {isAdmin && <TimeLogSummary timeLogs={timeLogs} />}
-          </div>
+              {(isAdmin || isCustomer) && (
+                <TimeLogSummary timeLogs={timeLogs} />
+              )}
+            </div>
+          )}
         </div>
       </div>
 
