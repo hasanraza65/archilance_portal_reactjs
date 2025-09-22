@@ -226,7 +226,9 @@ const ProjectPostPage = () => {
         >
           Projects
         </button>
-         {(actualUserRole === "admin" || employeeType === "Manager") && (
+        {/* --- UPDATED CODE --- */}
+        {/* Supervisor ko "Members View" tab ka access diya gaya hai */}
+        {(actualUserRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
           <button
             className={getTabClassName("members")}
             onClick={() => setActiveTab("members")}
@@ -241,8 +243,11 @@ const ProjectPostPage = () => {
           {pageTitle}
         </h4>
 
+        {/* --- UPDATED CODE --- */}
+        {/* Supervisor ko "Add Job" button ka access diya gaya hai */}
         {activeTab === "projects" &&
           (employeeType === "Manager" ||
+            employeeType === "Supervisor" ||
             (uiRole !== "employee" &&
               uiRole !== "customer" &&
               uiRole !== "outsource")) && (
@@ -278,7 +283,9 @@ const ProjectPostPage = () => {
               </div>
 
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-                {employeeType === "Manager" && (
+                {/* --- UPDATED CODE --- */}
+                {/* Supervisor ko "Assigned to me" filter ka access diya gaya hai */}
+                {(employeeType === "Manager" || employeeType === "Supervisor") && (
                   <Button
                     text="Assigned to me"
                     disabled={anyOperationPending}
@@ -408,7 +415,9 @@ const ProjectPostPage = () => {
               </div>
 
               <div className="flex items-center justify-end">
-                {employeeType === "Manager" && (
+                {/* --- UPDATED CODE --- */}
+                {/* Supervisor ko "Assigned to me" filter (Tasks tab mein) ka access diya gaya hai */}
+                {(employeeType === "Manager" || employeeType === "Supervisor") && (
                   <Button
                     text="Assigned to me"
                     disabled={isTaskListLoading}

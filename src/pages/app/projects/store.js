@@ -2,23 +2,32 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
+import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 
 const API_ROOT = `${import.meta.env.VITE_BACKEND_BASE_URL}/api`;
 
 const getProjectPath = () => {
-  const role = getApiPrefix();
+  const role = getUserRole(); // Hum actual user role check kar rahe hain
 
   switch (role) {
-    case "employee":
-      return "/employee/project";
+    case "admin":
+    case "manager":
+      // Sirf Admin aur Manager saare projects dekhenge
+      return "/admin/project";
+
     case "customer":
       return "/customer/project";
     case "member":
       return "/member/project";
-    case "admin":
+    
+    // --- UPDATED LOGIC ---
+    // Supervisor ko ab 'employee' wale case mein move kar diya gaya hai
+    case "employee":
+    case "supervisor":
     default:
-      return "/admin/project";
+      // Supervisor aur Employee ab employee wala endpoint istemal karenge
+      return "/employee/project";
+    // --- END OF UPDATE ---
   }
 };
 
@@ -208,7 +217,7 @@ export const deleteProjectAPI = createAsyncThunk(
 
 export const updateProjectAssigneesAPI = createAsyncThunk(
   "project/updateAssignees",
-  async ({ project_id, employee_ids }, { rejectWithValue }) => {
+  async ({ project_id, employee_ids }, { rejectWithValue, dispatch }) => {
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
@@ -220,18 +229,17 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
       }
       const updatePath = `/${role}/update-project-assignees`;
 
-      const response = await axios.post(`${API_ROOT}${updatePath}`, payload, {
+      await axios.post(`${API_ROOT}${updatePath}`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
       });
+      
+      dispatch(fetchProjectsAPI());
 
       return {
         projectId: project_id,
-        updatedProject: formatProjectFromAPI(
-          response.data.data || response.data
-        ),
         employeeIds: employee_ids,
       };
     } catch (error) {
@@ -393,17 +401,6 @@ export const appProjectSlice = createSlice({
       .addCase(updateProjectAssigneesAPI.fulfilled, (state, action) => {
         state.isUpdating = false;
         state.updateAssigneesModal = false;
-        const { projectId, updatedProject } = action.payload;
-        const projectIndex = state.projects.findIndex((p) => p.id === projectId);
-        if (projectIndex !== -1) {
-          state.projects[projectIndex] = updatedProject;
-        }
-        if (
-          state.projectToUpdateAssignees &&
-          state.projectToUpdateAssignees.id === projectId
-        ) {
-          state.projectToUpdateAssignees = updatedProject;
-        }
       })
       .addCase(updateProjectAssigneesAPI.rejected, (state, action) => {
         state.isUpdating = false;

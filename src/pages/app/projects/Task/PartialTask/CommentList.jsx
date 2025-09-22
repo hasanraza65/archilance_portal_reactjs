@@ -5,6 +5,9 @@ import "sweetalert2/dist/sweetalert2.min.css";
 import { mapApiUserToLocal, formatCommentTimestamp } from "./taskDetailsUtils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMicrophone } from "@fortawesome/free-solid-svg-icons";
+// --- UPDATED CODE ---
+// getUserRole aur getEmployeeType ko import kiya gaya hai
+import { getUserRole, getEmployeeType } from "@/pages/utility/apiHelper";
 
 const STORAGE_BASE_PATH = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -157,6 +160,12 @@ const CommentList = ({
   const prevCommentsLength = useRef(comments ? comments.length : 0);
   const initialLoadScrollAttempted = useRef(false);
   const prevScrollHeight = useRef(0);
+  
+  // --- UPDATED CODE ---
+  // User ka role aur employee type hasil kiya gaya hai
+  const userRole = getUserRole();
+  const employeeType = getEmployeeType();
+
 
   // Allowed file types...
   const allowedMimeTypes = [
@@ -345,7 +354,7 @@ const CommentList = ({
     const maxSize = 10 * 1024 * 1024;
     const validFiles = files.filter((file) => {
       if (file.size > maxSize) {
-        toast.error(`File ${file.name} is too large (max 10MB).`);
+        toast.error(`File ${file.name} is too large. Max 10MB.`);
         return false;
       }
       const ext = file.name.split(".").pop().toLowerCase();
@@ -644,37 +653,47 @@ const CommentList = ({
     }
   };
 
-  const dropdownOptions = (cmt) => [
-    {
-      label: "Edit",
-      action: "edit",
-      disabled:
-        !(currentUserId && cmt.sender?.id === currentUserId) ||
-        isProcessingEditOrDelete ||
-        isSubmittingComment,
-    },
-    {
-      label: "Delete",
-      action: "delete",
-      disabled:
-        !(currentUserId && cmt.sender?.id === currentUserId) ||
-        isProcessingEditOrDelete ||
-        isSubmittingComment,
-    },
-  ];
+  // --- UPDATED CODE ---
+  // Is function ko update kiya gaya hai taake supervisor ko bhi delete karne ki permission milay
+  const dropdownOptions = (cmt) => {
+    const isAuthor = currentUserId && cmt.sender?.id === currentUserId;
+    // admin, manager, aur supervisor ko moderator mana gaya hai
+    const isModerator =
+      userRole === "admin" ||
+      employeeType === "Manager" ||
+      employeeType === "Supervisor";
+
+    return [
+      {
+        label: "Edit",
+        action: "edit",
+        // Edit sirf author hi kar sakta hai
+        disabled:
+          !isAuthor ||
+          isProcessingEditOrDelete ||
+          isSubmittingComment,
+      },
+      {
+        label: "Delete",
+        action: "delete",
+        // Delete author ya moderator kar sakta hai
+        disabled:
+          !(isAuthor || isModerator) ||
+          isProcessingEditOrDelete ||
+          isSubmittingComment,
+      },
+    ];
+  };
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
-  // This useEffect for auto-scrolling is simplified, as page scroll is now default.
   useEffect(() => {
-    // Only scroll to bottom on initial load.
     if (!initialLoadScrollAttempted.current && comments.length > 0) {
       window.scrollTo(0, document.body.scrollHeight);
       initialLoadScrollAttempted.current = true;
     }
   }, [comments]);
 
-  // ++ INTERSECTION OBSERVER KO UPDATE KIYA GAYA HAI TAKAY PAGE SCROLL PAR KAAM KARE ++
   useEffect(() => {
     const obs = new IntersectionObserver(
       (e) => {
@@ -687,7 +706,6 @@ const CommentList = ({
           onLoadOlderComments();
         }
       },
-      // root: null viewport par observe karta hai
       { root: null, threshold: 0.1 }
     );
     if (loadMoreTriggerRef.current) obs.observe(loadMoreTriggerRef.current);
@@ -1282,7 +1300,6 @@ const CommentList = ({
     );
   };
 
-  // ++ YAHAN ROOT DIV SE STICKY, TOP-6 AUR MAX-H CLASSES HATA DI GAYI HAIN ++
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
       <div className="p-6 border-b border-slate-200 bg-slate-50/50 rounded-t-2xl">
@@ -1312,7 +1329,6 @@ const CommentList = ({
         </p>
       </div>
 
-      {/* ++ YAHAN SE INTERNAL SCROLLING AUR FIXED HEIGHT KI STYLING HATA DI GAYI HAI ++ */}
       <div ref={commentsListRef} className="p-6 space-y-2">
         {isLoadingOlderComments && (
           <div className="flex justify-center items-center py-3">

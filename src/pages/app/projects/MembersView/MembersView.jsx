@@ -114,10 +114,10 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
     if (firstStatusWithTasks) {
       setExpandedSections({ [firstStatusWithTasks]: true });
     }
-  }, [memberTasksByStatus]);
+  }, []);
 
-  const handleUpdateTask = (taskId, field, value) => {
-    console.log(`Updating task ${taskId}: ${field} = ${value}`);
+  const handleUpdateTask = () => {
+    onUpdate();
   };
 
   const handleOpenEditModal = useCallback((task, e) => {
@@ -254,115 +254,108 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
-                    {statusData.tasks.map((task) => (
-                      <tr
-                        key={task.id}
-                        onClick={() => handleRowClick(task)}
-                        className="block md:table-row hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
-                      >
-                        <td
-                          data-label="Job"
-                          className="block md:table-cell px-4 py-3"
+                    {statusData.tasks.map((task) => {
+                      const isEditable = userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor";
+                      return (
+                        <tr
+                          key={task.id}
+                          onClick={() => handleRowClick(task)}
+                          className="block md:table-row hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
                         >
-                          <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
-                            {task.project?.project_name || "N/A"}
-                          </span>
-                        </td>
-                        <td
-                          data-label="Project"
-                          className="block md:table-cell px-4 py-3"
-                        >
-                          <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
-                            {task.parent_task?.task_title || "N/A"}
-                          </span>
-                        </td>
-                        <td
-                          data-label="Task"
-                          className="block md:table-cell px-4 py-3"
-                        >
-                          <span className="text-slate-700 dark:text-slate-300 text-sm">
-                            {task.task_title || "N/A"}
-                          </span>
-                        </td>
-                        <td
-                          data-label="Start Date"
-                          className="block md:table-cell px-4 py-3"
-                        >
-                          <EditableStartDate
-                            taskId={task.id}
-                            currentStartDate={task.created_at}
-                            onDateUpdate={(id, date) =>
-                              handleUpdateTask(id, "start_date", date)
-                            }
-                            isEditable={
-                              userRole === "admin" || employeeType === "Manager"
-                            }
-                          />
-                        </td>
-                        <td
-                          data-label="Due Date"
-                          className="block md:table-cell px-4 py-3"
-                        >
-                          <EditableDueDate
-                            taskId={task.id}
-                            currentDueDate={task.due_date}
-                            onDateUpdate={(id, date) =>
-                              handleUpdateTask(id, "due_date", date)
-                            }
-                            isEditable={
-                              userRole === "admin" || employeeType === "Manager"
-                            }
-                          />
-                        </td>
-                        <td
-                          data-label="Status"
-                          className="block md:table-cell px-4 py-3"
-                        >
-                          <EditableTaskStatus
-                            taskId={task.id}
-                            currentStatus={task.task_status}
-                            onStatusUpdate={(id, status) =>
-                              handleUpdateTask(id, "status", status)
-                            }
-                            isEditable={
-                              userRole === "admin" || employeeType === "Manager"
-                            }
-                          />
-                        </td>
-                        <td
-                          data-label="Action"
-                          className="block md:table-cell px-4 py-3"
-                        >
-                          <div
-                            className="flex items-center justify-end space-x-2"
-                            onClick={(e) => e.stopPropagation()}
+                          <td
+                            data-label="Job"
+                            className="block md:table-cell px-4 py-3"
                           >
-                            <button
-                              title="Edit"
-                              onClick={(e) => handleOpenEditModal(task, e)}
-                              className="p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-800/20 text-green-600"
-                            >
-                              <Icon
-                                icon="heroicons:pencil-square"
-                                className="w-4 h-4"
-                              />
-                            </button>
-                            <button
-                              title="Delete"
-                              onClick={(e) =>
-                                handleDelete(task.id, task.task_title, e)
-                              }
-                              className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-800/20 text-red-600"
-                            >
-                              <Icon
-                                icon="heroicons-outline:trash"
-                                className="w-4 h-4"
-                              />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                              {task.project?.project_name || "N/A"}
+                            </span>
+                          </td>
+                          <td
+                            data-label="Project"
+                            className="block md:table-cell px-4 py-3"
+                          >
+                            <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
+                              {task.parent_task?.task_title || "N/A"}
+                            </span>
+                          </td>
+                          <td
+                            data-label="Task"
+                            className="block md:table-cell px-4 py-3"
+                          >
+                            <span className="text-slate-700 dark:text-slate-300 text-sm">
+                              {task.task_title || "N/A"}
+                            </span>
+                          </td>
+                          <td
+                            data-label="Start Date"
+                            className="block md:table-cell px-4 py-3"
+                          >
+                            <EditableStartDate
+                              taskId={task.id}
+                              currentStartDate={task.created_at}
+                              onDateUpdate={handleUpdateTask}
+                              isEditable={isEditable}
+                            />
+                          </td>
+                          <td
+                            data-label="Due Date"
+                            className="block md:table-cell px-4 py-3"
+                          >
+                            <EditableDueDate
+                              taskId={task.id}
+                              currentDueDate={task.due_date}
+                              onDateUpdate={handleUpdateTask}
+                              isEditable={isEditable}
+                            />
+                          </td>
+                          <td
+                            data-label="Status"
+                            className="block md:table-cell px-4 py-3"
+                          >
+                            <EditableTaskStatus
+                              taskId={task.id}
+                              currentStatus={task.task_status}
+                              onStatusUpdate={handleUpdateTask}
+                              isEditable={isEditable}
+                            />
+                          </td>
+                          <td
+                            data-label="Action"
+                            className="block md:table-cell px-4 py-3"
+                          >
+                            {isEditable && (
+                              <div
+                                className="flex items-center justify-end space-x-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  title="Edit"
+                                  onClick={(e) => handleOpenEditModal(task, e)}
+                                  className="p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-800/20 text-green-600"
+                                >
+                                  <Icon
+                                    icon="heroicons:pencil-square"
+                                    className="w-4 h-4"
+                                  />
+                                </button>
+                                <button
+                                  title="Delete"
+                                  onClick={(e) =>
+                                    handleDelete(task.id, task.task_title, e)
+                                  }
+                                  className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-800/20 text-red-600"
+                                >
+                                  <Icon
+                                    icon="heroicons-outline:trash"
+                                    className="w-4 h-4"
+                                  />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -395,7 +388,7 @@ const MembersView = () => {
     const userRole = getApiPrefix();
     const employeeType = getEmployeeType();
 
-    if (userRole !== "admin" && employeeType !== "Manager") {
+    if (userRole !== "admin" && employeeType !== "Manager" && employeeType !== "Supervisor") {
       setError("You are not authorized to view this information.");
       setIsLoading(false);
       return;
@@ -429,11 +422,14 @@ const MembersView = () => {
     fetchMembersData();
   }, [fetchMembersData]);
 
+  // --- UPDATED CODE ---
+  // Is useEffect ki dependency array se `openMemberId` ko hata diya gaya hai.
+  // Ab yeh sirf `membersData` ke change hone par (yaani pehli baar load hone par) chalega.
   useEffect(() => {
     if (membersData.length > 0 && openMemberId === null) {
       setOpenMemberId(membersData[0].id);
     }
-  }, [membersData, openMemberId]);
+  }, [membersData]);
 
   const handleToggleMember = (memberId) => {
     setOpenMemberId((prevId) => (prevId === memberId ? null : memberId));

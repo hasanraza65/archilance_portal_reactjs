@@ -7,7 +7,11 @@ import Swal from "sweetalert2";
 
 import { useAuth } from "../../../../context/AuthContext";
 import { useBreadcrumbs } from "../../../../components/ui/BreadcrumbsContext";
-import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
+import {
+  getApiPrefix,
+  getUserRole,
+  getEmployeeType,
+} from "@/pages/utility/apiHelper";
 
 import TaskHeader from "./PartialTask/TaskHeader";
 import TaskMetadata from "./PartialTask/TaskMetadata";
@@ -70,14 +74,21 @@ const TaskDetailsPage = () => {
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
   const userRole = getUserRole();
+  const employeeType = getEmployeeType();
   const isCustomer = userRole === "customer";
 
+  // --- UPDATED CODE ---
+  // Supervisor ko saari permissions di gayi hain
   const canEditTaskDetails = !isCustomer;
   const canManageAssignees = !isCustomer;
   const canManageSubtasks = !isCustomer;
   const canChangeStatus = !isCustomer;
   const canManageComments =
-    userRole === "admin" || userRole === "employee" || userRole === "manager";
+    userRole === "admin" ||
+    userRole === "employee" ||
+    userRole === "manager" ||
+    userRole === "supervisor";
+  // --- END OF UPDATE ---
 
   const apiPrefix = getApiPrefix();
   const taskApiPath = `/api/${apiPrefix}/project-task`;
@@ -206,11 +217,7 @@ const TaskDetailsPage = () => {
         const projectLink = isCustomer
           ? `/order-details/${jobDetails.id}`
           : `/jobs/${jobDetails.id}`;
-
-        newCrumbs.push({
-          title: jobDetails.project_name,
-          link: projectLink,
-        });
+        newCrumbs.push({ title: jobDetails.project_name, link: projectLink });
       }
 
       if (parentTaskDetails.parent_task) {
@@ -221,7 +228,6 @@ const TaskDetailsPage = () => {
       }
 
       newCrumbs.push({ title: parentTaskDetails.task_title });
-
       setBreadcrumbs(newCrumbs);
     }
 
@@ -716,21 +722,14 @@ const TaskDetailsPage = () => {
   const currentAssigneeUserIds = currentAssignees
     .map((a) => a?.user?.id)
     .filter((id) => id != null);
-
   const isAdmin = user && user.role === "admin";
-
-  // +++ YEH SECTION MUKAMMAL TOR PAR UPDATE KIYA GAYA HAI +++
-  // Ab layout is baat par depend karega ke sidebar mein kuch dikhana hai ya nahi
   const showSidebar = canManageComments || isAdmin || isCustomer;
-
   const gridLayoutClass = showSidebar
     ? "grid lg:grid-cols-3 gap-6"
     : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
-
   const mainContentClass = showSidebar
     ? "lg:col-span-2 space-y-6"
     : "space-y-6";
-  // +++ END OF UPDATED SECTION +++
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100">
@@ -784,7 +783,6 @@ const TaskDetailsPage = () => {
               taskId={taskId}
               onBriefsUpdated={handleBriefUpdated}
             />
-
             <SubTaskList
               subTasks={subTasks}
               jobId={jobId}
@@ -798,7 +796,6 @@ const TaskDetailsPage = () => {
             <TaskAttachments attachments={parentTaskDetails?.attachments} />
           </div>
 
-          {/* ++ YEH DIV AB SIRF TAB DIKHEGA JAB SIDEBAR MEIN CONTENT HO ++ */}
           {showSidebar && (
             <div className="lg:col-span-1 space-y-6">
               {canManageComments && (
@@ -820,7 +817,6 @@ const TaskDetailsPage = () => {
                   onLoadRepliesForComment={onLoadRepliesForComment}
                 />
               )}
-
               {(isAdmin || isCustomer) && (
                 <TimeLogSummary timeLogs={timeLogs} />
               )}

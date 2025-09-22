@@ -19,11 +19,9 @@ import {
   fetchProjectsAPI,
 } from "./store";
 import EditableProjectStatus from "./EditableProjectStatus";
-// Import the new editable date components
 import EditableProjectStartDate from "./EditProjectDate/EditableProjectStartDate";
 import EditableProjectDueDate from "./EditProjectDate/EditableProjectDueDate";
 
-// AvatarStack component (no change)
 const AvatarStack = ({ assignees }) => {
   if (!assignees || assignees.length === 0)
     return <span className="text-slate-400">N/A</span>;
@@ -76,7 +74,6 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   const token = Cookies.get("token");
 
-  // Helper functions (no logic changes)
   const getApiBasePathForRole = (basePath) => {
     const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
     return userRole
@@ -88,7 +85,6 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
     dispatch(toggleUpdateAssigneesModal({ open: true, project }));
   };
 
-  // NEW: Handler to refresh project data after an update
   const handleDataUpdate = () => {
     dispatch(fetchProjectsAPI(currentPage));
   };
@@ -136,12 +132,14 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
   };
 
   const COLUMNS = useMemo(() => {
-    const isEditable = userRole === "admin" || employeeType === "Manager";
+    // --- UPDATED CODE ---
+    // Supervisor ko editable access diya gaya hai
+    const isEditable = userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor";
 
     const baseColumns = [
       {
         Header: "Name",
-        accessor: "project_name", // Corrected accessor
+        accessor: "project_name", 
         Cell: ({ row }) => (
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="flex-none">
@@ -184,7 +182,7 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
       },
       {
         Header: "Start Date",
-        accessor: "start_date", // Corrected accessor based on your JSON
+        accessor: "start_date",
         Cell: ({ cell: { value }, row }) => (
           <EditableProjectStartDate
             projectId={row.original.id}
@@ -196,8 +194,8 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
         ),
       },
       {
-        Header: "Due Date", // Renamed from "End Date" for clarity
-        accessor: "due_date", // Corrected accessor based on your JSON
+        Header: "Due Date",
+        accessor: "due_date",
         Cell: ({ cell: { value }, row }) => (
           <EditableProjectDueDate
             projectId={row.original.id}
@@ -247,8 +245,10 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
               >
                 <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
               </button>
-              {/* Edit Button with corrected logic */}
-              {(userRole === "admin" || employeeType === "Manager") && (
+              
+              {/* --- UPDATED CODE --- */}
+              {/* Supervisor ko Edit button ka access diya gaya hai */}
+              {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
                   <button
                     onClick={(e) => handleEdit(projectItem, e)}
                     disabled={actionsDisabled}
@@ -258,8 +258,10 @@ const ProjectList = ({ projects, userRole, employeeType }) => {
                     <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
                   </button>
               )}
-              {/* Delete Button */}
-              {(userRole === "admin" || employeeType === "Manager") && (
+
+              {/* --- UPDATED CODE --- */}
+              {/* Supervisor ko Delete button ka access diya gaya hai */}
+              {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
                   <button
                     onClick={(e) => handleDelete(projectItem, e)}
                     disabled={actionsDisabled}

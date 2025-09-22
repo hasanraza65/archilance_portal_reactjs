@@ -759,9 +759,12 @@ const ProjectDetailsPage = () => {
   const [expandedSections, setExpandedSections] = useState({});
 
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
+  // --- UPDATED CODE ---
+  // "supervisor" ko is list mein add kiya gaya hai
   const isManagerOrAdmin =
     currentUserRole === "admin" ||
     currentUserRole === "manager" ||
+    currentUserRole === "supervisor" ||
     currentUserRole === "employee";
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
@@ -786,9 +789,15 @@ const ProjectDetailsPage = () => {
   const [isSending, setIsSending] = useState(false);
 
   const fetchMessages = useCallback(async () => {
-    const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
-      currentUserRole
-    );
+    // --- UPDATED CODE ---
+    // "supervisor" ko chat dekhne ki permission di gayi hai
+    const canViewChat = [
+      "admin",
+      "manager",
+      "employee",
+      "outsource",
+      "supervisor",
+    ].includes(currentUserRole);
     if (!canViewChat || !token || !id) {
       setIsMessagesLoading(false);
       return;
@@ -813,9 +822,15 @@ const ProjectDetailsPage = () => {
   }, [id, token, currentUserRole, API_BASE_URL]);
 
   useEffect(() => {
-    const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
-      currentUserRole
-    );
+    // --- UPDATED CODE ---
+    // "supervisor" ko chat dekhne ki permission di gayi hai
+    const canViewChat = [
+      "admin",
+      "manager",
+      "employee",
+      "outsource",
+      "supervisor",
+    ].includes(currentUserRole);
     if (canViewChat) {
       fetchMessages();
       const pollInterval = setInterval(fetchMessages, 20000);
@@ -1361,18 +1376,27 @@ const ProjectDetailsPage = () => {
   );
   const projectHasActualDescription =
     sanitizedProjectDescription.replace(/<[^>]*>/g, "").trim().length > 0;
-  const canViewBriefs = ["admin", "manager", "employee", "outsource"].includes(
-    currentUserRole
-  );
-  const canViewChat = ["admin", "manager", "employee", "outsource"].includes(
-    currentUserRole
-  );
+  // --- UPDATED CODE ---
+  // "supervisor" ko briefs aur chat dekhne ki permission di gayi hai
+  const canViewBriefs = [
+    "admin",
+    "manager",
+    "employee",
+    "outsource",
+    "supervisor",
+  ].includes(currentUserRole);
+  const canViewChat = [
+    "admin",
+    "manager",
+    "employee",
+    "outsource",
+    "supervisor",
+  ].includes(currentUserRole);
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <ResponsiveTableStyles />
       <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
-        {/* === RESPONSIVE FIX APPLIED HERE === */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">

@@ -56,7 +56,6 @@ const Avatar = ({ user }) => {
   );
 };
 
-// +++ CHANGE #1: Add 'employeeType' to the component's props +++
 const ProjectGrid = ({ project, userRole, employeeType }) => {
   const {
   id,
@@ -166,8 +165,9 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
               <Icon icon="heroicons:eye" />
             </button>
             
-                       {/* Edit Button ki Condition */}
-            {(userRole === "admin" || employeeType === "Manager" || userRole === "employee") && (
+            {/* --- UPDATED CODE --- */}
+            {/* Supervisor ko Edit button ka access diya gaya hai */}
+            {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
                 <button
                   type="button"
                   title="Edit Project"
@@ -179,8 +179,9 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
                 </button>
             )}
             
-            {/* Delete Button ki Condition */}
-            {(userRole === "admin" || employeeType === "Manager") && (
+            {/* --- UPDATED CODE --- */}
+            {/* Supervisor ko Delete button ka access diya gaya hai */}
+            {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
                 <button
                   type="button"
                   title="Delete Project"

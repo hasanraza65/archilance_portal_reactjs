@@ -14,7 +14,7 @@ const UpdateAssigneesModal = () => {
   
   const userRole = getApiPrefix();
   const employeeType = getEmployeeType();
-  const isEditable = userRole === 'admin' || employeeType === 'Manager';
+  const isEditable = userRole === 'admin' || employeeType === 'Manager' || employeeType === 'Supervisor';
 
   const [allEmployees, setAllEmployees] = useState([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState(new Set());
@@ -92,24 +92,28 @@ const UpdateAssigneesModal = () => {
     dispatch(toggleUpdateAssigneesModal({ open: false, project: null }));
   };
   
-const handleUpdate = () => {
-  if (!isEditable) return;
+  // --- UPDATED LOGIC ---
+  const handleUpdate = () => {
+    if (!isEditable) return;
 
-  const payload = {
-    project_id: projectToUpdateAssignees.id,
-    employee_ids: Array.from(selectedEmployeeIds).map(id => parseInt(id, 10)),
+    const payload = {
+      project_id: projectToUpdateAssignees.id,
+      employee_ids: Array.from(selectedEmployeeIds).map(id => parseInt(id, 10)),
+    };
+
+    dispatch(updateProjectAssigneesAPI(payload))
+      .unwrap()
+      .then(() => {
+        toast.success("Assignees updated successfully!");
+        // Assignees update hone ke baad project list ko dobara fetch karein
+        dispatch(fetchProjectsAPI()); 
+        handleClose();
+      })
+      .catch((err) => {
+        toast.error(err?.message || err || "Failed to update assignees.");
+      });
   };
-
-  dispatch(updateProjectAssigneesAPI(payload))
-    .unwrap()
-    .then(() => {
-      toast.success("Assignees updated successfully!");
-      handleClose();
-    })
-    .catch((err) => {
-      toast.error(err?.message || err || "Failed to update assignees.");
-    });
-};
+  // --- END OF UPDATE ---
 
   const filteredEmployees = allEmployees.filter(employee =>
     employee.name.toLowerCase().includes(searchTerm.toLowerCase())

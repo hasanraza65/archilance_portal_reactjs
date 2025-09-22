@@ -10,7 +10,7 @@ import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
 import EditableTaskStatus from "./EditableTaskStatus";
 import EditableDueDate from "./EditTaskDate/EditableDueDate";
-import EditableStartDate from "./EditTaskDate/EditableStartDate"; // Import the new component
+import EditableStartDate from "./EditTaskDate/EditableStartDate";
 
 // In-file CSS component for mobile responsiveness (Final Version)
 const ResponsiveTableStyles = () => {
@@ -22,12 +22,10 @@ const ResponsiveTableStyles = () => {
     style.id = styleId;
     style.textContent = `
       .responsive-task-table {
-        /* CRITICAL: Prevents table width from being determined by content */
         table-layout: fixed;
         width: 100%;
       }
       .responsive-task-table td, .responsive-task-table th {
-        /* CRITICAL: Forces long text to wrap instead of overflowing */
         word-break: break-word;
       }
       @media (max-width: 767px) {
@@ -225,7 +223,6 @@ const TaskList = ({
 
         const initialExpandedState = {};
         statuses.forEach((status) => {
-          // MODIFICATION: Set all sections to be expanded by default
           initialExpandedState[status] = true;
         });
 
@@ -272,7 +269,6 @@ const TaskList = ({
       prevTasks.map((item) => {
         const taskToUpdate = item.sub_task || item.task;
         if (taskToUpdate && taskToUpdate.id === taskId) {
-          // Assuming the API returns 'start_date'. If it returns 'created_at', use that.
           const updatedTask = { ...taskToUpdate, created_at: newStartDate };
           if (item.sub_task) {
             return { ...item, sub_task: updatedTask };
@@ -317,7 +313,6 @@ const TaskList = ({
 
       return {
         id: taskToShow.id,
-        // ++ YEH DONO IDs BREADCRUMB AUR NAVIGATION KE LIYE ZAROORI HAIN ++
         project_id: item.project?.id,
         parent_task_id: item.task?.id,
         project_name: item.project?.project_name || "N/A",
@@ -430,24 +425,10 @@ const TaskList = ({
     [fetchTasks]
   );
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  // ++ YEH FUNCTION MUKAMMAL TOR PAR UPDATE KIYA GAYA HAI ++
   const handleRowClick = (rowData) => {
-    // Task ka title hasil karein. Agar sub-task hai to uska title, warna main task ka title.
     const finalTaskTitle = rowData.task_title || rowData.project_title;
-
-    // Breadcrumb ka structure banayein
     const breadcrumbsToPass = [{ title: "Jobs", link: "/jobs" }];
 
-    // Agar project (job) ka naam hai to usko breadcrumb mein add karein
     if (
       rowData.project_name &&
       rowData.project_name !== "N/A" &&
@@ -455,11 +436,10 @@ const TaskList = ({
     ) {
       breadcrumbsToPass.push({
         title: rowData.project_name,
-        link: `/jobs/${rowData.project_id}`, // Job/Project detail page ka link
+        link: `/jobs/${rowData.project_id}`,
       });
     }
 
-    // Agar yeh ek sub-task hai (task_title mojood hai), to parent task ko breadcrumb mein add karein
     if (
       rowData.task_title &&
       rowData.project_title !== "N/A" &&
@@ -467,21 +447,18 @@ const TaskList = ({
     ) {
       breadcrumbsToPass.push({
         title: rowData.project_title,
-        link: `/project/${rowData.parent_task_id}`, // Parent task ka link
+        link: `/project/${rowData.parent_task_id}`,
       });
     }
 
-    // Aakhir mein, current task (jis par click hua) ko breadcrumb mein add karein
     breadcrumbsToPass.push({
       title: finalTaskTitle,
-      // Aakhri item ka link nahi hota
     });
 
-    // `navigate` function ke `state` mein data pass karein
     navigate(`/project/${rowData.id}`, {
       state: {
         breadcrumbs: breadcrumbsToPass,
-        jobId: rowData.project_id, // jobId ko bhi state mein pass karein
+        jobId: rowData.project_id,
       },
     });
   };
@@ -663,9 +640,11 @@ const TaskList = ({
                                   taskId={rowData.id}
                                   currentStartDate={rowData.created_at}
                                   onDateUpdate={handleUpdateTaskStartDate}
+                                  // --- UPDATED CODE ---
                                   isEditable={
                                     userRole === "admin" ||
-                                    employeeType === "Manager"
+                                    employeeType === "Manager" ||
+                                    employeeType === "Supervisor"
                                   }
                                 />
                               </div>
@@ -683,9 +662,11 @@ const TaskList = ({
                                   taskId={rowData.id}
                                   currentDueDate={rowData.due_date}
                                   onDateUpdate={handleUpdateTaskDueDate}
+                                  // --- UPDATED CODE ---
                                   isEditable={
                                     userRole === "admin" ||
-                                    employeeType === "Manager"
+                                    employeeType === "Manager" ||
+                                    employeeType === "Supervisor"
                                   }
                                 />
                               </div>
@@ -698,9 +679,11 @@ const TaskList = ({
                                 taskId={rowData.id}
                                 currentStatus={rowData.task_status}
                                 onStatusUpdate={handleUpdateTaskStatus}
+                                // --- UPDATED CODE ---
                                 isEditable={
                                   userRole === "admin" ||
-                                  employeeType === "Manager"
+                                  employeeType === "Manager" ||
+                                  employeeType === "Supervisor"
                                 }
                               />
                             </td>
@@ -708,41 +691,51 @@ const TaskList = ({
                               data-label="Action"
                               className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
                             >
-                              <div
-                                className="flex items-center justify-end space-x-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors duration-200"
-                                  title="Edit Task"
-                                  onClick={(e) =>
-                                    handleOpenEditModal(
-                                      rowData.original_task_data,
-                                      e
-                                    )
-                                  }
+                              {/* --- UPDATED CODE --- */}
+                              {/* Action buttons ko conditionally render kiya gaya hai */}
+                              {(userRole === "admin" ||
+                                employeeType === "Manager" ||
+                                employeeType === "Supervisor") && (
+                                <div
+                                  className="flex items-center justify-end space-x-2"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <Icon
-                                    icon="heroicons:pencil-square"
-                                    className="w-4 h-4"
-                                  />
-                                </button>
-                                <button
-                                  className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors duration-200"
-                                  title="Delete Task"
-                                  onClick={(e) => {
-                                    const titleToDelete =
-                                      rowData.task_title ||
-                                      rowData.project_title;
-                                    handleDelete(rowData.id, titleToDelete, e);
-                                  }}
-                                >
-                                  <Icon
-                                    icon="heroicons-outline:trash"
-                                    className="w-4 h-4"
-                                  />
-                                </button>
-                              </div>
+                                  <button
+                                    className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors duration-200"
+                                    title="Edit Task"
+                                    onClick={(e) =>
+                                      handleOpenEditModal(
+                                        rowData.original_task_data,
+                                        e
+                                      )
+                                    }
+                                  >
+                                    <Icon
+                                      icon="heroicons:pencil-square"
+                                      className="w-4 h-4"
+                                    />
+                                  </button>
+                                  <button
+                                    className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors duration-200"
+                                    title="Delete Task"
+                                    onClick={(e) => {
+                                      const titleToDelete =
+                                        rowData.task_title ||
+                                        rowData.project_title;
+                                      handleDelete(
+                                        rowData.id,
+                                        titleToDelete,
+                                        e
+                                      );
+                                    }}
+                                  >
+                                    <Icon
+                                      icon="heroicons-outline:trash"
+                                      className="w-4 h-4"
+                                    />
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))}
