@@ -36,13 +36,13 @@ import stripe from "@/assets/images/e-commerce/cart-icon/stripe.png";
 import truck from "@/assets/images/e-commerce/cart-icon/truck.png";
 import vougepay from "@/assets/images/e-commerce/cart-icon/vougepay.png";
 
-// ... (saare imports waise hi rahenge)
 
 export const menuItems = [
   {
     isHeadr: true,
     title: "menu",
-    allowedRoles: ["admin", "employee", "customer", "manager", "outsource"],
+
+    allowedRoles: ["admin", "employee", "customer", "manager", "outsource", "supervisor"],
   },
   {
     title: "Dashboard",
@@ -61,14 +61,16 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:document",
     link: "jobs",
-    allowedRoles: ["admin", "employee", "customer", "member", "outsource","manager"],
+    // --- UPDATED ---
+    allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor"],
   },
   {
     title: "Chat",
     isHide: false,
     icon: "heroicons-outline:chat",
     link: "chat",
-    allowedRoles: ["admin", "employee", "outsource","manager"],
+    // --- UPDATED ---
+    allowedRoles: ["admin", "employee", "outsource", "manager", "supervisor"],
   },
   {
     title: "Leaves",
@@ -82,28 +84,32 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:user",
     link: "employees",
-    allowedRoles: ["admin", "manager", ],
+    // --- UPDATED ---
+    allowedRoles: ["admin", "manager", "supervisor"],
   },
   {
     title: "Customers",
     isHide: false,
     icon: "heroicons-outline:user",
     link: "customers",
-    allowedRoles: ["admin", "manager", ],
+    // --- UPDATED ---
+    allowedRoles: ["admin", "manager", "supervisor"],
   },
   {
     title: "Work Session",
     isHide: false,
     icon: "heroicons-outline:document",
     link: "work-session",
-    allowedRoles: ["employee", "outsource","manager"],
+    // --- UPDATED ---
+    allowedRoles: ["employee", "outsource", "manager", "supervisor"],
   },
   {
     title: "Leaves",
     isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "employeeleaves",
-    allowedRoles: ["employee","manager","outsource"], 
+    // --- UPDATED ---
+    allowedRoles: ["employee", "manager", "outsource", "supervisor"], 
   },
   {
     title: "Subscriptions",
@@ -141,6 +147,8 @@ export const menuItems = [
     allowedRoles: ["admin"],
   },
 ];
+
+// ... (baaki file ka code waise hi rahega)
 
 
 export const topMenu = [

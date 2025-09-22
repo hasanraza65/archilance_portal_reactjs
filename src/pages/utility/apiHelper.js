@@ -36,9 +36,12 @@ export const canManageEmployees = () => {
     return true;
   }
 
-  if (role === 'manager' ) {
+  // --- UPDATED CODE ---
+  // Added 'supervisor' to allow management permissions.
+  if (role === 'manager' || role === 'supervisor') {
     return true;
   }
+  // --- END OF UPDATE ---
 
   return false;
 };
@@ -58,6 +61,12 @@ export const getApiPrefix = () => {
       return 'customer';
     case 'member':
       return 'member';
+      
+    // --- UPDATED CODE ---
+    // Added 'supervisor' to use the 'employee' API prefix.
+    case 'supervisor':
+      return 'employee';
+    // --- END OF UPDATE ---
 
     default:
       console.warn(`Unknown or missing role found: '${role}'. Defaulting to 'customer'.`);

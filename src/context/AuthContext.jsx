@@ -118,12 +118,15 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
     
+    // --- UPDATED CODE ---
+    // Added 'supervisor' to correctly assign the role from the employee_type.
     if (userRole === 'employee' && userData.employee_type) {
       const type = userData.employee_type.toLowerCase();
-      if (type === 'manager' || type === 'outsource') {
+      if (type === 'manager' || type === 'outsource' || type === 'supervisor') {
         userRole = type;
       }
     }
+    // --- END OF UPDATE ---
 
     const userToSave = {
       id: userData.id,
@@ -161,7 +164,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Updated role-based redirection logic
-    const jobsRoles = ['employee', 'manager', 'outsource', 'member'];
+    const jobsRoles = ['employee', 'manager', 'outsource', 'member', 'supervisor']; // Added supervisor here too
     if (jobsRoles.includes(userRole)) {
       navigate("/jobs", { replace: true });
     } else {

@@ -17,6 +17,7 @@ const getApiBasePathForRole = (basePath) => {
   }
   return `/api/admin${cleanBasePath}`;
 };
+
 const AddEmployee = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -26,8 +27,8 @@ const AddEmployee = () => {
     phone: "",
     password: "",
     password_confirmation: "",
-    employee_type: "Employee",
-    user_role: "3",
+    employee_type: "Employee", // Default type
+    user_role: "3",             // Default role ID for "Employee"
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -39,13 +40,38 @@ const AddEmployee = () => {
     }
   }, [navigate]);
 
+  // --- UPDATED CODE ---
+  // This function now also sets the correct user_role when employee_type changes.
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Create an object to hold the state updates
+    const updates = { [name]: value };
+
+    // If the changed field is 'employee_type', set the corresponding user_role ID
+    if (name === "employee_type") {
+      switch (value) {
+        case "Manager":
+          updates.user_role = "5";
+          break;
+        case "Supervisor":
+          updates.user_role = "6";
+          break;
+        case "Employee":
+        case "Outsource":
+        default:
+          updates.user_role = "3";
+          break;
+      }
+    }
+
+    setFormData((prev) => ({ ...prev, ...updates }));
+    
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
   };
+  // --- END OF UPDATE ---
 
   const validateForm = () => {
     const newErrors = {};
@@ -209,6 +235,7 @@ const AddEmployee = () => {
           {errors.phone && <p className={errorClass}>{errors.phone}</p>}
         </div>
 
+        {/* --- UPDATED CODE --- */}
         <div>
           <label htmlFor="employee_type" className={labelClass}>
             Employee Type
@@ -222,10 +249,12 @@ const AddEmployee = () => {
           >
             <option value="Employee">Employee</option>
             <option value="Manager">Manager</option>
+            <option value="Supervisor">Supervisor</option> 
             <option value="Outsource">Outsource</option>
           </select>
           {errors.employee_type && <p className={errorClass}>{errors.employee_type}</p>}
         </div>
+        {/* --- END OF UPDATE --- */}
 
         <div>
           <label htmlFor="password" className={labelClass}>

@@ -78,22 +78,25 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
               {name}
             </span>
             
-            {/* --- BADGE COLORS UPDATED --- */}
-            {(employee_type === "Manager" || employee_type === "Outsource") && (
+            {/* --- UPDATED CODE --- */}
+            {/* Yahan 'Supervisor' ko condition mein add kiya gaya hai aur uske badge ke liye alag color (sky/blue) set kiya gaya hai. */}
+            {(employee_type === "Manager" || employee_type === "Outsource" || employee_type === "Supervisor") && (
               <span
                 className={`
                   px-2 py-0.5 text-xs font-semibold rounded-full capitalize
                   ${
                     employee_type === "Manager"
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200" // Green color for Manager
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200"     // Amber/Orange for Outsource
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200" // Manager ke liye Green color
+                      : employee_type === "Supervisor"
+                      ? "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200" // Supervisor ke liye Blue color
+                      : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200"     // Outsource ke liye Amber/Orange color
                   }
                 `}
               >
                 {employee_type.toLowerCase()}
               </span>
             )}
-            {/* --- END OF BADGE UPDATE --- */}
+            {/* --- END OF UPDATE --- */}
 
           </div>
         </div>
