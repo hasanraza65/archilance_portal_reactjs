@@ -259,6 +259,8 @@ const AdminEmployeeWorkSession = () => {
       page: currentPage.toString(),
       employee_id: employeeId,
     });
+        if (selectedProject) params.append("project_id", selectedProject);
+
     if (selectedTask) params.append("task_id", selectedTask);
     if (dateRange && dateRange[0])
       params.append("start_date", formatDateForAPI(dateRange[0]));
