@@ -49,7 +49,7 @@ export const getApiPrefix = () => {
     case "manager":
     case "outsource":
     case "employee":
-    case "supervisor": // Supervisor ko yahan add kiya gaya hai
+    case "supervisor":
       return "employee";
 
     case "admin":

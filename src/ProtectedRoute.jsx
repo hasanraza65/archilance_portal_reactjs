@@ -10,11 +10,11 @@ const ProtectedRoute = ({ children, allowedRoles, requireManagerAccess = false }
     return <Navigate to="/" replace />;
   }
 
-  // Redirect employee roles to jobs if trying to access dashboard
-  const employeeRoles = ['employee', 'manager', 'outsource'];
+  const employeeRoles = ['employee', 'manager', 'outsource', 'supervisor'];
   if (window.location.pathname === '/dashboard' && employeeRoles.includes(user.role)) {
     return <Navigate to="/jobs" replace />;
   }
+
 
   if (requireManagerAccess) {
     if (canManageEmployees()) {

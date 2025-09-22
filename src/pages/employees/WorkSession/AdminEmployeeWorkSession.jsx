@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useAuth } from "@/context/AuthContext"; // Ensure useAuth provides user.role
+import { useAuth } from "@/context/AuthContext";
 import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
@@ -137,22 +137,31 @@ const AdminEmployeeWorkSession = () => {
   const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
+  
+  // --- UPDATED CODE ---
+  // "supervisor" ko is list mein add kiya gaya hai
   const endpointPrefix =
     user?.role === "admin"
       ? "admin"
       : user?.role === "manager" ||
+        user?.role === "supervisor" || // Supervisor added here
         user?.role === "outsource" ||
         user?.role === "employee"
       ? "employee"
       : "admin";
 
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
+  
+  // --- UPDATED CODE ---
+  // "supervisor" ko is list mein add kiya gaya hai
   const workSessionPath =
     user?.role === "manager" ||
+    user?.role === "supervisor" || // Supervisor added here
     user?.role === "outsource" ||
     user?.role === "employee"
       ? "/other-work-session"
       : "/work-session";
+  // --- END OF UPDATE ---
 
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
@@ -302,7 +311,7 @@ const AdminEmployeeWorkSession = () => {
   }, [
     employeeId,
     currentPage,
-    selectedProject, // <-- FIX: Yahan 'selectedProject' add kiya gaya hai
+    selectedProject,
     selectedTask,
     dateRange,
     token,
