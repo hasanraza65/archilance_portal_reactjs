@@ -156,17 +156,12 @@ const AdminEmployeeWorkSession = () => {
 
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // Effect to handle body scroll when idle time modal is open
   useEffect(() => {
     if (isIdleTimeModalOpen) {
-      // Prevent background scrolling
       document.body.style.overflow = "hidden";
     } else {
-      // Restore background scrolling
       document.body.style.overflow = "unset";
     }
-
-    // Cleanup function to restore scrolling when the component unmounts
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -195,7 +190,7 @@ const AdminEmployeeWorkSession = () => {
         });
         if (!res.ok) throw new Error("Could not fetch employee details.");
         const data = await res.json();
-        setEmployeeName(data.data?.name || "Employee");
+        setEmployeeName(data.name || "Employee");
       } catch (error) {
         toast.error(error.message);
         setEmployeeName("Unknown Employee");
@@ -259,8 +254,7 @@ const AdminEmployeeWorkSession = () => {
       page: currentPage.toString(),
       employee_id: employeeId,
     });
-        if (selectedProject) params.append("project_id", selectedProject);
-
+    if (selectedProject) params.append("project_id", selectedProject);
     if (selectedTask) params.append("task_id", selectedTask);
     if (dateRange && dateRange[0])
       params.append("start_date", formatDateForAPI(dateRange[0]));
@@ -308,6 +302,7 @@ const AdminEmployeeWorkSession = () => {
   }, [
     employeeId,
     currentPage,
+    selectedProject, // <-- FIX: Yahan 'selectedProject' add kiya gaya hai
     selectedTask,
     dateRange,
     token,
@@ -609,7 +604,6 @@ const AdminEmployeeWorkSession = () => {
                     </p>
                   )}
                   
-                  {/* MODIFICATION START: Show screenshots only to admin */}
                   {user?.role === "admin" && (
                     <div className="mt-4">
                       {session.screenshots.length > 0 ? (
@@ -640,8 +634,6 @@ const AdminEmployeeWorkSession = () => {
                       )}
                     </div>
                   )}
-                   {/* MODIFICATION END */}
-
                 </div>
               </div>
             ))}
