@@ -15,17 +15,40 @@ const getApiBasePathForRole = (basePath) => {
   return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
 };
 
-const EditableStartDate = ({ taskId, currentStartDate, onDateUpdate, isEditable }) => {
-  const [startDate, setStartDate] = useState(currentStartDate ? new Date(currentStartDate) : null);
+const EditableStartDate = ({
+  taskId,
+  currentStartDate,
+  onDateUpdate,
+  isEditable,
+}) => {
+  const [startDate, setStartDate] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // --- YAHAN SAHI CHECK ADD KIYA GAYA HAI ---
   useEffect(() => {
-    setStartDate(currentStartDate ? new Date(currentStartDate) : null);
+    if (!currentStartDate) {
+      setStartDate(null);
+      return;
+    }
+    // Seedha prop se date banayein, bina kuch jode
+    const dateObj = new Date(currentStartDate);
+
+    // Check karein ki date valid hai
+    if (dateObj instanceof Date && !isNaN(dateObj)) {
+      setStartDate(dateObj);
+    } else {
+      setStartDate(null);
+    }
   }, [currentStartDate]);
+  // --- BADLAV KHATAM ---
 
   if (!isEditable) {
     const formattedDate = startDate
-      ? startDate.toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })
+      ? startDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
       : "N/A";
     return <span>{formattedDate}</span>;
   }
@@ -34,44 +57,48 @@ const EditableStartDate = ({ taskId, currentStartDate, onDateUpdate, isEditable 
     if (!date) return;
     setStartDate(date);
     setIsUpdating(true);
-
     const token = getAuthToken();
     if (!token) {
       Swal.fire("Error", "Authentication token not found.", "error");
       setIsUpdating(false);
       return;
     }
-
-    const formattedDate = date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const formattedDate = `${year}-${month}-${day}`;
     const apiPath = getApiBasePathForRole(`/project-task/${taskId}`);
     const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-
     try {
-      // Assuming the API accepts a 'start_date' or similar field.
-      // If your API uses 'created_at', be aware this might have other implications.
       await axios.put(
         `${VITE_BASE_URL}${apiPath}`,
         { start_date: formattedDate },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       if (onDateUpdate) {
         onDateUpdate(taskId, formattedDate);
       }
-
       Swal.fire({
         toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Start date updated successfully!',
+        position: "top-end",
+        icon: "success",
+        title: "Start date updated!",
         showConfirmButton: false,
-        timer: 1500
+        timer: 1500,
       });
-
     } catch (error) {
       console.error("Failed to update start date:", error);
-      Swal.fire("Failed!", error.response?.data?.message || "Could not update the start date.", "error");
-      setStartDate(currentStartDate ? new Date(currentStartDate) : null);
+      Swal.fire(
+        "Failed!",
+        error.response?.data?.message || "Could not update start date.",
+        "error"
+      );
+      const oldDateObj = new Date(currentStartDate);
+      if (oldDateObj instanceof Date && !isNaN(oldDateObj)) {
+        setStartDate(oldDateObj);
+      } else {
+        setStartDate(null);
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -81,7 +108,10 @@ const EditableStartDate = ({ taskId, currentStartDate, onDateUpdate, isEditable 
     <div className="relative" onClick={(e) => e.stopPropagation()}>
       {isUpdating && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-800/70 z-10 rounded">
-          <Icon icon="eos-icons:loading" className="w-6 h-6 animate-spin text-slate-500" />
+          <Icon
+            icon="eos-icons:loading"
+            className="w-6 h-6 animate-spin text-slate-500"
+          />
         </div>
       )}
       <DatePicker

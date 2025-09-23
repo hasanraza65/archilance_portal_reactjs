@@ -22,7 +22,8 @@ export const getEmployeeType = () => {
   try {
     const user = JSON.parse(userCookie);
     return user?.employee_type;
-  } catch (e) {
+  } catch (e)
+  {
     console.error("Error parsing user cookie for employee_type:", e);
     return null;
   }
@@ -69,4 +70,10 @@ export const getApiPrefix = () => {
 
 export const getUserRole = () => {
   return getActualUserRole();
+};
+export const getApiBasePathForRole = (basePath) => {
+  const prefix = getApiPrefix(); 
+  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  
+  return `/api/${prefix}${cleanBasePath}`;
 };

@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
-import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
+import {
+  getApiPrefix,
+  getEmployeeType,
+  getApiBasePathForRole,
+} from "@/pages/utility/apiHelper";
 
 import Icon from "@/components/ui/Icon";
 import TableLoading from "@/components/skeleton/Table";
@@ -11,6 +15,7 @@ import EditTask from "./EditTask";
 import EditableTaskStatus from "./EditableTaskStatus";
 import EditableDueDate from "./EditTaskDate/EditableDueDate";
 import EditableStartDate from "./EditTaskDate/EditableStartDate";
+import TaskListAssignee from "./TaskListAssignee";
 
 // In-file CSS component for mobile responsiveness (Final Version)
 const ResponsiveTableStyles = () => {
@@ -85,18 +90,23 @@ const ResponsiveTableStyles = () => {
 
 const getAuthToken = () => Cookies.get("token");
 
-const getApiBasePathForRole = (basePath) => {
-  const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
-};
+// ... other imports and components
 
-const AvatarStack = ({ assignees }) => {
-  if (!assignees || assignees.length === 0)
-    return <span className="text-slate-400">N/A</span>;
+// --- IS COMPONENT KO UPDATE KAREIN ---
+const AvatarStack = ({ assignees, onClick }) => {
+  // Jab koi assignee na ho, tab bhi ek clickable element return karein
+  if (!assignees || assignees.length === 0) {
+    return (
+      // Is div par onClick lagaya gaya hai
+      <div onClick={onClick} className="cursor-pointer">
+        <span className="text-slate-400">N/A</span>
+      </div>
+    );
+  }
+
   const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   return (
-    <div className="flex items-center -space-x-2">
+    <div className="flex items-center -space-x-2 cursor-pointer" onClick={onClick}>
       {assignees.slice(0, 3).map(({ user }) => {
         if (!user) return null;
         const avatarUrl = user.profile_pic
@@ -133,6 +143,7 @@ const AvatarStack = ({ assignees }) => {
   );
 };
 
+// ... baaki TaskList component ka code same rahega
 const StatusBadge = ({ status }) => {
   const statusColors = {
     backlog:
@@ -177,6 +188,9 @@ const TaskList = ({
   const [editTaskModal, setEditTaskModal] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
+
+  const [assigneeModal, setAssigneeModal] = useState(false);
+  const [taskForAssignees, setTaskForAssignees] = useState(null);
 
   useEffect(() => {
     if (onLoadingChange) {
@@ -377,6 +391,12 @@ const TaskList = ({
     e.stopPropagation();
     setCurrentTask(task);
     setEditTaskModal(true);
+  }, []);
+
+  const handleOpenAssigneeModal = useCallback((task, e) => {
+    e.stopPropagation();
+    setTaskForAssignees(task);
+    setAssigneeModal(true);
   }, []);
 
   const handleDelete = useCallback(
@@ -625,7 +645,15 @@ const TaskList = ({
                               data-label="Assigned To"
                               className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
                             >
-                              <AvatarStack assignees={rowData.assignees} />
+                              <AvatarStack
+                                assignees={rowData.assignees}
+                                onClick={(e) =>
+                                  handleOpenAssigneeModal(
+                                    rowData.original_task_data,
+                                    e
+                                  )
+                                }
+                              />
                             </td>
                             <td
                               data-label="Start Date"
@@ -640,7 +668,6 @@ const TaskList = ({
                                   taskId={rowData.id}
                                   currentStartDate={rowData.created_at}
                                   onDateUpdate={handleUpdateTaskStartDate}
-                                  // --- UPDATED CODE ---
                                   isEditable={
                                     userRole === "admin" ||
                                     employeeType === "Manager" ||
@@ -662,7 +689,6 @@ const TaskList = ({
                                   taskId={rowData.id}
                                   currentDueDate={rowData.due_date}
                                   onDateUpdate={handleUpdateTaskDueDate}
-                                  // --- UPDATED CODE ---
                                   isEditable={
                                     userRole === "admin" ||
                                     employeeType === "Manager" ||
@@ -679,7 +705,6 @@ const TaskList = ({
                                 taskId={rowData.id}
                                 currentStatus={rowData.task_status}
                                 onStatusUpdate={handleUpdateTaskStatus}
-                                // --- UPDATED CODE ---
                                 isEditable={
                                   userRole === "admin" ||
                                   employeeType === "Manager" ||
@@ -691,8 +716,6 @@ const TaskList = ({
                               data-label="Action"
                               className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
                             >
-                              {/* --- UPDATED CODE --- */}
-                              {/* Action buttons ko conditionally render kiya gaya hai */}
                               {(userRole === "admin" ||
                                 employeeType === "Manager" ||
                                 employeeType === "Supervisor") && (
@@ -753,6 +776,13 @@ const TaskList = ({
         activeModal={editTaskModal}
         onClose={() => setEditTaskModal(false)}
         task={currentTask}
+        onUpdate={fetchTasks}
+      />
+
+      <TaskListAssignee
+        activeModal={assigneeModal}
+        onClose={() => setAssigneeModal(false)}
+        task={taskForAssignees}
         onUpdate={fetchTasks}
       />
     </>
