@@ -34,29 +34,25 @@ const EditEmployee = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
+  // successMessage state ko hata diya gaya hai
 
   const watchedProfilePicFile = watch("profile_pic");
   const passwordValue = watch("password");
   const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
-  console.log(role);
   if (role) {
     return `/api/${role}${cleanBasePath}`;
   }
   return `/api/admin${cleanBasePath}`;
 };
   useEffect(() => {
-    // This check runs when the component first loads.
     if (!canManageEmployees()) {
       toast.error("You do not have permission to edit employees.");
-      navigate(-1); // Go back to the previous page
+      navigate(-1);
     }
   }, [navigate]);
 
-
-  // Effect to handle profile picture preview
   useEffect(() => {
     let objectUrl = null;
     if (watchedProfilePicFile && watchedProfilePicFile[0]) {
@@ -75,7 +71,6 @@ const EditEmployee = () => {
     };
   }, [watchedProfilePicFile, currentProfilePicUrl]);
 
-  // Function to fetch existing employee data
   const fetchEmployeeData = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
@@ -102,7 +97,6 @@ const EditEmployee = () => {
         response.data.id
       ) {
         const employee = response.data;
-        // Reset the form with fetched data, including the new employee_type field
         reset({
           name: employee.name || "",
           email: employee.email || "",
@@ -110,7 +104,7 @@ const EditEmployee = () => {
           phone: employee.phone
             ? String(employee.phone).replace(/[\r\n]+/g, "")
             : "",
-          employee_type: employee.employee_type || "Employee", // **ADDED**: Set employee type from API
+          employee_type: employee.employee_type || "Employee",
           password: "",
           password_confirmation: "",
         });
@@ -142,11 +136,9 @@ const EditEmployee = () => {
     fetchEmployeeData();
   }, [fetchEmployeeData]);
 
-  // Form submission handler
   const onSubmit = async (formData) => {
     setSubmitting(true);
     setSubmitError(null);
-    setSuccessMessage(null);
     const token = Cookies.get("token");
     if (!token) {
       setSubmitError("Authentication token not found.");
@@ -159,8 +151,8 @@ const EditEmployee = () => {
     dataToSubmit.append("email", formData.email);
     dataToSubmit.append("username", formData.username);
     dataToSubmit.append("phone", formData.phone || "");
-    dataToSubmit.append("employee_type", formData.employee_type); // **ADDED**: Append employee type to the payload
-    dataToSubmit.append("_method", "PUT"); // Method spoofing for Laravel
+    dataToSubmit.append("employee_type", formData.employee_type);
+    dataToSubmit.append("_method", "PUT");
 
     if (formData.profile_pic && formData.profile_pic[0]) {
       const fileToUpload = formData.profile_pic[0];
@@ -187,9 +179,11 @@ const EditEmployee = () => {
           },
         }
       );
-      setSuccessMessage("Employee updated successfully!");
-      // **FIXED**: Correct navigation after successful update
-      setTimeout(() => navigate('/employees'), 2000);
+      // --- UPDATED CODE ---
+      // Ab Alert ke bajaye toast notification aayega
+      toast.success("Employee updated successfully!");
+      setTimeout(() => navigate('/employees'), 1500); // Thoda jaldi redirect
+      // --- END OF UPDATE ---
     } catch (err) {
       if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
@@ -246,14 +240,7 @@ const EditEmployee = () => {
             {submitError}
           </Alert>
         )}
-        {successMessage && (
-          <Alert
-            toggle={() => setSuccessMessage(null)}
-            className="alert-success light-mode"
-          >
-            {successMessage}
-          </Alert>
-        )}
+        {/* Success Alert component hata diya gaya hai */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Textinput
@@ -302,7 +289,6 @@ const EditEmployee = () => {
           />
         </div>
 
-        {/* **ADDED**: Employee Type Dropdown */}
         <div>
           <label htmlFor="employee_type" className="form-label">
             Employee Type*
@@ -318,6 +304,7 @@ const EditEmployee = () => {
           >
             <option value="Employee">Employee</option>
             <option value="Manager">Manager</option>
+            <option value="Supervisor">Supervisor</option>
           </select>
           {formErrors.employee_type && (
             <p className="text-danger-500 text-xs mt-1">
