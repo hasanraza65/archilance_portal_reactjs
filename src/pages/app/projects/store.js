@@ -11,7 +11,7 @@ const getProjectPath = () => {
 
   switch (role) {
     case "admin":
-    case "manager":
+    
       // Sirf Admin aur Manager saare projects dekhenge
       return "/admin/project";
 
@@ -23,6 +23,7 @@ const getProjectPath = () => {
     // --- UPDATED LOGIC ---
     // Supervisor ko ab 'employee' wale case mein move kar diya gaya hai
     case "employee":
+      case "manager":
     case "supervisor":
     default:
       // Supervisor aur Employee ab employee wala endpoint istemal karenge
