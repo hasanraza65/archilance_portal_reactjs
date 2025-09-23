@@ -13,6 +13,7 @@ import {
 import GlobalFilter from "../table/react-table/GlobalFilter";
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import Alert from "@/components/ui/Alert";
+import { useAuth } from "@/context/AuthContext";
 import { canManageEmployees } from "@/pages/utility/apiHelper";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
@@ -20,7 +21,8 @@ const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  console.log(role);
   if (role) {
     return `/api/${role}${cleanBasePath}`;
   }
@@ -42,7 +44,7 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     accessor: "name",
     Cell: ({ row }) => {
       const { name, profile_pic, id, employee_type } = row.original;
-      
+
       return (
         <div
           className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer group"
@@ -77,27 +79,25 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
             <span className="text-sm text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
               {name}
             </span>
-            
-            {/* --- UPDATED CODE --- */}
-            {/* Yahan 'Supervisor' ko condition mein add kiya gaya hai aur uske badge ke liye alag color (sky/blue) set kiya gaya hai. */}
-            {(employee_type === "Manager" || employee_type === "Outsource" || employee_type === "Supervisor") && (
+
+            {(employee_type === "Manager" ||
+              employee_type === "Outsource" ||
+              employee_type === "Supervisor") && (
               <span
                 className={`
                   px-2 py-0.5 text-xs font-semibold rounded-full capitalize
                   ${
                     employee_type === "Manager"
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200" // Manager ke liye Green color
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200"
                       : employee_type === "Supervisor"
-                      ? "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200" // Supervisor ke liye Blue color
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200"     // Outsource ke liye Amber/Orange color
+                      ? "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200"
+                      : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200"
                   }
                 `}
               >
                 {employee_type.toLowerCase()}
               </span>
             )}
-            {/* --- END OF UPDATE --- */}
-
           </div>
         </div>
       );
@@ -174,6 +174,9 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
 ];
 
 const Allemployees = () => {
+  const { user } = useAuth();
+  // console.log("LOGGED IN USER:", user); // Debugging ke liye isko uncomment kar sakte hain
+
   const [employeeData, setEmployeeData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -199,7 +202,8 @@ const Allemployees = () => {
       return;
     }
     try {
-      const apiPath = getApiBasePathForRole("/employee-user");
+      // Hamesha admin API call karein taake poori list mil sake
+         const apiPath = getApiBasePathForRole("/employee-user");
       const response = await axios.get(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         {
@@ -211,8 +215,10 @@ const Allemployees = () => {
       );
       if (response.data && Array.isArray(response.data.data)) {
         setEmployeeData(response.data.data);
+        // console.log("FULL LIST FROM API:", response.data.data); // Debugging ke liye isko uncomment kar sakte hain
       } else if (response.data && Array.isArray(response.data)) {
         setEmployeeData(response.data);
+        // console.log("FULL LIST FROM API:", response.data); // Debugging ke liye isko uncomment kar sakte hain
       } else {
         setFetchError("Received unexpected data format from server.");
         setEmployeeData([]);
@@ -232,6 +238,48 @@ const Allemployees = () => {
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  // --- BEHTAR AUR MAZBOOT FILTERING LOGIC ---
+  const filteredData = useMemo(() => {
+    if (!user || !employeeData.length) {
+      return [];
+    }
+
+    const currentUserRole = user.role?.toLowerCase();
+    const currentUserType = user.employee_type?.toLowerCase(); // Case-insensitive
+    const currentUserId = user.id;
+
+    if (currentUserRole === "admin") {
+      return employeeData;
+    }
+
+    if (currentUserType === "manager") {
+      return employeeData.filter((emp) => {
+        const empType = emp.employee_type?.toLowerCase(); // Case-insensitive
+        // Manager ko supervisor aur employee nazar aayenge
+        return (
+          empType === "supervisor" ||
+          empType === "employee" ||
+          !emp.employee_type
+        );
+      });
+    }
+
+    if (currentUserType === "supervisor") {
+      return employeeData.filter((emp) => {
+        const empType = emp.employee_type?.toLowerCase(); // Case-insensitive
+        // Supervisor ko SIRF employee nazar aayenge.
+        // Agar kisi ka employee_type NULL hai, to hum usay employee samjhenge.
+        return empType === "employee" || !emp.employee_type;
+      });
+    }
+
+    if (currentUserType === "employee") {
+      return employeeData.filter((emp) => emp.id === currentUserId);
+    }
+
+    return [];
+  }, [employeeData, user]);
 
   const handleOpenDeleteModal = useCallback((employee) => {
     setEmployeeToDelete(employee);
@@ -298,7 +346,8 @@ const Allemployees = () => {
       ),
     [navigate, handleOpenDeleteModal, hasManagementPermission]
   );
-  const data = useMemo(() => employeeData, [employeeData]);
+
+  const data = useMemo(() => filteredData, [filteredData]);
 
   const tableInstance = useTable(
     { columns, data, initialState: { pageIndex: 0, pageSize: 10 } },
@@ -333,7 +382,7 @@ const Allemployees = () => {
       </Card>
     );
   }
-  if (fetchError && !loading && !employeeData.length) {
+  if (fetchError && !loading) {
     return (
       <Card>
         <div className="p-4 text-center text-danger-500">
@@ -351,7 +400,6 @@ const Allemployees = () => {
       <Card noBorder>
         <div className="md:flex justify-between items-center mb-6">
           <h4 className="card-title mb-4 md:mb-0">Employee List</h4>
-
           <div className="flex items-center space-x-3 w-full md:w-auto">
             <div className="flex-1">
               <GlobalFilter
@@ -371,7 +419,6 @@ const Allemployees = () => {
             )}
           </div>
         </div>
-
         {deleteSuccess && (
           <Alert
             className="alert-success light-mode mb-4"
@@ -388,7 +435,6 @@ const Allemployees = () => {
             {deleteError}
           </Alert>
         )}
-
         <div className="overflow-x-auto -mx-6">
           <div className="inline-block min-w-full align-middle">
             <div className="overflow-hidden shadow-sm dark:shadow-slate-700 rounded-md">
@@ -430,11 +476,13 @@ const Allemployees = () => {
                   {page.length > 0 ? (
                     page.map((row) => {
                       prepareRow(row);
-                      const { key: rowKey, ...restOfRowProps } = row.getRowProps();
+                      const { key: rowKey, ...restOfRowProps } =
+                        row.getRowProps();
                       return (
                         <tr key={rowKey} {...restOfRowProps}>
                           {row.cells.map((cell) => {
-                            const { key: cellKey, ...restOfCellProps } = cell.getCellProps();
+                            const { key: cellKey, ...restOfCellProps } =
+                              cell.getCellProps();
                             return (
                               <td
                                 key={cellKey}
@@ -456,7 +504,7 @@ const Allemployees = () => {
                       >
                         {loading
                           ? "Fetching employees..."
-                          : "No employees found."}
+                          : "No employees found matching your role's permissions."}
                       </td>
                     </tr>
                   )}
@@ -465,7 +513,6 @@ const Allemployees = () => {
             </div>
           </div>
         </div>
-
         {page.length > 0 && (
           <div className="md:flex md:space-y-0 space-y-5 justify-between mt-6 items-center">
             <div className="flex items-center space-x-3 rtl:space-x-reverse">
@@ -554,7 +601,6 @@ const Allemployees = () => {
           </div>
         )}
       </Card>
-
       <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}
