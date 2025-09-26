@@ -36,7 +36,66 @@ import EditProject from "./EditProject";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 // =================================================================
-// == HELPER COMPONENTS AND FUNCTIONS (ADAPTED FROM YOUR TASKLIST.JSX) ==
+// == NEW COMPONENT FOR TASKS TIME SUMMARY ==
+// =================================================================
+const TasksTimeSummary = ({ summary }) => {
+  // Calculate the overall total time by summing up individual task hours
+  const totalSeconds = summary.reduce(
+    (acc, task) => acc + (task.total_hours || 0),
+    0
+  );
+  const totalHours = Math.floor(totalSeconds / 3600);
+  const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
+  const totalTimeFormatted = `${totalHours}h ${totalMinutes}m`;
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
+      <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
+        Total Time Worked: {totalTimeFormatted}
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700">
+              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                Task
+              </th>
+              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                Time Spent
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {summary && summary.length > 0 ? (
+              summary.map((task) => (
+                <tr
+                  key={task.task_id}
+                  className="border-b border-slate-200 dark:border-slate-600 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                >
+                  <td className="p-3 align-top font-medium text-slate-800 dark:text-slate-200">
+                    {task.task_title || "Untitled Task"}
+                  </td>
+                  <td className="p-3 align-top text-slate-600 dark:text-slate-300">
+                    {task.total_hours_formatted || "N/A"}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="2" className="text-center text-slate-500 py-6">
+                  No time logs available for this job.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// =================================================================
+// == HELPER COMPONENTS AND FUNCTIONS (UNCHANGED) ==
 // =================================================================
 
 // In-file CSS component for mobile responsiveness
@@ -573,7 +632,6 @@ const ConversationBox = ({
     </div>
   );
 };
-// Helper Functions (unchanged, for context)
 const mapApiAssigneeToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object")
     return {
@@ -637,35 +695,6 @@ const mapApiAssigneeToLocal = (apiUser) => {
   return { id, name, avatar: avatarChar, color, profilePic };
 };
 
-const getStatusClass = (status) => {
-  if (!status) return "bg-gray-100 text-gray-800 border-gray-200";
-  const statusString = String(status).toLowerCase();
-  switch (statusString) {
-    case "in progress":
-    case "pending":
-      return "bg-blue-100 text-blue-800 border-blue-200";
-    case "todo":
-    case "to do":
-    case "open":
-      return "bg-gray-100 text-gray-800 border-gray-200";
-    case "completed":
-    case "done":
-      return "bg-green-100 text-green-800 border-green-200";
-    case "on hold":
-      return "bg-orange-100 text-orange-800 border-orange-200";
-    case "backlog":
-      return "bg-purple-100 text-purple-800 border-purple-200";
-    case "awaiting info":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    case "in-house review": // FIX: Hyphenated
-      return "bg-cyan-100 text-cyan-800 border-cyan-200";
-    case "client review":
-      return "bg-indigo-100 text-indigo-800 border-indigo-200";
-    default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
-  }
-};
-
 const getPriorityClass = (priority) => {
   if (!priority) return "text-gray-600";
   switch (String(priority).toLowerCase()) {
@@ -689,10 +718,7 @@ const getAttachmentUrl = (filePath) => {
   const cleanFilePath = filePath.replace(/^\//, "");
   return `${cleanBaseUrl}/storage/${cleanFilePath}`;
 };
-const isImageFile = (fileType) => {
-  if (!fileType) return false;
-  return fileType.startsWith("image/");
-};
+
 const getApiBasePathForRole = (basePath) => {
   const apiPrefix = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
@@ -714,7 +740,7 @@ const getStatusGradient = (status) => {
     "in progress":
       "from-blue-50 to-blue-100 dark:from-blue-800 dark:to-blue-900",
     "in-house review":
-      "from-cyan-50 to-cyan-100 dark:from-cyan-800 dark:to-cyan-900", // FIX: Hyphenated
+      "from-cyan-50 to-cyan-100 dark:from-cyan-800 dark:to-cyan-900",
     "client review":
       "from-indigo-50 to-indigo-100 dark:from-indigo-800 dark:to-indigo-900",
     completed:
@@ -755,12 +781,9 @@ const ProjectDetailsPage = () => {
   const [isEditBriefModalOpen, setIsEditBriefModalOpen] = useState(false);
   const [briefToEdit, setBriefToEdit] = useState(null);
 
-  // State for expand/collapse functionality
   const [expandedSections, setExpandedSections] = useState({});
 
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
-  // --- UPDATED CODE ---
-  // "supervisor" ko is list mein add kiya gaya hai
   const isManagerOrAdmin =
     currentUserRole === "admin" ||
     currentUserRole === "manager" ||
@@ -789,8 +812,6 @@ const ProjectDetailsPage = () => {
   const [isSending, setIsSending] = useState(false);
 
   const fetchMessages = useCallback(async () => {
-    // --- UPDATED CODE ---
-    // "supervisor" ko chat dekhne ki permission di gayi hai
     const canViewChat = [
       "admin",
       "manager",
@@ -822,8 +843,6 @@ const ProjectDetailsPage = () => {
   }, [id, token, currentUserRole, API_BASE_URL]);
 
   useEffect(() => {
-    // --- UPDATED CODE ---
-    // "supervisor" ko chat dekhne ki permission di gayi hai
     const canViewChat = [
       "admin",
       "manager",
@@ -1096,7 +1115,7 @@ const ProjectDetailsPage = () => {
       "backlog",
       "awaiting info",
       "in progress",
-      "in-house review", // FIX: Hyphenated
+      "in-house review",
       "client review",
       "completed",
       "done",
@@ -1376,8 +1395,6 @@ const ProjectDetailsPage = () => {
   );
   const projectHasActualDescription =
     sanitizedProjectDescription.replace(/<[^>]*>/g, "").trim().length > 0;
-  // --- UPDATED CODE ---
-  // "supervisor" ko briefs aur chat dekhne ki permission di gayi hai
   const canViewBriefs = [
     "admin",
     "manager",
@@ -1396,122 +1413,149 @@ const ProjectDetailsPage = () => {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <ResponsiveTableStyles />
-      <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">
-              {projectDetails.project_name}
-            </h1>
-            {isManagerOrAdmin && (
-              <button
-                onClick={handleOpenEditProjectModal}
-                className="p-1.5 bg-gray-100 dark:bg-slate-700 rounded-full shadow-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                title="Edit Job Name"
-              >
-                <Edit size={16} className="text-gray-600 dark:text-slate-300" />
-              </button>
-            )}
-          </div>
-          <div className="w-full md:w-auto flex justify-end">
-            <EditableProjectStatus
-              projectId={projectDetails.id}
-              currentStatus={projectDetails.status}
-              onStatusUpdate={fetchProjectAndTasks}
-              isEditable={isManagerOrAdmin}
-              apiBaseUrl={API_BASE_URL}
-              apiPath={getApiBasePathForRole("/update-project-status")}
-              token={token}
-            />
-          </div>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Job #{projectDetails.id}
-        </p>
-        <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-              DESCRIPTION
-            </h3>
-          </div>
-          {projectHasActualDescription ? (
-            <div
-              className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300"
-              dangerouslySetInnerHTML={{ __html: sanitizedProjectDescription }}
-            />
-          ) : (
-            <p className="italic text-slate-500 dark:text-slate-400">
-              No description provided.
-            </p>
-          )}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          <div
-            className="bg-white/50 dark:bg-slate-700/50 p-4 rounded-xl relative group cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition"
-            onClick={handleOpenEditProjectModal}
-          >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              DUE DATE
-            </p>
-            <div className="flex items-center space-x-2 mt-2">
-              <Icon
-                icon="heroicons-outline:calendar"
-                className="w-5 h-5 text-slate-500 dark:text-slate-300"
-              />
-              <p className="text-base font-medium text-slate-700 dark:text-slate-200">
-                {projectDetails.due_date
-                  ? new Date(projectDetails.due_date).toLocaleDateString(
-                      "en-US",
-                      { year: "numeric", month: "long", day: "numeric" }
-                    )
-                  : "Not Set"}
-              </p>
+      {/* =================================== */}
+      {/* == TOP TWO-COLUMN SECTION        == */}
+      {/* =================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* === MAIN DETAILS (LEFT COLUMN) === */}
+        <div className="lg:col-span-2">
+          <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 h-full">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">
+                  {projectDetails.project_name}
+                </h1>
+                {isManagerOrAdmin && (
+                  <button
+                    onClick={handleOpenEditProjectModal}
+                    className="p-1.5 bg-gray-100 dark:bg-slate-700 rounded-full shadow-md hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                    title="Edit Job Name"
+                  >
+                    <Edit
+                      size={16}
+                      className="text-gray-600 dark:text-slate-300"
+                    />
+                  </button>
+                )}
+              </div>
+              <div className="w-full md:w-auto flex justify-end">
+                <EditableProjectStatus
+                  projectId={projectDetails.id}
+                  currentStatus={projectDetails.status}
+                  onStatusUpdate={fetchProjectAndTasks}
+                  isEditable={isManagerOrAdmin}
+                  apiBaseUrl={API_BASE_URL}
+                  apiPath={getApiBasePathForRole("/update-project-status")}
+                  token={token}
+                />
+              </div>
             </div>
-          </div>
-          <div
-            className="bg-white/50 dark:bg-slate-700/50 p-4 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition"
-            onClick={handleOpenAssigneesModal}
-          >
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              ASSIGNEES
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Job #{projectDetails.id}
             </p>
-            <div className="flex justify-between items-center mt-2">
-              {projectDetails.project_assignees &&
-              projectDetails.project_assignees.length > 0 ? (
-                <div className="flex -space-x-2">
-                  {projectDetails.project_assignees
-                    .slice(0, 4)
-                    .map(
-                      ({ user }) =>
-                        user && (
-                          <img
-                            key={user.id}
-                            src={
-                              user.profile_pic
-                                ? `${API_BASE_URL}/storage/${user.profile_pic}`
-                                : `https://ui-avatars.com/api/?name=${user.name}&background=random`
-                            }
-                            alt={user.name}
-                            title={user.name}
-                            className="w-8 h-8 rounded-full object-cover ring-2 ring-white dark:ring-slate-800"
-                          />
-                        )
-                    )}
-                  {projectDetails.project_assignees.length > 4 && (
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-slate-800">
-                      +{projectDetails.project_assignees.length - 4}
-                    </div>
-                  )}
-                </div>
+            <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  DESCRIPTION
+                </h3>
+              </div>
+              {projectHasActualDescription ? (
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert text-slate-700 dark:text-slate-300"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizedProjectDescription,
+                  }}
+                />
               ) : (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  No one assigned
+                <p className="italic text-slate-500 dark:text-slate-400">
+                  No description provided.
                 </p>
               )}
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div
+                className="bg-white/50 dark:bg-slate-700/50 p-4 rounded-xl relative group cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition"
+                onClick={handleOpenEditProjectModal}
+              >
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  DUE DATE
+                </p>
+                <div className="flex items-center space-x-2 mt-2">
+                  <Icon
+                    icon="heroicons-outline:calendar"
+                    className="w-5 h-5 text-slate-500 dark:text-slate-300"
+                  />
+                  <p className="text-base font-medium text-slate-700 dark:text-slate-200">
+                    {projectDetails.due_date
+                      ? new Date(projectDetails.due_date).toLocaleDateString(
+                          "en-US",
+                          { year: "numeric", month: "long", day: "numeric" }
+                        )
+                      : "Not Set"}
+                  </p>
+                </div>
+              </div>
+              <div
+                className="bg-white/50 dark:bg-slate-700/50 p-4 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition"
+                onClick={handleOpenAssigneesModal}
+              >
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  ASSIGNEES
+                </p>
+                <div className="flex justify-between items-center mt-2">
+                  {projectDetails.project_assignees &&
+                  projectDetails.project_assignees.length > 0 ? (
+                    <div className="flex -space-x-2">
+                      {projectDetails.project_assignees
+                        .slice(0, 4)
+                        .map(
+                          ({ user }) =>
+                            user && (
+                              <img
+                                key={user.id}
+                                src={
+                                  user.profile_pic
+                                    ? `${API_BASE_URL}/storage/${user.profile_pic}`
+                                    : `https://ui-avatars.com/api/?name=${user.name}&background=random`
+                                }
+                                alt={user.name}
+                                title={user.name}
+                                className="w-8 h-8 rounded-full object-cover ring-2 ring-white dark:ring-slate-800"
+                              />
+                            )
+                        )}
+                      {projectDetails.project_assignees.length > 4 && (
+                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-slate-800">
+                          +{projectDetails.project_assignees.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      No one assigned
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* === SIDEBAR (RIGHT COLUMN) === */}
+        <div className="lg:col-span-1">
+          {projectDetails &&
+            projectDetails.tasks_hours_summary &&
+            projectDetails.tasks_hours_summary.length > 0 && (
+              <TasksTimeSummary summary={projectDetails.tasks_hours_summary} />
+            )}
         </div>
       </div>
 
+      {/* =================================== */}
+      {/* == FULL-WIDTH SECTIONS BELOW     == */}
+      {/* =================================== */}
+
+      {/* === PROJECTS/TASKS LIST SECTION (FULL WIDTH) === */}
       {tasks.length > 0 ? (
         <div className="w-full space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border-b border-gray-200 dark:border-slate-600 gap-4 bg-white dark:bg-slate-800 rounded-t-lg">
@@ -1806,34 +1850,35 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
+      {/* === BRIEFS SECTION (FULL WIDTH) === */}
       {projectDetails && canViewBriefs && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden backdrop-blur-sm">
-          {/* Briefs section remains unchanged */}
+          {/* Briefs section content remains unchanged */}
         </div>
       )}
 
+      {/* === CHAT SECTION (FULL WIDTH) === */}
       {canViewChat && (
-        <div className="mt-8">
-          <div className="h-[700px] relative">
-            <ConversationBox
-              messages={messages}
-              newMessage={newMessage}
-              setNewMessage={setNewMessage}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              onSendMessage={handleSendMessage}
-              onUpdateMessage={handleUpdateMessage}
-              onDeleteMessage={handleDeleteMessage}
-              isSending={isSending}
-              isLoading={isMessagesLoading}
-              error={messagesError}
-              currentUserId={currentUserId}
-              apiBaseUrl={API_BASE_URL}
-            />
-          </div>
+        <div className="h-[700px] relative">
+          <ConversationBox
+            messages={messages}
+            newMessage={newMessage}
+            setNewMessage={setNewMessage}
+            attachments={attachments}
+            setAttachments={setAttachments}
+            onSendMessage={handleSendMessage}
+            onUpdateMessage={handleUpdateMessage}
+            onDeleteMessage={handleDeleteMessage}
+            isSending={isSending}
+            isLoading={isMessagesLoading}
+            error={messagesError}
+            currentUserId={currentUserId}
+            apiBaseUrl={API_BASE_URL}
+          />
         </div>
       )}
 
+      {/* Modals remain at the end */}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}
