@@ -33,8 +33,9 @@ const Button = ({ children, type, className, isLoading }) => (
   </button>
 );
 
-const UPDATE_PASSWORD_API_URL =
-  "https://demo.aentora.com/backend/public/api/update-password";
+
+const UPDATE_PASSWORD_API_URL = import.meta.env.VITE_BACKEND_BASE_URL + "/api/update-password";
+
 
 const updatePasswordFn = async (passwordData) => {
   const token = Cookies.get("token");
