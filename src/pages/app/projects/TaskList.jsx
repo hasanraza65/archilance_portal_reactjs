@@ -90,8 +90,6 @@ const ResponsiveTableStyles = () => {
 
 const getAuthToken = () => Cookies.get("token");
 
-// ... other imports and components
-
 // --- IS COMPONENT KO UPDATE KAREIN ---
 const AvatarStack = ({ assignees, onClick }) => {
   // Jab koi assignee na ho, tab bhi ek clickable element return karein
@@ -446,40 +444,10 @@ const TaskList = ({
   );
 
   const handleRowClick = (rowData) => {
-    const finalTaskTitle = rowData.task_title || rowData.project_title;
-    const breadcrumbsToPass = [{ title: "Jobs", link: "/jobs" }];
-
-    if (
-      rowData.project_name &&
-      rowData.project_name !== "N/A" &&
-      rowData.project_id
-    ) {
-      breadcrumbsToPass.push({
-        title: rowData.project_name,
-        link: `/jobs/${rowData.project_id}`,
-      });
-    }
-
-    if (
-      rowData.task_title &&
-      rowData.project_title !== "N/A" &&
-      rowData.parent_task_id
-    ) {
-      breadcrumbsToPass.push({
-        title: rowData.project_title,
-        link: `/project/${rowData.parent_task_id}`,
-      });
-    }
-
-    breadcrumbsToPass.push({
-      title: finalTaskTitle,
-    });
-
+     // Is function ki ab zaroorat nahi agar links par click ho raha hai, 
+     // lekin fallback ke liye rakha ja sakta hai jab row mein kahin aur click ho.
     navigate(`/project/${rowData.id}`, {
-      state: {
-        breadcrumbs: breadcrumbsToPass,
-        jobId: rowData.project_id,
-      },
+        state: { jobId: rowData.project_id },
     });
   };
 
@@ -621,25 +589,41 @@ const TaskList = ({
                               data-label="Job"
                               className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
                             >
-                              <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                              <a
+                                href={`/jobs/${rowData.project_id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-medium text-slate-800 dark:text-slate-200 text-sm hover:underline"
+                              >
                                 {rowData.project_name}
-                              </span>
+                              </a>
                             </td>
                             <td
                               data-label="Project"
                               className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
                             >
-                              <span className="font-medium text-blue-600 dark:text-blue-400 capitalize text-sm">
+                              <a
+                                href={`/project/${rowData.parent_task_id || rowData.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-medium text-blue-600 dark:text-blue-400 capitalize text-sm hover:underline"
+                              >
                                 {rowData.project_title}
-                              </span>
+                              </a>
                             </td>
                             <td
                               data-label="Task"
                               className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
                             >
-                              <span className="text-slate-700 dark:text-slate-300 capitalize text-sm">
-                                {rowData.task_title || "N/A"}
-                              </span>
+                               {rowData.task_title ? (
+                                <a
+                                  href={`/project/${rowData.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-slate-700 dark:text-slate-300 capitalize text-sm hover:underline"
+                                >
+                                  {rowData.task_title}
+                                </a>
+                              ) : (
+                                <span className="text-slate-400">N/A</span>
+                              )}
                             </td>
                             <td
                               data-label="Assigned To"
