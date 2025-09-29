@@ -34,13 +34,29 @@ import {
 import EditableProjectStatus from "./EditableProjectStatus";
 import EditProject from "./EditProject";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/light.css";
 
 // =================================================================
-// == NEW COMPONENT FOR TASKS TIME SUMMARY ==
+// == UPDATED COMPONENT FOR TASKS TIME SUMMARY WITH LAYOUT FIX ==
 // =================================================================
-const TasksTimeSummary = ({ summary }) => {
-  // Calculate the overall total time by summing up individual task hours
-  const totalSeconds = summary.reduce(
+
+const FormGroup = ({ label, children }) => (
+  <div className="flex flex-col">
+    <label className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+
+  const filteredSummary = summary.filter((task) => task.total_hours > 0);
+
+  const totalSeconds = filteredSummary.reduce(
     (acc, task) => acc + (task.total_hours || 0),
     0
   );
@@ -48,8 +64,77 @@ const TasksTimeSummary = ({ summary }) => {
   const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
   const totalTimeFormatted = `${totalHours}h ${totalMinutes}m`;
 
+  const handleApplyFilter = () => {
+    if (onDateFilterChange) {
+      onDateFilterChange({
+        start_date: startDate ? startDate.toISOString().split("T")[0] : null,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : null,
+      });
+    }
+  };
+
+  const handleClearFilter = () => {
+    setStartDate(null);
+    setEndDate(null);
+    if (onDateFilterChange) {
+      onDateFilterChange({ start_date: null, end_date: null });
+    }
+  };
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
+      {/* === LAYOUT FIX START: Updated filter section layout === */}
+      <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="space-y-4">
+          <div>
+            <FormGroup label="Start Date">
+              <Flatpickr
+                value={startDate}
+                onChange={(date) => setStartDate(date[0])}
+                className="form-control h-[40px] w-full"
+                options={{
+                  altInput: true,
+                  altFormat: "F j, Y",
+                  dateFormat: "Y-m-d",
+                }}
+                placeholder="Select start date"
+              />
+            </FormGroup>
+          </div>
+          <div>
+            <FormGroup label="End Date">
+              <Flatpickr
+                value={endDate}
+                onChange={(date) => setEndDate(date[0])}
+                className="form-control h-[40px] w-full"
+                options={{
+                  altInput: true,
+                  altFormat: "F j, Y",
+                  dateFormat: "Y-m-d",
+                  minDate: startDate,
+                }}
+                placeholder="Select end date"
+              />
+            </FormGroup>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleApplyFilter}
+              className="btn btn-dark w-full h-[40px]"
+            >
+              Filter
+            </button>
+            <button
+              onClick={handleClearFilter}
+              className="btn btn-light w-full h-[40px]"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* === LAYOUT FIX END === */}
+
       <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
         Total Time Worked: {totalTimeFormatted}
       </h3>
@@ -66,8 +151,8 @@ const TasksTimeSummary = ({ summary }) => {
             </tr>
           </thead>
           <tbody>
-            {summary && summary.length > 0 ? (
-              summary.map((task) => (
+            {filteredSummary && filteredSummary.length > 0 ? (
+              filteredSummary.map((task) => (
                 <tr
                   key={task.task_id}
                   className="border-b border-slate-200 dark:border-slate-600 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50"
@@ -83,7 +168,7 @@ const TasksTimeSummary = ({ summary }) => {
             ) : (
               <tr>
                 <td colSpan="2" className="text-center text-slate-500 py-6">
-                  No time logs available for this job.
+                  No time logs available for the selected dates.
                 </td>
               </tr>
             )}
@@ -93,6 +178,7 @@ const TasksTimeSummary = ({ summary }) => {
     </div>
   );
 };
+
 
 // =================================================================
 // == HELPER COMPONENTS AND FUNCTIONS (UNCHANGED) ==
@@ -783,6 +869,12 @@ const ProjectDetailsPage = () => {
 
   const [expandedSections, setExpandedSections] = useState({});
 
+  // == NEW STATE FOR TIME SUMMARY FILTERS ==
+  const [timeSummaryFilters, setTimeSummaryFilters] = useState({
+    start_date: null,
+    end_date: null,
+  });
+
   const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
   const isManagerOrAdmin =
     currentUserRole === "admin" ||
@@ -986,9 +1078,21 @@ const ProjectDetailsPage = () => {
         Accept: "application/json",
         "Cache-Control": "no-cache",
       };
+      
+      const params = new URLSearchParams();
+      if (timeSummaryFilters.start_date) {
+        params.append("summary_start_date", timeSummaryFilters.start_date);
+      }
+      if (timeSummaryFilters.end_date) {
+        params.append("summary_end_date", timeSummaryFilters.end_date);
+      }
+
       const apiPath = getApiBasePathForRole(`/project`);
-      const apiUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${id}`;
+      const queryString = params.toString();
+      const apiUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${id}${queryString ? `?${queryString}` : ''}`;
+      
       const response = await fetch(apiUrl, { method: "GET", headers });
+
       if (!response.ok) {
         if (response.status === 404) {
           setProjectFound(false);
@@ -1060,7 +1164,7 @@ const ProjectDetailsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, timeSummaryFilters]);
 
   const prevUpdateAssigneesModal = useRef(updateAssigneesModal);
   const prevEditProjectModalOpen = useRef(isEditProjectModalOpen);
@@ -1131,6 +1235,10 @@ const ProjectDetailsPage = () => {
     });
   }, [groupedTasks]);
 
+  const handleTimeSummaryFilterChange = (dates) => {
+    setTimeSummaryFilters(dates);
+  };
+  
   const toggleSection = (status) => {
     setExpandedSections((prev) => ({ ...prev, [status]: !prev[status] }));
   };
@@ -1543,11 +1651,10 @@ const ProjectDetailsPage = () => {
 
         {/* === SIDEBAR (RIGHT COLUMN) === */}
         <div className="lg:col-span-1">
-          {projectDetails &&
-            projectDetails.tasks_hours_summary &&
-            projectDetails.tasks_hours_summary.length > 0 && (
-              <TasksTimeSummary summary={projectDetails.tasks_hours_summary} />
-            )}
+          <TasksTimeSummary
+            summary={projectDetails?.tasks_hours_summary || []}
+            onDateFilterChange={handleTimeSummaryFilterChange}
+          />
         </div>
       </div>
 

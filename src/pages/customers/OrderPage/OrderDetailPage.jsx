@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Cookies from "js-cookie";
 import {
@@ -10,7 +10,6 @@ import {
   ClipboardList,
   ChevronDown,
   ChevronUp,
-  Calendar,
   LayoutGrid,
   BookText,
   AlertTriangle,
@@ -19,12 +18,11 @@ import {
   Star,
   Briefcase,
   ArrowLeft,
-  Users,
   TrendingUp,
   Zap,
   Target,
   Award,
-  Activity,
+  Activity, // <--- ERROR FIX: Added Activity icon to the import list
   ChevronLeft,
   ChevronRight,
   Trash2,
@@ -34,9 +32,155 @@ import {
   ImageIcon,
   Undo2,
 } from "lucide-react";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/light.css";
 
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
+
+// =================================================================
+// == START: TOTAL TIME WORKED COMPONENT (FROM PREVIOUS PAGE) ==
+// =================================================================
+
+const FormGroup = ({ label, children }) => (
+  <div className="flex flex-col">
+    <label className="mb-1 text-sm font-medium text-gray-700">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+
+  const filteredSummary = summary.filter((task) => task.total_hours > 0);
+
+  const totalSeconds = filteredSummary.reduce(
+    (acc, task) => acc + (task.total_hours || 0),
+    0
+  );
+  const totalHours = Math.floor(totalSeconds / 3600);
+  const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
+  const totalTimeFormatted = `${totalHours}h ${totalMinutes}m`;
+
+  const handleApplyFilter = () => {
+    if (onDateFilterChange) {
+      onDateFilterChange({
+        start_date: startDate ? startDate.toISOString().split("T")[0] : null,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : null,
+      });
+    }
+  };
+
+  const handleClearFilter = () => {
+    setStartDate(null);
+    setEndDate(null);
+    if (onDateFilterChange) {
+      onDateFilterChange({ start_date: null, end_date: null });
+    }
+  };
+
+  return (
+    <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-6 hover:shadow-3xl transition-all duration-500">
+      <div className="mb-6 pb-4 border-b border-gray-200/50">
+        <div className="space-y-4">
+          <div>
+            <FormGroup label="Start Date">
+              <Flatpickr
+                value={startDate}
+                onChange={(date) => setStartDate(date[0])}
+                className="form-control h-[40px] w-full bg-white/80 rounded-lg"
+                options={{
+                  altInput: true,
+                  altFormat: "F j, Y",
+                  dateFormat: "Y-m-d",
+                }}
+                placeholder="Select start date"
+              />
+            </FormGroup>
+          </div>
+          <div>
+            <FormGroup label="End Date">
+              <Flatpickr
+                value={endDate}
+                onChange={(date) => setEndDate(date[0])}
+                className="form-control h-[40px] w-full bg-white/80 rounded-lg"
+                options={{
+                  altInput: true,
+                  altFormat: "F j, Y",
+                  dateFormat: "Y-m-d",
+                  minDate: startDate,
+                }}
+                placeholder="Select end date"
+              />
+            </FormGroup>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleApplyFilter}
+              className="btn btn-dark w-full h-[40px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+            >
+              Filter
+            </button>
+            <button
+              onClick={handleClearFilter}
+              className="btn btn-light w-full h-[40px] bg-gray-200 hover:bg-gray-300 text-gray-800"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <h3 className="text-lg font-bold text-gray-800 mb-4">
+        Total Time Worked: {totalTimeFormatted}
+      </h3>
+      <div className="overflow-x-auto max-h-48">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b-2 border-gray-200/50">
+              <th className="p-3 text-left font-semibold text-gray-600">
+                Task
+              </th>
+              <th className="p-3 text-left font-semibold text-gray-600">
+                Time Spent
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredSummary && filteredSummary.length > 0 ? (
+              filteredSummary.map((task) => (
+                <tr
+                  key={task.task_id}
+                  className="border-b border-gray-200/30 last:border-0"
+                >
+                  <td className="p-3 align-top font-medium text-gray-800">
+                    {task.task_title || "Untitled Task"}
+                  </td>
+                  <td className="p-3 align-top text-gray-600">
+                    {task.total_hours_formatted || "N/A"}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="2" className="text-center text-gray-500 py-6">
+                  No time logs found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// =================================================================
+// == END: TOTAL TIME WORKED COMPONENT ==
+// =================================================================
 
 const stripHtml = (html) => {
   if (!html) return "";
@@ -183,17 +327,19 @@ const ProjectTasksList = ({ tasks, apiBaseUrl, onTaskClick }) => {
   }
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case "Completed":
+    const lowerStatus = status ? status.toLowerCase() : "";
+    if (lowerStatus.includes("complete")) {
         return "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg";
-      case "In Progress":
-        return "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg";
-      case "Todo":
-        return "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg";
-      default:
-        return "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg";
     }
+    if (lowerStatus.includes("progress")) {
+        return "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg";
+    }
+    if (lowerStatus.includes("todo") || lowerStatus.includes("backlog")) {
+        return "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg";
+    }
+    return "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg";
   };
+
 
   return (
     <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 flex flex-col overflow-hidden h-full">
@@ -714,17 +860,6 @@ const ConversationBox = ({
   );
 };
 
-const calculateTimeLeft = (dueDate) => {
-  if (!dueDate) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-  const difference = +new Date(dueDate) - +new Date();
-  if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-  return {
-    days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-    minutes: Math.floor((difference / 1000 / 60) % 60),
-    seconds: Math.floor((difference / 1000) % 60),
-  };
-};
 
 const OrderDetailsPage = () => {
   const navigate = useNavigate();
@@ -733,17 +868,22 @@ const OrderDetailsPage = () => {
   const token = Cookies.get("token");
   const { setBreadcrumbs } = useBreadcrumbs();
   const rolePrefix = getApiPrefix();
-  const CURRENT_USER_ID = 20;
   const [projectData, setProjectData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [timeLeft, setTimeLeft] = useState({});
   const [messages, setMessages] = useState([]);
   const [isMessagesLoading, setIsMessagesLoading] = useState(true);
   const [messagesError, setMessagesError] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
+
+  const [timeSummaryFilters, setTimeSummaryFilters] = useState({
+    start_date: null,
+    end_date: null,
+  });
+
+  const CURRENT_USER_ID = JSON.parse(Cookies.get("user") || "{}").id || null;
 
   useEffect(() => {
     if (projectData) {
@@ -761,7 +901,11 @@ const OrderDetailsPage = () => {
     navigate(`/project/${taskId}`, { state: { jobId: projectId } });
   };
 
-  const fetchMessages = async () => {
+  const handleTimeSummaryFilterChange = (dates) => {
+    setTimeSummaryFilters(dates);
+  };
+
+  const fetchMessages = useCallback(async () => {
     if (!token || !projectId) return;
     try {
       const response = await fetch(
@@ -780,7 +924,7 @@ const OrderDetailsPage = () => {
     } catch (err) {
       setMessagesError(err.message);
     }
-  };
+  }, [projectId, token, rolePrefix, API_BASE_URL]);
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || isSending) return;
@@ -889,19 +1033,28 @@ const OrderDetailsPage = () => {
       setIsLoading(false);
       return;
     }
+
     const fetchInitialData = async () => {
       setIsLoading(true);
       setIsMessagesLoading(true);
       try {
-        const projectResponse = await fetch(
-          `${API_BASE_URL}/api/${rolePrefix}/project/${projectId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          }
-        );
+        const params = new URLSearchParams();
+        if (timeSummaryFilters.start_date) {
+          params.append("summary_start_date", timeSummaryFilters.start_date);
+        }
+        if (timeSummaryFilters.end_date) {
+          params.append("summary_end_date", timeSummaryFilters.end_date);
+        }
+        const queryString = params.toString();
+        const apiUrl = `${API_BASE_URL}/api/${rolePrefix}/project/${projectId}${queryString ? `?${queryString}` : ""}`;
+
+        const projectResponse = await fetch(apiUrl, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        });
+
         if (!projectResponse.ok) {
           const errData = await projectResponse.json().catch(() => ({}));
           throw new Error(
@@ -909,10 +1062,16 @@ const OrderDetailsPage = () => {
               `Failed to fetch project data. Status: ${projectResponse.status}`
           );
         }
-        const projectData = await projectResponse.json();
-        setProjectData(projectData);
-        setTimeLeft(calculateTimeLeft(projectData.due_date));
-        await fetchMessages();
+        const projectJson = await projectResponse.json();
+        const data = projectJson.data || projectJson;
+        setProjectData(data);
+        
+        if(data.chats) {
+            setMessages(data.chats);
+        } else {
+            await fetchMessages();
+        }
+
         setError(null);
       } catch (err) {
         console.error("Initial Data Fetch Error:", err);
@@ -922,19 +1081,12 @@ const OrderDetailsPage = () => {
         setIsMessagesLoading(false);
       }
     };
+    
     fetchInitialData();
     const pollInterval = setInterval(fetchMessages, 20000);
     return () => clearInterval(pollInterval);
-  }, [projectId, token, rolePrefix]);
+  }, [projectId, token, rolePrefix, API_BASE_URL, fetchMessages, timeSummaryFilters]);
 
-  useEffect(() => {
-    if (!projectData) return;
-    const timer = setInterval(
-      () => setTimeLeft(calculateTimeLeft(projectData.due_date)),
-      1000
-    );
-    return () => clearInterval(timer);
-  }, [projectData]);
 
   const getStatusSteps = (status) => {
     const steps = {
@@ -947,20 +1099,26 @@ const OrderDetailsPage = () => {
     switch (status.toLowerCase()) {
       case "completed":
       case "delivered":
+      case "done":
         steps.placed = "done";
         steps.requirements = "done";
         steps.working = "done";
         steps.delivery = "done";
         break;
       case "in progress":
+      case "in-house review":
+      case "client review":
         steps.placed = "done";
         steps.requirements = "done";
         steps.working = "progress";
         break;
       case "todo":
+      case "backlog":
+      case "awaiting info":
         steps.placed = "done";
         steps.requirements = "progress";
         break;
+      case "on hold":
       default:
         steps.placed = "progress";
         break;
@@ -1017,7 +1175,6 @@ const OrderDetailsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative">
       <AnimatedBackground />
       <div className="relative z-10 py-8">
-        {/* +++ YAHAN LAYOUT KI TABDEELI KI GAYI HAI +++ */}
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-6">
@@ -1045,7 +1202,7 @@ const OrderDetailsPage = () => {
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => navigate(`/kanban/${projectData.id}`)}
+                  onClick={() => navigate(`/job/${projectData.id}/kanban`)}
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
                   <LayoutGrid size={16} />
@@ -1072,53 +1229,12 @@ const OrderDetailsPage = () => {
                 />
               </div>
               <div className="lg:col-span-1 flex flex-col gap-6">
-                <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-6 hover:shadow-3xl transition-all duration-500">
-                  <div className="flex items-center space-x-3 mb-6">
-                    <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl text-white">
-                      <Clock className="w-6 h-6" />
-                    </div>
-                    <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                      Time Remaining
-                    </h2>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      {
-                        label: "Days",
-                        value: timeLeft.days || 0,
-                        color: "from-blue-500 to-purple-500",
-                      },
-                      {
-                        label: "Hours",
-                        value: timeLeft.hours || 0,
-                        color: "from-emerald-500 to-teal-500",
-                      },
-                      {
-                        label: "Minutes",
-                        value: timeLeft.minutes || 0,
-                        color: "from-amber-500 to-orange-500",
-                      },
-                      {
-                        label: "Seconds",
-                        value: timeLeft.seconds || 0,
-                        color: "from-pink-500 to-rose-500",
-                      },
-                    ].map((time) => (
-                      <div key={time.label} className="text-center">
-                        <div
-                          className={`bg-gradient-to-br ${time.color} rounded-xl py-3 px-2 shadow-lg`}
-                        >
-                          <div className="text-2xl font-bold text-white">
-                            {String(time.value).padStart(2, "0")}
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-2 font-medium">
-                          {time.label}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                
+                <TasksTimeSummary
+                    summary={projectData?.tasks_hours_summary || []}
+                    onDateFilterChange={handleTimeSummaryFilterChange}
+                />
+
                 <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 flex-1 hover:shadow-3xl transition-all duration-500">
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
