@@ -19,12 +19,7 @@ import {
   Briefcase,
   ArrowLeft,
   TrendingUp,
-  Zap,
-  Target,
-  Award,
-  Activity, // <--- ERROR FIX: Added Activity icon to the import list
-  ChevronLeft,
-  ChevronRight,
+  Activity,
   Trash2,
   Edit,
   XCircle,
@@ -39,7 +34,7 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 // =================================================================
-// == START: TOTAL TIME WORKED COMPONENT (FROM PREVIOUS PAGE) ==
+// == START: TOTAL TIME WORKED COMPONENT (WITH TIMEZONE FIX) ==
 // =================================================================
 
 const FormGroup = ({ label, children }) => (
@@ -51,9 +46,24 @@ const FormGroup = ({ label, children }) => (
   </div>
 );
 
-const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
+const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, activeEndDate }) => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+
+  // ++ FIX: Timezone issue ko hal karne ke liye useEffect mein tabdeeli ++
+  useEffect(() => {
+    // Yeh function date string ko sahi se parse karke local timezone ka Date object banata hai
+    const createDateWithoutTimezoneShift = (dateString) => {
+        if (!dateString) return null;
+        // 'YYYY-MM-DD' string se date banate waqt UTC midnight ki ghalati se bachne ke liye
+        // hum ismein T00:00:00 add kar dete hain taake yeh local time samjha jaye.
+        return new Date(`${dateString}T00:00:00`);
+    };
+
+    setStartDate(createDateWithoutTimezoneShift(activeStartDate));
+    setEndDate(createDateWithoutTimezoneShift(activeEndDate));
+  }, [activeStartDate, activeEndDate]);
+
 
   const filteredSummary = summary.filter((task) => task.total_hours > 0);
 
@@ -67,9 +77,19 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
 
   const handleApplyFilter = () => {
     if (onDateFilterChange) {
+      
+      // ++ FIX: Date ko string mein convert karne ka behtar tarika ++
+      const toLocalDateString = (date) => {
+        if (!date) return null;
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const dd = String(date.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
       onDateFilterChange({
-        start_date: startDate ? startDate.toISOString().split("T")[0] : null,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : null,
+        start_date: toLocalDateString(startDate),
+        end_date: toLocalDateString(endDate),
       });
     }
   };
@@ -89,8 +109,8 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
           <div>
             <FormGroup label="Start Date">
               <Flatpickr
-                value={startDate}
-                onChange={(date) => setStartDate(date[0])}
+                value={startDate} 
+                onChange={(dates) => setStartDate(dates[0])}
                 className="form-control h-[40px] w-full bg-white/80 rounded-lg"
                 options={{
                   altInput: true,
@@ -105,7 +125,7 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
             <FormGroup label="End Date">
               <Flatpickr
                 value={endDate}
-                onChange={(date) => setEndDate(date[0])}
+                onChange={(dates) => setEndDate(dates[0])}
                 className="form-control h-[40px] w-full bg-white/80 rounded-lg"
                 options={{
                   altInput: true,
@@ -177,6 +197,7 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
     </div>
   );
 };
+
 
 // =================================================================
 // == END: TOTAL TIME WORKED COMPONENT ==
@@ -1233,6 +1254,8 @@ const OrderDetailsPage = () => {
                 <TasksTimeSummary
                     summary={projectData?.tasks_hours_summary || []}
                     onDateFilterChange={handleTimeSummaryFilterChange}
+                    activeStartDate={timeSummaryFilters.start_date}
+                    activeEndDate={timeSummaryFilters.end_date}
                 />
 
                 <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 flex-1 hover:shadow-3xl transition-all duration-500">

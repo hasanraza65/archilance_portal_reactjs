@@ -38,7 +38,7 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
 // =================================================================
-// == UPDATED COMPONENT FOR TASKS TIME SUMMARY WITH LAYOUT FIX ==
+// == UPDATED COMPONENT FOR TASKS TIME SUMMARY WITH FIXES ==
 // =================================================================
 
 const FormGroup = ({ label, children }) => (
@@ -50,9 +50,20 @@ const FormGroup = ({ label, children }) => (
   </div>
 );
 
-const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
+// ++ YAHAN TABDEELI KI GAYI HAI: Date persistence aur timezone fix ++
+const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, activeEndDate }) => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+
+  // useEffect to sync local state with props from parent
+  useEffect(() => {
+    const createDateWithoutTimezoneShift = (dateString) => {
+        if (!dateString) return null;
+        return new Date(`${dateString}T00:00:00`);
+    };
+    setStartDate(createDateWithoutTimezoneShift(activeStartDate));
+    setEndDate(createDateWithoutTimezoneShift(activeEndDate));
+  }, [activeStartDate, activeEndDate]);
 
   const filteredSummary = summary.filter((task) => task.total_hours > 0);
 
@@ -66,9 +77,18 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
 
   const handleApplyFilter = () => {
     if (onDateFilterChange) {
+      // Timezone-safe date string formatting
+      const toLocalDateString = (date) => {
+        if (!date) return null;
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
       onDateFilterChange({
-        start_date: startDate ? startDate.toISOString().split("T")[0] : null,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : null,
+        start_date: toLocalDateString(startDate),
+        end_date: toLocalDateString(endDate),
       });
     }
   };
@@ -83,14 +103,13 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
-      {/* === LAYOUT FIX START: Updated filter section layout === */}
       <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
         <div className="space-y-4">
           <div>
             <FormGroup label="Start Date">
               <Flatpickr
                 value={startDate}
-                onChange={(date) => setStartDate(date[0])}
+                onChange={(dates) => setStartDate(dates[0])}
                 className="form-control h-[40px] w-full"
                 options={{
                   altInput: true,
@@ -105,7 +124,7 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
             <FormGroup label="End Date">
               <Flatpickr
                 value={endDate}
-                onChange={(date) => setEndDate(date[0])}
+                onChange={(dates) => setEndDate(dates[0])}
                 className="form-control h-[40px] w-full"
                 options={{
                   altInput: true,
@@ -133,7 +152,6 @@ const TasksTimeSummary = ({ summary, onDateFilterChange }) => {
           </div>
         </div>
       </div>
-      {/* === LAYOUT FIX END === */}
 
       <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
         Total Time Worked: {totalTimeFormatted}
@@ -869,7 +887,6 @@ const ProjectDetailsPage = () => {
 
   const [expandedSections, setExpandedSections] = useState({});
 
-  // == NEW STATE FOR TIME SUMMARY FILTERS ==
   const [timeSummaryFilters, setTimeSummaryFilters] = useState({
     start_date: null,
     end_date: null,
@@ -1521,11 +1538,7 @@ const ProjectDetailsPage = () => {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <ResponsiveTableStyles />
-      {/* =================================== */}
-      {/* == TOP TWO-COLUMN SECTION        == */}
-      {/* =================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* === MAIN DETAILS (LEFT COLUMN) === */}
         <div className="lg:col-span-2">
           <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 h-full">
             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
@@ -1649,20 +1662,17 @@ const ProjectDetailsPage = () => {
           </div>
         </div>
 
-        {/* === SIDEBAR (RIGHT COLUMN) === */}
+        {/* ++ YAHAN TABDEELI KI GAYI HAI: Active dates ko as a prop pass kiya gaya hai ++ */}
         <div className="lg:col-span-1">
           <TasksTimeSummary
             summary={projectDetails?.tasks_hours_summary || []}
             onDateFilterChange={handleTimeSummaryFilterChange}
+            activeStartDate={timeSummaryFilters.start_date}
+            activeEndDate={timeSummaryFilters.end_date}
           />
         </div>
       </div>
 
-      {/* =================================== */}
-      {/* == FULL-WIDTH SECTIONS BELOW     == */}
-      {/* =================================== */}
-
-      {/* === PROJECTS/TASKS LIST SECTION (FULL WIDTH) === */}
       {tasks.length > 0 ? (
         <div className="w-full space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border-b border-gray-200 dark:border-slate-600 gap-4 bg-white dark:bg-slate-800 rounded-t-lg">
@@ -1957,14 +1967,12 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
-      {/* === BRIEFS SECTION (FULL WIDTH) === */}
       {projectDetails && canViewBriefs && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden backdrop-blur-sm">
           {/* Briefs section content remains unchanged */}
         </div>
       )}
 
-      {/* === CHAT SECTION (FULL WIDTH) === */}
       {canViewChat && (
         <div className="h-[700px] relative">
           <ConversationBox
@@ -1985,7 +1993,6 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
-      {/* Modals remain at the end */}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}

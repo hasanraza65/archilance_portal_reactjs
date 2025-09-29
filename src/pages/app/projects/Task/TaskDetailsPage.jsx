@@ -77,8 +77,6 @@ const TaskDetailsPage = () => {
   const employeeType = getEmployeeType();
   const isCustomer = userRole === "customer";
 
-  // --- UPDATED CODE ---
-  // Supervisor ko saari permissions di gayi hain
   const canEditTaskDetails = !isCustomer;
   const canManageAssignees = !isCustomer;
   const canManageSubtasks = !isCustomer;
@@ -88,7 +86,10 @@ const TaskDetailsPage = () => {
     userRole === "employee" ||
     userRole === "manager" ||
     userRole === "supervisor";
-  // --- END OF UPDATE ---
+  
+  // ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition banayi gayi hai ++
+  const canViewTimeLogs = ["admin", "manager", "supervisor", "customer"].includes(userRole);
+
 
   const apiPrefix = getApiPrefix();
   const taskApiPath = `/api/${apiPrefix}/project-task`;
@@ -722,8 +723,8 @@ const TaskDetailsPage = () => {
   const currentAssigneeUserIds = currentAssignees
     .map((a) => a?.user?.id)
     .filter((id) => id != null);
-  const isAdmin = user && user.role === "admin";
-  const showSidebar = canManageComments || isAdmin || isCustomer;
+  
+  const showSidebar = canManageComments || canViewTimeLogs;
   const gridLayoutClass = showSidebar
     ? "grid lg:grid-cols-3 gap-6"
     : "grid grid-cols-1 gap-6 max-w-4xl mx-auto";
@@ -817,7 +818,8 @@ const TaskDetailsPage = () => {
                   onLoadRepliesForComment={onLoadRepliesForComment}
                 />
               )}
-              {(isAdmin || isCustomer) && (
+              {/* ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition ka istemal kiya gaya hai ++ */}
+              {canViewTimeLogs && (
                 <TimeLogSummary timeLogs={timeLogs} />
               )}
             </div>
