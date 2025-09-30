@@ -10,7 +10,7 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
   console.log(role);
   if (role) {
     return `/api/${role}${cleanBasePath}`;
@@ -28,7 +28,7 @@ const AddEmployee = () => {
     password: "",
     password_confirmation: "",
     employee_type: "Employee", // Default type
-    user_role: "3",             // Default role ID for "Employee"
+    user_role: "3", // Default role ID for "Employee"
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -44,7 +44,7 @@ const AddEmployee = () => {
   // This function now also sets the correct user_role when employee_type changes.
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Create an object to hold the state updates
     const updates = { [name]: value };
 
@@ -66,7 +66,7 @@ const AddEmployee = () => {
     }
 
     setFormData((prev) => ({ ...prev, ...updates }));
-    
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
@@ -95,7 +95,8 @@ const AddEmployee = () => {
     } else if (formData.password !== formData.password_confirmation) {
       newErrors.password_confirmation = "Passwords do not match.";
     }
-    if (!formData.employee_type) newErrors.employee_type = "Employee type is required.";
+    if (!formData.employee_type)
+      newErrors.employee_type = "Employee type is required.";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -179,7 +180,9 @@ const AddEmployee = () => {
             type="text"
             name="name"
             id="name"
-            className={`${inputClass} ${errors.name ? "border-danger-500" : ""}`}
+            className={`${inputClass} ${
+              errors.name ? "border-danger-500" : ""
+            }`}
             value={formData.name}
             onChange={handleChange}
             placeholder="Enter full name"
@@ -195,7 +198,9 @@ const AddEmployee = () => {
             type="email"
             name="email"
             id="email"
-            className={`${inputClass} ${errors.email ? "border-danger-500" : ""}`}
+            className={`${inputClass} ${
+              errors.email ? "border-danger-500" : ""
+            }`}
             value={formData.email}
             onChange={handleChange}
             placeholder="Enter email address"
@@ -211,7 +216,9 @@ const AddEmployee = () => {
             type="text"
             name="username"
             id="username"
-            className={`${inputClass} ${errors.username ? "border-danger-500" : ""}`}
+            className={`${inputClass} ${
+              errors.username ? "border-danger-500" : ""
+            }`}
             value={formData.username}
             onChange={handleChange}
             placeholder="Enter username"
@@ -227,7 +234,9 @@ const AddEmployee = () => {
             type="tel"
             name="phone"
             id="phone"
-            className={`${inputClass} ${errors.phone ? "border-danger-500" : ""}`}
+            className={`${inputClass} ${
+              errors.phone ? "border-danger-500" : ""
+            }`}
             value={formData.phone}
             onChange={handleChange}
             placeholder="+923001234567"
@@ -243,16 +252,20 @@ const AddEmployee = () => {
           <select
             name="employee_type"
             id="employee_type"
-            className={`${inputClass} ${errors.employee_type ? "border-danger-500" : ""}`}
+            className={`${inputClass} ${
+              errors.employee_type ? "border-danger-500" : ""
+            }`}
             value={formData.employee_type}
             onChange={handleChange}
           >
             <option value="Employee">Employee</option>
             <option value="Manager">Manager</option>
-            <option value="Supervisor">Supervisor</option> 
+            <option value="Supervisor">Coordinator</option>
             <option value="Outsource">Outsource</option>
           </select>
-          {errors.employee_type && <p className={errorClass}>{errors.employee_type}</p>}
+          {errors.employee_type && (
+            <p className={errorClass}>{errors.employee_type}</p>
+          )}
         </div>
         {/* --- END OF UPDATE --- */}
 
@@ -264,7 +277,9 @@ const AddEmployee = () => {
             type="password"
             name="password"
             id="password"
-            className={`${inputClass} ${errors.password ? "border-danger-500" : ""}`}
+            className={`${inputClass} ${
+              errors.password ? "border-danger-500" : ""
+            }`}
             value={formData.password}
             onChange={handleChange}
             placeholder="Enter password"
@@ -280,7 +295,9 @@ const AddEmployee = () => {
             type="password"
             name="password_confirmation"
             id="password_confirmation"
-            className={`${inputClass} ${errors.password_confirmation ? "border-danger-500" : ""}`}
+            className={`${inputClass} ${
+              errors.password_confirmation ? "border-danger-500" : ""
+            }`}
             value={formData.password_confirmation}
             onChange={handleChange}
             placeholder="Confirm password"
@@ -289,7 +306,7 @@ const AddEmployee = () => {
             <p className={errorClass}>{errors.password_confirmation}</p>
           )}
         </div>
-        
+
         <div className="flex justify-end space-x-3 pt-4">
           <button
             type="button"

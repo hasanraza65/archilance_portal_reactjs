@@ -304,7 +304,7 @@ const EditEmployee = () => {
           >
             <option value="Employee">Employee</option>
             <option value="Manager">Manager</option>
-            <option value="Supervisor">Supervisor</option>
+            <option value="Supervisor">Coordinator</option>
           </select>
           {formErrors.employee_type && (
             <p className="text-danger-500 text-xs mt-1">

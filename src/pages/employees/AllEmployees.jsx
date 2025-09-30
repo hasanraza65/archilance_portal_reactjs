@@ -44,6 +44,7 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     accessor: "name",
     Cell: ({ row }) => {
       const { name, profile_pic, id, employee_type } = row.original;
+      const lowerCaseEmployeeType = employee_type?.toLowerCase();
 
       return (
         <div
@@ -80,22 +81,22 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
               {name}
             </span>
 
-            {(employee_type === "Manager" ||
-              employee_type === "Outsource" ||
-              employee_type === "Supervisor") && (
+            {(lowerCaseEmployeeType === "manager" ||
+              lowerCaseEmployeeType === "outsource" ||
+              lowerCaseEmployeeType === "coordinators") && (
               <span
                 className={`
                   px-2 py-0.5 text-xs font-semibold rounded-full capitalize
                   ${
-                    employee_type === "Manager"
+                    lowerCaseEmployeeType === "manager"
                       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200"
-                      : employee_type === "Supervisor"
+                      : lowerCaseEmployeeType === "coordinators"
                       ? "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200"
                       : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200"
                   }
                 `}
               >
-                {employee_type.toLowerCase()}
+                {employee_type}
               </span>
             )}
           </div>
@@ -175,19 +176,15 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
 
 const Allemployees = () => {
   const { user } = useAuth();
-  // console.log("LOGGED IN USER:", user); // Debugging ke liye isko uncomment kar sakte hain
-
   const [employeeData, setEmployeeData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const navigate = useNavigate();
-
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState(null);
-
   const hasManagementPermission = useMemo(() => canManageEmployees(), []);
 
   const fetchEmployees = useCallback(async () => {
@@ -202,8 +199,7 @@ const Allemployees = () => {
       return;
     }
     try {
-      // Hamesha admin API call karein taake poori list mil sake
-         const apiPath = getApiBasePathForRole("/employee-user");
+      const apiPath = getApiBasePathForRole("/employee-user");
       const response = await axios.get(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         {
@@ -213,16 +209,29 @@ const Allemployees = () => {
           },
         }
       );
+
+      let rawData = [];
       if (response.data && Array.isArray(response.data.data)) {
-        setEmployeeData(response.data.data);
-        // console.log("FULL LIST FROM API:", response.data.data); // Debugging ke liye isko uncomment kar sakte hain
+        rawData = response.data.data;
       } else if (response.data && Array.isArray(response.data)) {
-        setEmployeeData(response.data);
-        // console.log("FULL LIST FROM API:", response.data); // Debugging ke liye isko uncomment kar sakte hain
+        rawData = response.data;
       } else {
         setFetchError("Received unexpected data format from server.");
         setEmployeeData([]);
+        return; 
       }
+
+      // ** YAHAN PAR DATA TRANSFORM KIYA JA RAHA HAI **
+      // API se anay walay har 'supervisor' ko 'Coordinators' mein badal dein
+      const transformedData = rawData.map(emp => {
+        if (emp.employee_type?.toLowerCase() === 'supervisor') {
+          return { ...emp, employee_type: 'Coordinators' };
+        }
+        return emp;
+      });
+
+      setEmployeeData(transformedData);
+
     } catch (err) {
       setFetchError(
         err.response?.data?.message ||
@@ -239,45 +248,36 @@ const Allemployees = () => {
     fetchEmployees();
   }, [fetchEmployees]);
 
-  // --- BEHTAR AUR MAZBOOT FILTERING LOGIC ---
   const filteredData = useMemo(() => {
     if (!user || !employeeData.length) {
       return [];
     }
-
     const currentUserRole = user.role?.toLowerCase();
-    const currentUserType = user.employee_type?.toLowerCase(); // Case-insensitive
+    const currentUserType = user.employee_type?.toLowerCase();
     const currentUserId = user.id;
 
     if (currentUserRole === "admin") {
       return employeeData;
     }
-
     if (currentUserType === "manager") {
       return employeeData.filter((emp) => {
-        const empType = emp.employee_type?.toLowerCase(); // Case-insensitive
-        // Manager ko supervisor aur employee nazar aayenge
+        const empType = emp.employee_type?.toLowerCase();
         return (
-          empType === "supervisor" ||
+          empType === "coordinators" ||
           empType === "employee" ||
           !emp.employee_type
         );
       });
     }
-
-    if (currentUserType === "supervisor") {
+    if (currentUserType === "coordinators") {
       return employeeData.filter((emp) => {
-        const empType = emp.employee_type?.toLowerCase(); // Case-insensitive
-        // Supervisor ko SIRF employee nazar aayenge.
-        // Agar kisi ka employee_type NULL hai, to hum usay employee samjhenge.
+        const empType = emp.employee_type?.toLowerCase();
         return empType === "employee" || !emp.employee_type;
       });
     }
-
     if (currentUserType === "employee") {
       return employeeData.filter((emp) => emp.id === currentUserId);
     }
-
     return [];
   }, [employeeData, user]);
 
