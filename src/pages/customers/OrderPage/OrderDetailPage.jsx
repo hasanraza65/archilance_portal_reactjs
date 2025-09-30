@@ -34,12 +34,83 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 // =================================================================
-// == START: TOTAL TIME WORKED COMPONENT (WITH TIMEZONE FIX) ==
+// == START: DATE HELPER FUNCTIONS AND PRESETS ==
+// =================================================================
+
+const getTodayDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  return [today, today];
+};
+
+const getWeekDateRange = (date = new Date()) => {
+  const current = new Date(date);
+  current.setHours(12, 0, 0, 0);
+  const day = current.getDay();
+  const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(current.setDate(diff));
+  const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
+  return [monday, sunday];
+};
+
+const getLastWeekDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const lastWeekDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - 7
+  );
+  return getWeekDateRange(lastWeekDate);
+};
+
+const getCurrentMonthDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  return [firstDay, lastDay];
+};
+
+const getLastMonthDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+  return [firstDay, lastDay];
+};
+
+const PRESETS = [
+  { label: "Today", func: getTodayDateRange },
+  { label: "Current week", func: getWeekDateRange },
+  { label: "Last week", func: getLastWeekDateRange },
+  { label: "Current month", func: getCurrentMonthDateRange },
+  { label: "Last month", func: getLastMonthDateRange },
+];
+
+const ChevronDownIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-5 w-5 text-slate-500"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+
+
+// =================================================================
+// == START: TOTAL TIME WORKED COMPONENT (WITH UNIFIED DESIGN) ==
 // =================================================================
 
 const FormGroup = ({ label, children }) => (
   <div className="flex flex-col">
-    <label className="mb-1 text-sm font-medium text-gray-700">
+    <label className="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
       {label}
     </label>
     {children}
@@ -49,74 +120,132 @@ const FormGroup = ({ label, children }) => (
 const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, activeEndDate }) => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
+  const [activePreset, setActivePreset] = useState("Select Period");
+  const presetDropdownRef = useRef(null);
 
-  // ++ FIX: Timezone issue ko hal karne ke liye useEffect mein tabdeeli ++
   useEffect(() => {
-    // Yeh function date string ko sahi se parse karke local timezone ka Date object banata hai
+    const handleClickOutside = (event) => {
+      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target)) {
+        setIsPresetDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     const createDateWithoutTimezoneShift = (dateString) => {
-        if (!dateString) return null;
-        // 'YYYY-MM-DD' string se date banate waqt UTC midnight ki ghalati se bachne ke liye
-        // hum ismein T00:00:00 add kar dete hain taake yeh local time samjha jaye.
-        return new Date(`${dateString}T00:00:00`);
+      if (!dateString) return null;
+      return new Date(`${dateString}T00:00:00`);
     };
 
-    setStartDate(createDateWithoutTimezoneShift(activeStartDate));
-    setEndDate(createDateWithoutTimezoneShift(activeEndDate));
+    const newStartDate = createDateWithoutTimezoneShift(activeStartDate);
+    const newEndDate = createDateWithoutTimezoneShift(activeEndDate);
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+
+    if (!newStartDate && !newEndDate) {
+      setActivePreset("Select Period");
+    } else {
+        let matchedPreset = "Custom";
+        for (const preset of PRESETS) {
+            const [presetStart, presetEnd] = preset.func();
+            if (presetStart.toDateString() === newStartDate?.toDateString() && presetEnd.toDateString() === newEndDate?.toDateString()) {
+                matchedPreset = preset.label;
+                break;
+            }
+        }
+        setActivePreset(matchedPreset);
+    }
   }, [activeStartDate, activeEndDate]);
 
-
   const filteredSummary = summary.filter((task) => task.total_hours > 0);
-
-  const totalSeconds = filteredSummary.reduce(
-    (acc, task) => acc + (task.total_hours || 0),
-    0
-  );
+  const totalSeconds = filteredSummary.reduce((acc, task) => acc + (task.total_hours || 0), 0);
   const totalHours = Math.floor(totalSeconds / 3600);
   const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
   const totalTimeFormatted = `${totalHours}h ${totalMinutes}m`;
 
-  const handleApplyFilter = () => {
-    if (onDateFilterChange) {
-      
-      // ++ FIX: Date ko string mein convert karne ka behtar tarika ++
-      const toLocalDateString = (date) => {
-        if (!date) return null;
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-        const dd = String(date.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-      };
+  const toLocalDateString = (date) => {
+    if (!date) return null;
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
-      onDateFilterChange({
-        start_date: toLocalDateString(startDate),
-        end_date: toLocalDateString(endDate),
-      });
-    }
+  const handleApplyFilter = () => {
+    onDateFilterChange({
+      start_date: toLocalDateString(startDate),
+      end_date: toLocalDateString(endDate),
+    });
   };
 
   const handleClearFilter = () => {
     setStartDate(null);
     setEndDate(null);
+    setActivePreset("Select Period");
+    onDateFilterChange({ start_date: null, end_date: null });
+  };
+
+  const handlePresetSelect = (preset) => {
+    const [start, end] = preset.func();
+    setStartDate(start);
+    setEndDate(end);
+    setActivePreset(preset.label);
+    setIsPresetDropdownOpen(false);
     if (onDateFilterChange) {
-      onDateFilterChange({ start_date: null, end_date: null });
+      onDateFilterChange({
+        start_date: toLocalDateString(start),
+        end_date: toLocalDateString(end),
+      });
     }
   };
 
   return (
-    <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-6 hover:shadow-3xl transition-all duration-500">
-      <div className="mb-6 pb-4 border-b border-gray-200/50">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
+      <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
         <div className="space-y-4">
+          
+          <div>
+            <FormGroup label="Period">
+              <div className="relative" ref={presetDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsPresetDropdownOpen(!isPresetDropdownOpen)}
+                  className="form-input bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 rounded-md shadow-sm px-4 py-2 h-[40px] w-full flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150 ease-in-out"
+                >
+                  <span className="text-slate-800 dark:text-slate-200 truncate">{activePreset}</span>
+                  <ChevronDownIcon />
+                </button>
+                <div 
+                  className={`absolute top-full left-0 mt-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-10 p-1 transition-all duration-200 ease-out transform origin-top ${isPresetDropdownOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                >
+                  {PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => handlePresetSelect(preset)}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </FormGroup>
+          </div>
+
           <div>
             <FormGroup label="Start Date">
               <Flatpickr
-                value={startDate} 
-                onChange={(dates) => setStartDate(dates[0])}
-                className="form-control h-[40px] w-full bg-white/80 rounded-lg"
-                options={{
-                  altInput: true,
-                  altFormat: "F j, Y",
-                  dateFormat: "Y-m-d",
+                value={startDate}
+                onChange={(dates) => {
+                    setStartDate(dates[0]);
+                    setActivePreset("Custom");
                 }}
+                className="form-control h-[40px] w-full"
+                options={{ altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d" }}
                 placeholder="Select start date"
               />
             </FormGroup>
@@ -125,14 +254,12 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
             <FormGroup label="End Date">
               <Flatpickr
                 value={endDate}
-                onChange={(dates) => setEndDate(dates[0])}
-                className="form-control h-[40px] w-full bg-white/80 rounded-lg"
-                options={{
-                  altInput: true,
-                  altFormat: "F j, Y",
-                  dateFormat: "Y-m-d",
-                  minDate: startDate,
+                onChange={(dates) => {
+                    setEndDate(dates[0]);
+                    setActivePreset("Custom");
                 }}
+                className="form-control h-[40px] w-full"
+                options={{ altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d", minDate: startDate }}
                 placeholder="Select end date"
               />
             </FormGroup>
@@ -140,13 +267,13 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
           <div className="flex gap-2 pt-1">
             <button
               onClick={handleApplyFilter}
-              className="btn btn-dark w-full h-[40px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+              className="btn btn-dark w-full h-[40px]"
             >
               Filter
             </button>
             <button
               onClick={handleClearFilter}
-              className="btn btn-light w-full h-[40px] bg-gray-200 hover:bg-gray-300 text-gray-800"
+              className="btn btn-light w-full h-[40px]"
             >
               Clear
             </button>
@@ -154,39 +281,32 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
         </div>
       </div>
 
-      <h3 className="text-lg font-bold text-gray-800 mb-4">
+      <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
         Total Time Worked: {totalTimeFormatted}
       </h3>
       <div className="overflow-x-auto max-h-48">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="border-b-2 border-gray-200/50">
-              <th className="p-3 text-left font-semibold text-gray-600">
-                Task
-              </th>
-              <th className="p-3 text-left font-semibold text-gray-600">
-                Time Spent
-              </th>
+            <tr className="border-b-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700">
+              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Task</th>
+              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Time Spent</th>
             </tr>
           </thead>
           <tbody>
             {filteredSummary && filteredSummary.length > 0 ? (
               filteredSummary.map((task) => (
-                <tr
-                  key={task.task_id}
-                  className="border-b border-gray-200/30 last:border-0"
-                >
-                  <td className="p-3 align-top font-medium text-gray-800">
+                <tr key={task.task_id} className="border-b border-slate-200 dark:border-slate-600 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="p-3 align-top font-medium text-slate-800 dark:text-slate-200">
                     {task.task_title || "Untitled Task"}
                   </td>
-                  <td className="p-3 align-top text-gray-600">
+                  <td className="p-3 align-top text-slate-600 dark:text-slate-300">
                     {task.total_hours_formatted || "N/A"}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="2" className="text-center text-gray-500 py-6">
+                <td colSpan="2" className="text-center text-slate-500 py-6">
                   No time logs found.
                 </td>
               </tr>
@@ -899,6 +1019,9 @@ const OrderDetailsPage = () => {
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
 
+  // ++ TABDEELI 1: Ek `useRef` hook add karein jo initial mount ko track karega ++
+  const isInitialMount = useRef(true);
+
   const [timeSummaryFilters, setTimeSummaryFilters] = useState({
     start_date: null,
     end_date: null,
@@ -1056,8 +1179,13 @@ const OrderDetailsPage = () => {
     }
 
     const fetchInitialData = async () => {
-      setIsLoading(true);
-      setIsMessagesLoading(true);
+      // ++ TABDEELI 2: Check karein ke kya yeh pehli baar hai. Sirf tab hi `setIsLoading(true)` call karein.
+      if (isInitialMount.current) {
+        setIsLoading(true);
+      }
+      
+      setIsMessagesLoading(true); // Chat ka loader har baar dikh sakta hai
+
       try {
         const params = new URLSearchParams();
         if (timeSummaryFilters.start_date) {
@@ -1098,12 +1226,17 @@ const OrderDetailsPage = () => {
         console.error("Initial Data Fetch Error:", err);
         setError(err.message);
       } finally {
-        setIsLoading(false);
+        // ++ TABDEELI 3: `isLoading` ko false karein aur `isInitialMount` ko bhi false set kar dein.
+        if (isInitialMount.current) {
+          setIsLoading(false);
+          isInitialMount.current = false; // Pehla render complete ho gaya
+        }
         setIsMessagesLoading(false);
       }
     };
     
     fetchInitialData();
+
     const pollInterval = setInterval(fetchMessages, 20000);
     return () => clearInterval(pollInterval);
   }, [projectId, token, rolePrefix, API_BASE_URL, fetchMessages, timeSummaryFilters]);

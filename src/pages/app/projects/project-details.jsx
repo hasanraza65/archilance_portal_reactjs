@@ -109,7 +109,7 @@ const ChevronDownIcon = () => (
 
 
 // =================================================================
-// == UPDATED COMPONENT FOR TASKS TIME SUMMARY WITH ENHANCED STYLING ==
+// == UPDATED COMPONENT FOR TASKS TIME SUMMARY ==
 // =================================================================
 
 const FormGroup = ({ label, children }) => (
@@ -154,6 +154,16 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
 
     if (!newStartDate && !newEndDate) {
       setActivePreset("Select Period");
+    } else {
+        let matchedPreset = "Custom";
+        for (const preset of PRESETS) {
+            const [presetStart, presetEnd] = preset.func();
+            if (presetStart.toDateString() === newStartDate?.toDateString() && presetEnd.toDateString() === newEndDate?.toDateString()) {
+                matchedPreset = preset.label;
+                break;
+            }
+        }
+        setActivePreset(matchedPreset);
     }
   }, [activeStartDate, activeEndDate]);
 
@@ -167,14 +177,15 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
   const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
   const totalTimeFormatted = `${totalHours}h ${totalMinutes}m`;
 
+  const toLocalDateString = (date) => {
+    if (!date) return null;
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const handleApplyFilter = () => {
-    const toLocalDateString = (date) => {
-      if (!date) return null;
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    };
     onDateFilterChange({
       start_date: toLocalDateString(startDate),
       end_date: toLocalDateString(endDate),
@@ -194,6 +205,13 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
     setEndDate(end);
     setActivePreset(preset.label);
     setIsPresetDropdownOpen(false);
+    
+    if (onDateFilterChange) {
+      onDateFilterChange({
+        start_date: toLocalDateString(start),
+        end_date: toLocalDateString(end),
+      });
+    }
   };
   
 
@@ -1200,36 +1218,41 @@ const ProjectDetailsPage = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  const fetchProjectAndTasks = useCallback(async () => {
+  // This useCallback encapsulates the data fetching logic.
+  // Crucially, it includes `timeSummaryFilters` in its dependency array.
+  // This means if `timeSummaryFilters` changes, `useCallback` provides a new `fetchProjectData` function.
+  const fetchProjectData = useCallback(async () => {
     if (!id) {
       setError("Project ID is missing from URL.");
-      setLoading(false);
       setProjectFound(false);
       return;
     }
-    setLoading(true);
-    setError(null);
-    const token = Cookies.get("token");
-    if (!token) {
+    
+    const currentToken = Cookies.get("token");
+    if (!currentToken) {
       setError("Authorization token not found. Please log in.");
-      setLoading(false);
       setProjectFound(false);
       Swal.fire({
         icon: "error",
         title: "Authentication Error",
-        text: "Authorization token not found. Please log in.",
+        text: "Please log in again to continue.",
         confirmButtonColor: "#3085d6",
       }).then(() => navigate("/login"));
       return;
     }
+
+    setLoading(false);
+    setError(null);
+    
     try {
       const headers = {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${currentToken}`,
         "Content-Type": "application/json",
         Accept: "application/json",
         "Cache-Control": "no-cache",
       };
       
+      // The filters from the state are used to build the API request URL.
       const params = new URLSearchParams();
       if (timeSummaryFilters.start_date) {
         params.append("summary_start_date", timeSummaryFilters.start_date);
@@ -1246,100 +1269,49 @@ const ProjectDetailsPage = () => {
 
       if (!response.ok) {
         if (response.status === 404) {
-          setProjectFound(false);
-          setError(`Project with ID ${id} not found.`);
+          throw new Error(`Project with ID ${id} not found.`);
         } else {
-          const errorData = await response.json().catch(() => ({
-            message: "Failed to parse error response from server.",
-          }));
-          setError(
-            `Error ${response.status}: ${
-              errorData.message || response.statusText
-            }`
-          );
-          setProjectFound(false);
+          const errorData = await response.json().catch(() => ({ message: "Failed to parse error response." }));
+          throw new Error(`Error ${response.status}: ${errorData.message || response.statusText}`);
         }
-        setLoading(false);
-        return;
       }
+
       const fetchedProjectData = await response.json();
       const projectData = fetchedProjectData.data || fetchedProjectData;
+
       if (projectData && projectData.project_name) {
         setProjectDetails(projectData);
-        const processedTasks = (projectData.tasks || []).map((task) => ({
-          ...task,
-          assignees: task.assignees || [],
-        }));
-        setTasks(processedTasks);
-
-        const uniqueStatuses = [
-          ...new Set(
-            processedTasks.map((t) =>
-              String(t.task_status || "unknown").toLowerCase()
-            )
-          ),
-        ];
-        const initialExpandedState = {};
-        uniqueStatuses.forEach((status) => {
-          initialExpandedState[status] = true;
-        });
-        setExpandedSections(initialExpandedState);
-
-        const processedBriefs = (projectData.all_briefs || []).map((brief) => ({
+        setTasks((projectData.tasks || []).map(task => ({ ...task, assignees: task.assignees || [] })));
+        setBriefs((projectData.all_briefs || []).map(brief => ({
           ...brief,
-          sanitized_description: DOMPurify.sanitize(
-            brief.brief_description || ""
-          ),
-          attachments: (brief.attachments || []).map((att) => ({
-            ...att,
-            url: getAttachmentUrl(att.file_path),
-          })),
-        }));
-        setBriefs(processedBriefs);
+          sanitized_description: DOMPurify.sanitize(brief.brief_description || ""),
+          attachments: (brief.attachments || []).map(att => ({ ...att, url: getAttachmentUrl(att.file_path) })),
+        })));
+        
+        const uniqueStatuses = [...new Set((projectData.tasks || []).map(t => String(t.task_status || "unknown").toLowerCase()))];
+        const initialExpandedState = {};
+        uniqueStatuses.forEach(status => { initialExpandedState[status] = true; });
+        setExpandedSections(initialExpandedState);
         setProjectFound(true);
       } else {
-        setProjectFound(false);
-        setError(
-          "Invalid project data received. Expected a 'project_name' field."
-        );
-        setProjectDetails(null);
-        setTasks([]);
-        setBriefs([]);
+        throw new Error("Invalid project data received.");
       }
     } catch (err) {
-      setError(
-        err.message ||
-          "An unknown error occurred while fetching project details."
-      );
+      setError(err.message);
       setProjectFound(false);
     } finally {
       setLoading(false);
     }
-  }, [id, navigate, timeSummaryFilters]);
+  }, [id, timeSummaryFilters, navigate]); // Dependencies that trigger a re-fetch
 
-  const prevUpdateAssigneesModal = useRef(updateAssigneesModal);
-  const prevEditProjectModalOpen = useRef(isEditProjectModalOpen);
 
+  // This useEffect hook calls the data fetching function.
+  // Because its dependency is `fetchProjectData`, it will re-run whenever that function changes.
+  // This creates the chain: Filter Change -> State Update -> New fetch function -> useEffect runs -> Data is re-fetched.
   useEffect(() => {
-    if (
-      prevUpdateAssigneesModal.current === true &&
-      updateAssigneesModal === false
-    ) {
-      fetchProjectAndTasks();
-    }
-    prevUpdateAssigneesModal.current = updateAssigneesModal;
-    if (
-      prevEditProjectModalOpen.current === true &&
-      isEditProjectModalOpen === false
-    ) {
-      fetchProjectAndTasks();
-    }
-    prevEditProjectModalOpen.current = isEditProjectModalOpen;
-  }, [updateAssigneesModal, isEditProjectModalOpen, fetchProjectAndTasks]);
+    fetchProjectData();
+  }, [fetchProjectData]);
 
-  useEffect(() => {
-    fetchProjectAndTasks();
-  }, [fetchProjectAndTasks]);
 
   useEffect(() => {
     if (projectDetails && projectDetails.project_name) {
@@ -1386,6 +1358,7 @@ const ProjectDetailsPage = () => {
     });
   }, [groupedTasks]);
 
+  // This handler function is passed to the summary component to update the filter state.
   const handleTimeSummaryFilterChange = (dates) => {
     setTimeSummaryFilters(dates);
   };
@@ -1408,10 +1381,18 @@ const ProjectDetailsPage = () => {
     );
   const handleOpenAddTaskModal = () => setIsAddTaskModalOpen(true);
   const handleCloseAddTaskModal = () => setIsAddTaskModalOpen(false);
+
   const handleTaskAdded = () => {
     setIsAddTaskModalOpen(false);
-    fetchProjectAndTasks();
+    fetchProjectData();
   };
+  const handleTaskUpdated = () => {
+    setIsEditTaskModalOpen(false);
+    setTaskToEdit(null);
+    toast.success("Project updated successfully!");
+    fetchProjectData();
+  };
+
   const handleOpenEditTaskModal = (task, e) => {
     e.stopPropagation();
     setTaskToEdit(task);
@@ -1421,25 +1402,13 @@ const ProjectDetailsPage = () => {
     setIsEditTaskModalOpen(false);
     setTaskToEdit(null);
   };
-  const handleTaskUpdated = () => {
-    fetchProjectAndTasks();
-    Swal.fire({
-      icon: "success",
-      title: "Project Updated!",
-      text: "The project has been successfully updated.",
-      timer: 1500,
-      showConfirmButton: false,
-    });
-  };
+
   const handleKanbanBoard = () => navigate(`/job/${id}/kanban`);
+  
   const handleDeleteTask = async (taskId, e) => {
     e.stopPropagation();
     if (!taskId) {
-      Swal.fire({
-        icon: "error",
-        title: "Oops...",
-        text: "Cannot delete task: Task ID is missing.",
-      });
+      toast.error("Cannot delete task: Task ID is missing.");
       return;
     }
     Swal.fire({
@@ -1452,13 +1421,10 @@ const ProjectDetailsPage = () => {
       confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        const token = Cookies.get("token");
-        if (!token) {
-          Swal.fire({
-            icon: "error",
-            title: "Authentication Error",
-            text: "Authorization token not found. Please log in.",
-          }).then(() => navigate("/login"));
+        const currentToken = Cookies.get("token");
+        if (!currentToken) {
+          toast.error("Authentication Error. Please log in again.");
+          navigate("/login");
           return;
         }
         try {
@@ -1467,79 +1433,64 @@ const ProjectDetailsPage = () => {
             `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${taskId}`,
             {
               method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json",
-              },
+              headers: { Authorization: `Bearer ${currentToken}`, Accept: "application/json" },
             }
           );
           if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ message: "Server error during deletion." }));
-            Swal.fire({
-              icon: "error",
-              title: "Deletion Failed",
-              text:
-                errorData.message ||
-                `Failed to delete task (Status: ${response.status})`,
-            });
-            return;
+            const errorData = await response.json().catch(() => ({ message: "Server error during deletion." }));
+            throw new Error(errorData.message || `Failed to delete task (Status: ${response.status})`);
           }
-          Swal.fire("Deleted!", "Your project has been deleted.", "success");
-          setTasks((prevTasks) =>
-            prevTasks.filter((task) => task.id !== taskId)
-          );
+          toast.success("Project has been deleted.");
+          fetchProjectData();
         } catch (err) {
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: err.message || "Could not connect to the server.",
-          });
+          Swal.fire("Error", err.message, "error");
         }
       }
     });
   };
+
   const handleOpenAddBriefModal = () => setIsAddBriefModalOpen(true);
   const handleCloseAddBriefModal = () => setIsAddBriefModalOpen(false);
+  
   const handleBriefAdded = () => {
     setIsAddBriefModalOpen(false);
-    fetchProjectAndTasks();
+    fetchProjectData();
   };
+  
   const handleOpenEditBriefModal = (brief) => {
     setBriefToEdit(brief);
     setIsEditBriefModalOpen(true);
   };
+
   const handleCloseEditBriefModal = () => {
     setIsEditBriefModalOpen(false);
     setBriefToEdit(null);
   };
+  
   const handleBriefUpdated = () => {
     setIsEditBriefModalOpen(false);
     setBriefToEdit(null);
-    fetchProjectAndTasks();
+    fetchProjectData();
   };
+
   const handleDeleteBrief = async (briefId) => {
     if (!briefId) {
-      Swal.fire("Error", "Brief ID is missing.", "error");
+      toast.error("Brief ID is missing.");
       return;
     }
     Swal.fire({
       title: "Are you sure?",
-      text: "You won't be able to revert this project brief!",
+      text: "You won't be able to revert this job brief!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        const token = Cookies.get("token");
-        if (!token) {
-          Swal.fire(
-            "Authentication Error",
-            "Please log in again.",
-            "error"
-          ).then(() => navigate("/login"));
+        const currentToken = Cookies.get("token");
+        if (!currentToken) {
+          toast.error("Authentication Error. Please log in again.");
+          navigate("/login");
           return;
         }
         try {
@@ -1548,41 +1499,25 @@ const ProjectDetailsPage = () => {
             `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${briefId}`,
             {
               method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json",
-              },
+              headers: { Authorization: `Bearer ${currentToken}`, Accept: "application/json" },
             }
           );
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({
-              message: "Server error during brief deletion.",
-            }));
-            Swal.fire(
-              "Deletion Failed",
-              errorData.message ||
-                `Failed to delete brief (Status: ${response.status})`,
-              "error"
-            );
-            return;
+            const errorData = await response.json().catch(() => ({ message: "Server error." }));
+            throw new Error(errorData.message || `Failed to delete brief (Status: ${response.status})`);
           }
-          Swal.fire("Deleted!", "The job brief has been deleted.", "success");
-          setBriefs((prevBriefs) =>
-            prevBriefs.filter((brief) => brief.id !== briefId)
-          );
+          toast.success("The job brief has been deleted.");
+          fetchProjectData();
         } catch (err) {
-          Swal.fire(
-            "Error",
-            err.message || "Could not connect to the server to delete brief.",
-            "error"
-          );
+          Swal.fire("Error", err.message, "error");
         }
       }
     });
   };
+
   const handleViewBriefDetails = (briefId) => {
     if (!briefId) {
-      Swal.fire("Error", "Brief ID is missing.", "error");
+      toast.error("Brief ID is missing.");
       return;
     }
     navigate(`/job-brief/${briefId}`);
@@ -1618,8 +1553,7 @@ const ProjectDetailsPage = () => {
             Job Not Found
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-            The job with ID: {id} could not be found.
-            {error && <span className="block mt-1">Details: {error}</span>}
+            {error ? error : `The job with ID: ${id} could not be found.`}
           </p>
           <div className="mt-6">
             <button
@@ -1634,7 +1568,7 @@ const ProjectDetailsPage = () => {
       </div>
     );
   }
-  if (error) {
+  if (error && !loading) {
     return (
       <div className="container mx-auto p-4 text-center text-red-500">
         Error: {error}
@@ -1697,7 +1631,7 @@ const ProjectDetailsPage = () => {
                 <EditableProjectStatus
                   projectId={projectDetails.id}
                   currentStatus={projectDetails.status}
-                  onStatusUpdate={fetchProjectAndTasks}
+                  onStatusUpdate={fetchProjectData}
                   isEditable={isManagerOrAdmin}
                   apiBaseUrl={API_BASE_URL}
                   apiPath={getApiBasePathForRole("/update-project-status")}
