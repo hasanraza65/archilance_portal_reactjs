@@ -4,23 +4,25 @@ import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import Loading from "@/components/Loading";
 
-import axios from "axios";
+// Naye axios instance ko import karein
 import Cookies from "js-cookie";
 import { useQuery } from "@tanstack/react-query";
 
 import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
 import UpdatePassword from "./UpdatePassword";
+import axiosInstance from "@/store/api/app/axiosInstance";
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
-const PROFILE_API_URL = `${API_BASE_URL}/me`;
+// PROFILE_API_URL mein se base URL hata dein kyun ke woh ab axiosInstance mein hai
+const PROFILE_API_URL = "/me";
 
 const fetchProfileData = async () => {
   const token = Cookies.get("token");
   if (!token) {
     throw new Error("No authentication token found.");
   }
-  const response = await axios.get(PROFILE_API_URL, {
+  // Yahan 'axios' ke bajaye 'axiosInstance' ka istemal karein
+  const response = await axiosInstance.get(PROFILE_API_URL, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
@@ -42,8 +44,6 @@ const Profile = () => {
     queryFn: fetchProfileData,
   });
 
-  // --- CHANGE 1: 'profilePicSrc' ko shuru mein 'null' set kiya gaya hai ---
-  // Pehle yahan 'DefaultProfileImage' tha.
   let profilePicSrc = null;
 
   if (userProfile && userProfile.profile_pic) {
@@ -66,6 +66,8 @@ const Profile = () => {
   }
 
   if (isError) {
+    // Ab 401 error yahan tak nahi pohnchega, interceptor usay pehle hi handle kar lega.
+    // Lekin dusre errors ke liye yeh code zaroori hai.
     console.error("Error fetching profile data (React Query):", error);
     return (
       <div className="flex flex-col justify-center items-center h-screen text-red-500 p-4 text-center">
@@ -85,32 +87,29 @@ const Profile = () => {
   return (
     <div>
       <div className="space-y-5 profile-page">
+        {/* ... baaki ka component waisa hi rahega ... */}
         <div className="profiel-wrap px-[35px] pb-10 md:pt-[84px] pt-10 rounded-lg bg-white dark:bg-slate-800 lg:flex lg:space-y-0 space-y-6 justify-between items-end relative z-1">
           <div className="bg-slate-900 dark:bg-slate-700 absolute left-0 top-0 md:h-1/2 h-[150px] w-full z-[-1] rounded-t-lg"></div>
           <div className="profile-box flex-none md:text-start text-center">
             <div className="md:flex items-end md:space-x-6 rtl:space-x-reverse">
               <div className="flex-none">
-                {/* --- CHANGE 2: Yahan par conditional rendering add ki gayi hai --- */}
                 <div className="md:h-[186px] md:w-[186px] h-[140px] w-[140px] md:ml-0 md:mr-0 ml-auto mr-auto md:mb-0 mb-4 rounded-full ring-4 ring-slate-100 relative flex items-center justify-center bg-slate-200 dark:bg-slate-700">
                   {profilePicSrc ? (
-                    // Agar image hai to <img> tag dikhao
                     <img
                       src={profilePicSrc}
                       alt={userProfile?.name || "Profile"}
                       className="w-full h-full object-cover rounded-full"
                       onError={(e) => {
-                        e.target.onerror = null; // infinite loop se bachne ke liye
-                        e.target.src = DefaultProfileImage; // fallback agar link toota hua ho
+                        e.target.onerror = null;
+                        e.target.src = DefaultProfileImage;
                       }}
                     />
                   ) : (
-                    // Agar image nahi hai to Icon dikhao
                     <Icon
                       icon="heroicons-outline:user"
                       className="h-24 w-24 text-slate-500"
                     />
                   )}
-                  {/* Edit ka button hamesha nazar aayega */}
                   <Link
                     to="/profile/edit"
                     className="absolute right-2 h-8 w-8 bg-slate-50 text-slate-600 rounded-full shadow-xs flex flex-col items-center justify-center md:top-[140px] top-[100px]"

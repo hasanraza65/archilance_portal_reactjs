@@ -7,7 +7,6 @@ import Cookies from "js-cookie";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
-import UserAvatar from "@/assets/images/all-img/user.png";
 
 const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const BACKEND_BASE_URL =
