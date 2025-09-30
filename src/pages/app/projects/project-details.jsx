@@ -38,31 +38,123 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
 // =================================================================
-// == UPDATED COMPONENT FOR TASKS TIME SUMMARY WITH FIXES ==
+// == DATE PRESET HELPER FUNCTIONS & CONSTANTS ==
+// =================================================================
+
+const getTodayDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  return [today, today];
+};
+
+const getWeekDateRange = (date = new Date()) => {
+  const current = new Date(date);
+  current.setHours(12, 0, 0, 0);
+  const day = current.getDay();
+  const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(current.setDate(diff));
+  const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
+  return [monday, sunday];
+};
+
+const getLastWeekDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const lastWeekDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - 7
+  );
+  return getWeekDateRange(lastWeekDate);
+};
+
+const getCurrentMonthDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  return [firstDay, lastDay];
+};
+
+const getLastMonthDateRange = () => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+  return [firstDay, lastDay];
+};
+
+const PRESETS = [
+  { label: "Today", func: getTodayDateRange },
+  { label: "Current week", func: getWeekDateRange },
+  { label: "Last week", func: getLastWeekDateRange },
+  { label: "Current month", func: getCurrentMonthDateRange },
+  { label: "Last month", func: getLastMonthDateRange },
+];
+
+const ChevronDownIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-5 w-5 text-slate-500"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+
+
+// =================================================================
+// == UPDATED COMPONENT FOR TASKS TIME SUMMARY WITH ENHANCED STYLING ==
 // =================================================================
 
 const FormGroup = ({ label, children }) => (
   <div className="flex flex-col">
-    <label className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+    <label className="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
       {label}
     </label>
     {children}
   </div>
 );
 
-// ++ YAHAN TABDEELI KI GAYI HAI: Date persistence aur timezone fix ++
+
 const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, activeEndDate }) => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
+  const [activePreset, setActivePreset] = useState("Select Period");
+  const presetDropdownRef = useRef(null);
 
-  // useEffect to sync local state with props from parent
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        presetDropdownRef.current &&
+        !presetDropdownRef.current.contains(event.target)
+      ) {
+        setIsPresetDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   useEffect(() => {
     const createDateWithoutTimezoneShift = (dateString) => {
-        if (!dateString) return null;
-        return new Date(`${dateString}T00:00:00`);
+      if (!dateString) return null;
+      return new Date(`${dateString}T00:00:00`);
     };
-    setStartDate(createDateWithoutTimezoneShift(activeStartDate));
-    setEndDate(createDateWithoutTimezoneShift(activeEndDate));
+    const newStartDate = createDateWithoutTimezoneShift(activeStartDate);
+    const newEndDate = createDateWithoutTimezoneShift(activeEndDate);
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+
+    if (!newStartDate && !newEndDate) {
+      setActivePreset("Select Period");
+    }
   }, [activeStartDate, activeEndDate]);
 
   const filteredSummary = summary.filter((task) => task.total_hours > 0);
@@ -76,40 +168,79 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
   const totalTimeFormatted = `${totalHours}h ${totalMinutes}m`;
 
   const handleApplyFilter = () => {
-    if (onDateFilterChange) {
-      // Timezone-safe date string formatting
-      const toLocalDateString = (date) => {
-        if (!date) return null;
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        const dd = String(date.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-      };
-
-      onDateFilterChange({
-        start_date: toLocalDateString(startDate),
-        end_date: toLocalDateString(endDate),
-      });
-    }
+    const toLocalDateString = (date) => {
+      if (!date) return null;
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    onDateFilterChange({
+      start_date: toLocalDateString(startDate),
+      end_date: toLocalDateString(endDate),
+    });
   };
 
   const handleClearFilter = () => {
     setStartDate(null);
     setEndDate(null);
-    if (onDateFilterChange) {
-      onDateFilterChange({ start_date: null, end_date: null });
-    }
+    setActivePreset("Select Period");
+    onDateFilterChange({ start_date: null, end_date: null });
   };
+
+  const handlePresetSelect = (preset) => {
+    const [start, end] = preset.func();
+    setStartDate(start);
+    setEndDate(end);
+    setActivePreset(preset.label);
+    setIsPresetDropdownOpen(false);
+  };
+  
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
       <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
         <div className="space-y-4">
+
+          <div>
+            <FormGroup label="Period">
+              <div className="relative" ref={presetDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsPresetDropdownOpen(!isPresetDropdownOpen)}
+                  className="form-input bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 rounded-md shadow-sm px-4 py-2 h-[40px] w-full flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150 ease-in-out"
+                >
+                  <span className="text-slate-800 dark:text-slate-200 truncate">
+                    {activePreset}
+                  </span>
+                  <ChevronDownIcon />
+                </button>
+                <div 
+                  className={`absolute top-full left-0 mt-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-10 p-1 transition-all duration-200 ease-out transform origin-top ${isPresetDropdownOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                >
+                  {PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => handlePresetSelect(preset)}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </FormGroup>
+          </div>
+
           <div>
             <FormGroup label="Start Date">
               <Flatpickr
                 value={startDate}
-                onChange={(dates) => setStartDate(dates[0])}
+                onChange={(dates) => {
+                    setStartDate(dates[0]);
+                    setActivePreset("Custom");
+                }}
                 className="form-control h-[40px] w-full"
                 options={{
                   altInput: true,
@@ -124,7 +255,10 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
             <FormGroup label="End Date">
               <Flatpickr
                 value={endDate}
-                onChange={(dates) => setEndDate(dates[0])}
+                onChange={(dates) => {
+                    setEndDate(dates[0]);
+                    setActivePreset("Custom");
+                }}
                 className="form-control h-[40px] w-full"
                 options={{
                   altInput: true,
@@ -1661,8 +1795,7 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
         </div>
-
-        {/* ++ YAHAN TABDEELI KI GAYI HAI: Active dates ko as a prop pass kiya gaya hai ++ */}
+        
         <div className="lg:col-span-1">
           <TasksTimeSummary
             summary={projectDetails?.tasks_hours_summary || []}
