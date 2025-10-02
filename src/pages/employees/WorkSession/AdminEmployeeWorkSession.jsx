@@ -138,13 +138,11 @@ const AdminEmployeeWorkSession = () => {
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
   
-  // --- UPDATED CODE ---
-  // "supervisor" ko is list mein add kiya gaya hai
   const endpointPrefix =
     user?.role === "admin"
       ? "admin"
       : user?.role === "manager" ||
-        user?.role === "supervisor" || // Supervisor added here
+        user?.role === "supervisor" ||
         user?.role === "outsource" ||
         user?.role === "employee"
       ? "employee"
@@ -152,16 +150,13 @@ const AdminEmployeeWorkSession = () => {
 
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
   
-  // --- UPDATED CODE ---
-  // "supervisor" ko is list mein add kiya gaya hai
   const workSessionPath =
     user?.role === "manager" ||
-    user?.role === "supervisor" || // Supervisor added here
+    user?.role === "supervisor" ||
     user?.role === "outsource" ||
     user?.role === "employee"
       ? "/other-work-session"
       : "/work-session";
-  // --- END OF UPDATE ---
 
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
@@ -706,13 +701,13 @@ const AdminEmployeeWorkSession = () => {
                       className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
                     >
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {formatTime(idle.start_time.split(" ")[1])}
+                        {idle.start_time ? formatTime(idle.start_time.split(" ")[1]) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {formatTime(idle.end_time.split(" ")[1])}
+                        {idle.end_time ? formatTime(idle.end_time.split(" ")[1]) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {calculateIdleDuration(idle.start_time, idle.end_time)}
+                        {idle.start_time && idle.end_time ? calculateIdleDuration(idle.start_time, idle.end_time) : 'N/A'}
                       </td>
                     </tr>
                   ))}
