@@ -21,7 +21,7 @@ const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
   console.log(role);
   if (role) {
     return `/api/${role}${cleanBasePath}`;
@@ -29,6 +29,7 @@ const getApiBasePathForRole = (basePath) => {
   return `/api/admin${cleanBasePath}`;
 };
 
+// ##### CHANGE 1: UPDATE DISPLAY LOGIC #####
 const EMPLOYEE_API_COLUMNS_CONFIG = (
   navigate,
   openDeleteModalHandler,
@@ -45,6 +46,22 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     Cell: ({ row }) => {
       const { name, profile_pic, id, employee_type } = row.original;
       const lowerCaseEmployeeType = employee_type?.toLowerCase();
+
+      // We will display "Coordinators" for the "Supervisor" type
+      const isSupervisor = lowerCaseEmployeeType === "supervisor";
+      const displayType = isSupervisor ? "Coordinators" : employee_type;
+
+      const showBadge =
+        lowerCaseEmployeeType === "manager" ||
+        lowerCaseEmployeeType === "outsource" ||
+        isSupervisor;
+
+      const badgeClass =
+        lowerCaseEmployeeType === "manager"
+          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200"
+          : isSupervisor
+          ? "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200"
+          : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200";
 
       return (
         <div
@@ -81,22 +98,11 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
               {name}
             </span>
 
-            {(lowerCaseEmployeeType === "manager" ||
-              lowerCaseEmployeeType === "outsource" ||
-              lowerCaseEmployeeType === "coordinators") && (
+            {showBadge && (
               <span
-                className={`
-                  px-2 py-0.5 text-xs font-semibold rounded-full capitalize
-                  ${
-                    lowerCaseEmployeeType === "manager"
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200"
-                      : lowerCaseEmployeeType === "coordinators"
-                      ? "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200"
-                  }
-                `}
+                className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${badgeClass}`}
               >
-                {employee_type}
+                {displayType}
               </span>
             )}
           </div>
@@ -218,20 +224,12 @@ const Allemployees = () => {
       } else {
         setFetchError("Received unexpected data format from server.");
         setEmployeeData([]);
-        return; 
+        return;
       }
 
-      // ** YAHAN PAR DATA TRANSFORM KIYA JA RAHA HAI **
-      // API se anay walay har 'supervisor' ko 'Coordinators' mein badal dein
-      const transformedData = rawData.map(emp => {
-        if (emp.employee_type?.toLowerCase() === 'supervisor') {
-          return { ...emp, employee_type: 'Coordinators' };
-        }
-        return emp;
-      });
-
-      setEmployeeData(transformedData);
-
+      // ##### CHANGE 2: REMOVE DATA TRANSFORMATION #####
+      // We will no longer change "Supervisor" to "Coordinators" here.
+      setEmployeeData(rawData);
     } catch (err) {
       setFetchError(
         err.response?.data?.message ||
@@ -248,6 +246,7 @@ const Allemployees = () => {
     fetchEmployees();
   }, [fetchEmployees]);
 
+  // ##### CHANGE 3: CORRECT FILTERING LOGIC #####
   const filteredData = useMemo(() => {
     if (!user || !employeeData.length) {
       return [];
@@ -259,25 +258,30 @@ const Allemployees = () => {
     if (currentUserRole === "admin") {
       return employeeData;
     }
+
     if (currentUserType === "manager") {
       return employeeData.filter((emp) => {
         const empType = emp.employee_type?.toLowerCase();
         return (
-          empType === "coordinators" ||
-          empType === "employee" ||
+          empType === "supervisor" || // Manager can see Supervisors
+          empType === "employee" || // Manager can see Employees
           !emp.employee_type
         );
       });
     }
-    if (currentUserType === "coordinators") {
+
+    if (currentUserType === "supervisor") {
       return employeeData.filter((emp) => {
         const empType = emp.employee_type?.toLowerCase();
+        // Supervisor can only see Employees
         return empType === "employee" || !emp.employee_type;
       });
     }
+
     if (currentUserType === "employee") {
       return employeeData.filter((emp) => emp.id === currentUserId);
     }
+
     return [];
   }, [employeeData, user]);
 
