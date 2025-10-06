@@ -1,4 +1,4 @@
-// src/pages/app/projects/index.js (FULL UPDATED CODE with Accordion View)
+// src/pages/app/projects/index.js (FINAL CODE WITH BOTH DESKTOP & MOBILE TOGGLES)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -6,8 +6,10 @@ import { useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ProjectGrid from "./ProjectGrid";
+import ProjectList from "./ProjectList"; // Import the List component
 import TaskList from "./TaskList";
 import GridLoading from "@/components/skeleton/Grid";
+import TableLoading from "@/components/skeleton/Table";
 import { toggleAddModal, fetchProjectsAPI } from "./store";
 import AddProject from "./AddProject";
 import EditProject from "./EditProject";
@@ -45,7 +47,6 @@ export const getStatusClass = (status) => {
   return "bg-slate-100 text-slate-800 border-slate-200";
 };
 
-// Helper for Accordion Header Gradient (inspired by TaskList.js)
 const getStatusGradient = (status) => {
   const s = String(status || "").toLowerCase();
   if (s.includes("completed") || s.includes("done"))
@@ -93,7 +94,6 @@ export const StatusFilterBar = ({
 const ProjectPostPage = () => {
   const { setBreadcrumbs } = useBreadcrumbs();
   const TASK_FILTER_STORAGE_KEY = "projectPostPage_taskFilter";
-
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(
     () => sessionStorage.getItem("projectPageActiveTab") || "projects"
@@ -111,7 +111,11 @@ const ProjectPostPage = () => {
   const employeeType = getEmployeeType();
   const uiRole = actualUserRole === "member" ? "customer" : actualUserRole;
 
-  // --- NEW STATE FOR ACCORDION ---
+  // States for view modes
+  const [filler, setFiller] = useState(
+    () => sessionStorage.getItem("projectView") || "grid"
+  ); // For Desktop
+  const [mobileViewMode, setMobileViewMode] = useState("grid"); // For Mobile
   const [expandedSections, setExpandedSections] = useState({});
 
   const dispatch = useDispatch();
@@ -155,7 +159,12 @@ const ProjectPostPage = () => {
     sessionStorage.setItem("projectPageActiveTab", activeTab);
   }, [activeTab]);
 
-  // --- EFFECT TO INITIALIZE ACCORDION STATE ---
+  const toggleView = (view) => {
+    // This now only controls desktop view
+    sessionStorage.setItem("projectView", view);
+    setFiller(view);
+  };
+
   useEffect(() => {
     if (
       projects &&
@@ -164,11 +173,11 @@ const ProjectPostPage = () => {
     ) {
       const initialExpandedState = {};
       Object.keys(projects).forEach((status) => {
-        initialExpandedState[status] = true; // Default all sections to open
+        initialExpandedState[status] = true;
       });
       setExpandedSections(initialExpandedState);
     }
-  }, [projects]); // This runs only when the main projects data changes
+  }, [projects]);
 
   const anyOperationPending =
     projectsDataLoading || isDeleting || isAdding || isUpdating;
@@ -187,13 +196,28 @@ const ProjectPostPage = () => {
     return "Jobs";
   }, [activeTab]);
 
-  // --- NEW FUNCTION TO TOGGLE ACCORDION SECTIONS ---
   const toggleSection = useCallback((status) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [status]: !prev[status],
-    }));
+    setExpandedSections((prev) => ({ ...prev, [status]: !prev[status] }));
   }, []);
+
+  const filteredProjectsForList = useMemo(() => {
+    if (!projects || typeof projects !== "object") return [];
+    let allProjects = Object.values(projects).flat();
+    if (projectStatusFilter.toLowerCase() !== "all") {
+      allProjects = allProjects.filter(
+        (p) => p.status?.toLowerCase() === projectStatusFilter.toLowerCase()
+      );
+    }
+    if (projectSearchQuery.trim() !== "") {
+      const lq = projectSearchQuery.toLowerCase();
+      allProjects = allProjects.filter(
+        (p) =>
+          p.project_name?.toLowerCase().includes(lq) ||
+          p.project_description?.toLowerCase().includes(lq)
+      );
+    }
+    return allProjects;
+  }, [projects, projectStatusFilter, projectSearchQuery]);
 
   const hasVisibleProjects = useMemo(() => {
     if (
@@ -208,14 +232,10 @@ const ProjectPostPage = () => {
         : [projectStatusFilter];
     for (const status of statusesToRender) {
       if (projects[status]) {
-        const projectsForStatus = projects[status].filter(
-          (project) =>
-            (project.project_name?.toLowerCase() || "").includes(
-              projectSearchQuery.toLowerCase()
-            ) ||
-            (project.project_description?.toLowerCase() || "").includes(
-              projectSearchQuery.toLowerCase()
-            )
+        const projectsForStatus = projects[status].filter((p) =>
+          (p.project_name?.toLowerCase() || "").includes(
+            projectSearchQuery.toLowerCase()
+          )
         );
         if (projectsForStatus.length > 0) return true;
       }
@@ -237,7 +257,6 @@ const ProjectPostPage = () => {
         pauseOnHover
         theme="light"
       />
-
       <div className="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-800 space-x-1 mb-5">
         <button
           className={getTabClassName("projects")}
@@ -262,7 +281,6 @@ const ProjectPostPage = () => {
           </button>
         )}
       </div>
-
       <div className="flex justify-between items-center mb-6">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
           {pageTitle}
@@ -282,17 +300,16 @@ const ProjectPostPage = () => {
             />
           )}
       </div>
-
       {activeTab === "projects" && (
         <>
           <Card className="mb-6">
             <div className="md:flex justify-between items-center space-y-4 md:space-y-0">
-              <div className="relative md:w-1/3">
+              <div className="relative md:w-1/3 w-full">
                 <input
                   type="text"
                   value={projectSearchQuery}
                   onChange={(e) => setProjectSearchQuery(e.target.value)}
-                  placeholder="Search jobs by name or description..."
+                  placeholder="Search jobs..."
                   className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
                   disabled={anyOperationPending}
                 />
@@ -303,7 +320,6 @@ const ProjectPostPage = () => {
                   />
                 </div>
               </div>
-
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
                 {(employeeType === "Manager" ||
                   employeeType === "Supervisor") && (
@@ -316,102 +332,225 @@ const ProjectPostPage = () => {
                     onClick={() => setAssignedToMeFilter((prev) => !prev)}
                   />
                 )}
-                {/* View toggle buttons are removed */}
+                {/* --- DESKTOP VIEW SWITCHER --- */}
+                <div className="hidden sm:flex items-center space-x-2">
+                  <Button
+                    icon="heroicons-outline:view-grid"
+                    disabled={anyOperationPending}
+                    className={`p-2 transition-colors ${
+                      filler === "grid"
+                        ? "bg-slate-900 text-white"
+                        : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100"
+                    }`}
+                    onClick={() => toggleView("grid")}
+                  />
+                  <Button
+                    icon="heroicons:list-bullet"
+                    disabled={anyOperationPending}
+                    className={`p-2 transition-colors ${
+                      filler === "list"
+                        ? "bg-slate-900 text-white"
+                        : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100"
+                    }`}
+                    onClick={() => toggleView("list")}
+                  />
+                </div>
               </div>
             </div>
             <hr className="my-4 border-slate-200 dark:border-slate-700" />
-            <StatusFilterBar
-              statuses={STATUS_OPTIONS}
-              activeFilter={projectStatusFilter}
-              onFilterChange={setProjectStatusFilter}
-              disabled={anyOperationPending}
-            />
+            <div className="md:flex justify-between items-center">
+              <StatusFilterBar
+                statuses={STATUS_OPTIONS}
+                activeFilter={projectStatusFilter}
+                onFilterChange={setProjectStatusFilter}
+                disabled={anyOperationPending}
+              />
+              {/* --- MOBILE VIEW SWITCHER --- */}
+              <div className="sm:hidden mt-4 flex justify-end">
+                <div className="inline-flex rounded-md shadow-sm" role="group">
+                  <button
+                    type="button"
+                    onClick={() => setMobileViewMode("grid")}
+                    className={`p-2 text-sm font-medium rounded-l-lg border transition-colors ${
+                      mobileViewMode === "grid"
+                        ? "bg-slate-800 text-white border-slate-800"
+                        : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+                    }`}
+                  >
+                    {" "}
+                    <Icon icon="heroicons-outline:view-grid" />{" "}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileViewMode("list")}
+                    className={`p-2 text-sm font-medium rounded-r-md border transition-colors ${
+                      mobileViewMode === "list"
+                        ? "bg-slate-800 text-white border-slate-800"
+                        : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+                    }`}
+                  >
+                    {" "}
+                    <Icon icon="heroicons:list-bullet" />{" "}
+                  </button>
+                </div>
+              </div>
+            </div>
           </Card>
 
-          {projectsDataLoading && <GridLoading count={6} />}
-
+          {projectsDataLoading &&
+            (filler === "grid" ? (
+              <GridLoading count={6} />
+            ) : (
+              <TableLoading count={5} />
+            ))}
           {!projectsDataLoading && projectsError && (
-            <div
-              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
-              role="alert"
-            >
-              <strong>Error: </strong>
-              <span>
-                {typeof projectsError === "string"
-                  ? projectsError
-                  : "An unknown error occurred."}
-              </span>
-            </div>
+            <div className="...error_div...">{projectsError}</div>
           )}
 
           {!projectsDataLoading &&
             !projectsError &&
             (hasVisibleProjects ? (
-              <div className="space-y-6">
-                {(projectStatusFilter.toLowerCase() === "all"
-                  ? Object.keys(projects)
-                  : [projectStatusFilter]
-                ).map((status) => {
-                  if (!projects[status]) return null;
-
-                  const projectsForStatus = projects[status].filter(
-                    (project) =>
-                      (project.project_name?.toLowerCase() || "").includes(
-                        projectSearchQuery.toLowerCase()
-                      ) ||
-                      (
-                        project.project_description?.toLowerCase() || ""
-                      ).includes(projectSearchQuery.toLowerCase())
-                  );
-
-                  if (projectsForStatus.length === 0) return null;
-
-                  return (
-                    <div
-                      key={status}
-                      className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
-                    >
-                      <div
-                        className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
-                          status
-                        )}`}
-                        onClick={() => toggleSection(status)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Icon
-                            icon={
-                              expandedSections[status]
-                                ? "heroicons:chevron-down"
-                                : "heroicons:chevron-right"
-                            }
-                            className="w-5 h-5 text-slate-600 dark:text-slate-300 transition-transform duration-200"
-                          />
-                          <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
-                            {status}
-                          </h3>
-                          <span className="px-2 py-1 bg-white/70 dark:bg-slate-900/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
-                            {projectsForStatus.length}
-                          </span>
-                        </div>
-                      </div>
-                      {expandedSections[status] && (
-                        <div className="p-5 bg-slate-50 dark:bg-slate-900/50">
-                          <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
-                            {projectsForStatus.map((project) => (
-                              <ProjectGrid
-                                project={project}
-                                key={project.id}
-                                userRole={uiRole}
-                                employeeType={employeeType}
-                              />
-                            ))}
+              <>
+                {/* --- DESKTOP VIEW LOGIC --- */}
+                <div className="hidden sm:block">
+                  {filler === "grid" ? (
+                    <div className="space-y-6">
+                      {(projectStatusFilter.toLowerCase() === "all"
+                        ? Object.keys(projects)
+                        : [projectStatusFilter]
+                      ).map((status) => {
+                        if (!projects[status]) return null;
+                        const projectsForStatus = projects[status].filter((p) =>
+                          (p.project_name?.toLowerCase() || "").includes(
+                            projectSearchQuery.toLowerCase()
+                          )
+                        );
+                        if (projectsForStatus.length === 0) return null;
+                        return (
+                          <div
+                            key={status}
+                            className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
+                          >
+                            <div
+                              className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
+                                status
+                              )}`}
+                              onClick={() => toggleSection(status)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <Icon
+                                  icon={
+                                    expandedSections[status]
+                                      ? "heroicons:chevron-down"
+                                      : "heroicons:chevron-right"
+                                  }
+                                  className="w-5 h-5 text-slate-600 dark:text-slate-300"
+                                />
+                                <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+                                  {status}
+                                </h3>
+                                <span className="px-2 py-1 bg-white/70 dark:bg-slate-900/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
+                                  {projectsForStatus.length}
+                                </span>
+                              </div>
+                            </div>
+                            {expandedSections[status] && (
+                              <div className="p-5 bg-slate-50 dark:bg-slate-900/50">
+                                <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
+                                  {projectsForStatus.map((project) => (
+                                    <ProjectGrid
+                                      project={project}
+                                      key={project.id}
+                                      userRole={uiRole}
+                                      employeeType={employeeType}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
+                  ) : (
+                    <ProjectList
+                      projects={filteredProjectsForList}
+                      userRole={uiRole}
+                      employeeType={employeeType}
+                    />
+                  )}
+                </div>
+
+                {/* --- MOBILE VIEW LOGIC --- */}
+                <div className="block sm:hidden">
+                  {mobileViewMode === "grid" ? (
+                    <div className="space-y-6">
+                      {(projectStatusFilter.toLowerCase() === "all"
+                        ? Object.keys(projects)
+                        : [projectStatusFilter]
+                      ).map((status) => {
+                        if (!projects[status]) return null;
+                        const projectsForStatus = projects[status].filter((p) =>
+                          (p.project_name?.toLowerCase() || "").includes(
+                            projectSearchQuery.toLowerCase()
+                          )
+                        );
+                        if (projectsForStatus.length === 0) return null;
+                        return (
+                          <div
+                            key={status}
+                            className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
+                          >
+                            <div
+                              className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
+                                status
+                              )}`}
+                              onClick={() => toggleSection(status)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <Icon
+                                  icon={
+                                    expandedSections[status]
+                                      ? "heroicons:chevron-down"
+                                      : "heroicons:chevron-right"
+                                  }
+                                  className="w-5 h-5 text-slate-600 dark:text-slate-300"
+                                />
+                                <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+                                  {status}
+                                </h3>
+                                <span className="px-2 py-1 bg-white/70 dark:bg-slate-900/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
+                                  {projectsForStatus.length}
+                                </span>
+                              </div>
+                            </div>
+                            {expandedSections[status] && (
+                              <div className="p-5 bg-slate-50 dark:bg-slate-900/50">
+                                <div className="grid grid-cols-1 gap-5">
+                                  {projectsForStatus.map((project) => (
+                                    <ProjectGrid
+                                      project={project}
+                                      key={project.id}
+                                      userRole={uiRole}
+                                      employeeType={employeeType}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <ProjectList
+                      projects={filteredProjectsForList}
+                      userRole={uiRole}
+                      employeeType={employeeType}
+                    />
+                  )}
+                </div>
+              </>
             ) : (
               <div className="text-center py-16">
                 <Icon
@@ -424,9 +563,7 @@ const ProjectPostPage = () => {
                 <p className="mt-1 text-sm text-slate-500">
                   {projectSearchQuery
                     ? `No jobs match your search for "${projectSearchQuery}".`
-                    : projectStatusFilter.toLowerCase() !== "all"
-                    ? `No jobs found with the status "${projectStatusFilter}".`
-                    : "There are no Jobs to display."}
+                    : "No jobs to display."}
                 </p>
               </div>
             ))}
@@ -434,60 +571,14 @@ const ProjectPostPage = () => {
       )}
 
       {activeTab === "tasks" && (
-        <>
-          <Card className="mb-6">
-            <div className="md:flex justify-between items-center space-y-4 md:space-y-0">
-              <div className="relative md:w-1/3">
-                <input
-                  type="text"
-                  value={taskSearchQuery}
-                  onChange={(e) => setTaskSearchQuery(e.target.value)}
-                  placeholder="Search projects by title..."
-                  className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
-                  disabled={isTaskListLoading}
-                />
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <Icon
-                    icon="heroicons-outline:search"
-                    className="w-5 h-5 text-slate-400"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-end">
-                {(employeeType === "Manager" ||
-                  employeeType === "Supervisor") && (
-                  <Button
-                    text="Assigned to me"
-                    disabled={isTaskListLoading}
-                    className={`py-2 px-4 text-sm font-medium transition-colors ${
-                      taskAssignedToMeFilter ? "btn-dark" : "btn-outline-dark"
-                    }`}
-                    onClick={() => setTaskAssignedToMeFilter((prev) => !prev)}
-                  />
-                )}
-              </div>
-            </div>
-            <hr className="my-4 border-slate-200 dark:border-slate-700" />
-            <StatusFilterBar
-              statuses={STATUS_OPTIONS}
-              activeFilter={taskStatusFilter}
-              onFilterChange={setTaskStatusFilter}
-              disabled={isTaskListLoading}
-            />
-          </Card>
-          <Card noBorder>
-            <TaskList
-              statusFilter={taskStatusFilter}
-              searchQuery={taskSearchQuery}
-              onLoadingChange={setTaskListLoading}
-              assignedToMe={taskAssignedToMeFilter}
-            />
-          </Card>
-        </>
+        <TaskList
+          statusFilter={taskStatusFilter}
+          searchQuery={taskSearchQuery}
+          onLoadingChange={setTaskListLoading}
+          assignedToMe={taskAssignedToMeFilter}
+        />
       )}
-
       {activeTab === "members" && <MembersView />}
-
       <AddProject />
       <EditProject />
       <UpdateAssigneesModal />
