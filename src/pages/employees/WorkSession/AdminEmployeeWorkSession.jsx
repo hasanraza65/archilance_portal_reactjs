@@ -96,6 +96,23 @@ const formatTime = (timeStr) => {
   });
 };
 
+// CORRECTED FUNCTION: This now correctly converts the UTC time to the user's local time.
+const formatScreenshotTime = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    // REMOVED: date.setHours(date.getHours() + 5); // This was incorrect.
+    // The browser will now handle the timezone conversion automatically.
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (error) {
+    return "Invalid Time";
+  }
+};
+
 const formatSecondsToHoursMinutes = (totalSeconds) => {
   if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
   const hours = Math.floor(totalSeconds / 3600);
@@ -137,7 +154,7 @@ const AdminEmployeeWorkSession = () => {
   const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
-  
+
   const endpointPrefix =
     user?.role === "admin"
       ? "admin"
@@ -149,7 +166,7 @@ const AdminEmployeeWorkSession = () => {
       : "admin";
 
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
-  
+
   const workSessionPath =
     user?.role === "manager" ||
     user?.role === "supervisor" ||
@@ -213,9 +230,10 @@ const AdminEmployeeWorkSession = () => {
         });
         if (!res.ok) throw new Error("Could not fetch projects.");
         const data = await res.json();
-        setProjects(data || []);
+        setProjects(Array.isArray(data) ? data : []);
       } catch (error) {
         toast.error(error.message);
+        setProjects([]);
       }
     };
     fetchProjects();
@@ -238,7 +256,7 @@ const AdminEmployeeWorkSession = () => {
             `Could not fetch tasks for project ID ${selectedProject}.`
           );
         const projectDetails = await res.json();
-        setTasks(projectDetails.tasks || []);
+        setTasks(Array.isArray(projectDetails.tasks) ? projectDetails.tasks : []);
       } catch (error) {
         toast.error(error.message);
         setTasks([]);
@@ -278,8 +296,10 @@ const AdminEmployeeWorkSession = () => {
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.message || "Failed to fetch data");
-
-      const fetchedSessions = result.data?.reverse() || [];
+      
+      const sessionsData = result.data;
+      const fetchedSessions = Array.isArray(sessionsData) ? sessionsData.slice().reverse() : [];
+      
       setSessions(fetchedSessions);
       setOverallTotalTime(result.overall_total_time || "0h 0m");
 
@@ -298,6 +318,7 @@ const AdminEmployeeWorkSession = () => {
       });
     } catch (err) {
       toast.error(err.message);
+      setSessions([]);
       setOverallTotalTime("0h 0m");
       setManualTotalTime("0h 0m");
     } finally {
@@ -607,10 +628,10 @@ const AdminEmployeeWorkSession = () => {
                       {session.memo_content}
                     </p>
                   )}
-                  
+
                   {user?.role === "admin" && (
                     <div className="mt-4">
-                      {session.screenshots.length > 0 ? (
+                      {Array.isArray(session.screenshots) && session.screenshots.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                           {session.screenshots.map((ss) => (
                             <div key={ss.id} className="text-center">
@@ -626,7 +647,8 @@ const AdminEmployeeWorkSession = () => {
                                 />
                               </a>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                                {formatTime(ss.created_at.split("T")[1])}
+                                {/* Use the corrected function here */}
+                                {formatScreenshotTime(ss.created_at)}
                               </p>
                             </div>
                           ))}
@@ -673,7 +695,6 @@ const AdminEmployeeWorkSession = () => {
       </div>
 
       {isIdleTimeModalOpen && (
-       
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur-[2px]">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg border dark:border-slate-700">
             <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200">
@@ -701,13 +722,22 @@ const AdminEmployeeWorkSession = () => {
                       className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
                     >
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {idle.start_time ? formatTime(idle.start_time.split(" ")[1]) : 'N/A'}
+                        {idle.start_time
+                          ? formatTime(idle.start_time.split(" ")[1])
+                          : "N/A"}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {idle.end_time ? formatTime(idle.end_time.split(" ")[1]) : 'N/A'}
+                        {idle.end_time
+                          ? formatTime(idle.end_time.split(" ")[1])
+                          : "N/A"}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {idle.start_time && idle.end_time ? calculateIdleDuration(idle.start_time, idle.end_time) : 'N/A'}
+                        {idle.start_time && idle.end_time
+                          ? calculateIdleDuration(
+                              idle.start_time,
+                              idle.end_time
+                            )
+                          : "N/A"}
                       </td>
                     </tr>
                   ))}

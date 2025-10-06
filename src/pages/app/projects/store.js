@@ -1,3 +1,5 @@
+// store.js (FULLY UPDATED AND CORRECTED)
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -7,34 +9,25 @@ import { getApiPrefix, getUserRole } from "@/pages/utility/apiHelper";
 const API_ROOT = `${import.meta.env.VITE_BACKEND_BASE_URL}/api`;
 
 const getProjectPath = () => {
-  const role = getUserRole(); // Hum actual user role check kar rahe hain
-
+  const role = getUserRole();
   switch (role) {
     case "admin":
-    
-      // Sirf Admin aur Manager saare projects dekhenge
       return "/admin/project";
-
     case "customer":
       return "/customer/project";
     case "member":
       return "/member/project";
-    
-    // --- UPDATED LOGIC ---
-    // Supervisor ko ab 'employee' wale case mein move kar diya gaya hai
     case "employee":
-      case "manager":
+    case "manager":
     case "supervisor":
     default:
-      // Supervisor aur Employee ab employee wala endpoint istemal karenge
       return "/employee/project";
-    // --- END OF UPDATE ---
   }
 };
 
 const formatProjectFromAPI = (project) => ({
   id: project.id,
-  name: project.project_name || "Unnamed Project",
+  name: project.project_name || "Unnamed Project", // Keep this for compatibility if needed
   project_name: project.project_name || "Unnamed Project",
   project_description: project.project_description || "",
   start_date: project.start_date || new Date().toISOString().split("T")[0],
@@ -70,26 +63,31 @@ export const fetchProjectsAPI = createAsyncThunk(
       });
 
       const responseData = response.data;
-      let projectsArray;
 
-      if (Array.isArray(responseData)) {
-        projectsArray = responseData;
-      } else if (responseData && Array.isArray(responseData.data)) {
-        projectsArray = responseData.data;
+      // --- UPDATED LOGIC TO HANDLE OBJECT OF ARRAYS ---
+      if (
+        typeof responseData === "object" &&
+        !Array.isArray(responseData) &&
+        responseData !== null
+      ) {
+        const formattedProjectsByStatus = {};
+        // Loop over each status (e.g., "On Hold", "Backlog")
+        for (const status in responseData) {
+          if (Object.prototype.hasOwnProperty.call(responseData, status)) {
+            const projectsForStatus = responseData[status];
+            if (Array.isArray(projectsForStatus)) {
+              // Format each project within that status's array
+              formattedProjectsByStatus[status] =
+                projectsForStatus.map(formatProjectFromAPI);
+            }
+          }
+        }
+        // Return the formatted object
+        return formattedProjectsByStatus;
       } else {
+        // This will now only trigger if the data is truly invalid (not an object)
         return rejectWithValue("Invalid project data structure from API.");
       }
-
-      const formattedProjects = projectsArray.map(formatProjectFromAPI);
-
-      return {
-        projects: formattedProjects,
-        meta: {
-          currentPage: 1,
-          totalPages: 1,
-          totalProjects: formattedProjects.length,
-        },
-      };
     } catch (err) {
       const errorMessage =
         err.response?.data?.message ||
@@ -120,11 +118,8 @@ export const addProjectAPI = createAsyncThunk(
         (response.status === 201 || response.status === 200)
       ) {
         toast.success("Job added successfully!");
-        
         const newProjectData = response.data.project;
-        
         return formatProjectFromAPI(newProjectData);
-       
       } else {
         const errorMsg = response.data?.message || "Failed to add project.";
         toast.error(errorMsg);
@@ -162,9 +157,13 @@ export const saveEditedProjectAPI = createAsyncThunk(
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        if (response.data.project && typeof response.data.project === "object") {
+        if (
+          response.data.project &&
+          typeof response.data.project === "object"
+        ) {
           return formatProjectFromAPI(response.data.project);
         }
+        // Fallback if structure is different
         return { id: projectData.id, ...projectData };
       } else {
         const errorMsg = response.data?.message || "Failed to update project.";
@@ -199,7 +198,7 @@ export const deleteProjectAPI = createAsyncThunk(
 
       if (response.status === 200 || response.status === 204) {
         toast.success("Project deleted successfully!");
-        return projectId; 
+        return projectId;
       } else {
         const errorMsg = response.data?.message || "Failed to delete project.";
         toast.error(errorMsg);
@@ -236,7 +235,8 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
           Accept: "application/json",
         },
       });
-      
+
+      // Refetch all projects to ensure consistency after updating assignees
       dispatch(fetchProjectsAPI());
 
       return {
@@ -276,20 +276,13 @@ export const updateProjectFieldAPI = createAsyncThunk(
 
       if (response.data && response.status === 200) {
         toast.success("Job updated successfully!");
-        return {
-          projectId,
-          field,
-          value,
-          updatedProject: formatProjectFromAPI(
-            response.data.data || response.data
-          ),
-        };
+        return formatProjectFromAPI(response.data.data || response.data);
       } else {
         const errorMsg = response.data?.message || "Failed to update field.";
         toast.error(errorMsg);
         return rejectWithValue(errorMsg);
       }
-    } catch (error)      {
+    } catch (error) {
       const errorMessage =
         error.response?.data?.message || error.message || "An error occurred.";
       toast.error(errorMessage);
@@ -302,10 +295,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {
-    projects: [],
-    currentPage: 1,
-    totalPages: 1,
-    totalProjects: 0,
+    projects: {}, // --- STATE SHAPE CHANGED: from [] to {} ---
     isLoading: false,
     isAdding: false,
     isUpdating: false,
@@ -340,15 +330,13 @@ export const appProjectSlice = createSlice({
       })
       .addCase(fetchProjectsAPI.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.projects = action.payload.projects;
-        state.currentPage = action.payload.meta.currentPage;
-        state.totalPages = action.payload.meta.totalPages;
-        state.totalProjects = action.payload.meta.totalProjects;
+        // The payload is now the object of projects grouped by status
+        state.projects = action.payload;
       })
       .addCase(fetchProjectsAPI.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
-        state.projects = [];
+        state.projects = {}; // Reset to empty object on failure
       })
       .addCase(addProjectAPI.pending, (state) => {
         state.isAdding = true;
@@ -356,8 +344,14 @@ export const appProjectSlice = createSlice({
       .addCase(addProjectAPI.fulfilled, (state, action) => {
         state.isAdding = false;
         state.openProjectModal = false;
-        state.projects.unshift(action.payload);
-        state.totalProjects += 1;
+        const newProject = action.payload;
+        const status = newProject.status;
+        // If the status array doesn't exist, create it
+        if (!state.projects[status]) {
+          state.projects[status] = [];
+        }
+        // Add the new project to the beginning of the correct status array
+        state.projects[status].unshift(newProject);
       })
       .addCase(addProjectAPI.rejected, (state, action) => {
         state.isAdding = false;
@@ -370,12 +364,20 @@ export const appProjectSlice = createSlice({
         state.isUpdating = false;
         state.editModal = false;
         const updatedProject = action.payload;
-        const projectIndex = state.projects.findIndex(
-          (p) => p.id === updatedProject.id
-        );
-        if (projectIndex !== -1) {
-          state.projects[projectIndex] = updatedProject;
+
+        // Remove the project from its old status list
+        for (const status in state.projects) {
+          state.projects[status] = state.projects[status].filter(
+            (p) => p.id !== updatedProject.id
+          );
         }
+
+        // Add the project to its new status list
+        const newStatus = updatedProject.status;
+        if (!state.projects[newStatus]) {
+          state.projects[newStatus] = [];
+        }
+        state.projects[newStatus].unshift(updatedProject);
       })
       .addCase(saveEditedProjectAPI.rejected, (state, action) => {
         state.isUpdating = false;
@@ -387,10 +389,12 @@ export const appProjectSlice = createSlice({
       .addCase(deleteProjectAPI.fulfilled, (state, action) => {
         state.isDeleting = false;
         const deletedProjectId = action.payload;
-        state.projects = state.projects.filter(
-          (p) => p.id !== deletedProjectId
-        );
-        state.totalProjects -= 1;
+        // Loop through each status array and remove the project
+        for (const status in state.projects) {
+          state.projects[status] = state.projects[status].filter(
+            (p) => p.id !== deletedProjectId
+          );
+        }
       })
       .addCase(deleteProjectAPI.rejected, (state, action) => {
         state.isDeleting = false;
@@ -399,7 +403,7 @@ export const appProjectSlice = createSlice({
       .addCase(updateProjectAssigneesAPI.pending, (state) => {
         state.isUpdating = true;
       })
-      .addCase(updateProjectAssigneesAPI.fulfilled, (state, action) => {
+      .addCase(updateProjectAssigneesAPI.fulfilled, (state) => {
         state.isUpdating = false;
         state.updateAssigneesModal = false;
       })
@@ -408,17 +412,18 @@ export const appProjectSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(updateProjectFieldAPI.fulfilled, (state, action) => {
-        const { projectId, updatedProject } = action.payload;
-        const projectIndex = state.projects.findIndex((p) => p.id === projectId);
-        if (projectIndex !== -1) {
-          state.projects[projectIndex] = updatedProject;
+        // This is the same logic as saveEditedProjectAPI
+        const updatedProject = action.payload;
+        for (const status in state.projects) {
+          state.projects[status] = state.projects[status].filter(
+            (p) => p.id !== updatedProject.id
+          );
         }
-        if (
-          state.projectToUpdateAssignees &&
-          state.projectToUpdateAssignees.id === projectId
-        ) {
-          state.projectToUpdateAssignees = updatedProject;
+        const newStatus = updatedProject.status;
+        if (!state.projects[newStatus]) {
+          state.projects[newStatus] = [];
         }
+        state.projects[newStatus].unshift(updatedProject);
       });
   },
 });

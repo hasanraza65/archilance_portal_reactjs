@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+// src/pages/app/projects/index.js (FULL UPDATED CODE with Accordion View)
+
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ProjectGrid from "./ProjectGrid";
-import ProjectList from "./ProjectList";
 import TaskList from "./TaskList";
 import GridLoading from "@/components/skeleton/Grid";
-import TableLoading from "@/components/skeleton/Table";
 import { toggleAddModal, fetchProjectsAPI } from "./store";
 import AddProject from "./AddProject";
 import EditProject from "./EditProject";
@@ -31,7 +31,6 @@ const STATUS_OPTIONS = [
 
 export const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
-
   if (s === "completed" || s === "done")
     return "bg-green-100 text-green-800 border-green-200";
   if (s.includes("progress"))
@@ -41,10 +40,23 @@ export const getStatusClass = (status) => {
     return "bg-purple-100 text-purple-800 border-purple-200";
   if (s.includes("on hold"))
     return "bg-orange-100 text-orange-800 border-orange-200";
-  if (s.includes("archived"))
-    return "bg-gray-100 text-gray-800 border-gray-200";
-  if (s.includes("delayed")) return "bg-pink-100 text-pink-800 border-pink-200";
+  if (s.includes("review"))
+    return "bg-yellow-100 text-yellow-800 border-yellow-200";
   return "bg-slate-100 text-slate-800 border-slate-200";
+};
+
+// Helper for Accordion Header Gradient (inspired by TaskList.js)
+const getStatusGradient = (status) => {
+  const s = String(status || "").toLowerCase();
+  if (s.includes("completed") || s.includes("done"))
+    return "from-green-50 to-green-100 dark:from-green-800 dark:to-green-900";
+  if (s.includes("progress"))
+    return "from-blue-50 to-blue-100 dark:from-blue-800 dark:to-blue-900";
+  if (s.includes("backlog") || s.includes("hold"))
+    return "from-purple-50 to-purple-100 dark:from-purple-800 dark:to-purple-900";
+  if (s.includes("review"))
+    return "from-yellow-50 to-yellow-100 dark:from-yellow-800 dark:to-yellow-900";
+  return "from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800";
 };
 
 export const StatusFilterBar = ({
@@ -86,13 +98,10 @@ const ProjectPostPage = () => {
   const [activeTab, setActiveTab] = useState(
     () => sessionStorage.getItem("projectPageActiveTab") || "projects"
   );
-  const [filler, setFiller] = useState(
-    () => sessionStorage.getItem("projectView") || "grid"
-  );
   const [projectStatusFilter, setProjectStatusFilter] = useState("All");
-  const [taskStatusFilter, setTaskStatusFilter] = useState(() => {
-    return localStorage.getItem(TASK_FILTER_STORAGE_KEY) || "All";
-  });
+  const [taskStatusFilter, setTaskStatusFilter] = useState(
+    () => localStorage.getItem(TASK_FILTER_STORAGE_KEY) || "All"
+  );
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
@@ -101,6 +110,9 @@ const ProjectPostPage = () => {
   const actualUserRole = getUserRole();
   const employeeType = getEmployeeType();
   const uiRole = actualUserRole === "member" ? "customer" : actualUserRole;
+
+  // --- NEW STATE FOR ACCORDION ---
+  const [expandedSections, setExpandedSections] = useState({});
 
   const dispatch = useDispatch();
   const {
@@ -114,9 +126,7 @@ const ProjectPostPage = () => {
 
   useEffect(() => {
     setBreadcrumbs([{ title: "Jobs", link: "/jobs" }]);
-    return () => {
-      setBreadcrumbs([]);
-    };
+    return () => setBreadcrumbs([]);
   }, [setBreadcrumbs]);
 
   useEffect(() => {
@@ -126,30 +136,18 @@ const ProjectPostPage = () => {
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
     const statusFromUrl = searchParams.get("status");
-
-    if (
-      tabFromUrl === "tasks" ||
-      tabFromUrl === "projects" ||
-      tabFromUrl === "members"
-    ) {
+    if (["tasks", "projects", "members"].includes(tabFromUrl))
       setActiveTab(tabFromUrl);
-    }
-
     if (statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)) {
       const targetTab = tabFromUrl || activeTab;
-      if (targetTab === "projects") {
-        setProjectStatusFilter(statusFromUrl);
-      } else if (targetTab === "tasks") {
-        setTaskStatusFilter(statusFromUrl);
-      }
+      if (targetTab === "projects") setProjectStatusFilter(statusFromUrl);
+      else if (targetTab === "tasks") setTaskStatusFilter(statusFromUrl);
     }
   }, [searchParams, activeTab]);
 
   useEffect(() => {
     const apiParams = {};
-    if (assignedToMeFilter) {
-      apiParams.assigned_me = 1;
-    }
+    if (assignedToMeFilter) apiParams.assigned_me = 1;
     dispatch(fetchProjectsAPI(apiParams));
   }, [dispatch, assignedToMeFilter]);
 
@@ -157,29 +155,20 @@ const ProjectPostPage = () => {
     sessionStorage.setItem("projectPageActiveTab", activeTab);
   }, [activeTab]);
 
-  const toggleView = (view) => {
-    sessionStorage.setItem("projectView", view);
-    setFiller(view);
-  };
-
-  const filteredProjects = useMemo(() => {
-    let projectsToFilter = projects;
-    if (projectStatusFilter.toLowerCase() !== "all") {
-      projectsToFilter = projectsToFilter.filter(
-        (project) =>
-          project.status?.toLowerCase() === projectStatusFilter.toLowerCase()
-      );
+  // --- EFFECT TO INITIALIZE ACCORDION STATE ---
+  useEffect(() => {
+    if (
+      projects &&
+      typeof projects === "object" &&
+      Object.keys(projects).length > 0
+    ) {
+      const initialExpandedState = {};
+      Object.keys(projects).forEach((status) => {
+        initialExpandedState[status] = true; // Default all sections to open
+      });
+      setExpandedSections(initialExpandedState);
     }
-    if (projectSearchQuery.trim() !== "") {
-      const lowerCaseQuery = projectSearchQuery.toLowerCase();
-      projectsToFilter = projectsToFilter.filter(
-        (project) =>
-          project.name?.toLowerCase().includes(lowerCaseQuery) ||
-          project.des?.toLowerCase().includes(lowerCaseQuery)
-      );
-    }
-    return projectsToFilter;
-  }, [projects, projectStatusFilter, projectSearchQuery]);
+  }, [projects]); // This runs only when the main projects data changes
 
   const anyOperationPending =
     projectsDataLoading || isDeleting || isAdding || isUpdating;
@@ -197,6 +186,42 @@ const ProjectPostPage = () => {
     if (activeTab === "members") return "Members View";
     return "Jobs";
   }, [activeTab]);
+
+  // --- NEW FUNCTION TO TOGGLE ACCORDION SECTIONS ---
+  const toggleSection = useCallback((status) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [status]: !prev[status],
+    }));
+  }, []);
+
+  const hasVisibleProjects = useMemo(() => {
+    if (
+      !projects ||
+      typeof projects !== "object" ||
+      Object.keys(projects).length === 0
+    )
+      return false;
+    const statusesToRender =
+      projectStatusFilter.toLowerCase() === "all"
+        ? Object.keys(projects)
+        : [projectStatusFilter];
+    for (const status of statusesToRender) {
+      if (projects[status]) {
+        const projectsForStatus = projects[status].filter(
+          (project) =>
+            (project.project_name?.toLowerCase() || "").includes(
+              projectSearchQuery.toLowerCase()
+            ) ||
+            (project.project_description?.toLowerCase() || "").includes(
+              projectSearchQuery.toLowerCase()
+            )
+        );
+        if (projectsForStatus.length > 0) return true;
+      }
+    }
+    return false;
+  }, [projects, projectStatusFilter, projectSearchQuery]);
 
   return (
     <div>
@@ -226,9 +251,9 @@ const ProjectPostPage = () => {
         >
           Projects
         </button>
-        {/* --- UPDATED CODE --- */}
-        {/* Supervisor ko "Members View" tab ka access diya gaya hai */}
-        {(actualUserRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
+        {(actualUserRole === "admin" ||
+          employeeType === "Manager" ||
+          employeeType === "Supervisor") && (
           <button
             className={getTabClassName("members")}
             onClick={() => setActiveTab("members")}
@@ -242,9 +267,6 @@ const ProjectPostPage = () => {
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
           {pageTitle}
         </h4>
-
-        {/* --- UPDATED CODE --- */}
-        {/* Supervisor ko "Add Job" button ka access diya gaya hai */}
         {activeTab === "projects" &&
           (employeeType === "Manager" ||
             employeeType === "Supervisor" ||
@@ -283,9 +305,8 @@ const ProjectPostPage = () => {
               </div>
 
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-                {/* --- UPDATED CODE --- */}
-                {/* Supervisor ko "Assigned to me" filter ka access diya gaya hai */}
-                {(employeeType === "Manager" || employeeType === "Supervisor") && (
+                {(employeeType === "Manager" ||
+                  employeeType === "Supervisor") && (
                   <Button
                     text="Assigned to me"
                     disabled={anyOperationPending}
@@ -295,27 +316,7 @@ const ProjectPostPage = () => {
                     onClick={() => setAssignedToMeFilter((prev) => !prev)}
                   />
                 )}
-
-                <Button
-                  icon="heroicons:list-bullet"
-                  disabled={anyOperationPending}
-                  className={`p-2 transition-colors ${
-                    filler === "list"
-                      ? "bg-slate-900 text-white"
-                      : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100"
-                  }`}
-                  onClick={() => toggleView("list")}
-                />
-                <Button
-                  icon="heroicons-outline:view-grid"
-                  disabled={anyOperationPending}
-                  className={`p-2 transition-colors ${
-                    filler === "grid"
-                      ? "bg-slate-900 text-white"
-                      : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100"
-                  }`}
-                  onClick={() => toggleView("grid")}
-                />
+                {/* View toggle buttons are removed */}
               </div>
             </div>
             <hr className="my-4 border-slate-200 dark:border-slate-700" />
@@ -327,12 +328,7 @@ const ProjectPostPage = () => {
             />
           </Card>
 
-          {projectsDataLoading &&
-            (filler === "grid" ? (
-              <GridLoading count={6} />
-            ) : (
-              <TableLoading count={6} />
-            ))}
+          {projectsDataLoading && <GridLoading count={6} />}
 
           {!projectsDataLoading && projectsError && (
             <div
@@ -350,30 +346,74 @@ const ProjectPostPage = () => {
 
           {!projectsDataLoading &&
             !projectsError &&
-            (filteredProjects.length > 0 ? (
-              <>
-                {filler === "grid" && (
-                  <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
-                    {filteredProjects.map((project) => (
-                      <ProjectGrid
-                        project={project}
-                        key={project.id}
-                        userRole={uiRole}
-                        employeeType={employeeType}
-                      />
-                    ))}
-                  </div>
-                )}
-                {filler === "list" && (
-                  <ProjectList
-                    projects={filteredProjects}
-                    userRole={uiRole}
-                    employeeType={employeeType}
-                  />
-                )}
-              </>
+            (hasVisibleProjects ? (
+              <div className="space-y-6">
+                {(projectStatusFilter.toLowerCase() === "all"
+                  ? Object.keys(projects)
+                  : [projectStatusFilter]
+                ).map((status) => {
+                  if (!projects[status]) return null;
+
+                  const projectsForStatus = projects[status].filter(
+                    (project) =>
+                      (project.project_name?.toLowerCase() || "").includes(
+                        projectSearchQuery.toLowerCase()
+                      ) ||
+                      (
+                        project.project_description?.toLowerCase() || ""
+                      ).includes(projectSearchQuery.toLowerCase())
+                  );
+
+                  if (projectsForStatus.length === 0) return null;
+
+                  return (
+                    <div
+                      key={status}
+                      className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
+                    >
+                      <div
+                        className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
+                          status
+                        )}`}
+                        onClick={() => toggleSection(status)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Icon
+                            icon={
+                              expandedSections[status]
+                                ? "heroicons:chevron-down"
+                                : "heroicons:chevron-right"
+                            }
+                            className="w-5 h-5 text-slate-600 dark:text-slate-300 transition-transform duration-200"
+                          />
+                          <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+                            {status}
+                          </h3>
+                          <span className="px-2 py-1 bg-white/70 dark:bg-slate-900/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
+                            {projectsForStatus.length}
+                          </span>
+                        </div>
+                      </div>
+                      {expandedSections[status] && (
+                        <div className="p-5 bg-slate-50 dark:bg-slate-900/50">
+                          <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
+                            {projectsForStatus.map((project) => (
+                              <ProjectGrid
+                                project={project}
+                                key={project.id}
+                                userRole={uiRole}
+                                employeeType={employeeType}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="text-center py-16 transition-opacity duration-300">
+              <div className="text-center py-16">
                 <Icon
                   icon="heroicons-outline:inbox"
                   className="mx-auto h-16 w-16 text-slate-300 dark:text-slate-600"
@@ -413,11 +453,9 @@ const ProjectPostPage = () => {
                   />
                 </div>
               </div>
-
               <div className="flex items-center justify-end">
-                {/* --- UPDATED CODE --- */}
-                {/* Supervisor ko "Assigned to me" filter (Tasks tab mein) ka access diya gaya hai */}
-                {(employeeType === "Manager" || employeeType === "Supervisor") && (
+                {(employeeType === "Manager" ||
+                  employeeType === "Supervisor") && (
                   <Button
                     text="Assigned to me"
                     disabled={isTaskListLoading}
@@ -437,7 +475,6 @@ const ProjectPostPage = () => {
               disabled={isTaskListLoading}
             />
           </Card>
-
           <Card noBorder>
             <TaskList
               statusFilter={taskStatusFilter}
