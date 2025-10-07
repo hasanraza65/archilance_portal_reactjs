@@ -1,4 +1,4 @@
-// src/pages/app/projects/index.js (FINAL CODE WITH BOTH DESKTOP & MOBILE TOGGLES)
+// src/pages/app/projects/index.js (FINAL CORRECTED CODE)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ProjectGrid from "./ProjectGrid";
-import ProjectList from "./ProjectList"; // Import the List component
+import ProjectList from "./ProjectList";
 import TaskList from "./TaskList";
 import GridLoading from "@/components/skeleton/Grid";
 import TableLoading from "@/components/skeleton/Table";
@@ -30,6 +30,8 @@ const STATUS_OPTIONS = [
   "Client Review",
   "Completed",
 ];
+
+// --- FIX: ADDING HELPER FUNCTIONS BACK ---
 
 export const getStatusClass = (status) => {
   const s = String(status || "").toLowerCase();
@@ -91,6 +93,8 @@ export const StatusFilterBar = ({
   </div>
 );
 
+// --- END OF FIX ---
+
 const ProjectPostPage = () => {
   const { setBreadcrumbs } = useBreadcrumbs();
   const TASK_FILTER_STORAGE_KEY = "projectPostPage_taskFilter";
@@ -111,11 +115,10 @@ const ProjectPostPage = () => {
   const employeeType = getEmployeeType();
   const uiRole = actualUserRole === "member" ? "customer" : actualUserRole;
 
-  // States for view modes
   const [filler, setFiller] = useState(
     () => sessionStorage.getItem("projectView") || "grid"
-  ); // For Desktop
-  const [mobileViewMode, setMobileViewMode] = useState("grid"); // For Mobile
+  );
+  const [mobileViewMode, setMobileViewMode] = useState("grid");
   const [expandedSections, setExpandedSections] = useState({});
 
   const dispatch = useDispatch();
@@ -160,7 +163,6 @@ const ProjectPostPage = () => {
   }, [activeTab]);
 
   const toggleView = (view) => {
-    // This now only controls desktop view
     sessionStorage.setItem("projectView", view);
     setFiller(view);
   };
@@ -332,7 +334,6 @@ const ProjectPostPage = () => {
                     onClick={() => setAssignedToMeFilter((prev) => !prev)}
                   />
                 )}
-                {/* --- DESKTOP VIEW SWITCHER --- */}
                 <div className="hidden sm:flex items-center space-x-2">
                   <Button
                     icon="heroicons-outline:view-grid"
@@ -365,7 +366,6 @@ const ProjectPostPage = () => {
                 onFilterChange={setProjectStatusFilter}
                 disabled={anyOperationPending}
               />
-              {/* --- MOBILE VIEW SWITCHER --- */}
               <div className="sm:hidden mt-4 flex justify-end">
                 <div className="inline-flex rounded-md shadow-sm" role="group">
                   <button
@@ -411,7 +411,6 @@ const ProjectPostPage = () => {
             !projectsError &&
             (hasVisibleProjects ? (
               <>
-                {/* --- DESKTOP VIEW LOGIC --- */}
                 <div className="hidden sm:block">
                   {filler === "grid" ? (
                     <div className="space-y-6">
@@ -481,7 +480,6 @@ const ProjectPostPage = () => {
                   )}
                 </div>
 
-                {/* --- MOBILE VIEW LOGIC --- */}
                 <div className="block sm:hidden">
                   {mobileViewMode === "grid" ? (
                     <div className="space-y-6">
@@ -544,9 +542,11 @@ const ProjectPostPage = () => {
                     </div>
                   ) : (
                     <ProjectList
-                      projects={filteredProjectsForList}
+                      projectsByStatus={projects}
                       userRole={uiRole}
                       employeeType={employeeType}
+                      searchQuery={projectSearchQuery}
+                      statusFilter={projectStatusFilter}
                     />
                   )}
                 </div>
