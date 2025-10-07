@@ -236,7 +236,7 @@ const WorkSession = () => {
 
   useEffect(() => {
     fetchWorkSessions();
-  }, [fetchTrigger, currentPage]); // Changed to trigger on page change as well
+  }, [fetchTrigger, currentPage, fetchWorkSessions]); // Added fetchWorkSessions to dependency array
 
   const handleSearch = () => {
     if (currentPage !== 1) {
@@ -245,16 +245,16 @@ const WorkSession = () => {
       setFetchTrigger((t) => t + 1); // Or trigger manually if already on page 1
     }
   };
-  
+
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
     setTasks([]);
     setDateRange(getTodayDateRange());
     if (currentPage !== 1) {
-        setCurrentPage(1);
+      setCurrentPage(1);
     } else {
-        setFetchTrigger((t) => t + 1);
+      setFetchTrigger((t) => t + 1);
     }
   };
 
@@ -296,10 +296,13 @@ const WorkSession = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(`${API_BASE_URL}/screenshot/${screenshotId}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const res = await fetch(
+            `${API_BASE_URL}/screenshot/${screenshotId}`,
+            {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
           if (!res.ok) {
             const errorData = await res.json();
             throw new Error(
@@ -572,7 +575,12 @@ const WorkSession = () => {
                                 <TrashIcon />
                               </button>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                                {formatTime(ss.created_at.split("T")[1])}
+                                {/* --- FIX APPLIED HERE --- */}
+                                {formatTime(
+                                  ss.created_at
+                                    ? ss.created_at.split("T")[1]
+                                    : ""
+                                )}
                               </p>
                             </div>
                           ))}
@@ -649,10 +657,16 @@ const WorkSession = () => {
                       className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
                     >
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {formatTime(idle.start_time.split(" ")[1])}
+                        {/* --- FIX APPLIED HERE --- */}
+                        {formatTime(
+                          idle.start_time ? idle.start_time.split(" ")[1] : ""
+                        )}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {formatTime(idle.end_time.split(" ")[1])}
+                        {/* --- FIX APPLIED HERE --- */}
+                        {formatTime(
+                          idle.end_time ? idle.end_time.split(" ")[1] : ""
+                        )}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                         {calculateIdleDuration(idle.start_time, idle.end_time)}
