@@ -1,4 +1,4 @@
-// src/pages/app/projects/index.js (FINAL CODE)
+// src/pages/app/projects/index.js (FINAL CORRECTED CODE WITH ALL FEATURES)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -114,6 +114,7 @@ const ProjectPostPage = () => {
   const [filler, setFiller] = useState(
     () => sessionStorage.getItem("projectView") || "grid"
   );
+  const [mobileViewMode, setMobileViewMode] = useState("grid");
   const [expandedSections, setExpandedSections] = useState({});
 
   const dispatch = useDispatch();
@@ -197,6 +198,25 @@ const ProjectPostPage = () => {
     setExpandedSections((prev) => ({ ...prev, [status]: !prev[status] }));
   }, []);
 
+  const filteredProjectsForList = useMemo(() => {
+    if (!projects || typeof projects !== "object") return [];
+    let allProjects = Object.values(projects).flat();
+    if (projectStatusFilter.toLowerCase() !== "all") {
+      allProjects = allProjects.filter(
+        (p) => p.status?.toLowerCase() === projectStatusFilter.toLowerCase()
+      );
+    }
+    if (projectSearchQuery.trim() !== "") {
+      const lq = projectSearchQuery.toLowerCase();
+      allProjects = allProjects.filter(
+        (p) =>
+          p.project_name?.toLowerCase().includes(lq) ||
+          p.project_description?.toLowerCase().includes(lq)
+      );
+    }
+    return allProjects;
+  }, [projects, projectStatusFilter, projectSearchQuery]);
+
   const hasVisibleProjects = useMemo(() => {
     if (
       !projects ||
@@ -223,7 +243,42 @@ const ProjectPostPage = () => {
 
   return (
     <div>
-      {/* ... ToastContainer, Tabs, Page Title ... */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      <div className="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-800 space-x-1 mb-5">
+        <button
+          className={getTabClassName("projects")}
+          onClick={() => setActiveTab("projects")}
+        >
+          Jobs
+        </button>
+        <button
+          className={getTabClassName("tasks")}
+          onClick={() => setActiveTab("tasks")}
+        >
+          Projects
+        </button>
+        {(actualUserRole === "admin" ||
+          employeeType === "Manager" ||
+          employeeType === "Supervisor") && (
+          <button
+            className={getTabClassName("members")}
+            onClick={() => setActiveTab("members")}
+          >
+            Members View
+          </button>
+        )}
+      </div>
       <div className="flex justify-between items-center mb-6">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900">
           {pageTitle}
@@ -275,7 +330,7 @@ const ProjectPostPage = () => {
                     onClick={() => setAssignedToMeFilter((prev) => !prev)}
                   />
                 )}
-                <div className="flex items-center space-x-2">
+                <div className="hidden sm:flex items-center space-x-2">
                   <Button
                     icon="heroicons-outline:view-grid"
                     disabled={anyOperationPending}
@@ -300,12 +355,42 @@ const ProjectPostPage = () => {
               </div>
             </div>
             <hr className="my-4 border-slate-200 dark:border-slate-700" />
-            <StatusFilterBar
-              statuses={STATUS_OPTIONS}
-              activeFilter={projectStatusFilter}
-              onFilterChange={setProjectStatusFilter}
-              disabled={anyOperationPending}
-            />
+            <div className="md:flex justify-between items-center">
+              <StatusFilterBar
+                statuses={STATUS_OPTIONS}
+                activeFilter={projectStatusFilter}
+                onFilterChange={setProjectStatusFilter}
+                disabled={anyOperationPending}
+              />
+              <div className="sm:hidden mt-4 flex justify-end">
+                <div className="inline-flex rounded-md shadow-sm" role="group">
+                  <button
+                    type="button"
+                    onClick={() => setMobileViewMode("grid")}
+                    className={`p-2 text-sm font-medium rounded-l-lg border transition-colors ${
+                      mobileViewMode === "grid"
+                        ? "bg-slate-800 text-white border-slate-800"
+                        : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+                    }`}
+                  >
+                    {" "}
+                    <Icon icon="heroicons-outline:view-grid" />{" "}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileViewMode("list")}
+                    className={`p-2 text-sm font-medium rounded-r-md border transition-colors ${
+                      mobileViewMode === "list"
+                        ? "bg-slate-800 text-white border-slate-800"
+                        : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+                    }`}
+                  >
+                    {" "}
+                    <Icon icon="heroicons:list-bullet" />{" "}
+                  </button>
+                </div>
+              </div>
+            </div>
           </Card>
 
           {projectsDataLoading &&
@@ -315,81 +400,158 @@ const ProjectPostPage = () => {
               <TableLoading count={5} />
             ))}
           {!projectsDataLoading && projectsError && (
-            <div className="...error_div...">{projectsError}</div>
+            <div
+              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+              role="alert"
+            >
+              <strong>Error: </strong>
+              <span>{projectsError}</span>
+            </div>
           )}
 
           {!projectsDataLoading &&
             !projectsError &&
             (hasVisibleProjects ? (
               <>
-                {filler === "grid" ? (
-                  <div className="space-y-6">
-                    {(projectStatusFilter.toLowerCase() === "all"
-                      ? Object.keys(projects)
-                      : [projectStatusFilter]
-                    ).map((status) => {
-                      if (!projects[status]) return null;
-                      const projectsForStatus = projects[status].filter((p) =>
-                        (p.project_name?.toLowerCase() || "").includes(
-                          projectSearchQuery.toLowerCase()
-                        )
-                      );
-                      if (projectsForStatus.length === 0) return null;
-                      return (
-                        <div
-                          key={status}
-                          className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
-                        >
+                {/* --- DESKTOP VIEW LOGIC --- */}
+                <div className="hidden sm:block">
+                  {filler === "grid" ? (
+                    <div className="space-y-6">
+                      {(projectStatusFilter.toLowerCase() === "all"
+                        ? Object.keys(projects)
+                        : [projectStatusFilter]
+                      ).map((status) => {
+                        if (!projects[status]) return null;
+                        const projectsForStatus = projects[status].filter((p) =>
+                          (p.project_name?.toLowerCase() || "").includes(
+                            projectSearchQuery.toLowerCase()
+                          )
+                        );
+                        if (projectsForStatus.length === 0) return null;
+                        return (
                           <div
-                            className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
-                              status
-                            )}`}
-                            onClick={() => toggleSection(status)}
+                            key={status}
+                            className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
                           >
-                            <div className="flex items-center space-x-3">
-                              <Icon
-                                icon={
-                                  expandedSections[status]
-                                    ? "heroicons:chevron-down"
-                                    : "heroicons:chevron-right"
-                                }
-                                className="w-5 h-5 text-slate-600 dark:text-slate-300"
-                              />
-                              <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
-                                {status}
-                              </h3>
-                              <span className="px-2 py-1 bg-white/70 dark:bg-slate-900/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
-                                {projectsForStatus.length}
-                              </span>
-                            </div>
-                          </div>
-                          {expandedSections[status] && (
-                            <div className="p-5 bg-slate-50 dark:bg-slate-900/50">
-                              <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
-                                {projectsForStatus.map((project) => (
-                                  <ProjectGrid
-                                    project={project}
-                                    key={project.id}
-                                    userRole={uiRole}
-                                    employeeType={employeeType}
-                                  />
-                                ))}
+                            <div
+                              className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
+                                status
+                              )}`}
+                              onClick={() => toggleSection(status)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <Icon
+                                  icon={
+                                    expandedSections[status]
+                                      ? "heroicons:chevron-down"
+                                      : "heroicons:chevron-right"
+                                  }
+                                  className="w-5 h-5 text-slate-600 dark:text-slate-300"
+                                />
+                                <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+                                  {status}
+                                </h3>
+                                <span className="px-2 py-1 bg-white/70 dark:bg-slate-900/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
+                                  {projectsForStatus.length}
+                                </span>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <ProjectList
-                    projectsByStatus={projects}
-                    userRole={uiRole}
-                    employeeType={employeeType}
-                    searchQuery={projectSearchQuery}
-                    statusFilter={projectStatusFilter}
-                  />
-                )}
+                            {expandedSections[status] && (
+                              <div className="p-5 bg-slate-50 dark:bg-slate-900/50">
+                                <div className="grid xl:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
+                                  {projectsForStatus.map((project) => (
+                                    <ProjectGrid
+                                      project={project}
+                                      key={project.id}
+                                      userRole={uiRole}
+                                      employeeType={employeeType}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <ProjectList
+                      projects={filteredProjectsForList}
+                      userRole={uiRole}
+                      employeeType={employeeType}
+                    />
+                  )}
+                </div>
+
+                {/* --- MOBILE VIEW LOGIC --- */}
+                <div className="block sm:hidden">
+                  {mobileViewMode === "grid" ? (
+                    <div className="space-y-6">
+                      {(projectStatusFilter.toLowerCase() === "all"
+                        ? Object.keys(projects)
+                        : [projectStatusFilter]
+                      ).map((status) => {
+                        if (!projects[status]) return null;
+                        const projectsForStatus = projects[status].filter((p) =>
+                          (p.project_name?.toLowerCase() || "").includes(
+                            projectSearchQuery.toLowerCase()
+                          )
+                        );
+                        if (projectsForStatus.length === 0) return null;
+                        return (
+                          <div
+                            key={status}
+                            className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
+                          >
+                            <div
+                              className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
+                                status
+                              )}`}
+                              onClick={() => toggleSection(status)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <Icon
+                                  icon={
+                                    expandedSections[status]
+                                      ? "heroicons:chevron-down"
+                                      : "heroicons:chevron-right"
+                                  }
+                                  className="w-5 h-5 text-slate-600 dark:text-slate-300"
+                                />
+                                <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+                                  {status}
+                                </h3>
+                                <span className="px-2 py-1 bg-white/70 dark:bg-slate-900/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
+                                  {projectsForStatus.length}
+                                </span>
+                              </div>
+                            </div>
+                            {expandedSections[status] && (
+                              <div className="p-5 bg-slate-50 dark:bg-slate-900/50">
+                                <div className="grid grid-cols-1 gap-5">
+                                  {projectsForStatus.map((project) => (
+                                    <ProjectGrid
+                                      project={project}
+                                      key={project.id}
+                                      userRole={uiRole}
+                                      employeeType={employeeType}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <ProjectList
+                      projects={filteredProjectsForList}
+                      userRole={uiRole}
+                      employeeType={employeeType}
+                    />
+                  )}
+                </div>
               </>
             ) : (
               <div className="text-center py-16">
@@ -410,7 +572,6 @@ const ProjectPostPage = () => {
         </>
       )}
 
-      {/* ... TaskList and MembersView tabs ... */}
       {activeTab === "tasks" && (
         <TaskList
           statusFilter={taskStatusFilter}
