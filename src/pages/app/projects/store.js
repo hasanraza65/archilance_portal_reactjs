@@ -1,4 +1,4 @@
-// store.js (FINAL AND FULLY UPDATED CODE)
+// store.js (FINAL AND FULLY UPDATED CODE - HANDLES BOTH ARRAY & OBJECT RESPONSES)
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
@@ -63,41 +63,59 @@ export const fetchProjectsAPI = createAsyncThunk(
       });
 
       const responseData = response.data;
+      let projectsSource = responseData;
 
-      // --- YAHAN LOGIC UPDATE KIYA GAYA HAI ---
-      // Ab yeh object { "Status": [...] } ko handle karega
+      // Handle cases where data is nested under a 'data' key
       if (
-        typeof responseData === "object" &&
-        !Array.isArray(responseData) &&
-        responseData !== null
+        responseData &&
+        responseData.data &&
+        Array.isArray(responseData.data)
       ) {
-        const formattedProjectsByStatus = {};
-        let totalProjects = 0;
+        projectsSource = responseData.data;
+      }
 
-        // Har status (key) ke liye loop chalayein
-        for (const status in responseData) {
-          if (Object.prototype.hasOwnProperty.call(responseData, status)) {
-            const projectsForStatus = responseData[status];
+      // --- UNIVERSAL DATA HANDLING LOGIC ---
+      let projectsByStatus = {};
+      let totalProjects = 0;
+
+      if (Array.isArray(projectsSource)) {
+        // CASE 1: API returns an array (for Customer)
+        // Convert array to the object structure
+        projectsSource.forEach((project) => {
+          const formatted = formatProjectFromAPI(project);
+          const status = formatted.status || "Uncategorized";
+          if (!projectsByStatus[status]) {
+            projectsByStatus[status] = [];
+          }
+          projectsByStatus[status].push(formatted);
+          totalProjects++;
+        });
+      } else if (
+        typeof projectsSource === "object" &&
+        projectsSource !== null
+      ) {
+        // CASE 2: API returns an object (for Admin/Employee)
+        for (const status in projectsSource) {
+          if (Object.prototype.hasOwnProperty.call(projectsSource, status)) {
+            const projectsForStatus = projectsSource[status];
             if (Array.isArray(projectsForStatus)) {
-              // Har project ko format karein
-              formattedProjectsByStatus[status] =
+              projectsByStatus[status] =
                 projectsForStatus.map(formatProjectFromAPI);
               totalProjects += projectsForStatus.length;
             }
           }
         }
-
-        // formatted object aur meta data return karein
-        return {
-          projects: formattedProjectsByStatus,
-          meta: {
-            totalProjects: totalProjects,
-          },
-        };
       } else {
-        // Agar data object na ho to error dein
+        // If data is neither an array nor an object, reject
         return rejectWithValue("Invalid project data structure from API.");
       }
+
+      return {
+        projects: projectsByStatus,
+        meta: {
+          totalProjects: totalProjects,
+        },
+      };
     } catch (err) {
       const errorMessage =
         err.response?.data?.message ||
@@ -303,7 +321,7 @@ export const updateProjectFieldAPI = createAsyncThunk(
 export const appProjectSlice = createSlice({
   name: "project",
   initialState: {
-    projects: {}, // --- INITIAL STATE IS NOW AN OBJECT ---
+    projects: {},
     totalProjects: 0,
     isLoading: false,
     isAdding: false,
