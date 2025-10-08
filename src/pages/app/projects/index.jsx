@@ -1,4 +1,4 @@
-// src/pages/app/projects/index.js (FINAL CORRECTED CODE WITH ALL FEATURES)
+// src/pages/app/projects/index.js (FINAL CODE)
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -400,20 +400,13 @@ const ProjectPostPage = () => {
               <TableLoading count={5} />
             ))}
           {!projectsDataLoading && projectsError && (
-            <div
-              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
-              role="alert"
-            >
-              <strong>Error: </strong>
-              <span>{projectsError}</span>
-            </div>
+            <div className="...error_div...">{projectsError}</div>
           )}
 
           {!projectsDataLoading &&
             !projectsError &&
             (hasVisibleProjects ? (
               <>
-                {/* --- DESKTOP VIEW LOGIC --- */}
                 <div className="hidden sm:block">
                   {filler === "grid" ? (
                     <div className="space-y-6">
@@ -483,7 +476,6 @@ const ProjectPostPage = () => {
                   )}
                 </div>
 
-                {/* --- MOBILE VIEW LOGIC --- */}
                 <div className="block sm:hidden">
                   {mobileViewMode === "grid" ? (
                     <div className="space-y-6">
