@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Send, User, Edit3, X } from "lucide-react";
+import Swal from "sweetalert2"; // Import SweetAlert2
 
 const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
   const [startDate, setStartDate] = useState("");
@@ -10,33 +11,6 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = !!initialData;
 
-  useEffect(() => {
-    if (isEditMode && initialData) {
-      setStartDate(initialData.start_date || "");
-      setEndDate(initialData.end_date || "");
-      setReason(initialData.reason || "");
-      const type = initialData.leave_type?.toLowerCase() || "";
-      const standardTypes = ["sick", "vacation", "personal"];
-      if (standardTypes.includes(type)) {
-        setLeaveType(type);
-        setOtherLeaveType("");
-      } else if (type) {
-        setLeaveType("other");
-        setOtherLeaveType(initialData.leave_type || "");
-      } else {
-        handleResetForm();
-      }
-    } else {
-      handleResetForm();
-    }
-  }, [initialData, isEditMode]);
-
-  const leaveTypes = [
-    { value: "sick", label: "Sick Leave" },
-    { value: "vacation", label: "Vacation" },
-    { value: "personal", label: "Personal Leave" },
-    { value: "other", label: "Other" },
-  ];
   const handleResetForm = () => {
     setStartDate("");
     setEndDate("");
@@ -45,20 +19,95 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
     setOtherLeaveType("");
   };
 
+  useEffect(() => {
+    if (isEditMode && initialData) {
+      setStartDate(initialData.start_date || "");
+      setEndDate(initialData.end_date || "");
+      
+      const type = initialData.leave_type?.toLowerCase() || "";
+      const reasonText = initialData.reason || "";
+      
+      const otherReasonMatch = reasonText.match(/^\[Other - (.*?)]: (.*)$/s);
+
+      if (otherReasonMatch && type === 'casual') {
+        setLeaveType('other');
+        setOtherLeaveType(otherReasonMatch[1]);
+        setReason(otherReasonMatch[2]);
+      } else {
+        const standardTypes = ["casual", "annual", "sick"];
+        if (standardTypes.includes(type)) {
+          setLeaveType(type);
+          setReason(reasonText);
+          setOtherLeaveType("");
+        } else {
+          handleResetForm();
+        }
+      }
+    } else {
+      handleResetForm();
+    }
+  }, [initialData, isEditMode]);
+
+  const leaveTypes = [
+    { value: "casual", label: "Casual Leave" },
+    { value: "annual", label: "Annual Leave" },
+    { value: "sick", label: "Sick Leave" },
+    { value: "other", label: "Other (Specify)" },
+  ];
+
+  const calculateDuration = (start, end) => {
+    if (!start || !end) return 0;
+    const startDateObj = new Date(start);
+    const endDateObj = new Date(end);
+    if (endDateObj < startDateObj) return 0;
+    const diffTime = Math.abs(endDateObj - startDateObj);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // --- MODIFICATION START: Replaced alerts with SweetAlert2 ---
     if (!reason || !startDate || !endDate || !leaveType) {
-      alert("Please fill in all required fields.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Incomplete Form',
+        text: 'Please fill in all required fields before submitting.',
+      });
       return;
     }
     if (leaveType === "other" && !otherLeaveType.trim()) {
-      alert('Please specify the reason for the "Other" leave type.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Missing Information',
+        text: 'Please specify the reason for the "Other" leave type.',
+      });
       return;
     }
+    
+    if (leaveType === 'casual' || leaveType === 'other') {
+      const duration = calculateDuration(startDate, endDate);
+      if (duration > 2) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Duration',
+            text: 'Casual leave cannot be for more than 2 days.',
+        });
+        return;
+      }
+    }
+    // --- MODIFICATION END ---
+
     setIsSubmitting(true);
     try {
-      const finalLeaveType = leaveType === "other" ? otherLeaveType : leaveType;
-      await onSubmit({ startDate, endDate, reason, leaveType: finalLeaveType });
+      const finalLeaveType = leaveType === "other" ? "casual" : leaveType;
+      
+      const finalReason = leaveType === "other"
+        ? `[Other - ${otherLeaveType.trim()}]: ${reason}`
+        : reason;
+
+      await onSubmit({ startDate, endDate, reason: finalReason, leaveType: finalLeaveType });
       if (!isEditMode) {
         handleResetForm();
       }

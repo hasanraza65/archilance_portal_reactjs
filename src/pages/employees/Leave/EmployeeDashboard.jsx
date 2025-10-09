@@ -22,6 +22,11 @@ const EmployeeDashboard = () => {
     rejected: 0,
     pending: 0,
   });
+  const [leaveTypesCount, setLeaveTypesCount] = useState({
+    casual: 0,
+    annual: 0,
+    sick: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -57,6 +62,13 @@ const EmployeeDashboard = () => {
           pending: 0,
         }
       );
+      setLeaveTypesCount(
+        response.data.types || {
+          casual: 0,
+          annual: 0,
+          sick: 0,
+        }
+      );
     } catch (err) {
       console.error("Error fetching leave data:", err);
       setError("Failed to fetch leave data. Please try again later.");
@@ -86,10 +98,12 @@ const EmployeeDashboard = () => {
     formData.append("start_date", leaveData.startDate);
     formData.append("end_date", leaveData.endDate);
     formData.append("reason", leaveData.reason);
-    const formattedLeaveType =
-      leaveData.leaveType.charAt(0).toUpperCase() +
-      leaveData.leaveType.slice(1);
+
+    // --- MODIFICATION START ---
+    // Send leave type in lowercase as per the new requirement
+    const formattedLeaveType = leaveData.leaveType.toLowerCase();
     formData.append("leave_type", formattedLeaveType);
+    // --- MODIFICATION END ---
 
     if (isEditing) {
       formData.append("_method", "put");
@@ -190,6 +204,7 @@ const EmployeeDashboard = () => {
       <LeaveHistoryTable
         leaves={leaves}
         counts={counts}
+        leaveTypesCount={leaveTypesCount}
         isLoading={isLoading}
         error={error}
         onRefresh={fetchLeaveData}

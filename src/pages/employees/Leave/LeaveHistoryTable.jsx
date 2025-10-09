@@ -13,12 +13,16 @@ import {
   Trash2,
   RefreshCw,
   AlertTriangle,
+  FileText,
+  Heart,
+  Briefcase,
 } from "lucide-react";
 
 const LeaveHistoryTable = ({
   children,
   leaves = [],
-  counts = {},
+  counts = { total: 0, approved: 0, rejected: 0, pending: 0 },
+  leaveTypesCount = { casual: 0, annual: 0, sick: 0 },
   isLoading,
   error,
   onRefresh,
@@ -31,37 +35,36 @@ const LeaveHistoryTable = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
-  // Configuration for status colors, icons, and text
   const statusConfig = {
     Approved: {
       icon: CheckCircle,
-      className:
-        "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200",
+      className: "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200",
       dotColor: "bg-green-400",
     },
     Rejected: {
       icon: XCircle,
-      className:
-        "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200",
+      className: "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200",
       dotColor: "bg-red-400",
     },
     Pending: {
       icon: AlertCircle,
-      className:
-        "bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 border border-yellow-200",
+      className: "bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 border border-yellow-200",
       dotColor: "bg-yellow-400",
     },
   };
-
-  // Configuration for leave type colors
+  
+  const leaveTypeConfig = {
+    casual: { total: 10, label: "Casual Leaves", icon: Briefcase, color: "blue" },
+    annual: { total: 10, label: "Annual Leaves", icon: FileText, color: "green" },
+    sick: { total: 8, label: "Sick Leaves", icon: Heart, color: "purple" },
+  };
+  
   const leaveTypeColors = {
-    Vacation: "bg-blue-100 text-blue-800",
-    Sick: "bg-purple-100 text-purple-800",
-    Personal: "bg-indigo-100 text-indigo-800",
-    Emergency: "bg-orange-100 text-orange-800",
+    casual: "bg-blue-100 text-blue-800",
+    annual: "bg-green-100 text-green-800",
+    sick: "bg-purple-100 text-purple-800",
   };
 
-  // Filter logic for the leave requests
   const filteredLeaves = leaves.filter((leave) => {
     const searchLower = searchTerm.toLowerCase();
     const reasonMatch = leave.reason.toLowerCase().includes(searchLower);
@@ -70,17 +73,18 @@ const LeaveHistoryTable = ({
     return (reasonMatch || typeMatch) && statusMatch;
   });
 
-  // Helper function to format date strings
+  // --- MODIFICATION START: Corrected the function name ---
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
+    // The function is toLocaleDateString, not toLocaleDateDateString
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
   };
+  // --- MODIFICATION END ---
 
-  // Helper function to calculate leave duration
   const calculateDuration = (start, end) => {
     if (!start || !end) return 0;
     const startDate = new Date(start);
@@ -91,11 +95,26 @@ const LeaveHistoryTable = ({
     return diffDays;
   };
 
+  const capitalizeFirstLetter = (string) => {
+    if (!string) return "";
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
+
+  const formatDisplayReason = (reason) => {
+    if (!reason) return "";
+    const otherReasonMatch = reason.match(/^\[Other - (.*?)]: (.*)$/s);
+    if (otherReasonMatch) {
+      return otherReasonMatch[2];
+    }
+    return reason;
+  };
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg">
                 <Calendar className="w-6 h-6 text-white" />
@@ -121,46 +140,74 @@ const LeaveHistoryTable = ({
               />
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600">
-                  Total Leaves
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {isLoading ? "..." : counts.total}
-                </p>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                  <p className="text-2xl font-bold text-gray-900">{isLoading ? "..." : counts.total}</p>
+                </div>
                 <Calendar className="w-8 h-8 text-blue-600" />
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600">Approved</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {isLoading ? "..." : counts.approved}
-                </p>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Approved</p>
+                  <p className="text-2xl font-bold text-green-600">{isLoading ? "..." : counts.approved}</p>
+                </div>
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {isLoading ? "..." : counts.pending}
-                </p>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-600">{isLoading ? "..." : counts.pending}</p>
+                </div>
                 <Clock className="w-8 h-8 text-yellow-600" />
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600">Rejected</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {isLoading ? "..." : counts.rejected}
-                </p>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Rejected</p>
+                  <p className="text-2xl font-bold text-red-600">{isLoading ? "..." : counts.rejected}</p>
+                </div>
                 <XCircle className="w-8 h-8 text-red-600" />
               </div>
             </div>
           </div>
+
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Leave Balances</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(leaveTypeConfig).map(([key, config]) => {
+                const used = leaveTypesCount[key] || 0;
+                const remaining = config.total - used;
+                const percentage = (used / config.total) * 100;
+                const Icon = config.icon;
+
+                return (
+                  <div key={key} className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20">
+                    <div className="flex items-center justify-between mb-2">
+                       <div className="flex items-center gap-2">
+                         <Icon className={`w-5 h-5 text-${config.color}-500`} />
+                         <p className="text-md font-semibold text-gray-800">{config.label}</p>
+                       </div>
+                       <p className="font-bold text-lg text-gray-900">{used}<span className="text-sm font-medium text-gray-500">/{config.total}</span></p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                      <div className={`bg-${config.color}-500 h-2.5 rounded-full`} style={{ width: `${percentage}%` }}></div>
+                    </div>
+                    <p className="text-xs text-right text-gray-500">{remaining} days remaining</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 mb-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -255,12 +302,8 @@ const LeaveHistoryTable = ({
                 <tbody className="divide-y divide-gray-100">
                   {filteredLeaves.length > 0 ? (
                     filteredLeaves.map((leave) => {
-                      const StatusIcon =
-                        statusConfig[leave.status]?.icon || AlertCircle;
-                      const duration = calculateDuration(
-                        leave.start_date,
-                        leave.end_date
-                      );
+                      const StatusIcon = statusConfig[leave.status]?.icon || AlertCircle;
+                      const duration = calculateDuration(leave.start_date, leave.end_date);
                       return (
                         <tr
                           key={leave.id}
@@ -303,7 +346,7 @@ const LeaveHistoryTable = ({
                           <td className="px-6 py-6">
                             <div>
                               <div className="font-medium text-gray-900 mb-2">
-                                {leave.reason}
+                                {formatDisplayReason(leave.reason)}
                               </div>
                               {leave.leave_type && (
                                 <span
@@ -312,7 +355,7 @@ const LeaveHistoryTable = ({
                                     "bg-gray-100 text-gray-800"
                                   }`}
                                 >
-                                  {leave.leave_type}
+                                  {capitalizeFirstLetter(leave.leave_type)}
                                 </span>
                               )}
                             </div>
