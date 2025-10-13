@@ -96,13 +96,10 @@ const formatTime = (timeStr) => {
   });
 };
 
-// CORRECTED FUNCTION: This now correctly converts the UTC time to the user's local time.
 const formatScreenshotTime = (isoString) => {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
-    // REMOVED: date.setHours(date.getHours() + 5); // This was incorrect.
-    // The browser will now handle the timezone conversion automatically.
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
@@ -256,7 +253,9 @@ const AdminEmployeeWorkSession = () => {
             `Could not fetch tasks for project ID ${selectedProject}.`
           );
         const projectDetails = await res.json();
-        setTasks(Array.isArray(projectDetails.tasks) ? projectDetails.tasks : []);
+        setTasks(
+          Array.isArray(projectDetails.tasks) ? projectDetails.tasks : []
+        );
       } catch (error) {
         toast.error(error.message);
         setTasks([]);
@@ -296,10 +295,12 @@ const AdminEmployeeWorkSession = () => {
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.message || "Failed to fetch data");
-      
+
       const sessionsData = result.data;
-      const fetchedSessions = Array.isArray(sessionsData) ? sessionsData.slice().reverse() : [];
-      
+      const fetchedSessions = Array.isArray(sessionsData)
+        ? sessionsData.slice().reverse()
+        : [];
+
       setSessions(fetchedSessions);
       setOverallTotalTime(result.overall_total_time || "0h 0m");
 
@@ -378,6 +379,57 @@ const AdminEmployeeWorkSession = () => {
           );
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
+          fetchWorkSessions();
+        } catch (e) {
+          Swal.fire("Error!", e.message, "error");
+        }
+      }
+    });
+  };
+
+  const handleDeleteIdleTime = (idleTimeId) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You want to delete this idle time entry?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const adminApiBaseUrl = `${API_BASE}/api/admin`;
+          const url = `${adminApiBaseUrl}/delete-idle-time?idle_time_id=${idleTimeId}`;
+
+          const res = await fetch(url, {
+            method: "POST", // CHANGED FROM DELETE TO POST
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!res.ok) {
+            const errorData = await res
+              .json()
+              .catch(() => ({ message: "Failed to delete idle time." }));
+            throw new Error(errorData.message);
+          }
+
+          Swal.fire(
+            "Deleted!",
+            "The idle time entry has been deleted.",
+            "success"
+          );
+
+          setSelectedSessionIdleTimes((currentIdleTimes) => {
+            const updatedIdleTimes = currentIdleTimes.filter(
+              (idle) => idle.id !== idleTimeId
+            );
+            if (updatedIdleTimes.length === 0) {
+              setIsIdleTimeModalOpen(false);
+            }
+            return updatedIdleTimes;
+          });
+
           fetchWorkSessions();
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
@@ -631,7 +683,8 @@ const AdminEmployeeWorkSession = () => {
 
                   {user?.role === "admin" && (
                     <div className="mt-4">
-                      {Array.isArray(session.screenshots) && session.screenshots.length > 0 ? (
+                      {Array.isArray(session.screenshots) &&
+                      session.screenshots.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                           {session.screenshots.map((ss) => (
                             <div key={ss.id} className="text-center">
@@ -647,7 +700,6 @@ const AdminEmployeeWorkSession = () => {
                                 />
                               </a>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                                {/* Use the corrected function here */}
                                 {formatScreenshotTime(ss.created_at)}
                               </p>
                             </div>
@@ -696,7 +748,7 @@ const AdminEmployeeWorkSession = () => {
 
       {isIdleTimeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur-[2px]">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg border dark:border-slate-700">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-2xl border dark:border-slate-700">
             <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200">
               Idle Time Details
             </h3>
@@ -713,34 +765,54 @@ const AdminEmployeeWorkSession = () => {
                     <th scope="col" className="px-6 py-3">
                       Duration
                     </th>
+                    <th scope="col" className="px-6 py-3 text-center">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedSessionIdleTimes.map((idle) => (
-                    <tr
-                      key={idle.id}
-                      className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
-                    >
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {idle.start_time
-                          ? formatTime(idle.start_time.split(" ")[1])
-                          : "N/A"}
-                      </td>
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {idle.end_time
-                          ? formatTime(idle.end_time.split(" ")[1])
-                          : "N/A"}
-                      </td>
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {idle.start_time && idle.end_time
-                          ? calculateIdleDuration(
-                              idle.start_time,
-                              idle.end_time
-                            )
-                          : "N/A"}
+                  {selectedSessionIdleTimes.length > 0 ? (
+                    selectedSessionIdleTimes.map((idle) => (
+                      <tr
+                        key={idle.id}
+                        className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
+                      >
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                          {idle.start_time
+                            ? formatTime(idle.start_time.split(" ")[1])
+                            : "N/A"}
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                          {idle.end_time
+                            ? formatTime(idle.end_time.split(" ")[1])
+                            : "N/A"}
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                          {idle.start_time && idle.end_time
+                            ? calculateIdleDuration(
+                                idle.start_time,
+                                idle.end_time
+                              )
+                            : "N/A"}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={() => handleDeleteIdleTime(idle.id)}
+                            className="text-slate-400 hover:text-red-500"
+                            title="Delete Idle Time"
+                          >
+                            <TrashIcon />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="text-center py-4">
+                        No idle time entries for this session.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
