@@ -250,7 +250,8 @@ const ProjectPostPage = () => {
         </button>
         {(actualUserRole === "admin" ||
           employeeType === "Manager" ||
-          employeeType === "Supervisor") && (
+          employeeType === "Supervisor" ||
+          employeeType === "Executive") && (
           <button
             className={getTabClassName("members")}
             onClick={() => setActiveTab("members")}
@@ -266,6 +267,7 @@ const ProjectPostPage = () => {
         {activeTab === "projects" &&
           (employeeType === "Manager" ||
             employeeType === "Supervisor" ||
+            employeeType === "Executive" ||
             (uiRole !== "employee" &&
               uiRole !== "customer" &&
               uiRole !== "outsource")) && (
@@ -300,7 +302,8 @@ const ProjectPostPage = () => {
               </div>
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
                 {(employeeType === "Manager" ||
-                  employeeType === "Supervisor") && (
+                  employeeType === "Supervisor" ||
+                  employeeType === "Executive") && (
                   <Button
                     text="Assigned to me"
                     disabled={anyOperationPending}

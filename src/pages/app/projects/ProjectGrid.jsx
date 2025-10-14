@@ -175,7 +175,7 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
             >
               <Icon icon="heroicons:eye" />
             </button>
-            {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
+            {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor" ||   employeeType === "Executive") && (
               <button
                 type="button"
                 title="Edit Project"
@@ -189,7 +189,7 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
                 <Icon icon="heroicons-outline:pencil-alt" />
               </button>
             )}
-            {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor") && (
+            {(userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor" ||   employeeType === "Executive") && (
               <button
                 type="button"
                 title="Delete Project"

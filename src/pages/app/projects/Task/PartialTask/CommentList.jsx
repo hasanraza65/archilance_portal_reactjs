@@ -160,12 +160,11 @@ const CommentList = ({
   const prevCommentsLength = useRef(comments ? comments.length : 0);
   const initialLoadScrollAttempted = useRef(false);
   const prevScrollHeight = useRef(0);
-  
+
   // --- UPDATED CODE ---
   // User ka role aur employee type hasil kiya gaya hai
   const userRole = getUserRole();
   const employeeType = getEmployeeType();
-
 
   // Allowed file types...
   const allowedMimeTypes = [
@@ -661,17 +660,15 @@ const CommentList = ({
     const isModerator =
       userRole === "admin" ||
       employeeType === "Manager" ||
-      employeeType === "Supervisor";
+      employeeType === "Supervisor" ||
+      employeeType === "Executive";
 
     return [
       {
         label: "Edit",
         action: "edit",
         // Edit sirf author hi kar sakta hai
-        disabled:
-          !isAuthor ||
-          isProcessingEditOrDelete ||
-          isSubmittingComment,
+        disabled: !isAuthor || isProcessingEditOrDelete || isSubmittingComment,
       },
       {
         label: "Delete",

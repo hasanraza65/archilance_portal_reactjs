@@ -148,7 +148,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="profile"
               element={
@@ -161,6 +161,7 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <Suspense fallback={<Loading />}>
@@ -169,7 +170,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="profile/edit"
               element={
@@ -182,6 +183,7 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <Suspense fallback={<Loading />}>
@@ -200,7 +202,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="jobs"
               element={
@@ -213,13 +215,14 @@ function App() {
                     "outsource",
                     "manager",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <ProjectPostPage />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="jobs/:id"
               element={
@@ -232,13 +235,14 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <ProjectDetailsPage />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/project/:taskId"
               element={
@@ -251,13 +255,14 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <TaskDetailsPage />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/job/:id/kanban"
               element={
@@ -269,13 +274,14 @@ function App() {
                     "outsource",
                     "manager",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <KanbanPage />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/job-brief/:briefId"
               element={
@@ -288,6 +294,7 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <ProjectBriefDetailPage />
@@ -302,62 +309,62 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="employees"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <Allemployees />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/employees/view/:employeeId"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <ShowEmployee />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="employees/add"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <AddEmployee />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/employees/edit/:employeeId"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <EditEmployee />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/employees/work-sessions/:employeeId"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <AdminEmployeeWorkSession />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="work-session"
               element={
@@ -367,13 +374,14 @@ function App() {
                     "outsource",
                     "manager",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <WorkSession />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="employeeleaves"
               element={
@@ -383,51 +391,52 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <EmployeeDashboard />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="customers"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <AllCustomers />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/customers/view/:customerId"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <CustomerView />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="customers/add"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <AddCustomers />
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="/customers/edit/:customerId"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor"]}
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <UpdateCustomer />
                 </ProtectedRoute>
@@ -489,7 +498,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* --- UPDATED --- */}
+            
             <Route
               path="chat"
               element={
@@ -500,6 +509,7 @@ function App() {
                     "outsource",
                     "manager",
                     "supervisor",
+                    "executive", // Added executive
                   ]}
                 >
                   <ChatPage />

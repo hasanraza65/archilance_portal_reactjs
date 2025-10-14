@@ -691,7 +691,8 @@ const TaskList = ({
                                 isEditable={
                                   userRole === "admin" ||
                                   employeeType === "Manager" ||
-                                  employeeType === "Supervisor"
+                                  employeeType === "Supervisor" ||
+                                  employeeType === "Executive"
                                 }
                               />
                             </div>
@@ -712,7 +713,8 @@ const TaskList = ({
                                 isEditable={
                                   userRole === "admin" ||
                                   employeeType === "Manager" ||
-                                  employeeType === "Supervisor"
+                                  employeeType === "Supervisor" ||
+                                  employeeType === "Executive"
                                 }
                               />
                             </div>
@@ -728,7 +730,8 @@ const TaskList = ({
                               isEditable={
                                 userRole === "admin" ||
                                 employeeType === "Manager" ||
-                                employeeType === "Supervisor"
+                                employeeType === "Supervisor" ||
+                                employeeType === "Executive"
                               }
                             />
                           </td>
@@ -738,7 +741,7 @@ const TaskList = ({
                           >
                             {(userRole === "admin" ||
                               employeeType === "Manager" ||
-                              employeeType === "Supervisor") && (
+                              employeeType === "Supervisor" || employeeType === "Executive") && (
                               <div
                                 className="flex items-center justify-end space-x-2"
                                 onClick={(e) => e.stopPropagation()}
@@ -864,7 +867,8 @@ const TaskList = ({
                     isEditable={
                       userRole === "admin" ||
                       employeeType === "Manager" ||
-                      employeeType === "Supervisor"
+                      employeeType === "Supervisor" ||
+                      employeeType === "Executive"
                     }
                   />
                 </td>
@@ -876,7 +880,8 @@ const TaskList = ({
                     isEditable={
                       userRole === "admin" ||
                       employeeType === "Manager" ||
-                      employeeType === "Supervisor"
+                      employeeType === "Supervisor" ||
+                      employeeType === "Executive"
                     }
                   />
                 </td>
@@ -887,7 +892,7 @@ const TaskList = ({
                   >
                     {(userRole === "admin" ||
                       employeeType === "Manager" ||
-                      employeeType === "Supervisor") && (
+                      employeeType === "Supervisor" ||   employeeType === "Executive") && (
                       <>
                         <button
                           className="p-2 rounded-full hover:bg-green-50 text-green-600"

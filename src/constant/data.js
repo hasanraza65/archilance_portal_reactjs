@@ -42,7 +42,7 @@ export const menuItems = [
     isHeadr: true,
     title: "menu",
 
-    allowedRoles: ["admin", "employee", "customer", "manager", "outsource", "supervisor"],
+    allowedRoles: ["admin", "employee", "customer", "manager", "outsource", "supervisor","executive"],
   },
   {
     title: "Dashboard",
@@ -62,7 +62,7 @@ export const menuItems = [
     icon: "heroicons-outline:document",
     link: "jobs",
     // --- UPDATED ---
-    allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor"],
+    allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"],
   },
   {
     title: "Chat",
@@ -70,7 +70,7 @@ export const menuItems = [
     icon: "heroicons-outline:chat",
     link: "chat",
     // --- UPDATED ---
-    allowedRoles: ["admin", "employee", "outsource", "manager", "supervisor"],
+    allowedRoles: ["admin", "employee", "outsource", "manager", "supervisor", "executive"],
   },
   {
     title: "Leaves",
@@ -85,7 +85,7 @@ export const menuItems = [
     icon: "heroicons-outline:user",
     link: "employees",
     // --- UPDATED ---
-    allowedRoles: ["admin", "manager", "supervisor"],
+    allowedRoles: ["admin", "manager", "supervisor", "executive"],
   },
   {
     title: "Customers",
@@ -93,7 +93,7 @@ export const menuItems = [
     icon: "heroicons-outline:user",
     link: "customers",
     // --- UPDATED ---
-    allowedRoles: ["admin", "manager", "supervisor"],
+    allowedRoles: ["admin", "manager", "supervisor", "executive"],
   },
   {
     title: "Work Session",
@@ -101,7 +101,7 @@ export const menuItems = [
     icon: "heroicons-outline:document",
     link: "work-session",
     // --- UPDATED ---
-    allowedRoles: ["employee", "outsource", "manager", "supervisor"],
+    allowedRoles: ["employee", "outsource", "manager", "supervisor", "executive"],
   },
   {
     title: "Leaves",
@@ -109,7 +109,7 @@ export const menuItems = [
     icon: "heroicons-outline:calendar-days",
     link: "employeeleaves",
     // --- UPDATED ---
-    allowedRoles: ["employee", "manager", "outsource", "supervisor"], 
+    allowedRoles: ["employee", "manager", "outsource", "supervisor", "executive"], 
   },
   {
     title: "Subscriptions",

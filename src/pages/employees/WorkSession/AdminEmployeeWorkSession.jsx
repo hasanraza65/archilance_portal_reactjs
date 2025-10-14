@@ -152,21 +152,31 @@ const AdminEmployeeWorkSession = () => {
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
 
-  const endpointPrefix =
-    user?.role === "admin"
-      ? "admin"
-      : user?.role === "manager" ||
-        user?.role === "supervisor" ||
-        user?.role === "outsource" ||
-        user?.role === "employee"
-      ? "employee"
-      : "admin";
+  // --- UPDATED CODE: Corrected API Prefix Logic ---
+  const getApiPrefix = () => {
+    const role = user?.role?.toLowerCase();
+    const employeeType = user?.employee_type?.toLowerCase();
 
+    if (role === 'admin') {
+      return 'admin';
+    }
+    
+    const employeeRoles = ['employee', 'manager', 'supervisor', 'executive', 'outsource'];
+    if (employeeRoles.includes(role) || employeeRoles.includes(employeeType)) {
+      return 'employee';
+    }
+    
+    return 'admin'; // Fallback to admin if no role matches
+  };
+  
+  const endpointPrefix = getApiPrefix();
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
+  // --- END OF UPDATE ---
 
   const workSessionPath =
     user?.role === "manager" ||
     user?.role === "supervisor" ||
+    user?.role === "executive" || // Added executive
     user?.role === "outsource" ||
     user?.role === "employee"
       ? "/other-work-session"
@@ -399,11 +409,13 @@ const AdminEmployeeWorkSession = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
+          // Note: Only admins can delete idle time, so this still uses the admin route.
+          // If other roles need this, the backend must be updated.
           const adminApiBaseUrl = `${API_BASE}/api/admin`;
           const url = `${adminApiBaseUrl}/delete-idle-time?idle_time_id=${idleTimeId}`;
 
           const res = await fetch(url, {
-            method: "POST", // CHANGED FROM DELETE TO POST
+            method: "POST", 
             headers: { Authorization: `Bearer ${token}` },
           });
 
@@ -680,8 +692,8 @@ const AdminEmployeeWorkSession = () => {
                       {session.memo_content}
                     </p>
                   )}
-
-                  {user?.role === "admin" && (
+                  
+                  {(user?.role === "admin" || user?.employee_type === "Executive") && (
                     <div className="mt-4">
                       {Array.isArray(session.screenshots) &&
                       session.screenshots.length > 0 ? (

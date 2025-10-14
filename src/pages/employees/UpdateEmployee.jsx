@@ -34,18 +34,19 @@ const EditEmployee = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
-  // successMessage state ko hata diya gaya hai
 
   const watchedProfilePicFile = watch("profile_pic");
   const passwordValue = watch("password");
+  
   const getApiBasePathForRole = (basePath) => {
-  const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
-  if (role) {
-    return `/api/${role}${cleanBasePath}`;
-  }
-  return `/api/admin${cleanBasePath}`;
-};
+    const role = getApiPrefix();
+    const cleanBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`;
+    if (role) {
+      return `/api/${role}${cleanBasePath}`;
+    }
+    return `/api/admin${cleanBasePath}`;
+  };
+
   useEffect(() => {
     if (!canManageEmployees()) {
       toast.error("You do not have permission to edit employees.");
@@ -146,12 +147,34 @@ const EditEmployee = () => {
       return;
     }
 
+    // --- UPDATED CODE ---
+    // Determine the user_role ID based on the selected employee_type
+    let userRoleId;
+    switch (formData.employee_type) {
+      case "Manager":
+        userRoleId = "5";
+        break;
+      case "Supervisor":
+        userRoleId = "6";
+        break;
+      case "Executive":
+        userRoleId = "7";
+        break;
+      case "Employee":
+      case "Outsource":
+      default:
+        userRoleId = "3";
+        break;
+    }
+    // --- END OF UPDATE ---
+
     const dataToSubmit = new FormData();
     dataToSubmit.append("name", formData.name);
     dataToSubmit.append("email", formData.email);
     dataToSubmit.append("username", formData.username);
     dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("employee_type", formData.employee_type);
+    dataToSubmit.append("user_role", userRoleId); // Append the correct role ID
     dataToSubmit.append("_method", "PUT");
 
     if (formData.profile_pic && formData.profile_pic[0]) {
@@ -179,11 +202,8 @@ const EditEmployee = () => {
           },
         }
       );
-      // --- UPDATED CODE ---
-      // Ab Alert ke bajaye toast notification aayega
       toast.success("Employee updated successfully!");
-      setTimeout(() => navigate('/employees'), 1500); // Thoda jaldi redirect
-      // --- END OF UPDATE ---
+      setTimeout(() => navigate('/employees'), 1500);
     } catch (err) {
       if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
@@ -240,7 +260,6 @@ const EditEmployee = () => {
             {submitError}
           </Alert>
         )}
-        {/* Success Alert component hata diya gaya hai */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Textinput
@@ -289,6 +308,7 @@ const EditEmployee = () => {
           />
         </div>
 
+        {/* --- UPDATED CODE --- */}
         <div>
           <label htmlFor="employee_type" className="form-label">
             Employee Type*
@@ -304,7 +324,9 @@ const EditEmployee = () => {
           >
             <option value="Employee">Employee</option>
             <option value="Manager">Manager</option>
+            <option value="Executive">Executive</option>
             <option value="Supervisor">Coordinator</option>
+            <option value="Outsource">Outsource</option>
           </select>
           {formErrors.employee_type && (
             <p className="text-danger-500 text-xs mt-1">
@@ -312,6 +334,7 @@ const EditEmployee = () => {
             </p>
           )}
         </div>
+        {/* --- END OF UPDATE --- */}
 
         <div>
           <label

@@ -57,6 +57,9 @@ const AddEmployee = () => {
         case "Supervisor":
           updates.user_role = "6";
           break;
+        case "Executive": // Added Executive role
+          updates.user_role = "7";
+          break;
         case "Employee":
         case "Outsource":
         default:
@@ -260,6 +263,7 @@ const AddEmployee = () => {
           >
             <option value="Employee">Employee</option>
             <option value="Manager">Manager</option>
+            <option value="Executive">Executive</option>
             <option value="Supervisor">Coordinator</option>
             <option value="Outsource">Outsource</option>
           </select>

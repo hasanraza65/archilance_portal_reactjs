@@ -3,6 +3,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
 import Cookies from "js-cookie";
+import ReactDOM from "react-dom";
 import Swal from "sweetalert2";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 import Icon from "@/components/ui/Icon";
@@ -13,6 +14,9 @@ const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
   return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
+};
+const PortalContainer = ({ children }) => {
+  return ReactDOM.createPortal(children, document.body);
 };
 
 const EditableStartDate = ({
@@ -122,6 +126,7 @@ const EditableStartDate = ({
         className="form-input w-full px-2 py-2 text-sm bg-transparent border-0 focus:ring-0 text-left cursor-pointer"
         popperPlacement="top-end"
         disabled={isUpdating}
+         popperContainer={PortalContainer}
       />
     </div>
   );

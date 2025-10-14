@@ -183,7 +183,8 @@ const ProjectList = ({
     const isEditable =
       userRole === "admin" ||
       employeeType === "Manager" ||
-      employeeType === "Supervisor";
+      employeeType === "Supervisor"||
+      employeeType === "Executive";
     const baseColumns = [
       {
         Header: "Name",
@@ -274,7 +275,7 @@ const ProjectList = ({
             >
               {(userRole === "admin" ||
                 employeeType === "Manager" ||
-                employeeType === "Supervisor") && (
+                employeeType === "Supervisor"||  employeeType === "Executive") && (
                 <>
                   <button
                     onClick={(e) => {

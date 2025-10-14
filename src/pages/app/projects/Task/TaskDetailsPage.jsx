@@ -85,10 +85,11 @@ const TaskDetailsPage = () => {
     userRole === "admin" ||
     userRole === "employee" ||
     userRole === "manager" ||
-    userRole === "supervisor";
+    userRole === "supervisor"||
+    userRole === "executive";
   
   // ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition banayi gayi hai ++
-  const canViewTimeLogs = ["admin", "manager", "supervisor", "customer"].includes(userRole);
+  const canViewTimeLogs = ["admin", "manager", "supervisor", "customer","executive"].includes(userRole);
 
 
   const apiPrefix = getApiPrefix();

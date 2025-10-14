@@ -3,28 +3,36 @@ import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { setUser as setReduxUser, logOut as logOutRedux } from "@/store/api/auth/authSlice";
+import {
+  setUser as setReduxUser,
+  logOut as logOutRedux,
+} from "@/store/api/auth/authSlice";
 import UpdatePasswordModal from "@/pages/member/UpdatePasswordModal";
-import axios from "axios"; 
+import axios from "axios";
 
 // ====================================================================
 // SECTION 1: HELPER FUNCTIONS & CONSTANTS
 // ====================================================================
 
 const isMobile = () => {
-  if (typeof navigator === 'undefined') {
+  if (typeof navigator === "undefined") {
     return false;
   }
-  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+  const mobileRegex =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
   return mobileRegex.test(navigator.userAgent);
 };
 
+// --- UPDATED CODE ---
 const ROLE_MAP = {
   2: "admin",
   3: "employee",
   4: "customer",
   5: "member",
+  6: "supervisor",
+  7: "executive", // Added executive
 };
+// --- END OF UPDATE ---
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const LOGOUT_API_URL = `${BACKEND_BASE_URL}/api/logout`;
@@ -63,9 +71,11 @@ export const AuthProvider = ({ children }) => {
         const tokenFromBackup = localStorage.getItem("token");
 
         if (userFromBackup && tokenFromBackup) {
-          console.log("Session cookie not found. Restoring session from localStorage backup.");
+          console.log(
+            "Session cookie not found. Restoring session from localStorage backup."
+          );
           const parsedUser = JSON.parse(userFromBackup);
-          
+
           Cookies.set("user", userFromBackup);
           Cookies.set("token", tokenFromBackup);
           Cookies.set("userRole", parsedUser.role);
@@ -75,9 +85,11 @@ export const AuthProvider = ({ children }) => {
       }
 
       return { user: null, token: null };
-
     } catch (error) {
-      console.error("Failed to initialize auth state. Clearing storage.", error);
+      console.error(
+        "Failed to initialize auth state. Clearing storage.",
+        error
+      );
       Cookies.remove("user");
       Cookies.remove("token");
       Cookies.remove("userRole");
@@ -91,12 +103,17 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(initialState.user);
   const [token, setToken] = useState(initialState.token);
 
-  const [isPasswordUpdateRequired, setIsPasswordUpdateRequired] = useState(() => {
-    if (initialState.user) {
-      return initialState.user.role === 'member' && initialState.user.is_default_pass === 1;
+  const [isPasswordUpdateRequired, setIsPasswordUpdateRequired] = useState(
+    () => {
+      if (initialState.user) {
+        return (
+          initialState.user.role === "member" &&
+          initialState.user.is_default_pass === 1
+        );
+      }
+      return false;
     }
-    return false;
-  });
+  );
 
   useEffect(() => {
     if (user) {
@@ -109,20 +126,25 @@ export const AuthProvider = ({ children }) => {
       toast.error("Login failed: Invalid data received from server.");
       return null;
     }
-    
-    const { user: userData, access_token: accessToken } = apiResponse;
-    let userRole = ROLE_MAP[userData.user_role] || 'unknown';
 
-    if (userRole === 'unknown') {
+    const { user: userData, access_token: accessToken } = apiResponse;
+    let userRole = ROLE_MAP[userData.user_role] || "unknown";
+
+    if (userRole === "unknown") {
       toast.error(`Login failed: Unknown user role ID: ${userData.user_role}.`);
       return null;
     }
-    
+
     // --- UPDATED CODE ---
-    // Added 'supervisor' to correctly assign the role from the employee_type.
-    if (userRole === 'employee' && userData.employee_type) {
+    // Added 'executive' to correctly assign the role from the employee_type.
+    if (userRole === "employee" && userData.employee_type) {
       const type = userData.employee_type.toLowerCase();
-      if (type === 'manager' || type === 'outsource' || type === 'supervisor') {
+      if (
+        type === "manager" ||
+        type === "outsource" ||
+        type === "supervisor" ||
+        type === "executive"
+      ) {
         userRole = type;
       }
     }
@@ -140,7 +162,7 @@ export const AuthProvider = ({ children }) => {
 
     const cookieOptions = {
       secure: !import.meta.env.DEV,
-      sameSite: 'Lax',
+      sameSite: "Lax",
       expires: rememberMe ? 7 : undefined,
     };
 
@@ -156,21 +178,33 @@ export const AuthProvider = ({ children }) => {
     setUser(userToSave);
     setToken(accessToken);
     dispatch(setReduxUser(userToSave));
-    
-    if (Number(userData.user_role) === 5 && Number(userData.is_default_pass) === 1) {
+
+    if (
+      Number(userData.user_role) === 5 &&
+      Number(userData.is_default_pass) === 1
+    ) {
       setIsPasswordUpdateRequired(true);
     } else {
       setIsPasswordUpdateRequired(false);
     }
 
+    // --- UPDATED CODE ---
     // Updated role-based redirection logic
-    const jobsRoles = ['employee', 'manager', 'outsource', 'member', 'supervisor']; // Added supervisor here too
+    const jobsRoles = [
+      "employee",
+      "manager",
+      "outsource",
+      "member",
+      "supervisor",
+      "executive",
+    ]; // Added executive here too
     if (jobsRoles.includes(userRole)) {
       navigate("/jobs", { replace: true });
     } else {
       navigate("/dashboard", { replace: true });
     }
- 
+    // --- END OF UPDATE ---
+
     return userToSave;
   };
 
@@ -180,14 +214,23 @@ export const AuthProvider = ({ children }) => {
     if (currentToken) {
       try {
         await axios.post(
-          LOGOUT_API_URL, {}, 
-          { headers: { Authorization: `Bearer ${currentToken}`, Accept: "application/json" } }
+          LOGOUT_API_URL,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${currentToken}`,
+              Accept: "application/json",
+            },
+          }
         );
       } catch (error) {
-        console.error("Backend logout failed, but proceeding with frontend logout:", error);
+        console.error(
+          "Backend logout failed, but proceeding with frontend logout:",
+          error
+        );
       }
     }
-    
+
     setUser(null);
     setToken(null);
     setIsPasswordUpdateRequired(false);
@@ -196,7 +239,7 @@ export const AuthProvider = ({ children }) => {
     Cookies.remove("user");
     Cookies.remove("token");
     Cookies.remove("userRole");
-    
+
     localStorage.removeItem("user");
     localStorage.removeItem("token");
 
@@ -209,23 +252,29 @@ export const AuthProvider = ({ children }) => {
     if (user) {
       const updatedUser = { ...user, is_default_pass: 0 };
       setUser(updatedUser);
-      const rememberMe = !!Cookies.get('token');
+      const rememberMe = !!Cookies.get("token");
       const cookieOptions = {
         secure: !import.meta.env.DEV,
-        sameSite: 'Lax',
+        sameSite: "Lax",
         expires: rememberMe ? 7 : undefined,
       };
-      
+
       const userString = JSON.stringify(updatedUser);
       Cookies.set("user", userString, cookieOptions);
       if (isMobile()) {
-          localStorage.setItem("user", userString);
+        localStorage.setItem("user", userString);
       }
     }
     toast.info("You can now continue using the application.");
   };
 
-  const value = { user, token, login, logout, isAuthenticated: !!user && !!token };
+  const value = {
+    user,
+    token,
+    login,
+    logout,
+    isAuthenticated: !!user && !!token,
+  };
 
   return (
     <AuthContext.Provider value={value}>
@@ -244,7 +293,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

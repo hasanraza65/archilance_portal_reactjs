@@ -255,7 +255,7 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                   </thead>
                   <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
                     {statusData.tasks.map((task) => {
-                      const isEditable = userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor";
+                      const isEditable = userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor" || employeeType === "Executive";
                       return (
                         <tr
                           key={task.id}
@@ -388,7 +388,7 @@ const MembersView = () => {
     const userRole = getApiPrefix();
     const employeeType = getEmployeeType();
 
-    if (userRole !== "admin" && employeeType !== "Manager" && employeeType !== "Supervisor") {
+    if (userRole !== "admin" && employeeType !== "Manager" && employeeType !== "Supervisor" && employeeType !== "Executive") {
       setError("You are not authorized to view this information.");
       setIsLoading(false);
       return;

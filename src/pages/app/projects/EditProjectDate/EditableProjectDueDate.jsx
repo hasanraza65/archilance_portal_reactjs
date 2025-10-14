@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
+import ReactDOM from "react-dom";
+
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 import Icon from "@/components/ui/Icon";
@@ -22,7 +24,9 @@ const EditableProjectDueDate = ({
 }) => {
   const [dueDate, setDueDate] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
-
+const PortalContainer = ({ children }) => {
+  return ReactDOM.createPortal(children, document.body);
+};
   // --- YAHAN SAHI CHECK ADD KIYA GAYA HAI ---
   useEffect(() => {
     if (!currentDueDate) {
@@ -122,6 +126,7 @@ const EditableProjectDueDate = ({
         className="form-input w-full px-2 py-1 text-sm bg-transparent border-0 focus:ring-0 text-left cursor-pointer"
         popperPlacement="top-end"
         disabled={isUpdating}
+        popperContainer={PortalContainer}
       />
     </div>
   );

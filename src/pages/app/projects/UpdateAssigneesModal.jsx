@@ -14,7 +14,7 @@ const UpdateAssigneesModal = () => {
   
   const userRole = getApiPrefix();
   const employeeType = getEmployeeType();
-  const isEditable = userRole === 'admin' || employeeType === 'Manager' || employeeType === 'Supervisor';
+  const isEditable = userRole === 'admin' || employeeType === 'Manager' || employeeType === 'Supervisor' || employeeType === 'Executive';
 
   const [allEmployees, setAllEmployees] = useState([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState(new Set());

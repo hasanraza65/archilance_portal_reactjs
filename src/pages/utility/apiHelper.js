@@ -22,13 +22,13 @@ export const getEmployeeType = () => {
   try {
     const user = JSON.parse(userCookie);
     return user?.employee_type;
-  } catch (e)
-  {
+  } catch (e) {
     console.error("Error parsing user cookie for employee_type:", e);
     return null;
   }
 };
 
+// --- UPDATED CODE ---
 export const canManageEmployees = () => {
   const role = getActualUserRole();
 
@@ -36,7 +36,8 @@ export const canManageEmployees = () => {
     return true;
   }
 
-  if (role === "manager" || role === "supervisor") {
+  // Grant permission to Manager, Supervisor, and Executive
+  if (role === "manager" || role === "supervisor" || role === "executive") {
     return true;
   }
 
@@ -51,6 +52,7 @@ export const getApiPrefix = () => {
     case "outsource":
     case "employee":
     case "supervisor":
+    case "executive": // Add executive here
       return "employee";
 
     case "admin":
@@ -67,13 +69,15 @@ export const getApiPrefix = () => {
       return "customer";
   }
 };
+// --- END OF UPDATE ---
 
 export const getUserRole = () => {
   return getActualUserRole();
 };
+
 export const getApiBasePathForRole = (basePath) => {
-  const prefix = getApiPrefix(); 
+  const prefix = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  
+
   return `/api/${prefix}${cleanBasePath}`;
 };
