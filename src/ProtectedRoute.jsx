@@ -10,7 +10,7 @@ const ProtectedRoute = ({ children, allowedRoles, requireManagerAccess = false }
     return <Navigate to="/" replace />;
   }
 
-  const employeeRoles = ['employee', 'manager', 'outsource', 'supervisor'];
+  const employeeRoles = ['employee', 'manager', 'outsource', 'supervisor', 'executive'];
   if (window.location.pathname === '/dashboard' && employeeRoles.includes(user.role)) {
     return <Navigate to="/jobs" replace />;
   }

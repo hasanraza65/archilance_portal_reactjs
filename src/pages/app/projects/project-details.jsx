@@ -1052,7 +1052,8 @@ const ProjectDetailsPage = () => {
     currentUserRole === "admin" ||
     currentUserRole === "manager" ||
     currentUserRole === "supervisor" ||
-    currentUserRole === "employee";
+    currentUserRole === "employee"|| 
+    currentUserRole === "executive";
   const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -1082,6 +1083,7 @@ const ProjectDetailsPage = () => {
       "employee",
       "outsource",
       "supervisor",
+      "executive",
     ].includes(currentUserRole);
     if (!canViewChat || !token || !id) {
       setIsMessagesLoading(false);
@@ -1113,6 +1115,7 @@ const ProjectDetailsPage = () => {
       "employee",
       "outsource",
       "supervisor",
+      "executive",
     ].includes(currentUserRole);
     if (canViewChat) {
       fetchMessages();
@@ -1597,6 +1600,7 @@ const ProjectDetailsPage = () => {
     "employee",
     "outsource",
     "supervisor",
+    "executive",
   ].includes(currentUserRole);
   const canViewChat = [
     "admin",
@@ -1604,6 +1608,7 @@ const ProjectDetailsPage = () => {
     "employee",
     "outsource",
     "supervisor",
+    "executive",
   ].includes(currentUserRole);
 
   return (

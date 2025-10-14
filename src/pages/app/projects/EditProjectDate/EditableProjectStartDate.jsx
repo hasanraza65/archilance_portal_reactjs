@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom"; // ReactDOM ko import karein
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
@@ -13,6 +14,13 @@ const getApiBasePathForRole = (role, basePath) => {
   return role ? `/api/${role}${cleanBasePath}` : `/api/admin${cleanBasePath}`;
 };
 
+// --- YEH HELPER COMPONENT ADD KAREIN ---
+// Yeh calendar ko body mein render karega
+const PortalContainer = ({ children }) => {
+  return ReactDOM.createPortal(children, document.body);
+};
+// --- BADLAV KHATAM ---
+
 const EditableProjectStartDate = ({
   projectId,
   currentStartDate,
@@ -23,7 +31,6 @@ const EditableProjectStartDate = ({
   const [startDate, setStartDate] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // --- YAHAN SAHI CHECK ADD KIYA GAYA HAI ---
   useEffect(() => {
     if (!currentStartDate) {
       setStartDate(null);
@@ -36,7 +43,6 @@ const EditableProjectStartDate = ({
       setStartDate(null);
     }
   }, [currentStartDate]);
-  // --- BADLAV KHATAM ---
 
   if (!isEditable) {
     const formattedDate = startDate
@@ -122,6 +128,9 @@ const EditableProjectStartDate = ({
         className="form-input w-full px-2 py-1 text-sm bg-transparent border-0 focus:ring-0 text-left cursor-pointer"
         popperPlacement="top-end"
         disabled={isUpdating}
+        // --- YEH PROP ADD KAREIN ---
+        popperContainer={PortalContainer}
+        // --- BADLAV KHATAM ---
       />
     </div>
   );

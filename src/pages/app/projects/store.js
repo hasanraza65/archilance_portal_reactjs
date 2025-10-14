@@ -20,6 +20,7 @@ const getProjectPath = () => {
     case "employee":
     case "manager":
     case "supervisor":
+    case "executive":
     default:
       return "/employee/project";
   }

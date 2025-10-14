@@ -29,7 +29,6 @@ const getApiBasePathForRole = (basePath) => {
   return `/api/admin${cleanBasePath}`;
 };
 
-// ##### CHANGE 1: UPDATE DISPLAY LOGIC #####
 const EMPLOYEE_API_COLUMNS_CONFIG = (
   navigate,
   openDeleteModalHandler,
@@ -47,21 +46,35 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
       const { name, profile_pic, id, employee_type } = row.original;
       const lowerCaseEmployeeType = employee_type?.toLowerCase();
 
-      // We will display "Coordinators" for the "Supervisor" type
+      // --- UPDATED CODE ---
       const isSupervisor = lowerCaseEmployeeType === "supervisor";
       const displayType = isSupervisor ? "Coordinators" : employee_type;
 
+      // Logic to determine if a badge should be shown
       const showBadge =
         lowerCaseEmployeeType === "manager" ||
+        lowerCaseEmployeeType === "executive" || // Added executive
         lowerCaseEmployeeType === "outsource" ||
         isSupervisor;
 
-      const badgeClass =
-        lowerCaseEmployeeType === "manager"
-          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200"
-          : isSupervisor
-          ? "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200"
-          : "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200";
+      // Logic to assign badge color
+      let badgeClass = "";
+      if (lowerCaseEmployeeType === "manager") {
+        badgeClass =
+          "bg-emerald-100 text-emerald-800 dark:bg-emerald-700 dark:text-emerald-200";
+      } else if (lowerCaseEmployeeType === "executive") {
+        // New badge class for Executive
+        badgeClass =
+          "bg-purple-100 text-purple-800 dark:bg-purple-700 dark:text-purple-200";
+      } else if (isSupervisor) {
+        badgeClass =
+          "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200";
+      } else {
+        // Fallback for Outsource
+        badgeClass =
+          "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200";
+      }
+      // --- END OF UPDATE ---
 
       return (
         <div
@@ -227,8 +240,6 @@ const Allemployees = () => {
         return;
       }
 
-      // ##### CHANGE 2: REMOVE DATA TRANSFORMATION #####
-      // We will no longer change "Supervisor" to "Coordinators" here.
       setEmployeeData(rawData);
     } catch (err) {
       setFetchError(
@@ -246,7 +257,7 @@ const Allemployees = () => {
     fetchEmployees();
   }, [fetchEmployees]);
 
-  // ##### CHANGE 3: CORRECT FILTERING LOGIC #####
+  // --- UPDATED CODE ---
   const filteredData = useMemo(() => {
     if (!user || !employeeData.length) {
       return [];
@@ -259,12 +270,13 @@ const Allemployees = () => {
       return employeeData;
     }
 
-    if (currentUserType === "manager") {
+    // Executive has the same visibility as a Manager
+    if (currentUserType === "manager" || currentUserType === "executive") {
       return employeeData.filter((emp) => {
         const empType = emp.employee_type?.toLowerCase();
         return (
-          empType === "supervisor" || // Manager can see Supervisors
-          empType === "employee" || // Manager can see Employees
+          empType === "supervisor" || // Manager/Executive can see Supervisors
+          empType === "employee" || // Manager/Executive can see Employees
           !emp.employee_type
         );
       });
@@ -284,6 +296,7 @@ const Allemployees = () => {
 
     return [];
   }, [employeeData, user]);
+  // --- END OF UPDATE ---
 
   const handleOpenDeleteModal = useCallback((employee) => {
     setEmployeeToDelete(employee);
