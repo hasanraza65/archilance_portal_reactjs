@@ -408,7 +408,7 @@ const ProjectPostPage = () => {
                                   <ProjectGrid
                                     project={project}
                                     key={project.id}
-                                    userRole={uiRole}
+                                     userRole={actualUserRole}
                                     employeeType={employeeType}
                                   />
                                 ))}
@@ -422,7 +422,7 @@ const ProjectPostPage = () => {
                 ) : (
                   <ProjectList
                     projectsByStatus={projects}
-                    userRole={uiRole}
+                     userRole={actualUserRole}
                     employeeType={employeeType}
                     searchQuery={projectSearchQuery}
                     statusFilter={projectStatusFilter}

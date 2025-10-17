@@ -75,13 +75,10 @@ const AvatarStack = ({ assignees }) => {
 // This is a sub-component that renders the actual table for a given set of projects.
 const StatusTable = ({ projects, columns, userRole }) => {
   const navigate = useNavigate();
-  const handleRowNavigation = (projectId) => {
-    if (!projectId) return;
-    if (userRole === "customer" || userRole === "member")
-      navigate(`/order-details/${projectId}`);
-    else navigate(`/jobs/${projectId}`);
-  };
-
+const handleRowNavigation = (projectId) => {
+  if (!projectId) return;
+  navigate(`/jobs/${projectId}`);
+};
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable({ columns, data: projects }, useSortBy);
 

@@ -24,9 +24,7 @@ const WorkSession = lazy(() =>
 const AdminEmployeeWorkSession = lazy(() =>
   import("./pages/employees/WorkSession/AdminEmployeeWorkSession")
 );
-const OrderDetailsPage = lazy(() =>
-  import("./pages/customers/OrderPage/OrderDetailPage")
-);
+
 const Subscription = lazy(() =>
   import("./pages/customers/Subscription/Subscription")
 );
@@ -235,7 +233,7 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
-                    "executive", // Added executive
+                    "executive", 
                   ]}
                 >
                   <ProjectDetailsPage />
@@ -442,14 +440,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/order-details/:id"
-              element={
-                <ProtectedRoute allowedRoles={["customer", "member"]}>
-                  <OrderDetailsPage />
-                </ProtectedRoute>
-              }
-            />
+           
             <Route
               path="/work-diary/:projectId"
               element={
