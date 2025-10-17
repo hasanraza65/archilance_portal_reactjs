@@ -87,7 +87,8 @@ const TaskDetailsPage = () => {
     userRole === "employee" ||
     userRole === "manager" ||
     userRole === "supervisor"||
-    userRole === "executive";
+    userRole === "executive" ||
+    userRole === "customer";
   
   // ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition banayi gayi hai ++
   const canViewTimeLogs = ["admin", "manager", "supervisor", "customer","executive"].includes(userRole);
@@ -842,7 +843,7 @@ const TaskDetailsPage = () => {
                   onLoadRepliesForComment={onLoadRepliesForComment}
                 />
               )}
-              {/* ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition ka istemal kiya gaya hai ++ */}
+            
               {canViewTimeLogs && (
                 <TimeLogSummary timeLogs={timeLogs} />
               )}
