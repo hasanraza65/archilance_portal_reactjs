@@ -32,6 +32,7 @@ const TaskDetailsPage = () => {
   const location = useLocation();
 
   const jobId = location.state?.jobId;
+  const currentUserRole = getUserRole();
 
   const { user } = useAuth();
   const { setBreadcrumbs } = useBreadcrumbs();
@@ -86,7 +87,8 @@ const TaskDetailsPage = () => {
     userRole === "employee" ||
     userRole === "manager" ||
     userRole === "supervisor"||
-    userRole === "executive";
+    userRole === "executive" ||
+    userRole === "customer";
   
   // ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition banayi gayi hai ++
   const canViewTimeLogs = ["admin", "manager", "supervisor", "customer","executive"].includes(userRole);
@@ -208,20 +210,37 @@ const TaskDetailsPage = () => {
       navigate,
     ]
   );
+// --- START: REPLACEMENT CODE for your Task Details Page ---
 
   useEffect(() => {
+    // This part remains the same if you are passing breadcrumbs via location state
     if (location.state?.breadcrumbs) {
       setBreadcrumbs(location.state.breadcrumbs);
-    } else if (parentTaskDetails) {
-      const newCrumbs = [{ title: "Jobs", link: "/jobs" }];
+    } 
+    // This is the main logic we are fixing
+    else if (parentTaskDetails) {
+      
+      // Determine the correct "parent" page link for the main project list
+      let projectListCrumb = { title: "Jobs", link: "/jobs" }; // Default for customer, admin, etc.
+      if (currentUserRole === 'member') {
+        // If the user is a 'member', their main list is on the 'teamaccess' page.
+        projectListCrumb = { title: "My Team Access", link: "/teamaccess" };
+      }
+
+      // Start building the breadcrumbs array with the correct first link
+      const newCrumbs = [projectListCrumb];
 
       if (jobDetails) {
-        const projectLink = isCustomer
+        // Determine the correct link for the JOB itself
+        // Only 'member' should go to order-details. Everyone else goes to jobs/:id
+        const projectLink = (currentUserRole === 'member')
           ? `/order-details/${jobDetails.id}`
           : `/jobs/${jobDetails.id}`;
+          
         newCrumbs.push({ title: jobDetails.project_name, link: projectLink });
       }
 
+      // This logic for nested tasks remains the same
       if (parentTaskDetails.parent_task) {
         newCrumbs.push({
           title: parentTaskDetails.parent_task.task_title,
@@ -229,10 +248,14 @@ const TaskDetailsPage = () => {
         });
       }
 
+      // Add the current task's title (it's not a link)
       newCrumbs.push({ title: parentTaskDetails.task_title });
+
+      // Set the final, correct breadcrumbs
       setBreadcrumbs(newCrumbs);
     }
 
+    // Cleanup function
     return () => {
       setBreadcrumbs([]);
     };
@@ -241,9 +264,10 @@ const TaskDetailsPage = () => {
     jobDetails,
     parentTaskDetails,
     setBreadcrumbs,
-    isCustomer,
+    currentUserRole, // Use currentUserRole instead of isCustomer
   ]);
 
+// --- END: REPLACEMENT CODE ---
   const initialFetchAndSetup = async (currentTaskId) => {
     if (!canManageComments) return;
     const authToken = getAuthToken();
@@ -819,7 +843,7 @@ const TaskDetailsPage = () => {
                   onLoadRepliesForComment={onLoadRepliesForComment}
                 />
               )}
-              {/* ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition ka istemal kiya gaya hai ++ */}
+            
               {canViewTimeLogs && (
                 <TimeLogSummary timeLogs={timeLogs} />
               )}

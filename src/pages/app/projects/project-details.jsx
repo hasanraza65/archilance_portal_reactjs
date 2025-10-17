@@ -1084,6 +1084,7 @@ const ProjectDetailsPage = () => {
       "outsource",
       "supervisor",
       "executive",
+      "customer",
     ].includes(currentUserRole);
     if (!canViewChat || !token || !id) {
       setIsMessagesLoading(false);
@@ -1116,6 +1117,7 @@ const ProjectDetailsPage = () => {
       "outsource",
       "supervisor",
       "executive",
+      "customer",
     ].includes(currentUserRole);
     if (canViewChat) {
       fetchMessages();
@@ -1608,6 +1610,7 @@ const ProjectDetailsPage = () => {
     "employee",
     "outsource",
     "supervisor",
+    "customer",
     "executive",
   ].includes(currentUserRole);
 

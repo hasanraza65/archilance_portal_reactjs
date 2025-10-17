@@ -80,13 +80,9 @@ const ProjectGrid = ({ project, userRole, employeeType }) => {
   const navigate = useNavigate();
 
   const handleCardClick = () => {
-    if (!id) return;
-    if (userRole === "customer" || userRole === "member") {
-      navigate(`/order-details/${id}`);
-    } else {
-      navigate(`/jobs/${id}`);
-    }
-  };
+  if (!id) return;
+  navigate(`/jobs/${id}`);
+};
 
   const handleOpenAssigneesModal = (e) => {
     e.stopPropagation();
