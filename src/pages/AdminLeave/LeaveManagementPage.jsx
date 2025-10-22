@@ -43,14 +43,13 @@ const calculateDuration = (start, end) => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 };
 
-// Simplified status text helper for the new modal
 const getStatusTextForModal = (count) => {
   if (count >= 5) return "Good";
   if (count >= 2) return "Low";
   return "Critical";
 };
 
-// --- [UPDATED MODAL COMPONENT WITH SCROLL LOCK] ---
+// --- [FIXED AND IMPROVED MODAL COMPONENT] ---
 const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   const [leaveSummary, setLeaveSummary] = useState(null);
   const [cycle, setCycle] = useState(null);
@@ -61,15 +60,12 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   // useEffect hook to handle body scroll
   useEffect(() => {
     if (isOpen) {
-      // When the modal is open, prevent the background from scrolling
       document.body.style.overflow = "hidden";
     }
-
-    // Cleanup function: This is called when the modal is closed or the component unmounts
     return () => {
-      document.body.style.overflow = "auto"; // Restore scrolling
+      document.body.style.overflow = "auto";
     };
-  }, [isOpen]); // This effect runs only when the `isOpen` prop changes
+  }, [isOpen]);
 
   const fetchEmployeeLeaveDetails = useCallback(async () => {
     if (!request || !isOpen) return;
@@ -109,6 +105,13 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
     { key: "annual", name: "Annual Leave", total: 15 },
     { key: "sick", name: "Sick Leave", total: 7 },
   ];
+
+  // Helper to determine progress bar color based on remaining leaves
+  const getProgressBarColor = (remaining) => {
+    if (remaining >= 5) return "bg-emerald-500"; // Good
+    if (remaining >= 2) return "bg-amber-500"; // Low
+    return "bg-red-500"; // Critical
+  };
 
   return (
     <div className="fixed inset-0 bg-transparent bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
@@ -162,22 +165,25 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
                 <p className="mt-3 text-gray-500">Loading leave details...</p>
               </div>
             ) : leaveSummary ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {leaveTypes.map((type) => {
-                  const remaining = leaveSummary[type.key] || 0;
+                  const remaining = leaveSummary[type.key] ?? type.total;
+                  // [FIX] Calculate used days for a more intuitive progress bar
+                  const used = type.total - remaining;
+                  // [FIX] Progress bar now reflects the percentage of USED leaves
                   const progress =
-                    type.total > 0 ? (remaining / type.total) * 100 : 0;
+                    type.total > 0 ? (used / type.total) * 100 : 0;
+                  const progressBarColor = getProgressBarColor(remaining);
+
                   return (
                     <div
                       key={type.key}
                       className="bg-white border border-gray-200 rounded-lg p-4"
                     >
                       <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <span className="font-semibold text-gray-800 text-md">
-                            {type.name}
-                          </span>
-                        </div>
+                        <span className="font-semibold text-gray-800 text-md">
+                          {type.name}
+                        </span>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-gray-900 text-lg">
                             {remaining}
@@ -190,18 +196,17 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
                       <div className="mt-3">
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
-                            className="bg-gray-700 h-2 rounded-full"
+                            className={`${progressBarColor} h-2 rounded-full transition-all duration-500`}
                             style={{ width: `${progress}%` }}
                           ></div>
                         </div>
-                        <div className="flex justify-between mt-1">
-                          <span className="text-xs text-gray-500">0 days</span>
+                        <div className="flex justify-between mt-1.5">
+                          {/* [FIX] Changed labels to be dynamic and clear */}
+                          <span className="text-xs text-gray-500">{`Used: ${used}`}</span>
                           <span className="text-xs font-medium text-gray-600">{`Status: ${getStatusTextForModal(
                             remaining
                           )}`}</span>
-                          <span className="text-xs text-gray-500">
-                            {type.total} days
-                          </span>
+                          <span className="text-xs text-gray-500">{`Total: ${type.total}`}</span>
                         </div>
                       </div>
                     </div>
@@ -236,7 +241,7 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   );
 };
 
-// --- [ORIGINAL] Main Component ---
+// --- Main Component ---
 const LeaveManagementPage = () => {
   // --- State Management ---
   const [leaveRequests, setLeaveRequests] = useState([]);
@@ -301,9 +306,7 @@ const LeaveManagementPage = () => {
       toast.error("Authentication failed.");
       return;
     }
-
     const toastId = toast.loading(`Updating status to ${newStatus}...`);
-
     const formData = new FormData();
     formData.append("status", newStatus);
     formData.append("_method", "put");
@@ -315,7 +318,6 @@ const LeaveManagementPage = () => {
           Accept: "application/json",
         },
       });
-
       toast.success("Status updated successfully!", { id: toastId });
       await fetchLeaveRequests();
     } catch (err) {
@@ -330,7 +332,6 @@ const LeaveManagementPage = () => {
       toast.error("Authentication failed.");
       return;
     }
-
     Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -349,7 +350,6 @@ const LeaveManagementPage = () => {
               Accept: "application/json",
             },
           });
-
           toast.success("Leave request deleted successfully.", { id: toastId });
           await fetchLeaveRequests();
         } catch (err) {
@@ -370,7 +370,6 @@ const LeaveManagementPage = () => {
     setSelectedRequest(null);
   };
 
-  // --- UI Helper Functions & Filtering (For Main Page) ---
   const getStatusConfig = (status) => {
     switch (status) {
       case "Approved":
