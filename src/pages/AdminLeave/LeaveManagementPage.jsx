@@ -50,20 +50,35 @@ const getStatusTextForModal = (count) => {
   return "Critical";
 };
 
-// --- [IMPROVED AND FIXED MODAL COMPONENT] ---
-const EmployeeLeaveDetailModal = ({ employee, isOpen, onClose }) => {
+// --- [UPDATED MODAL COMPONENT WITH SCROLL LOCK] ---
+const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   const [leaveSummary, setLeaveSummary] = useState(null);
   const [cycle, setCycle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const employee = request?.user;
+
+  // useEffect hook to handle body scroll
+  useEffect(() => {
+    if (isOpen) {
+      // When the modal is open, prevent the background from scrolling
+      document.body.style.overflow = "hidden";
+    }
+
+    // Cleanup function: This is called when the modal is closed or the component unmounts
+    return () => {
+      document.body.style.overflow = "auto"; // Restore scrolling
+    };
+  }, [isOpen]); // This effect runs only when the `isOpen` prop changes
+
   const fetchEmployeeLeaveDetails = useCallback(async () => {
-    if (!employee || !isOpen) return;
+    if (!request || !isOpen) return;
 
     setIsLoading(true);
     const token = getAuthToken();
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/api/admin/leave-request/${employee.id}`,
+        `${API_BASE_URL}/api/admin/leave-request/${request.id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -79,7 +94,7 @@ const EmployeeLeaveDetailModal = ({ employee, isOpen, onClose }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [employee, isOpen]);
+  }, [request, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -87,7 +102,7 @@ const EmployeeLeaveDetailModal = ({ employee, isOpen, onClose }) => {
     }
   }, [fetchEmployeeLeaveDetails, isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !request || !employee) return null;
 
   const leaveTypes = [
     { key: "casual", name: "Casual Leave", total: 10 },
@@ -98,7 +113,6 @@ const EmployeeLeaveDetailModal = ({ employee, isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 bg-transparent bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[70vh] flex flex-col transform transition-all duration-300">
-       
         <div className="flex-grow overflow-y-auto p-6">
           <div className="flex items-center gap-5 mb-6">
             <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden shrink-0 border-2 border-white shadow-md">
@@ -236,7 +250,7 @@ const LeaveManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const ADMIN_LEAVE_API_URL = `${API_BASE_URL}/api/admin/leave-request`;
@@ -346,14 +360,14 @@ const LeaveManagementPage = () => {
     });
   };
 
-  const handleEmployeeNameClick = (employee) => {
-    setSelectedEmployee(employee);
+  const handleViewDetailsClick = (request) => {
+    setSelectedRequest(request);
     setIsDetailModalOpen(true);
   };
 
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false);
-    setSelectedEmployee(null);
+    setSelectedRequest(null);
   };
 
   // --- UI Helper Functions & Filtering (For Main Page) ---
@@ -412,7 +426,7 @@ const LeaveManagementPage = () => {
       <Toaster position="top-center" reverseOrder={false} />
 
       <EmployeeLeaveDetailModal
-        employee={selectedEmployee}
+        request={selectedRequest}
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
       />
@@ -577,9 +591,7 @@ const LeaveManagementPage = () => {
                           </div>
                           <div className="flex-1">
                             <button
-                              onClick={() =>
-                                handleEmployeeNameClick(request.user)
-                              }
+                              onClick={() => handleViewDetailsClick(request)}
                               className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors text-left"
                             >
                               {request.user?.name || "Unknown Employee"}
