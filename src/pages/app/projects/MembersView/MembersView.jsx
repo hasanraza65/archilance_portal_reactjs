@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
@@ -16,6 +16,7 @@ import EditTask from "../EditTask";
 
 const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
+// --- CONSTANTS AND HELPERS ---
 const STATUS_ORDER = [
   "On Hold",
   "Backlog",
@@ -29,22 +30,56 @@ const STATUS_ORDER = [
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  if (role) {
-    return `/api/${role}${cleanBasePath}`;
-  }
-  return `/api/admin${cleanBasePath}`;
+  return `/api/${role}${cleanBasePath}`;
 };
 
 const getAuthToken = () => Cookies.get("token");
 
-const formatDate = (dateString) => {
-  if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+const getStatusClass = (status) => {
+  const s = String(status || "").toLowerCase();
+  if (s === "completed" || s === "done")
+    return "bg-green-100 text-green-800 border-green-200";
+  if (s.includes("progress"))
+    return "bg-blue-100 text-blue-800 border-blue-200";
+  if (s.includes("backlog"))
+    return "bg-purple-100 text-purple-800 border-purple-200";
+  if (s.includes("review"))
+    return "bg-yellow-100 text-yellow-800 border-yellow-200";
+  if (s.includes("on hold"))
+    return "bg-orange-100 text-orange-800 border-orange-200";
+  return "bg-slate-100 text-slate-800 border-slate-200";
 };
+
+const StatusFilterBar = ({
+  statuses,
+  activeFilter,
+  onFilterChange,
+  disabled = false,
+  className = "",
+}) => (
+  <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <span className="text-sm font-medium text-slate-500 dark:text-slate-300 mr-2">
+      Filter by:
+    </span>
+    {["All", ...statuses].map((status) => (
+      <button
+        key={status}
+        onClick={() => onFilterChange(status)}
+        disabled={disabled}
+        className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full border transition-all duration-200 ${
+          activeFilter.toLowerCase() === status.toLowerCase()
+            ? `${getStatusClass(
+                status
+              )} ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800`
+            : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+        }`}
+        style={{ ringColor: status.toLowerCase() === "all" ? "#64748b" : "" }}
+      >
+        {status}
+      </button>
+    ))}
+  </div>
+);
 
 const statusConfig = {
   "On Hold": {
@@ -100,6 +135,8 @@ const StatusBadge = ({ status }) => {
 };
 
 const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
+  // (This component remains mostly unchanged, as filtering is done before passing data to it)
+  // ... All the existing code for MemberTaskTable goes here ...
   const [expandedSections, setExpandedSections] = useState({});
   const navigate = useNavigate();
   const userRole = getApiPrefix();
@@ -108,24 +145,24 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
   const [currentTask, setCurrentTask] = useState(null);
 
   useEffect(() => {
+    // Expand the first available status group by default
     const firstStatusWithTasks = STATUS_ORDER.find(
       (status) => memberTasksByStatus[status]?.count > 0
     );
     if (firstStatusWithTasks) {
       setExpandedSections({ [firstStatusWithTasks]: true });
+    } else {
+      // If no tasks after filtering, collapse everything
+      setExpandedSections({});
     }
-  }, []);
+  }, [memberTasksByStatus]); // Dependency changed to re-evaluate on filtered data
 
-  const handleUpdateTask = () => {
-    onUpdate();
-  };
-
+  const handleUpdateTask = () => onUpdate();
   const handleOpenEditModal = useCallback((task, e) => {
     e.stopPropagation();
     setCurrentTask(task);
     setEditTaskModal(true);
   }, []);
-
   const handleDelete = useCallback(
     (taskId, taskTitle, e) => {
       e.stopPropagation();
@@ -144,9 +181,7 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
               `${VITE_BASE_URL}${getApiBasePathForRole(
                 `/project-task/${taskId}`
               )}`,
-              {
-                headers: { Authorization: `Bearer ${getAuthToken()}` },
-              }
+              { headers: { Authorization: `Bearer ${getAuthToken()}` } }
             )
             .then(() => {
               Swal.fire("Deleted!", "The task has been deleted.", "success");
@@ -165,9 +200,8 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
     [onUpdate]
   );
 
-  const toggleSection = (status) => {
+  const toggleSection = (status) =>
     setExpandedSections((prev) => ({ ...prev, [status]: !prev[status] }));
-  };
 
   const handleRowClick = (taskData) => {
     if (userRole === "customer") return;
@@ -188,12 +222,20 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
     });
   };
 
+  // If after filtering, no tasks exist for this member, show a message.
+  if (Object.keys(memberTasksByStatus).length === 0) {
+    return (
+      <p className="text-sm text-center text-slate-500 py-4">
+        No tasks match the current filter.
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-3 pt-4">
       {STATUS_ORDER.map((status) => {
         const statusData = memberTasksByStatus[status];
         if (!statusData || statusData.count === 0) return null;
-
         const isOpen = expandedSections[status];
         const config = statusConfig[status] || statusConfig["Default"];
 
@@ -224,7 +266,6 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
               </div>
               <StatusBadge status={status} />
             </div>
-
             {isOpen && (
               <div className="w-full bg-white dark:bg-slate-800 p-2 md:p-0">
                 <table className="min-w-full responsive-task-table">
@@ -261,7 +302,6 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                         employeeType === "Supervisor" ||
                         employeeType === "Executive";
                       const isSubTask = !!task.parent_task;
-
                       return (
                         <tr
                           key={task.id}
@@ -389,6 +429,10 @@ const MembersView = () => {
   const [error, setError] = useState(null);
   const [openMemberId, setOpenMemberId] = useState(null);
 
+  // --- NEW STATE FOR FILTERS ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
   const fetchMembersData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -441,6 +485,58 @@ const MembersView = () => {
     }
   }, [membersData]);
 
+  // --- NEW: FILTERING LOGIC USING useMemo ---
+  const filteredMembersData = useMemo(() => {
+    if (!membersData) return [];
+
+    return membersData
+      .map((member) => {
+        const filteredTasksByStatus = {};
+        let filteredTotalTasks = 0;
+
+        // Iterate over the defined status order to maintain consistency
+        STATUS_ORDER.forEach((status) => {
+          if (member.tasks_by_status[status]) {
+            // Apply status filter
+            if (
+              statusFilter.toLowerCase() !== "all" &&
+              status.toLowerCase() !== statusFilter.toLowerCase()
+            ) {
+              return; // Skip this status if it doesn't match the filter
+            }
+
+            // Apply search filter
+            const lowerCaseQuery = searchQuery.toLowerCase();
+            const filteredTasks = member.tasks_by_status[status].tasks.filter(
+              (task) =>
+                (task.project?.project_name || "")
+                  .toLowerCase()
+                  .includes(lowerCaseQuery) ||
+                (task.parent_task?.task_title || "")
+                  .toLowerCase()
+                  .includes(lowerCaseQuery) ||
+                (task.task_title || "").toLowerCase().includes(lowerCaseQuery)
+            );
+
+            if (filteredTasks.length > 0) {
+              filteredTasksByStatus[status] = {
+                tasks: filteredTasks,
+                count: filteredTasks.length,
+              };
+              filteredTotalTasks += filteredTasks.length;
+            }
+          }
+        });
+
+        return {
+          ...member,
+          tasks_by_status: filteredTasksByStatus,
+          total_tasks: filteredTotalTasks,
+        };
+      })
+      .filter((member) => member.total_tasks > 0); // Hide members with no matching tasks
+  }, [membersData, searchQuery, statusFilter]);
+
   const handleToggleMember = (memberId) => {
     setOpenMemberId((prevId) => (prevId === memberId ? null : memberId));
   };
@@ -475,54 +571,98 @@ const MembersView = () => {
     );
 
   return (
-    <div className="space-y-4">
-      {membersData.map((member) => (
-        <Card key={member.id} bodyClass="p-0">
-          <div
-            className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 cursor-pointer"
-            onClick={() => handleToggleMember(member.id)}
-          >
-            <div className="flex items-center space-x-4">
-              <img
-                src={`${VITE_BASE_URL}/storage/${member.profile_pic}`}
-                alt={member.name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-              <div>
-                <h5 className="font-semibold text-slate-700 dark:text-slate-200">
-                  {member.name}
-                </h5>
-                <p className="text-sm text-slate-500 break-all">
-                  {member.email}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between w-full sm:w-auto mt-4 sm:mt-0 sm:space-x-4">
-              <span className="inline-block px-3 py-1 text-sm font-semibold text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 rounded-full">
-                {member.total_tasks} Tasks
-              </span>
-              <Icon
-                icon={
-                  openMemberId === member.id
-                    ? "heroicons-outline:chevron-up"
-                    : "heroicons-outline:chevron-down"
-                }
-                className="w-6 h-6 text-slate-500"
-              />
-            </div>
+    <div>
+      <Card className="mb-6">
+        <div className="relative md:w-1/3 w-full">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tasks across all members..."
+            className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
+            disabled={isLoading}
+          />
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <Icon
+              icon="heroicons-outline:search"
+              className="w-5 h-5 text-slate-400"
+            />
           </div>
+        </div>
+        <hr className="my-4 border-slate-200 dark:border-slate-700" />
+        <StatusFilterBar
+          statuses={STATUS_ORDER}
+          activeFilter={statusFilter}
+          onFilterChange={setStatusFilter}
+          disabled={isLoading}
+        />
+      </Card>
 
-          {openMemberId === member.id && (
-            <div className="border-t border-slate-200 dark:border-slate-700 p-4">
-              <MemberTaskTable
-                memberTasksByStatus={member.tasks_by_status}
-                onUpdate={fetchMembersData}
-              />
-            </div>
-          )}
-        </Card>
-      ))}
+      {filteredMembersData.length > 0 ? (
+        <div className="space-y-4">
+          {filteredMembersData.map((member) => (
+            <Card key={member.id} bodyClass="p-0">
+              <div
+                className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 cursor-pointer"
+                onClick={() => handleToggleMember(member.id)}
+              >
+                <div className="flex items-center space-x-4">
+                  <img
+                    src={`${VITE_BASE_URL}/storage/${member.profile_pic}`}
+                    alt={member.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <h5 className="font-semibold text-slate-700 dark:text-slate-200">
+                      {member.name}
+                    </h5>
+                    <p className="text-sm text-slate-500 break-all">
+                      {member.email}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between w-full sm:w-auto mt-4 sm:mt-0 sm:space-x-4">
+                  <span className="inline-block px-3 py-1 text-sm font-semibold text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 rounded-full">
+                    {member.total_tasks} Tasks
+                  </span>
+                  <Icon
+                    icon={
+                      openMemberId === member.id
+                        ? "heroicons-outline:chevron-up"
+                        : "heroicons-outline:chevron-down"
+                    }
+                    className="w-6 h-6 text-slate-500"
+                  />
+                </div>
+              </div>
+
+              {openMemberId === member.id && (
+                <div className="border-t border-slate-200 dark:border-slate-700 p-4">
+                  <MemberTaskTable
+                    memberTasksByStatus={member.tasks_by_status}
+                    onUpdate={fetchMembersData}
+                  />
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16">
+          <Icon
+            icon="heroicons-outline:inbox"
+            className="mx-auto h-16 w-16 text-slate-300 dark:text-slate-600"
+          />
+          <h4 className="mt-4 text-xl font-semibold text-slate-600 dark:text-slate-300">
+            No Matching Tasks Found
+          </h4>
+          <p className="mt-1 text-sm text-slate-500">
+            No members have tasks that match your current search and filter
+            criteria.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
