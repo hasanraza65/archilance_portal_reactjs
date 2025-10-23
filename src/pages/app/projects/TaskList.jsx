@@ -9,6 +9,9 @@ import {
   getApiBasePathForRole,
 } from "@/pages/utility/apiHelper";
 
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+
 import Icon from "@/components/ui/Icon";
 import TableLoading from "@/components/skeleton/Table";
 import EditTask from "./EditTask";
@@ -16,6 +19,66 @@ import EditableTaskStatus from "./EditableTaskStatus";
 import EditableDueDate from "./EditTaskDate/EditableDueDate";
 import EditableStartDate from "./EditTaskDate/EditableStartDate";
 import TaskListAssignee from "./TaskListAssignee";
+
+
+// --- UPDATED: The exact status options from your image ---
+const TASK_STATUS_OPTIONS = [
+  "On Hold",
+  "Backlog",
+  "Awaiting Info",
+  "In Progress",
+  "In-house review",
+  "Client Review",
+  "Completed",
+];
+
+// --- UPDATED: Color function to handle the new statuses ---
+const getStatusClass = (status) => {
+  const s = String(status || "").toLowerCase();
+  if (s === "completed" || s === "done")
+    return "bg-green-100 text-green-800 border-green-200";
+  if (s.includes("progress"))
+    return "bg-blue-100 text-blue-800 border-blue-200";
+  if (s.includes("backlog"))
+    return "bg-purple-100 text-purple-800 border-purple-200";
+  if (s.includes("review")) // Covers "Client Review" and "In-house review"
+    return "bg-yellow-100 text-yellow-800 border-yellow-200";
+  if (s.includes("on hold"))
+    return "bg-orange-100 text-orange-800 border-orange-200";
+  // "Awaiting Info" will use the default slate color, which is fine
+  return "bg-slate-100 text-slate-800 border-slate-200";
+};
+
+const StatusFilterBar = ({
+  statuses,
+  activeFilter,
+  onFilterChange,
+  disabled = false,
+  className = "",
+}) => (
+  <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <span className="text-sm font-medium text-slate-500 dark:text-slate-300 mr-2">
+      Filter by:
+    </span>
+    {["All", ...statuses].map((status) => (
+      <button
+        key={status}
+        onClick={() => onFilterChange(status)}
+        disabled={disabled}
+        className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full border transition-all duration-200 ${
+          activeFilter.toLowerCase() === status.toLowerCase()
+            ? `${getStatusClass(
+                status
+              )} ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800`
+            : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+        }`}
+        style={{ ringColor: status.toLowerCase() === "all" ? "#64748b" : "" }}
+      >
+        {status}
+      </button>
+    ))}
+  </div>
+);
 
 // In-file CSS component for mobile responsiveness (Final Version)
 const ResponsiveTableStyles = () => {
@@ -169,12 +232,7 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const TaskList = ({
-  statusFilter,
-  searchQuery,
-  onLoadingChange,
-  assignedToMe,
-}) => {
+const TaskList = ({ onLoadingChange }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -185,18 +243,20 @@ const TaskList = ({
   const [editTaskModal, setEditTaskModal] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
-
   const [tasksViewMode, setTasksViewMode] = useState("grid");
-
   const [assigneeModal, setAssigneeModal] = useState(false);
   const [taskForAssignees, setTaskForAssignees] = useState(null);
+
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [assignedToMe, setAssignedToMe] = useState(false);
 
   useEffect(() => {
     if (onLoadingChange) {
       onLoadingChange(isLoading);
     }
   }, [isLoading, onLoadingChange]);
-
+  
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -216,7 +276,7 @@ const TaskList = ({
       };
 
       const params = {};
-      if (assignedToMe) {
+      if (assignedToMe) { 
         params.assigned_me = 1;
       }
 
@@ -469,462 +529,505 @@ const TaskList = ({
       "from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900"
     );
   };
-
-  if (isLoading) return <TableLoading count={10} />;
-  if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
-
+  
   const hasData = Object.keys(filteredData).length > 0;
-
-  if (!hasData) {
-    return (
-      <div className="p-16 text-center text-slate-500 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-900 rounded-xl">
-        <Icon
-          icon="heroicons-outline:inbox"
-          className="mx-auto h-16 w-16 text-blue-400"
-        />
-        <h4 className="mt-4 text-xl font-medium text-slate-700 dark:text-slate-300">
-          No Tasks Found
-        </h4>
-        {searchQuery ? (
-          <p className="mt-2 text-slate-600 dark:text-slate-400">
-            No tasks match your search for "
-            <span className="font-semibold text-blue-600 dark:text-blue-400">
-              {searchQuery}
-            </span>
-            ".
-          </p>
-        ) : statusFilter.toLowerCase() !== "all" ? (
-          <p className="mt-2 text-slate-600 dark:text-slate-400">
-            There are no tasks with the status "
-            <span className="font-semibold capitalize text-blue-600 dark:text-blue-400">
-              {statusFilter}
-            </span>
-            ".
-          </p>
-        ) : (
-          <p className="text-slate-600 dark:text-slate-400">
-            There are currently no tasks to display.
-          </p>
-        )}
-      </div>
-    );
-  }
 
   return (
     <>
-      <ResponsiveTableStyles />
-      <div className="sm:hidden mb-4">
-        <div className="inline-flex rounded-md shadow-sm" role="group">
-          <button
-            type="button"
-            onClick={() => setTasksViewMode("grid")}
-            className={`py-2 px-4 text-sm font-medium ${
-              tasksViewMode === "grid"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-900 dark:bg-slate-700 dark:text-slate-300"
-            } rounded-l-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600`}
-          >
-            Grid
-          </button>
-          <button
-            type="button"
-            onClick={() => setTasksViewMode("list")}
-            className={`py-2 px-4 text-sm font-medium ${
-              tasksViewMode === "list"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-900 dark:bg-slate-700 dark:text-slate-300"
-            } rounded-r-md border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600`}
-          >
-            List
-          </button>
-        </div>
-      </div>
-
-      {/* Grid/Accordion View (Desktop and Mobile Grid View) */}
-      <div
-        className={`${
-          tasksViewMode === "grid" ? "block" : "hidden"
-        } sm:block w-full align-middle`}
-      >
-        <div className="w-full space-y-4">
-          {Object.entries(filteredData).map(([status, tasks]) => (
-            <div
-              key={status}
-              className="mb-6 rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
-            >
-              <div
-                className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
-                  status
-                )}`}
-                onClick={() => toggleSection(status)}
-              >
-                <div className="flex items-center space-x-3">
-                  <Icon
-                    icon={
-                      expandedSections[status]
-                        ? "heroicons:chevron-down"
-                        : "heroicons:chevron-right"
-                    }
-                    className="w-5 h-5 text-slate-600 dark:text-slate-300"
-                  />
-                  <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
-                    {status}
-                  </h3>
-                  <span className="px-2 py-1 bg-white dark:bg-slate-700 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
-                    {tasks.length}
-                  </span>
-                </div>
-                <StatusBadge status={status} />
-              </div>
-              {expandedSections[status] && (
-                <div className="w-full bg-slate-50 dark:bg-slate-900/50 p-2 md:p-0">
-                  <table className="min-w-full responsive-task-table">
-                    <thead className="hidden md:table-header-group bg-slate-50 dark:bg-slate-700">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">
-                          Jobs
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">
-                          Projects
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/8">
-                          Task
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
-                          Assigned To
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
-                          Start Date
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
-                          Due Date
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/10">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
-                      {tasks.map((rowData, index) => (
-                        <tr
-                          key={index}
-                          onClick={() => handleRowClick(rowData)}
-                          className="block md:table-row md:hover:bg-slate-50 md:dark:hover:bg-slate-700/50 cursor-pointer transition-colors duration-150"
-                        >
-                          <td
-                            data-label="Job"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            <a
-                              href={`/jobs/${rowData.project_id}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-medium text-slate-800 dark:text-slate-200 text-sm hover:underline"
-                            >
-                              {rowData.project_name}
-                            </a>
-                          </td>
-                          <td
-                            data-label="Project"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            <a
-                              href={`/project/${
-                                rowData.parent_task_id || rowData.id
-                              }`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-medium text-blue-600 dark:text-blue-400 capitalize text-sm hover:underline"
-                            >
-                              {rowData.project_title}
-                            </a>
-                          </td>
-                          <td
-                            data-label="Task"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            {rowData.task_title ? (
-                              <a
-                                href={`/project/${rowData.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-slate-700 dark:text-slate-300 capitalize text-sm hover:underline"
-                              >
-                                {rowData.task_title}
-                              </a>
-                            ) : (
-                              <span className="text-slate-400">N/A</span>
-                            )}
-                          </td>
-                          <td
-                            data-label="Assigned To"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            <AvatarStack
-                              assignees={rowData.assignees}
-                              onClick={(e) =>
-                                handleOpenAssigneeModal(
-                                  rowData.original_task_data,
-                                  e
-                                )
-                              }
-                            />
-                          </td>
-                          <td
-                            data-label="Start Date"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <Icon
-                                icon="heroicons-outline:calendar"
-                                className="w-9 h-9 text-slate-500 dark:text-slate-400"
-                              />
-                              <EditableStartDate
-                                taskId={rowData.id}
-                                currentStartDate={rowData.created_at}
-                                onDateUpdate={handleUpdateTaskStartDate}
-                                isEditable={
-                                  userRole === "admin" ||
-                                  employeeType === "Manager" ||
-                                  employeeType === "Supervisor" ||
-                                  employeeType === "Executive"
-                                }
-                              />
-                            </div>
-                          </td>
-                          <td
-                            data-label="Due Date"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <Icon
-                                icon="heroicons-outline:calendar"
-                                className="w-9 h-9 text-slate-500 dark:text-slate-400"
-                              />
-                              <EditableDueDate
-                                taskId={rowData.id}
-                                currentDueDate={rowData.due_date}
-                                onDateUpdate={handleUpdateTaskDueDate}
-                                isEditable={
-                                  userRole === "admin" ||
-                                  employeeType === "Manager" ||
-                                  employeeType === "Supervisor" ||
-                                  employeeType === "Executive"
-                                }
-                              />
-                            </div>
-                          </td>
-                          <td
-                            data-label="Status"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            <EditableTaskStatus
-                              taskId={rowData.id}
-                              currentStatus={rowData.task_status}
-                              onStatusUpdate={handleUpdateTaskStatus}
-                              isEditable={
-                                userRole === "admin" ||
-                                employeeType === "Manager" ||
-                                employeeType === "Supervisor" ||
-                                employeeType === "Executive"
-                              }
-                            />
-                          </td>
-                          <td
-                            data-label="Action"
-                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                          >
-                            {(userRole === "admin" ||
-                              employeeType === "Manager" ||
-                              employeeType === "Supervisor" || employeeType === "Executive") && (
-                              <div
-                                className="flex items-center justify-end space-x-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors duration-200"
-                                  title="Edit Task"
-                                  onClick={(e) =>
-                                    handleOpenEditModal(
-                                      rowData.original_task_data,
-                                      e
-                                    )
-                                  }
-                                >
-                                  <Icon
-                                    icon="heroicons:pencil-square"
-                                    className="w-4 h-4"
-                                  />
-                                </button>
-                                <button
-                                  className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors duration-200"
-                                  title="Delete Task"
-                                  onClick={(e) => {
-                                    const titleToDelete =
-                                      rowData.task_title ||
-                                      rowData.project_title;
-                                    handleDelete(rowData.id, titleToDelete, e);
-                                  }}
-                                >
-                                  <Icon
-                                    icon="heroicons-outline:trash"
-                                    className="w-4 h-4"
-                                  />
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+      <Card className="mb-6">
+        <div className="md:flex justify-between items-center space-y-4 md:space-y-0">
+          <div className="relative md:w-1/3 w-full">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search projects or tasks..."
+              className="form-input py-2 pl-10 w-full dark:bg-slate-800 dark:border-slate-600"
+              disabled={isLoading}
+            />
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Icon
+                icon="heroicons-outline:search"
+                className="w-5 h-5 text-slate-400"
+              />
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* List View with Accordion (Mobile) - UPDATED SECTION */}
-      <div
-        className={`${
-          tasksViewMode === "list" ? "block" : "hidden"
-        } sm:hidden w-full space-y-3`}
-      >
-        {Object.entries(filteredData).map(([status, tasks]) => (
-          <div
-            key={status}
-            className="rounded-lg overflow-hidden shadow-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-          >
-            <div
-              className={`flex items-center justify-between p-3 cursor-pointer bg-slate-50 dark:bg-slate-700/50`}
-              onClick={() => toggleSection(status)}
-            >
-              <div className="flex items-center space-x-2">
-                <Icon
-                  icon={
-                    expandedSections[status]
-                      ? "heroicons:chevron-down"
-                      : "heroicons:chevron-right"
-                  }
-                  className="w-4 h-4 text-slate-500 dark:text-slate-400"
-                />
-                <h4 className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-200">
-                  {status}
-                </h4>
-                <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300">
-                  {tasks.length}
-                </span>
-              </div>
-            </div>
-
-            {expandedSections[status] && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                  <thead className="bg-slate-50 dark:bg-slate-700">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider"
-                      >
-                        Task
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider"
-                      >
-                        Due
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-2 text-center text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider"
-                      >
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-                    {tasks.map((rowData) => (
-                      <tr
-                        key={rowData.id}
-                        onClick={() => handleRowClick(rowData)}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
-                      >
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate" title={rowData.project_name}>
-                            {rowData.project_name}
-                          </div>
-                          <div className="text-xs text-blue-600 dark:text-blue-400 truncate" title={rowData.project_title}>
-                            {rowData.project_title}
-                          </div>
-                          {rowData.task_title && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate" title={rowData.task_title}>
-                              {rowData.task_title}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-700 dark:text-slate-300">
-                          <EditableDueDate
-                            taskId={rowData.id}
-                            currentDueDate={rowData.due_date}
-                            onDateUpdate={handleUpdateTaskDueDate}
-                            isEditable={
-                              userRole === "admin" ||
-                              employeeType === "Manager" ||
-                              employeeType === "Supervisor" ||
-                              employeeType === "Executive"
-                            }
-                          />
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">
-                          <div
-                            className="flex items-center justify-center"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {(userRole === "admin" ||
-                              employeeType === "Manager" ||
-                              employeeType === "Supervisor" ||   employeeType === "Executive") && (
-                              <>
-                                <button
-                                  className="p-1 rounded-full hover:bg-green-100 text-green-600 dark:hover:bg-green-900/20 dark:text-green-400"
-                                  title="Edit Task"
-                                  onClick={(e) =>
-                                    handleOpenEditModal(rowData.original_task_data, e)
-                                  }
-                                >
-                                  <Icon
-                                    icon="heroicons:pencil-square"
-                                    className="w-4 h-4"
-                                  />
-                                </button>
-                                <button
-                                  className="p-1 rounded-full hover:bg-red-100 text-red-600 dark:hover:bg-red-900/20 dark:text-red-400"
-                                  title="Delete Task"
-                                  onClick={(e) => {
-                                    const titleToDelete =
-                                      rowData.task_title || rowData.project_title;
-                                    handleDelete(rowData.id, titleToDelete, e);
-                                  }}
-                                >
-                                  <Icon
-                                    icon="heroicons-outline:trash"
-                                    className="w-4 h-4"
-                                  />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          </div>
+          <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
+            {(employeeType === "Manager" ||
+              employeeType === "Supervisor" ||
+              employeeType === "Executive" ||
+              employeeType === "Employee") && (
+              <Button
+                text="Assigned to me"
+                disabled={isLoading}
+                className={`py-2 px-4 text-sm font-medium transition-colors ${
+                  assignedToMe ? "btn-dark" : "btn-outline-dark"
+                }`}
+                onClick={() => setAssignedToMe((prev) => !prev)}
+              />
             )}
           </div>
-        ))}
-      </div>
+        </div>
+        <hr className="my-4 border-slate-200 dark:border-slate-700" />
+        <StatusFilterBar
+          statuses={TASK_STATUS_OPTIONS}
+          activeFilter={statusFilter}
+          onFilterChange={setStatusFilter}
+          disabled={isLoading}
+        />
+      </Card>
+      
+      <ResponsiveTableStyles />
+      
+      {isLoading && <TableLoading count={10} />}
+      {!isLoading && error && <div className="p-4 text-center text-red-500">{error}</div>}
 
+      {!isLoading && !error && !hasData && (
+          <div className="p-16 text-center text-slate-500 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-900 rounded-xl">
+            <Icon
+              icon="heroicons-outline:inbox"
+              className="mx-auto h-16 w-16 text-blue-400"
+            />
+            <h4 className="mt-4 text-xl font-medium text-slate-700 dark:text-slate-300">
+              No Tasks Found
+            </h4>
+            {searchQuery ? (
+              <p className="mt-2 text-slate-600 dark:text-slate-400">
+                No tasks match your search for "
+                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                  {searchQuery}
+                </span>
+                ".
+              </p>
+            ) : statusFilter.toLowerCase() !== "all" ? (
+              <p className="mt-2 text-slate-600 dark:text-slate-400">
+                There are no tasks with the status "
+                <span className="font-semibold capitalize text-blue-600 dark:text-blue-400">
+                  {statusFilter}
+                </span>
+                ".
+              </p>
+            ) : (
+              <p className="text-slate-600 dark:text-slate-400">
+                There are currently no tasks to display.
+              </p>
+            )}
+          </div>
+      )}
+
+      {!isLoading && !error && hasData && (
+        <>
+            <div className="sm:hidden mb-4">
+                <div className="inline-flex rounded-md shadow-sm" role="group">
+                <button
+                    type="button"
+                    onClick={() => setTasksViewMode("grid")}
+                    className={`py-2 px-4 text-sm font-medium ${
+                    tasksViewMode === "grid"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-900 dark:bg-slate-700 dark:text-slate-300"
+                    } rounded-l-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600`}
+                >
+                    Grid
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setTasksViewMode("list")}
+                    className={`py-2 px-4 text-sm font-medium ${
+                    tasksViewMode === "list"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-900 dark:bg-slate-700 dark:text-slate-300"
+                    } rounded-r-md border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600`}
+                >
+                    List
+                </button>
+                </div>
+            </div>
+
+            <div
+                className={`${
+                tasksViewMode === "grid" ? "block" : "hidden"
+                } sm:block w-full align-middle`}
+            >
+                <div className="w-full space-y-4">
+                {Object.entries(filteredData).map(([status, tasks]) => (
+                    <div
+                    key={status}
+                    className="mb-6 rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700"
+                    >
+                    <div
+                        className={`flex items-center justify-between p-4 cursor-pointer bg-gradient-to-r ${getStatusGradient(
+                        status
+                        )}`}
+                        onClick={() => toggleSection(status)}
+                    >
+                        <div className="flex items-center space-x-3">
+                        <Icon
+                            icon={
+                            expandedSections[status]
+                                ? "heroicons:chevron-down"
+                                : "heroicons:chevron-right"
+                            }
+                            className="w-5 h-5 text-slate-600 dark:text-slate-300"
+                        />
+                        <h3 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+                            {status}
+                        </h3>
+                        <span className="px-2 py-1 bg-white dark:bg-slate-700 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm">
+                            {tasks.length}
+                        </span>
+                        </div>
+                        <StatusBadge status={status} />
+                    </div>
+                    {expandedSections[status] && (
+                        <div className="w-full bg-slate-50 dark:bg-slate-900/50 p-2 md:p-0">
+                        <table className="min-w-full responsive-task-table">
+                            <thead className="hidden md:table-header-group bg-slate-50 dark:bg-slate-700">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">
+                                Jobs
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/6">
+                                Projects
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/8">
+                                Task
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                                Assigned To
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                                Start Date
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                                Due Date
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/10">
+                                Status
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
+                                Action
+                                </th>
+                            </tr>
+                            </thead>
+                            <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
+                            {tasks.map((rowData, index) => (
+                                <tr
+                                key={index}
+                                onClick={() => handleRowClick(rowData)}
+                                className="block md:table-row md:hover:bg-slate-50 md:dark:hover:bg-slate-700/50 cursor-pointer transition-colors duration-150"
+                                >
+                                <td
+                                    data-label="Job"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    <a
+                                    href={`/jobs/${rowData.project_id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="font-medium text-slate-800 dark:text-slate-200 text-sm hover:underline"
+                                    >
+                                    {rowData.project_name}
+                                    </a>
+                                </td>
+                                <td
+                                    data-label="Project"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    <a
+                                    href={`/project/${
+                                        rowData.parent_task_id || rowData.id
+                                    }`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="font-medium text-blue-600 dark:text-blue-400 capitalize text-sm hover:underline"
+                                    >
+                                    {rowData.project_title}
+                                    </a>
+                                </td>
+                                <td
+                                    data-label="Task"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    {rowData.task_title ? (
+                                    <a
+                                        href={`/project/${rowData.id}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-slate-700 dark:text-slate-300 capitalize text-sm hover:underline"
+                                    >
+                                        {rowData.task_title}
+                                    </a>
+                                    ) : (
+                                    <span className="text-slate-400">N/A</span>
+                                    )}
+                                </td>
+                                <td
+                                    data-label="Assigned To"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    <AvatarStack
+                                    assignees={rowData.assignees}
+                                    onClick={(e) =>
+                                        handleOpenAssigneeModal(
+                                        rowData.original_task_data,
+                                        e
+                                        )
+                                    }
+                                    />
+                                </td>
+                                <td
+                                    data-label="Start Date"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                    <Icon
+                                        icon="heroicons-outline:calendar"
+                                        className="w-9 h-9 text-slate-500 dark:text-slate-400"
+                                    />
+                                    <EditableStartDate
+                                        taskId={rowData.id}
+                                        currentStartDate={rowData.created_at}
+                                        onDateUpdate={handleUpdateTaskStartDate}
+                                        isEditable={
+                                        userRole === "admin" ||
+                                        employeeType === "Manager" ||
+                                        employeeType === "Supervisor" ||
+                                        employeeType === "Executive"
+                                        }
+                                    />
+                                    </div>
+                                </td>
+                                <td
+                                    data-label="Due Date"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                    <Icon
+                                        icon="heroicons-outline:calendar"
+                                        className="w-9 h-9 text-slate-500 dark:text-slate-400"
+                                    />
+                                    <EditableDueDate
+                                        taskId={rowData.id}
+                                        currentDueDate={rowData.due_date}
+                                        onDateUpdate={handleUpdateTaskDueDate}
+                                        isEditable={
+                                        userRole === "admin" ||
+                                        employeeType === "Manager" ||
+                                        employeeType === "Supervisor" ||
+                                        employeeType === "Executive"
+                                        }
+                                    />
+                                    </div>
+                                </td>
+                                <td
+                                    data-label="Status"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    <EditableTaskStatus
+                                    taskId={rowData.id}
+                                    currentStatus={rowData.task_status}
+                                    onStatusUpdate={handleUpdateTaskStatus}
+                                    isEditable={
+                                        userRole === "admin" ||
+                                        employeeType === "Manager" ||
+                                        employeeType === "Supervisor" ||
+                                        employeeType === "Executive"
+                                    }
+                                    />
+                                </td>
+                                <td
+                                    data-label="Action"
+                                    className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                >
+                                    {(userRole === "admin" ||
+                                    employeeType === "Manager" ||
+                                    employeeType === "Supervisor" || employeeType === "Executive") && (
+                                    <div
+                                        className="flex items-center justify-end space-x-2"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <button
+                                        className="p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors duration-200"
+                                        title="Edit Task"
+                                        onClick={(e) =>
+                                            handleOpenEditModal(
+                                            rowData.original_task_data,
+                                            e
+                                            )
+                                        }
+                                        >
+                                        <Icon
+                                            icon="heroicons:pencil-square"
+                                            className="w-4 h-4"
+                                        />
+                                        </button>
+                                        <button
+                                        className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors duration-200"
+                                        title="Delete Task"
+                                        onClick={(e) => {
+                                            const titleToDelete =
+                                            rowData.task_title ||
+                                            rowData.project_title;
+                                            handleDelete(rowData.id, titleToDelete, e);
+                                        }}
+                                        >
+                                        <Icon
+                                            icon="heroicons-outline:trash"
+                                            className="w-4 h-4"
+                                        />
+                                        </button>
+                                    </div>
+                                    )}
+                                </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                        </div>
+                    )}
+                    </div>
+                ))}
+                </div>
+            </div>
+
+            <div
+                className={`${
+                tasksViewMode === "list" ? "block" : "hidden"
+                } sm:hidden w-full space-y-3`}
+            >
+                {Object.entries(filteredData).map(([status, tasks]) => (
+                <div
+                    key={status}
+                    className="rounded-lg overflow-hidden shadow-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                >
+                    <div
+                    className={`flex items-center justify-between p-3 cursor-pointer bg-slate-50 dark:bg-slate-700/50`}
+                    onClick={() => toggleSection(status)}
+                    >
+                    <div className="flex items-center space-x-2">
+                        <Icon
+                        icon={
+                            expandedSections[status]
+                            ? "heroicons:chevron-down"
+                            : "heroicons:chevron-right"
+                        }
+                        className="w-4 h-4 text-slate-500 dark:text-slate-400"
+                        />
+                        <h4 className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-200">
+                        {status}
+                        </h4>
+                        <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300">
+                        {tasks.length}
+                        </span>
+                    </div>
+                    </div>
+
+                    {expandedSections[status] && (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                        <thead className="bg-slate-50 dark:bg-slate-700">
+                            <tr>
+                            <th
+                                scope="col"
+                                className="px-3 py-2 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider"
+                            >
+                                Task
+                            </th>
+                            <th
+                                scope="col"
+                                className="px-3 py-2 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider"
+                            >
+                                Due
+                            </th>
+                            <th
+                                scope="col"
+                                className="px-3 py-2 text-center text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider"
+                            >
+                                Action
+                            </th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                            {tasks.map((rowData) => (
+                            <tr
+                                key={rowData.id}
+                                onClick={() => handleRowClick(rowData)}
+                                className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
+                            >
+                                <td className="px-3 py-2 whitespace-nowrap">
+                                <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate" title={rowData.project_name}>
+                                    {rowData.project_name}
+                                </div>
+                                <div className="text-xs text-blue-600 dark:text-blue-400 truncate" title={rowData.project_title}>
+                                    {rowData.project_title}
+                                </div>
+                                {rowData.task_title && (
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate" title={rowData.task_title}>
+                                    {rowData.task_title}
+                                    </div>
+                                )}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-700 dark:text-slate-300">
+                                <EditableDueDate
+                                    taskId={rowData.id}
+                                    currentDueDate={rowData.due_date}
+                                    onDateUpdate={handleUpdateTaskDueDate}
+                                    isEditable={
+                                    userRole === "admin" ||
+                                    employeeType === "Manager" ||
+                                    employeeType === "Supervisor" ||
+                                    employeeType === "Executive"
+                                    }
+                                />
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">
+                                <div
+                                    className="flex items-center justify-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {(userRole === "admin" ||
+                                    employeeType === "Manager" ||
+                                    employeeType === "Supervisor" ||   employeeType === "Executive") && (
+                                    <>
+                                        <button
+                                        className="p-1 rounded-full hover:bg-green-100 text-green-600 dark:hover:bg-green-900/20 dark:text-green-400"
+                                        title="Edit Task"
+                                        onClick={(e) =>
+                                            handleOpenEditModal(rowData.original_task_data, e)
+                                        }
+                                        >
+                                        <Icon
+                                            icon="heroicons:pencil-square"
+                                            className="w-4 h-4"
+                                        />
+                                        </button>
+                                        <button
+                                        className="p-1 rounded-full hover:bg-red-100 text-red-600 dark:hover:bg-red-900/20 dark:text-red-400"
+                                        title="Delete Task"
+                                        onClick={(e) => {
+                                            const titleToDelete =
+                                            rowData.task_title || rowData.project_title;
+                                            handleDelete(rowData.id, titleToDelete, e);
+                                        }}
+                                        >
+                                        <Icon
+                                            icon="heroicons-outline:trash"
+                                            className="w-4 h-4"
+                                        />
+                                        </button>
+                                    </>
+                                    )}
+                                </div>
+                                </td>
+                            </tr>
+                            ))}
+                        </tbody>
+                        </table>
+                    </div>
+                    )}
+                </div>
+                ))}
+            </div>
+        </>
+      )}
 
       <EditTask
         activeModal={editTaskModal}
