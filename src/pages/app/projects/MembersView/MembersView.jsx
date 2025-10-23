@@ -255,7 +255,13 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                   </thead>
                   <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
                     {statusData.tasks.map((task) => {
-                      const isEditable = userRole === "admin" || employeeType === "Manager" || employeeType === "Supervisor" || employeeType === "Executive";
+                      const isEditable =
+                        userRole === "admin" ||
+                        employeeType === "Manager" ||
+                        employeeType === "Supervisor" ||
+                        employeeType === "Executive";
+                      const isSubTask = !!task.parent_task;
+
                       return (
                         <tr
                           key={task.id}
@@ -275,7 +281,9 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                             className="block md:table-cell px-4 py-3"
                           >
                             <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
-                              {task.parent_task?.task_title || "N/A"}
+                              {isSubTask
+                                ? task.parent_task.task_title
+                                : task.task_title}
                             </span>
                           </td>
                           <td
@@ -283,7 +291,7 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                             className="block md:table-cell px-4 py-3"
                           >
                             <span className="text-slate-700 dark:text-slate-300 text-sm">
-                              {task.task_title || "N/A"}
+                              {isSubTask ? task.task_title : "N/A"}
                             </span>
                           </td>
                           <td
@@ -354,7 +362,7 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                             )}
                           </td>
                         </tr>
-                      )
+                      );
                     })}
                   </tbody>
                 </table>
@@ -388,7 +396,12 @@ const MembersView = () => {
     const userRole = getApiPrefix();
     const employeeType = getEmployeeType();
 
-    if (userRole !== "admin" && employeeType !== "Manager" && employeeType !== "Supervisor" && employeeType !== "Executive") {
+    if (
+      userRole !== "admin" &&
+      employeeType !== "Manager" &&
+      employeeType !== "Supervisor" &&
+      employeeType !== "Executive"
+    ) {
       setError("You are not authorized to view this information.");
       setIsLoading(false);
       return;
@@ -422,9 +435,6 @@ const MembersView = () => {
     fetchMembersData();
   }, [fetchMembersData]);
 
-  // --- UPDATED CODE ---
-  // Is useEffect ki dependency array se `openMemberId` ko hata diya gaya hai.
-  // Ab yeh sirf `membersData` ke change hone par (yaani pehli baar load hone par) chalega.
   useEffect(() => {
     if (membersData.length > 0 && openMemberId === null) {
       setOpenMemberId(membersData[0].id);
