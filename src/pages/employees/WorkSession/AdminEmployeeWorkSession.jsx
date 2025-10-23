@@ -136,8 +136,8 @@ const AdminEmployeeWorkSession = () => {
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState({});
+  const [tasks, setTasks] = useState([]); // CORRECTED: Changed back to array
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
@@ -152,31 +152,35 @@ const AdminEmployeeWorkSession = () => {
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
 
-  // --- UPDATED CODE: Corrected API Prefix Logic ---
   const getApiPrefix = () => {
     const role = user?.role?.toLowerCase();
     const employeeType = user?.employee_type?.toLowerCase();
 
-    if (role === 'admin') {
-      return 'admin';
+    if (role === "admin") {
+      return "admin";
     }
-    
-    const employeeRoles = ['employee', 'manager', 'supervisor', 'executive', 'outsource'];
+
+    const employeeRoles = [
+      "employee",
+      "manager",
+      "supervisor",
+      "executive",
+      "outsource",
+    ];
     if (employeeRoles.includes(role) || employeeRoles.includes(employeeType)) {
-      return 'employee';
+      return "employee";
     }
-    
-    return 'admin'; // Fallback to admin if no role matches
+
+    return "admin";
   };
-  
+
   const endpointPrefix = getApiPrefix();
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
-  // --- END OF UPDATE ---
 
   const workSessionPath =
     user?.role === "manager" ||
     user?.role === "supervisor" ||
-    user?.role === "executive" || // Added executive
+    user?.role === "executive" ||
     user?.role === "outsource" ||
     user?.role === "employee"
       ? "/other-work-session"
@@ -237,15 +241,23 @@ const AdminEmployeeWorkSession = () => {
         });
         if (!res.ok) throw new Error("Could not fetch projects.");
         const data = await res.json();
-        setProjects(Array.isArray(data) ? data : []);
+        if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+          setProjects(data);
+        } else {
+          console.warn(
+            "Projects API returned an unexpected format, treating as single group."
+          );
+          setProjects({ "All Projects": Array.isArray(data) ? data : [] });
+        }
       } catch (error) {
         toast.error(error.message);
-        setProjects([]);
+        setProjects({});
       }
     };
     fetchProjects();
   }, [isAuthenticated, token, API_BASE_URL, user]);
 
+  // CORRECTED: Logic to handle a flat array of tasks
   useEffect(() => {
     if (!selectedProject || !user) {
       setTasks([]);
@@ -263,9 +275,13 @@ const AdminEmployeeWorkSession = () => {
             `Could not fetch tasks for project ID ${selectedProject}.`
           );
         const projectDetails = await res.json();
-        setTasks(
-          Array.isArray(projectDetails.tasks) ? projectDetails.tasks : []
-        );
+
+        if (projectDetails && Array.isArray(projectDetails.tasks)) {
+          setTasks(projectDetails.tasks);
+        } else {
+          console.warn("Tasks array not found in project details.");
+          setTasks([]);
+        }
       } catch (error) {
         toast.error(error.message);
         setTasks([]);
@@ -361,7 +377,7 @@ const AdminEmployeeWorkSession = () => {
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
-    setTasks([]);
+    setTasks([]); // CORRECTED: Reset to empty array
     setDateRange(getTodayDateRange());
     setActivePreset("Today");
     setOverallTotalTime("0h 0m");
@@ -380,13 +396,10 @@ const AdminEmployeeWorkSession = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
-            `${API_BASE_URL}/work-session/${sessionId}`,
-            {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
+          const res = await fetch(`${API_BASE_URL}/work-session/${sessionId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
           if (!res.ok) throw new Error("Failed to delete.");
           Swal.fire("Deleted!", "Session deleted.", "success");
           fetchWorkSessions();
@@ -409,13 +422,11 @@ const AdminEmployeeWorkSession = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          // Note: Only admins can delete idle time, so this still uses the admin route.
-          // If other roles need this, the backend must be updated.
           const adminApiBaseUrl = `${API_BASE}/api/admin`;
           const url = `${adminApiBaseUrl}/delete-idle-time?idle_time_id=${idleTimeId}`;
 
           const res = await fetch(url, {
-            method: "POST", 
+            method: "POST",
             headers: { Authorization: `Bearer ${token}` },
           });
 
@@ -535,26 +546,32 @@ const AdminEmployeeWorkSession = () => {
               className="form-select w-full"
             >
               <option value="">All Jobs</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.project_name}
-                </option>
+              {Object.entries(projects).map(([status, projectList]) => (
+                <optgroup key={status} label={status}>
+                  {Array.isArray(projectList) &&
+                    projectList.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.project_name}
+                      </option>
+                    ))}
+                </optgroup>
               ))}
             </select>
           </div>
           <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-              Project
+              Task
             </label>
+            {/* CORRECTED: JSX for rendering tasks from a simple array */}
             <select
               value={selectedTask}
               onChange={(e) => setSelectedTask(e.target.value)}
               disabled={!selectedProject || tasksLoading}
               className="form-select w-full disabled:bg-slate-100"
             >
-              <option value="">All Projects</option>
+              <option value="">All Tasks</option>
               {tasksLoading ? (
-                <option>Loading...</option>
+                <option disabled>Loading...</option>
               ) : (
                 tasks.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -692,8 +709,9 @@ const AdminEmployeeWorkSession = () => {
                       {session.memo_content}
                     </p>
                   )}
-                  
-                  {(user?.role === "admin" || user?.employee_type === "Executive") && (
+
+                  {(user?.role === "admin" ||
+                    user?.employee_type === "Executive") && (
                     <div className="mt-4">
                       {Array.isArray(session.screenshots) &&
                       session.screenshots.length > 0 ? (
