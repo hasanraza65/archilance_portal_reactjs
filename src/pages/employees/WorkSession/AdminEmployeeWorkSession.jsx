@@ -808,14 +808,18 @@ const AdminEmployeeWorkSession = () => {
                         className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
                       >
                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                          {/* --- CHANGE START --- */}
                           {idle.start_time
-                            ? formatTime(idle.start_time.split(" ")[1])
+                            ? formatScreenshotTime(idle.start_time)
                             : "N/A"}
+                          {/* --- CHANGE END --- */}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                          {/* --- CHANGE START --- */}
                           {idle.end_time
-                            ? formatTime(idle.end_time.split(" ")[1])
+                            ? formatScreenshotTime(idle.end_time)
                             : "N/A"}
+                          {/* --- CHANGE END --- */}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                           {idle.start_time && idle.end_time

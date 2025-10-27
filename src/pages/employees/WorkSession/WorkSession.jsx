@@ -31,7 +31,6 @@ const TrashIcon = () => (
 
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
-  // Handles time strings like "HH:mm:ss"
   const parts = timeStr.split(":");
   if (parts.length < 2) return "";
   const h = parts[0];
@@ -42,6 +41,22 @@ const formatTime = (timeStr) => {
     minute: "2-digit",
     hour12: true,
   });
+};
+
+// --- CHANGE 1 of 2: ADDED a new robust function to handle full date-time strings ---
+const formatDateTime = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (error) {
+    console.error("Error formatting date-time:", isoString, error);
+    return "Invalid Time";
+  }
 };
 
 const formatSecondsToHoursMinutes = (totalSeconds) => {
@@ -61,12 +76,11 @@ const formatDateForAPI = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-// New helper function to calculate idle duration
 const calculateIdleDuration = (startTime, endTime) => {
   if (!startTime || !endTime) return "N/A";
   const start = new Date(startTime);
   const end = new Date(endTime);
-  const diff = Math.abs(end - start) / 1000; // difference in seconds
+  const diff = Math.abs(end - start) / 1000;
   const minutes = Math.floor(diff / 60);
   const seconds = Math.floor(diff % 60);
   return `${minutes}m ${seconds}s`;
@@ -80,7 +94,7 @@ const WorkSession = () => {
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState([]);
+  const [projects, setProjects] = useState({});
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -91,28 +105,23 @@ const WorkSession = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
-
-  // State for Idle Time Modal
   const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
   const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
-  // Effect to handle body scroll when idle time modal is open
   useEffect(() => {
     if (isIdleTimeModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
     }
-    // Cleanup function
     return () => {
       document.body.style.overflow = "unset";
     };
   }, [isIdleTimeModalOpen]);
 
-  // Fetching projects (jobs)
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
@@ -123,17 +132,23 @@ const WorkSession = () => {
         if (user.role === "manager") {
           url += "?assigned_me=1";
         }
-
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok)
           throw new Error(`Could not fetch jobs. Status: ${res.status}`);
         const data = await res.json();
-        setProjects(data || []);
+        if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+          setProjects(data);
+        } else {
+          console.warn(
+            "Projects API returned an unexpected format, treating as single group."
+          );
+          setProjects({ "All Projects": Array.isArray(data) ? data : [] });
+        }
       } catch (error) {
         toast.error(error.message);
-        setProjects([]);
+        setProjects({});
       } finally {
         setProjectsLoading(false);
       }
@@ -141,7 +156,6 @@ const WorkSession = () => {
     fetchProjects();
   }, [isAuthenticated, token, API_BASE_URL, user]);
 
-  // Fetching tasks for a selected project
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
@@ -175,7 +189,6 @@ const WorkSession = () => {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     window.scrollTo(0, 0);
 
@@ -196,7 +209,6 @@ const WorkSession = () => {
       );
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Request failed`);
-
       const fetchedSessions = result.data?.reverse() || [];
       setSessions(fetchedSessions);
       setOverallTotalTime(result.overall_total_time || "0h 0m");
@@ -208,9 +220,7 @@ const WorkSession = () => {
             acc + Math.abs(session.raw_calculation?.net_seconds || 0),
           0
         );
-
       setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
-
       setPaginationInfo({
         currentPage: result.current_page,
         lastPage: result.last_page,
@@ -236,13 +246,13 @@ const WorkSession = () => {
 
   useEffect(() => {
     fetchWorkSessions();
-  }, [fetchTrigger, currentPage, fetchWorkSessions]); // Added fetchWorkSessions to dependency array
+  }, [fetchTrigger, currentPage, fetchWorkSessions]);
 
   const handleSearch = () => {
     if (currentPage !== 1) {
-      setCurrentPage(1); // This will trigger the useEffect for fetching
+      setCurrentPage(1);
     } else {
-      setFetchTrigger((t) => t + 1); // Or trigger manually if already on page 1
+      setFetchTrigger((t) => t + 1);
     }
   };
 
@@ -328,7 +338,6 @@ const WorkSession = () => {
     });
   };
 
-  // Handler to open the idle time modal
   const handleShowIdleTime = (idleTimes) => {
     setSelectedSessionIdleTimes(idleTimes);
     setIsIdleTimeModalOpen(true);
@@ -411,11 +420,16 @@ const WorkSession = () => {
                 <option value="">All Jobs</option>
                 {projectsLoading ? (
                   <option disabled>Loading jobs...</option>
-                ) : projects.length > 0 ? (
-                  projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.project_name}
-                    </option>
+                ) : Object.entries(projects).length > 0 ? (
+                  Object.entries(projects).map(([status, projectList]) => (
+                    <optgroup key={status} label={status}>
+                      {Array.isArray(projectList) &&
+                        projectList.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.project_name}
+                          </option>
+                        ))}
+                    </optgroup>
                   ))
                 ) : (
                   <option disabled>No jobs available</option>
@@ -424,7 +438,7 @@ const WorkSession = () => {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Project
+                Task
               </label>
               <select
                 value={selectedTask}
@@ -433,10 +447,10 @@ const WorkSession = () => {
                 className="form-select w-full disabled:bg-slate-100"
               >
                 <option value="">
-                  {!selectedProject ? "Select job first" : "All Projects"}
+                  {!selectedProject ? "Select job first" : "All Tasks"}
                 </option>
                 {tasksLoading ? (
-                  <option disabled>Loading projects...</option>
+                  <option disabled>Loading tasks...</option>
                 ) : (
                   tasks.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -520,7 +534,6 @@ const WorkSession = () => {
                             Manual
                           </span>
                         )}
-                        {/* --- NEW: Idle Time Button --- */}
                         {session.idle_times &&
                           session.idle_times.length > 0 && (
                             <button
@@ -575,12 +588,7 @@ const WorkSession = () => {
                                 <TrashIcon />
                               </button>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                                {/* --- FIX APPLIED HERE --- */}
-                                {formatTime(
-                                  ss.created_at
-                                    ? ss.created_at.split("T")[1]
-                                    : ""
-                                )}
+                                {formatDateTime(ss.created_at)}
                               </p>
                             </div>
                           ))}
@@ -628,7 +636,6 @@ const WorkSession = () => {
         </div>
       </div>
 
-      {/* --- NEW: Idle Time Modal --- */}
       {isIdleTimeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur-[2px]">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg border dark:border-slate-700">
@@ -656,17 +663,12 @@ const WorkSession = () => {
                       key={idle.id}
                       className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
                     >
+                      {/* --- CHANGE 2 of 2: USING the new function here --- */}
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {/* --- FIX APPLIED HERE --- */}
-                        {formatTime(
-                          idle.start_time ? idle.start_time.split(" ")[1] : ""
-                        )}
+                        {formatDateTime(idle.start_time)}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {/* --- FIX APPLIED HERE --- */}
-                        {formatTime(
-                          idle.end_time ? idle.end_time.split(" ")[1] : ""
-                        )}
+                        {formatDateTime(idle.end_time)}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                         {calculateIdleDuration(idle.start_time, idle.end_time)}
