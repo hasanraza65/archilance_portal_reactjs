@@ -49,7 +49,7 @@ const getStatusTextForModal = (count) => {
   return "Critical";
 };
 
-// --- [FIXED AND IMPROVED MODAL COMPONENT] ---
+// --- Modal Component ---
 const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   const [leaveSummary, setLeaveSummary] = useState(null);
   const [cycle, setCycle] = useState(null);
@@ -100,11 +100,13 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
 
   if (!isOpen || !request || !employee) return null;
 
+  // --- MODIFICATION START: Updated total leave values as per your request ---
   const leaveTypes = [
     { key: "casual", name: "Casual Leave", total: 10 },
-    { key: "annual", name: "Annual Leave", total: 15 },
-    { key: "sick", name: "Sick Leave", total: 7 },
+    { key: "annual", name: "Annual Leave", total: 10 }, // Changed from 15 to 10
+    { key: "sick", name: "Sick Leave", total: 8 },   // Changed from 7 to 8
   ];
+  // --- MODIFICATION END ---
 
   // Helper to determine progress bar color based on remaining leaves
   const getProgressBarColor = (remaining) => {
@@ -167,12 +169,10 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
             ) : leaveSummary ? (
               <div className="space-y-4">
                 {leaveTypes.map((type) => {
-                  const remaining = leaveSummary[type.key] ?? type.total;
-                  // [FIX] Calculate used days for a more intuitive progress bar
-                  const used = type.total - remaining;
-                  // [FIX] Progress bar now reflects the percentage of USED leaves
-                  const progress =
-                    type.total > 0 ? (used / type.total) * 100 : 0;
+                  const consumed = leaveSummary[type.key] ?? 0;
+                  const total = type.total;
+                  const remaining = total - consumed;
+                  const progress = total > 0 ? (consumed / total) * 100 : 0;
                   const progressBarColor = getProgressBarColor(remaining);
 
                   return (
@@ -201,12 +201,11 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
                           ></div>
                         </div>
                         <div className="flex justify-between mt-1.5">
-                          {/* [FIX] Changed labels to be dynamic and clear */}
-                          <span className="text-xs text-gray-500">{`Used: ${used}`}</span>
+                          <span className="text-xs text-gray-500">{`Used: ${consumed}`}</span>
                           <span className="text-xs font-medium text-gray-600">{`Status: ${getStatusTextForModal(
                             remaining
                           )}`}</span>
-                          <span className="text-xs text-gray-500">{`Total: ${type.total}`}</span>
+                          <span className="text-xs text-gray-500">{`Total: ${total}`}</span>
                         </div>
                       </div>
                     </div>
