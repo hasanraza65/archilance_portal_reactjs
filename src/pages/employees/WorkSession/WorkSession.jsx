@@ -4,14 +4,283 @@ import { useAuth } from "@/context/AuthContext";
 import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
+import axios from "axios";
+
+// --- START: Modal Component ---
+const AddManualTimeModal = ({
+  isOpen,
+  onClose,
+  projects,
+  token,
+  onSuccess,
+}) => {
+  const [selectedProject, setSelectedProject] = useState("");
+  const [tasks, setTasks] = useState([]);
+  const [isTasksLoading, setIsTasksLoading] = useState(false);
+  const [selectedTask, setSelectedTask] = useState("");
+  const [startDate, setStartDate] = useState(new Date());
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState(new Date());
+  const [endTime, setEndTime] = useState("");
+  const [memoContent, setMemoContent] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
+  const API_URL = `${API_BASE}/api/employee/manual-time`;
+
+  useEffect(() => {
+    if (!selectedProject || !token) {
+      setTasks([]);
+      setSelectedTask("");
+      return;
+    }
+    const fetchTasksForProject = async () => {
+      setIsTasksLoading(true);
+      try {
+        const res = await axios.get(
+          `${API_BASE}/api/employee/project/${selectedProject}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setTasks(res.data?.tasks || []);
+      } catch (error) {
+        toast.error("Could not fetch tasks for the selected project.");
+        setTasks([]);
+      } finally {
+        setIsTasksLoading(false);
+      }
+    };
+    fetchTasksForProject();
+  }, [selectedProject, token, API_BASE]);
+
+  const resetForm = () => {
+    setSelectedProject("");
+    setSelectedTask("");
+    setTasks([]);
+    setStartDate(new Date());
+    setStartTime("");
+    setEndDate(new Date());
+    setEndTime("");
+    setMemoContent("");
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (
+      !selectedTask ||
+      !startDate ||
+      !startTime ||
+      !endDate ||
+      !endTime ||
+      !memoContent.trim()
+    ) {
+      toast.error("Please fill all required fields.");
+      return;
+    }
+
+    const startDateTime = new Date(startDate);
+    const [startH, startM] = startTime.split(":");
+    startDateTime.setHours(startH, startM);
+
+    const endDateTime = new Date(endDate);
+    const [endH, endM] = endTime.split(":");
+    endDateTime.setHours(endH, endM);
+
+    if (endDateTime <= startDateTime) {
+      toast.error("End time must be after start time.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const payload = {
+      task_id: selectedTask,
+      start_date: formatDateForAPI(startDate),
+      start_time: startTime,
+      end_date: formatDateForAPI(endDate),
+      end_time: endTime,
+      memo_content: memoContent.trim(),
+    };
+
+    try {
+      await axios.post(API_URL, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      toast.success("Manual time added successfully!");
+      onSuccess();
+      handleClose();
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Failed to add manual time.";
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.8)] backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl border dark:border-slate-700">
+        <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+            Add Manual Time
+          </h3>
+          <button
+            onClick={handleClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label mb-1">Job*</label>
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                className="form-select w-full"
+              >
+                <option value="" disabled>
+                  Select a job
+                </option>
+                {Object.entries(projects).map(([status, projectList]) => (
+                  <optgroup key={status} label={status}>
+                    {Array.isArray(projectList) &&
+                      projectList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.project_name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="form-label mb-1">Task*</label>
+              <select
+                value={selectedTask}
+                onChange={(e) => setSelectedTask(e.target.value)}
+                disabled={!selectedProject || isTasksLoading}
+                className="form-select w-full"
+              >
+                <option value="" disabled>
+                  {!selectedProject ? "Select job first" : "All Tasks"}
+                </option>
+                {isTasksLoading ? (
+                  <option disabled>Loading...</option>
+                ) : (
+                  tasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.task_title}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label mb-1">Start Date*</label>
+              <Flatpickr
+                className="form-input w-full"
+                value={startDate}
+                options={{ dateFormat: "Y-m-d" }}
+                onChange={([date]) => setStartDate(date)}
+              />
+            </div>
+            <div>
+              <label className="form-label mb-1">Start Time*</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="form-input w-full"
+                step="1"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label mb-1">End Date*</label>
+              <Flatpickr
+                className="form-input w-full"
+                value={endDate}
+                options={{ dateFormat: "Y-m-d" }}
+                onChange={([date]) => setEndDate(date)}
+              />
+            </div>
+            <div>
+              <label className="form-label mb-1">End Time*</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="form-input w-full"
+                step="1"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="form-label mb-1">Memo / Reason*</label>
+            <textarea
+              rows="3"
+              className="form-textarea"
+              placeholder="What did you work on?"
+              value={memoContent}
+              onChange={(e) => setMemoContent(e.target.value)}
+            ></textarea>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700 mt-5">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="btn btn-light"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-dark"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save Time"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 // --- START: Helper functions ---
-
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
 };
-
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -28,7 +297,6 @@ const TrashIcon = () => (
     />
   </svg>
 );
-
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
   const parts = timeStr.split(":");
@@ -42,8 +310,6 @@ const formatTime = (timeStr) => {
     hour12: true,
   });
 };
-
-// --- CHANGE 1 of 2: ADDED a new robust function to handle full date-time strings ---
 const formatDateTime = (isoString) => {
   if (!isoString) return "";
   try {
@@ -58,14 +324,12 @@ const formatDateTime = (isoString) => {
     return "Invalid Time";
   }
 };
-
 const formatSecondsToHoursMinutes = (totalSeconds) => {
   if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
 };
-
 const formatDateForAPI = (date) => {
   if (!date || !(date instanceof Date) || isNaN(date)) {
     return "";
@@ -75,7 +339,6 @@ const formatDateForAPI = (date) => {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
-
 const calculateIdleDuration = (startTime, endTime) => {
   if (!startTime || !endTime) return "N/A";
   const start = new Date(startTime);
@@ -89,7 +352,6 @@ const calculateIdleDuration = (startTime, endTime) => {
 
 const WorkSession = () => {
   const { token, isAuthenticated, user } = useAuth();
-
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -107,12 +369,13 @@ const WorkSession = () => {
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
   const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
   const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
+  const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
 
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
   useEffect(() => {
-    if (isIdleTimeModalOpen) {
+    if (isIdleTimeModalOpen || isManualTimeModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -120,11 +383,9 @@ const WorkSession = () => {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isIdleTimeModalOpen]);
-
+  }, [isIdleTimeModalOpen, isManualTimeModalOpen]);
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-
     const fetchProjects = async () => {
       setProjectsLoading(true);
       try {
@@ -141,9 +402,6 @@ const WorkSession = () => {
         if (typeof data === "object" && data !== null && !Array.isArray(data)) {
           setProjects(data);
         } else {
-          console.warn(
-            "Projects API returned an unexpected format, treating as single group."
-          );
           setProjects({ "All Projects": Array.isArray(data) ? data : [] });
         }
       } catch (error) {
@@ -155,7 +413,6 @@ const WorkSession = () => {
     };
     fetchProjects();
   }, [isAuthenticated, token, API_BASE_URL, user]);
-
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
@@ -183,7 +440,6 @@ const WorkSession = () => {
     };
     fetchTasksForProject();
   }, [selectedProject, token, API_BASE_URL]);
-
   const fetchWorkSessions = useCallback(async () => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -191,7 +447,6 @@ const WorkSession = () => {
     }
     setLoading(true);
     window.scrollTo(0, 0);
-
     const params = new URLSearchParams({ page: currentPage.toString() });
     if (selectedProject) params.append("project_id", selectedProject);
     if (selectedTask) params.append("task_id", selectedTask);
@@ -199,20 +454,16 @@ const WorkSession = () => {
       params.append("start_date", formatDateForAPI(dateRange[0]));
     if (dateRange && dateRange.length > 1 && dateRange[1])
       params.append("end_date", formatDateForAPI(dateRange[1]));
-
     try {
       const response = await fetch(
         `${API_BASE_URL}/work-session?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Request failed`);
       const fetchedSessions = result.data?.reverse() || [];
       setSessions(fetchedSessions);
       setOverallTotalTime(result.overall_total_time || "0h 0m");
-
       const totalManualSeconds = fetchedSessions
         .filter((session) => session.type === "Manual")
         .reduce(
@@ -243,11 +494,9 @@ const WorkSession = () => {
     selectedProject,
     selectedTask,
   ]);
-
   useEffect(() => {
     fetchWorkSessions();
   }, [fetchTrigger, currentPage, fetchWorkSessions]);
-
   const handleSearch = () => {
     if (currentPage !== 1) {
       setCurrentPage(1);
@@ -255,7 +504,6 @@ const WorkSession = () => {
       setFetchTrigger((t) => t + 1);
     }
   };
-
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
@@ -267,7 +515,6 @@ const WorkSession = () => {
       setFetchTrigger((t) => t + 1);
     }
   };
-
   const handleDelete = (sessionId) => {
     Swal.fire({
       title: "Are you sure?",
@@ -293,7 +540,6 @@ const WorkSession = () => {
       }
     });
   };
-
   const handleDeleteScreenshot = (sessionId, screenshotId) => {
     Swal.fire({
       title: "Are you sure?",
@@ -308,10 +554,7 @@ const WorkSession = () => {
         try {
           const res = await fetch(
             `${API_BASE_URL}/screenshot/${screenshotId}`,
-            {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
-            }
+            { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
           );
           if (!res.ok) {
             const errorData = await res.json();
@@ -337,24 +580,20 @@ const WorkSession = () => {
       }
     });
   };
-
   const handleShowIdleTime = (idleTimes) => {
     setSelectedSessionIdleTimes(idleTimes);
     setIsIdleTimeModalOpen(true);
   };
-
   const handleNextPage = () => {
     if (paginationInfo?.currentPage < paginationInfo?.lastPage) {
       setCurrentPage((p) => p + 1);
     }
   };
-
   const handlePrevPage = () => {
     if (paginationInfo?.currentPage > 1) {
       setCurrentPage((p) => p - 1);
     }
   };
-
   if (!isAuthenticated && !loading) {
     return (
       <div className="p-8 text-center">
@@ -365,47 +604,53 @@ const WorkSession = () => {
 
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 ">
-          Work Diary
-        </h1>
-        {(!isInitialLoad || sessions.length > 0) && (
-          <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 mt-2 mb-6">
-            <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
-              Total Time: {overallTotalTime}
-            </div>
-            {manualTotalTime !== "0h 0m" && (
-              <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Manual:{" "}
-                <span className="font-semibold text-sky-700 dark:text-sky-400">
-                  ({manualTotalTime})
-                </span>
+      <AddManualTimeModal
+        isOpen={isManualTimeModalOpen}
+        onClose={() => setIsManualTimeModalOpen(false)}
+        projects={projects}
+        token={token}
+        onSuccess={handleSearch}
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+              Work Diary
+            </h1>
+            {(!isInitialLoad || sessions.length > 0) && (
+              <div className="flex items-baseline gap-4 mt-1">
+                <div className="text-slate-600 dark:text-slate-300 font-medium">
+                  Total Time:{" "}
+                  <span className="font-bold text-slate-800 dark:text-slate-100">
+                    {overallTotalTime}
+                  </span>
+                </div>
+                {manualTotalTime !== "0h 0m" && (
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Manual:{" "}
+                    <span className="font-semibold text-sky-700 dark:text-sky-400">
+                      ({manualTotalTime})
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-        <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/30 backdrop-blur-sm p-6 rounded-xl mb-8 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-slate-600 dark:text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"
-                />
-              </svg>
-              Filter Work Sessions
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <button
+            onClick={() => setIsManualTimeModalOpen(true)}
+            className="btn btn-dark whitespace-nowrap"
+          >
+            Add Manual Time
+          </button>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-4">
+            Filter Work Sessions
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="md:col-span-1">
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-1">
                 Job
               </label>
               <select
@@ -415,12 +660,12 @@ const WorkSession = () => {
                   setSelectedTask("");
                 }}
                 disabled={projectsLoading}
-                className="form-select w-full disabled:bg-slate-100"
+                className="form-select w-full"
               >
                 <option value="">All Jobs</option>
                 {projectsLoading ? (
-                  <option disabled>Loading jobs...</option>
-                ) : Object.entries(projects).length > 0 ? (
+                  <option disabled>Loading...</option>
+                ) : (
                   Object.entries(projects).map(([status, projectList]) => (
                     <optgroup key={status} label={status}>
                       {Array.isArray(projectList) &&
@@ -431,26 +676,24 @@ const WorkSession = () => {
                         ))}
                     </optgroup>
                   ))
-                ) : (
-                  <option disabled>No jobs available</option>
                 )}
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <div className="md:col-span-1">
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-1">
                 Task
               </label>
               <select
                 value={selectedTask}
                 onChange={(e) => setSelectedTask(e.target.value)}
-                disabled={!selectedProject || tasksLoading || projectsLoading}
-                className="form-select w-full disabled:bg-slate-100"
+                disabled={!selectedProject || tasksLoading}
+                className="form-select w-full"
               >
                 <option value="">
                   {!selectedProject ? "Select job first" : "All Tasks"}
                 </option>
                 {tasksLoading ? (
-                  <option disabled>Loading tasks...</option>
+                  <option disabled>Loading...</option>
                 ) : (
                   tasks.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -460,8 +703,8 @@ const WorkSession = () => {
                 )}
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <div className="md:col-span-1">
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-1">
                 Date Range
               </label>
               <Flatpickr
@@ -469,59 +712,56 @@ const WorkSession = () => {
                 onChange={setDateRange}
                 className="form-input w-full"
                 options={{ mode: "range", dateFormat: "M j, Y" }}
-                placeholder="Select date range"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-transparent">
-                Actions
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={handleResetFilters}
-                  className="btn btn-outline-secondary w-full"
-                >
-                  Reset
-                </button>
-                <button
-                  onClick={handleSearch}
-                  disabled={loading}
-                  className="btn btn-dark w-full"
-                >
-                  {loading ? "Searching..." : "Search"}
-                </button>
-              </div>
+            <div className="md:col-span-1 flex gap-2">
+              <button
+                onClick={handleResetFilters}
+                className="btn btn-outline-secondary w-full"
+              >
+                Reset
+              </button>
+              <button
+                onClick={handleSearch}
+                disabled={loading}
+                className="btn btn-dark w-full"
+              >
+                {loading ? "..." : "Search"}
+              </button>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-          {loading ? (
-            <div className="text-center py-16">
+        <div className="border-t border-slate-200 dark:border-slate-700">
+          {loading && isInitialLoad ? (
+            <div className="text-center py-20">
               <p>Loading diary entries...</p>
             </div>
           ) : sessions.length > 0 ? (
-            <div>
+            <div className="space-y-8">
               {sessions.map((session, index) => (
                 <div
                   key={session.id}
-                  className="relative group flex items-start space-x-4 py-8"
+                  className="relative group flex items-start space-x-4 pt-8"
                 >
-                  <div className="flex flex-col items-center h-full">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
+                  <div className="flex-shrink-0 flex flex-col items-center h-full">
+                    <div className="w-3 h-3 bg-green-500 rounded-full ring-4 ring-white dark:ring-slate-900"></div>
                     {index < sessions.length - 1 && (
-                      <div className="w-px flex-grow bg-slate-200 dark:bg-slate-700 mt-2"></div>
+                      <div
+                        className="w-px flex-grow bg-slate-200 dark:bg-slate-700"
+                        style={{ minHeight: "100%" }}
+                      ></div>
                     )}
                   </div>
                   <div
                     className={`flex-1 ${
                       index < sessions.length - 1
-                        ? "border-b border-slate-200 dark:border-slate-700 pb-8"
+                        ? "pb-8 border-b border-slate-200 dark:border-slate-700"
                         : ""
                     }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center flex-wrap gap-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-2">
                         <p className="font-semibold text-slate-700 dark:text-slate-300">
                           {formatTime(session.start_time)} –{" "}
                           {formatTime(session.end_time)}
@@ -529,22 +769,24 @@ const WorkSession = () => {
                             ({session.total_time})
                           </span>
                         </p>
-                        {session.type === "Manual" && (
-                          <span className="px-2 py-0.5 bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 rounded-full text-xs font-medium">
-                            Manual
-                          </span>
-                        )}
-                        {session.idle_times &&
-                          session.idle_times.length > 0 && (
-                            <button
-                              onClick={() =>
-                                handleShowIdleTime(session.idle_times)
-                              }
-                              className="px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 rounded-full text-xs font-medium hover:bg-amber-200"
-                            >
-                              Show Idle Time
-                            </button>
+                        <div className="flex items-center gap-2">
+                          {session.type === "Manual" && (
+                            <span className="px-2.5 py-1 bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 rounded-full text-xs font-semibold">
+                              Manual
+                            </span>
                           )}
+                          {session.idle_times &&
+                            session.idle_times.length > 0 && (
+                              <button
+                                onClick={() =>
+                                  handleShowIdleTime(session.idle_times)
+                                }
+                                className="px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 rounded-full text-xs font-semibold hover:bg-amber-200"
+                              >
+                                Idle Time
+                              </button>
+                            )}
+                        </div>
                       </div>
                       <button
                         onClick={() => handleDelete(session.id)}
@@ -555,7 +797,7 @@ const WorkSession = () => {
                       </button>
                     </div>
                     {session.memo_content && (
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-md border border-slate-200 dark:border-slate-700">
                         {session.memo_content}
                       </p>
                     )}
@@ -565,7 +807,7 @@ const WorkSession = () => {
                           {session.screenshots.map((ss) => (
                             <div
                               key={ss.id}
-                              className="text-center group relative"
+                              className="text-center group/ss relative"
                             >
                               <a
                                 href={`${STORAGE_URL}/${ss.screenshot_file}`}
@@ -575,7 +817,7 @@ const WorkSession = () => {
                                 <img
                                   src={`${STORAGE_URL}/${ss.screenshot_file}`}
                                   alt={`Screenshot`}
-                                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
+                                  className="w-full rounded-lg border-2 border-transparent group-hover/ss:border-blue-500 transition"
                                 />
                               </a>
                               <button
@@ -583,7 +825,7 @@ const WorkSession = () => {
                                   handleDeleteScreenshot(session.id, ss.id)
                                 }
                                 title="Delete Screenshot"
-                                className="absolute top-1 right-1 p-1 bg-red-600/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-700"
+                                className="absolute top-1.5 right-1.5 p-1 bg-red-600/80 text-white rounded-full opacity-0 group-hover/ss:opacity-100 transition-opacity duration-200 hover:bg-red-700"
                               >
                                 <TrashIcon />
                               </button>
@@ -594,22 +836,44 @@ const WorkSession = () => {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-400 italic">
-                          No screenshots were taken for this session.
-                        </p>
+                        session.type !== "Manual" && (
+                          <p className="text-sm text-slate-400 italic">
+                            No screenshots were taken for this session.
+                          </p>
+                        )
                       )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          ) : !isInitialLoad ? (
-            <div className="text-center py-16">
-              <p className="text-slate-500">
-                No work sessions found for the selected criteria.
-              </p>
-            </div>
-          ) : null}
+          ) : (
+            !isInitialLoad && (
+              <div className="text-center py-20">
+                <svg
+                  className="mx-auto h-12 w-12 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    vectorEffect="non-scaling-stroke"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                  />
+                </svg>
+                <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-200">
+                  No work sessions
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  No work sessions found for the selected criteria.
+                </p>
+              </div>
+            )
+          )}
           {paginationInfo && paginationInfo.lastPage > 1 && (
             <div className="flex flex-wrap justify-center items-center mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 gap-4">
               <button
@@ -635,9 +899,8 @@ const WorkSession = () => {
           )}
         </div>
       </div>
-
       {isIdleTimeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg border dark:border-slate-700">
             <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200">
               Idle Time Details
@@ -663,7 +926,6 @@ const WorkSession = () => {
                       key={idle.id}
                       className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
                     >
-                      {/* --- CHANGE 2 of 2: USING the new function here --- */}
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                         {formatDateTime(idle.start_time)}
                       </td>

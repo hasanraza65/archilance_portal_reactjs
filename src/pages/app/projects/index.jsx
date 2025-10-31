@@ -104,11 +104,7 @@ const ProjectPostPage = () => {
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [isTaskListLoading, setTaskListLoading] = useState(true);
   const [assignedToMeFilter, setAssignedToMeFilter] = useState(false);
-  
-  // -- MODIFICATION START: Added state for the Upwork filter --
   const [isUpworkFilterActive, setIsUpworkFilterActive] = useState(false);
-  // -- MODIFICATION END --
-  
   const [taskAssignedToMeFilter, setTaskAssignedToMeFilter] = useState(false);
   const actualUserRole = getUserRole();
   const employeeType = getEmployeeType();
@@ -153,13 +149,13 @@ const ProjectPostPage = () => {
   useEffect(() => {
     const apiParams = {};
     if (assignedToMeFilter) {
-        apiParams.assigned_me = 1;
+      apiParams.assigned_me = 1;
     }
     if (isUpworkFilterActive) {
-        apiParams.customer_id = 52; 
+      apiParams.customer_id = 52;
     }
     dispatch(fetchProjectsAPI(apiParams));
-  }, [dispatch, assignedToMeFilter, isUpworkFilterActive]); 
+  }, [dispatch, assignedToMeFilter, isUpworkFilterActive]);
 
   useEffect(() => {
     sessionStorage.setItem("projectPageActiveTab", activeTab);
@@ -228,6 +224,28 @@ const ProjectPostPage = () => {
     }
     return false;
   }, [projects, projectStatusFilter, projectSearchQuery]);
+    
+  // --- MODIFICATION START: Two separate variables for clearer conditions ---
+  const isAuthorizedForTabs = useMemo(() => {
+    const type = String(employeeType || "").toLowerCase();
+    return (
+      actualUserRole === "admin" ||
+      type === "manager" ||
+      type === "supervisor" ||
+      type === "executive"
+    );
+  }, [actualUserRole, employeeType]);
+
+  const isAssignableUser = useMemo(() => {
+    const type = String(employeeType || "").toLowerCase();
+    return (
+      type === "manager" ||
+      type === "supervisor" ||
+      type === "executive"
+    );
+  }, [employeeType]);
+  // --- MODIFICATION END ---
+
 
   return (
     <div>
@@ -243,6 +261,7 @@ const ProjectPostPage = () => {
         pauseOnHover
         theme="light"
       />
+
       <div className="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-800 space-x-1 mb-5">
         <button
           className={getTabClassName("projects")}
@@ -256,10 +275,7 @@ const ProjectPostPage = () => {
         >
           Projects
         </button>
-        {(actualUserRole === "admin" ||
-          employeeType === "Manager" ||
-          employeeType === "Supervisor" ||
-          employeeType === "Executive") && (
+        {isAuthorizedForTabs && (
           <button
             className={getTabClassName("members")}
             onClick={() => setActiveTab("members")}
@@ -274,9 +290,7 @@ const ProjectPostPage = () => {
           {pageTitle}
         </h4>
         {activeTab === "projects" &&
-          (employeeType === "Manager" ||
-            employeeType === "Supervisor" ||
-            employeeType === "Executive" ||
+          (isAuthorizedForTabs ||
             (uiRole !== "employee" &&
               uiRole !== "customer" &&
               uiRole !== "outsource")) && (
@@ -310,34 +324,30 @@ const ProjectPostPage = () => {
                 </div>
               </div>
 
-              {/* -- MODIFICATION START: Moved Upwork button here as a filter -- */}
               <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-                {(actualUserRole === "admin" ||
-                  employeeType === "Manager" ||
-                  employeeType === "Supervisor" ||
-                  employeeType === "Executive") && (
-                  <Button
-                    text="Upwork Projects"
-                    disabled={anyOperationPending}
-                    className={`py-2 px-4 text-sm font-medium transition-colors ${
-                      isUpworkFilterActive ? "btn-dark" : "btn-outline-dark"
-                    }`}
-                    onClick={() => setIsUpworkFilterActive((prev) => !prev)}
-                  />
+                {/* --- MODIFICATION START: Separated conditions for each button --- */}
+                {isAuthorizedForTabs && (
+                    <Button
+                      text="Upwork Projects"
+                      disabled={anyOperationPending}
+                      className={`py-2 px-4 text-sm font-medium transition-colors ${
+                        isUpworkFilterActive ? "btn-dark" : "btn-outline-dark"
+                      }`}
+                      onClick={() => setIsUpworkFilterActive((prev) => !prev)}
+                    />
                 )}
-                {(employeeType === "Manager" ||
-                  employeeType === "Supervisor" ||
-                  employeeType === "Executive") && (
-                  <Button
-                    text="Assigned to me"
-                    disabled={anyOperationPending}
-                    className={`py-2 px-4 text-sm font-medium transition-colors ${
-                      assignedToMeFilter ? "btn-dark" : "btn-outline-dark"
-                    }`}
-                    onClick={() => setAssignedToMeFilter((prev) => !prev)}
-                  />
+                {isAssignableUser && (
+                    <Button
+                      text="Assigned to me"
+                      disabled={anyOperationPending}
+                      className={`py-2 px-4 text-sm font-medium transition-colors ${
+                        assignedToMeFilter ? "btn-dark" : "btn-outline-dark"
+                      }`}
+                      onClick={() => setAssignedToMeFilter((prev) => !prev)}
+                    />
                 )}
-                {/* -- MODIFICATION END -- */}
+                {/* --- MODIFICATION END --- */}
+
                 <div className="flex items-center space-x-2">
                   <Button
                     icon="heroicons-outline:view-grid"
@@ -378,8 +388,11 @@ const ProjectPostPage = () => {
               <TableLoading count={5} />
             ))}
           {!projectsDataLoading && projectsError && (
-            <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
-                <span className="font-medium">Error!</span> {projectsError}
+            <div
+              className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400"
+              role="alert"
+            >
+              <span className="font-medium">Error!</span> {projectsError}
             </div>
           )}
 
@@ -435,7 +448,7 @@ const ProjectPostPage = () => {
                                   <ProjectGrid
                                     project={project}
                                     key={project.id}
-                                     userRole={actualUserRole}
+                                    userRole={actualUserRole}
                                     employeeType={employeeType}
                                   />
                                 ))}
@@ -449,7 +462,7 @@ const ProjectPostPage = () => {
                 ) : (
                   <ProjectList
                     projectsByStatus={projects}
-                     userRole={actualUserRole}
+                    userRole={actualUserRole}
                     employeeType={employeeType}
                     searchQuery={projectSearchQuery}
                     statusFilter={projectStatusFilter}

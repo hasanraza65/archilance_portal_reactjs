@@ -6,6 +6,292 @@ import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
+import axios from "axios"; // Import axios for API calls
+
+// --- Add Manual Time Modal Component ---
+
+const AddManualTimeModal = ({
+  isOpen,
+  onClose,
+  projects,
+  employeeId,
+  token,
+  onSuccess,
+  apiPrefix, // --- MODIFICATION: Receiving apiPrefix as a prop ---
+}) => {
+  const [selectedProject, setSelectedProject] = useState("");
+  const [tasks, setTasks] = useState([]);
+  const [isTasksLoading, setIsTasksLoading] = useState(false);
+  const [selectedTask, setSelectedTask] = useState("");
+  const [startDate, setStartDate] = useState(new Date());
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState(new Date());
+  const [endTime, setEndTime] = useState("");
+  const [memoContent, setMemoContent] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
+  // --- MODIFICATION START: Using dynamic apiPrefix for the URL ---
+  const API_URL = `${API_BASE}/api/${apiPrefix}/other-manual-time`;
+  // --- MODIFICATION END ---
+
+  // Fetch tasks when a project is selected
+  useEffect(() => {
+    if (!selectedProject || !token) {
+      setTasks([]);
+      setSelectedTask("");
+      return;
+    }
+    const fetchTasksForProject = async () => {
+      setIsTasksLoading(true);
+      try {
+        // --- MODIFICATION START: Using dynamic apiPrefix for fetching tasks ---
+        const res = await axios.get(
+          `${API_BASE}/api/${apiPrefix}/project/${selectedProject}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        // --- MODIFICATION END ---
+        if (res.data && Array.isArray(res.data.tasks)) {
+          setTasks(res.data.tasks);
+        } else {
+          setTasks([]);
+        }
+      } catch (error) {
+        toast.error("Could not fetch tasks for the selected project.");
+        setTasks([]);
+      } finally {
+        setIsTasksLoading(false);
+      }
+    };
+    fetchTasksForProject();
+  }, [selectedProject, token, API_BASE, apiPrefix]); // Added apiPrefix to dependency array
+
+  const resetForm = () => {
+    setSelectedProject("");
+    setSelectedTask("");
+    setTasks([]);
+    setStartDate(new Date());
+    setStartTime("");
+    setEndDate(new Date());
+    setEndTime("");
+    setMemoContent("");
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (
+      !selectedTask ||
+      !startDate ||
+      !startTime ||
+      !endDate ||
+      !endTime ||
+      !memoContent.trim()
+    ) {
+      toast.error("Please fill all fields.");
+      return;
+    }
+
+    const startDateTime = new Date(startDate);
+    const [startH, startM] = startTime.split(":");
+    startDateTime.setHours(startH, startM);
+
+    const endDateTime = new Date(endDate);
+    const [endH, endM] = endTime.split(":");
+    endDateTime.setHours(endH, endM);
+
+    if (endDateTime <= startDateTime) {
+      toast.error("End time must be after start time.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const payload = {
+      task_id: selectedTask,
+      start_date: formatDateForAPI(startDate),
+      start_time: startTime,
+      end_date: formatDateForAPI(endDate),
+      end_time: endTime,
+      memo_content: memoContent.trim(),
+      user_id: employeeId,
+    };
+
+    try {
+      await axios.post(API_URL, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      toast.success("Manual time added successfully!");
+      onSuccess();
+      handleClose();
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Failed to add manual time.";
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.8)] backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-2xl border dark:border-slate-700 transform transition-all">
+        <h3 className="text-xl font-bold mb-6 text-slate-800 dark:text-slate-200">
+          Add Manual Time
+        </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">Job*</label>
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                className="form-select w-full"
+              >
+                <option value="" disabled>
+                  Select a job
+                </option>
+                {Object.entries(projects).map(([status, projectList]) => (
+                  <optgroup key={status} label={status}>
+                    {Array.isArray(projectList) &&
+                      projectList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.project_name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Task*</label>
+              <select
+                value={selectedTask}
+                onChange={(e) => setSelectedTask(e.target.value)}
+                disabled={!selectedProject || isTasksLoading}
+                className="form-select w-full disabled:bg-slate-100 dark:disabled:bg-slate-700"
+              >
+                <option value="" disabled>
+                  Select a task
+                </option>
+                {isTasksLoading ? (
+                  <option disabled>Loading tasks...</option>
+                ) : (
+                  tasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.task_title}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">Start Date*</label>
+              <Flatpickr
+                className="form-input w-full"
+                value={startDate}
+                options={{ dateFormat: "Y-m-d" }}
+                onChange={([date]) => setStartDate(date)}
+              />
+            </div>
+            <div>
+              <label className="form-label">Start Time*</label>
+              <Flatpickr
+                className="form-input w-full"
+                value={startTime}
+                options={{
+                  enableTime: true,
+                  noCalendar: true,
+                  dateFormat: "H:i",
+                  time_24hr: true,
+                }}
+                onChange={([date]) =>
+                  setStartTime(
+                    `${String(date.getHours()).padStart(2, "0")}:${String(
+                      date.getMinutes()
+                    ).padStart(2, "0")}`
+                  )
+                }
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">End Date*</label>
+              <Flatpickr
+                className="form-input w-full"
+                value={endDate}
+                options={{ dateFormat: "Y-m-d" }}
+                onChange={([date]) => setEndDate(date)}
+              />
+            </div>
+            <div>
+              <label className="form-label">End Time*</label>
+              <Flatpickr
+                className="form-input w-full"
+                value={endTime}
+                options={{
+                  enableTime: true,
+                  noCalendar: true,
+                  dateFormat: "H:i",
+                  time_24hr: true,
+                }}
+                onChange={([date]) =>
+                  setEndTime(
+                    `${String(date.getHours()).padStart(2, "0")}:${String(
+                      date.getMinutes()
+                    ).padStart(2, "0")}`
+                  )
+                }
+              />
+            </div>
+          </div>
+          <div>
+            <label className="form-label">Memo / Reason*</label>
+            <textarea
+              rows="3"
+              className="form-textarea"
+              placeholder="What did you work on?"
+              value={memoContent}
+              onChange={(e) => setMemoContent(e.target.value)}
+            ></textarea>
+          </div>
+          <div className="flex justify-end gap-4 pt-4">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="btn btn-light"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-dark"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save Time"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const getTodayDateRange = () => {
   const today = new Date();
@@ -137,7 +423,7 @@ const AdminEmployeeWorkSession = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState({});
-  const [tasks, setTasks] = useState([]); // CORRECTED: Changed back to array
+  const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
@@ -149,6 +435,7 @@ const AdminEmployeeWorkSession = () => {
   const presetDropdownRef = useRef(null);
   const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
   const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
+  const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
 
@@ -189,7 +476,7 @@ const AdminEmployeeWorkSession = () => {
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
   useEffect(() => {
-    if (isIdleTimeModalOpen) {
+    if (isIdleTimeModalOpen || isManualTimeModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -197,7 +484,7 @@ const AdminEmployeeWorkSession = () => {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isIdleTimeModalOpen]);
+  }, [isIdleTimeModalOpen, isManualTimeModalOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -257,7 +544,6 @@ const AdminEmployeeWorkSession = () => {
     fetchProjects();
   }, [isAuthenticated, token, API_BASE_URL, user]);
 
-  // CORRECTED: Logic to handle a flat array of tasks
   useEffect(() => {
     if (!selectedProject || !user) {
       setTasks([]);
@@ -377,7 +663,7 @@ const AdminEmployeeWorkSession = () => {
   const handleResetFilters = () => {
     setSelectedProject("");
     setSelectedTask("");
-    setTasks([]); // CORRECTED: Reset to empty array
+    setTasks([]);
     setDateRange(getTodayDateRange());
     setActivePreset("Today");
     setOverallTotalTime("0h 0m");
@@ -499,6 +785,15 @@ const AdminEmployeeWorkSession = () => {
 
   return (
     <Card>
+      <AddManualTimeModal
+        isOpen={isManualTimeModalOpen}
+        onClose={() => setIsManualTimeModalOpen(false)}
+        projects={projects}
+        employeeId={employeeId}
+        token={token}
+        onSuccess={fetchWorkSessions}
+        apiPrefix={endpointPrefix} // --- MODIFICATION: Passing the dynamic prefix to the modal ---
+      />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 gap-4">
         <div>
           <h4 className="card-title">
@@ -523,12 +818,20 @@ const AdminEmployeeWorkSession = () => {
             </div>
           )}
         </div>
-        <Link
-          to="/employees"
-          className="btn btn-sm btn-outline-dark whitespace-nowrap"
-        >
-          ← Back to Employee List
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsManualTimeModalOpen(true)}
+            className="btn btn-sm btn-dark whitespace-nowrap"
+          >
+            Add Manual Time
+          </button>
+          <Link
+            to="/employees"
+            className="btn btn-sm btn-outline-dark whitespace-nowrap"
+          >
+            ← Back to Employee List
+          </Link>
+        </div>
       </div>
 
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
@@ -562,7 +865,6 @@ const AdminEmployeeWorkSession = () => {
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
               Task
             </label>
-            {/* CORRECTED: JSX for rendering tasks from a simple array */}
             <select
               value={selectedTask}
               onChange={(e) => setSelectedTask(e.target.value)}
@@ -635,7 +937,7 @@ const AdminEmployeeWorkSession = () => {
                 />
               </div>
 
-              <div className="flex-shrink-0 w-full lg:w-auto">
+              <div className="flex-shrink-0 flex items-center gap-2">
                 <button
                   onClick={handleResetFilters}
                   className="btn bg-slate-800 hover:bg-slate-900 text-white font-bold whitespace-nowrap h-10 w-full lg:w-auto"
@@ -808,18 +1110,14 @@ const AdminEmployeeWorkSession = () => {
                         className="bg-white border-b dark:bg-slate-800 dark:border-slate-700"
                       >
                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                          {/* --- CHANGE START --- */}
                           {idle.start_time
                             ? formatScreenshotTime(idle.start_time)
                             : "N/A"}
-                          {/* --- CHANGE END --- */}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                          {/* --- CHANGE START --- */}
                           {idle.end_time
                             ? formatScreenshotTime(idle.end_time)
                             : "N/A"}
-                          {/* --- CHANGE END --- */}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                           {idle.start_time && idle.end_time
