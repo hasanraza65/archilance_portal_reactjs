@@ -617,7 +617,7 @@ const TaskList = ({ onLoadingChange }) => {
 
       {!isLoading && !error && hasData && (
         <>
-            <div className="sm:hidden mb-4">
+           <div className="lg:hidden mb-4">
                 <div className="inline-flex rounded-md shadow-sm" role="group">
                 <button
                     type="button"
@@ -647,7 +647,7 @@ const TaskList = ({ onLoadingChange }) => {
             <div
                 className={`${
                 tasksViewMode === "grid" ? "block" : "hidden"
-                } sm:block w-full align-middle`}
+                } lg:block w-full align-middle`}
             >
                 <div className="w-full space-y-4">
                 {Object.entries(filteredData).map(([status, tasks]) => (
@@ -891,7 +891,7 @@ const TaskList = ({ onLoadingChange }) => {
             <div
                 className={`${
                 tasksViewMode === "list" ? "block" : "hidden"
-                } sm:hidden w-full space-y-3`}
+                } lg:hidden w-full space-y-3`}
             >
                 {Object.entries(filteredData).map(([status, tasks]) => (
                 <div
