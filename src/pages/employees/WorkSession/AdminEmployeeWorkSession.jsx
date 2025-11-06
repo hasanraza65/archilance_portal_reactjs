@@ -6,10 +6,9 @@ import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
-import axios from "axios"; // Import axios for API calls
+import axios from "axios";
 
 // --- Add Manual Time Modal Component ---
-
 const AddManualTimeModal = ({
   isOpen,
   onClose,
@@ -17,7 +16,7 @@ const AddManualTimeModal = ({
   employeeId,
   token,
   onSuccess,
-  apiPrefix, // --- MODIFICATION: Receiving apiPrefix as a prop ---
+  apiPrefix,
 }) => {
   const [selectedProject, setSelectedProject] = useState("");
   const [tasks, setTasks] = useState([]);
@@ -31,11 +30,8 @@ const AddManualTimeModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
-  // --- MODIFICATION START: Using dynamic apiPrefix for the URL ---
   const API_URL = `${API_BASE}/api/${apiPrefix}/other-manual-time`;
-  // --- MODIFICATION END ---
 
-  // Fetch tasks when a project is selected
   useEffect(() => {
     if (!selectedProject || !token) {
       setTasks([]);
@@ -45,19 +41,13 @@ const AddManualTimeModal = ({
     const fetchTasksForProject = async () => {
       setIsTasksLoading(true);
       try {
-        // --- MODIFICATION START: Using dynamic apiPrefix for fetching tasks ---
         const res = await axios.get(
           `${API_BASE}/api/${apiPrefix}/project/${selectedProject}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        // --- MODIFICATION END ---
-        if (res.data && Array.isArray(res.data.tasks)) {
-          setTasks(res.data.tasks);
-        } else {
-          setTasks([]);
-        }
+        setTasks(res.data?.all_tasks || []);
       } catch (error) {
         toast.error("Could not fetch tasks for the selected project.");
         setTasks([]);
@@ -66,7 +56,19 @@ const AddManualTimeModal = ({
       }
     };
     fetchTasksForProject();
-  }, [selectedProject, token, API_BASE, apiPrefix]); // Added apiPrefix to dependency array
+  }, [selectedProject, token, API_BASE, apiPrefix]);
+
+  const renderTaskOptions = (tasks, parentId = null, depth = 0) => {
+    const prefix = depth > 0 ? "↳ ".repeat(depth) : "";
+    return tasks
+      .filter((task) => task.parent_task_id === parentId)
+      .flatMap((task) => [
+        <option key={task.id} value={task.id}>
+          {prefix + task.task_title}
+        </option>,
+        ...renderTaskOptions(tasks, task.id, depth + 1),
+      ]);
+  };
 
   const resetForm = () => {
     setSelectedProject("");
@@ -86,7 +88,6 @@ const AddManualTimeModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (
       !selectedTask ||
       !startDate ||
@@ -98,22 +99,17 @@ const AddManualTimeModal = ({
       toast.error("Please fill all fields.");
       return;
     }
-
     const startDateTime = new Date(startDate);
     const [startH, startM] = startTime.split(":");
     startDateTime.setHours(startH, startM);
-
     const endDateTime = new Date(endDate);
     const [endH, endM] = endTime.split(":");
     endDateTime.setHours(endH, endM);
-
     if (endDateTime <= startDateTime) {
       toast.error("End time must be after start time.");
       return;
     }
-
     setIsSubmitting(true);
-
     const payload = {
       task_id: selectedTask,
       start_date: formatDateForAPI(startDate),
@@ -123,7 +119,6 @@ const AddManualTimeModal = ({
       memo_content: memoContent.trim(),
       user_id: employeeId,
     };
-
     try {
       await axios.post(API_URL, payload, {
         headers: {
@@ -189,11 +184,7 @@ const AddManualTimeModal = ({
                 {isTasksLoading ? (
                   <option disabled>Loading tasks...</option>
                 ) : (
-                  tasks.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.task_title}
-                    </option>
-                  ))
+                  renderTaskOptions(tasks)
                 )}
               </select>
             </div>
@@ -293,11 +284,12 @@ const AddManualTimeModal = ({
   );
 };
 
+// --- HELPER FUNCTIONS ---
+
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
 };
-
 const getWeekDateRange = (date = new Date()) => {
   const current = new Date(date);
   const day = current.getDay();
@@ -306,7 +298,6 @@ const getWeekDateRange = (date = new Date()) => {
   const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
   return [monday, sunday];
 };
-
 const getLastWeekDateRange = () => {
   const today = new Date();
   const lastWeekDate = new Date(
@@ -316,21 +307,18 @@ const getLastWeekDateRange = () => {
   );
   return getWeekDateRange(lastWeekDate);
 };
-
 const getCurrentMonthDateRange = () => {
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
   const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   return [firstDay, lastDay];
 };
-
 const getLastMonthDateRange = () => {
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
   return [firstDay, lastDay];
 };
-
 const PRESETS = [
   { label: "Today", func: getTodayDateRange },
   { label: "Current week", func: getWeekDateRange },
@@ -338,7 +326,6 @@ const PRESETS = [
   { label: "Current month", func: getCurrentMonthDateRange },
   { label: "Last month", func: getLastMonthDateRange },
 ];
-
 const ChevronDownIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -353,7 +340,6 @@ const ChevronDownIcon = () => (
     />
   </svg>
 );
-
 const TrashIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -370,7 +356,6 @@ const TrashIcon = () => (
     />
   </svg>
 );
-
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
   const [h, m] = timeStr.split(":");
@@ -381,7 +366,6 @@ const formatTime = (timeStr) => {
     hour12: true,
   });
 };
-
 const formatScreenshotTime = (isoString) => {
   if (!isoString) return "";
   try {
@@ -395,23 +379,23 @@ const formatScreenshotTime = (isoString) => {
     return "Invalid Time";
   }
 };
-
 const formatSecondsToHoursMinutes = (totalSeconds) => {
   if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
 };
-
 const formatDateForAPI = (date) => {
   if (!date || !(date instanceof Date) || isNaN(date)) {
     return "";
   }
-    const year = date.getFullYear();
+  const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");  
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+// --- MAIN COMPONENT ---
 const AdminEmployeeWorkSession = () => {
   const { employeeId } = useParams();
   const { token, logout, isAuthenticated, user } = useAuth();
@@ -422,10 +406,8 @@ const AdminEmployeeWorkSession = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState({});
-  const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
-  const [selectedTask, setSelectedTask] = useState("");
   const [dateRange, setDateRange] = useState(getTodayDateRange());
   const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
   const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
@@ -436,41 +418,28 @@ const AdminEmployeeWorkSession = () => {
   const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
   const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
 
+  const [allTasks, setAllTasks] = useState([]);
+  const [taskFilters, setTaskFilters] = useState([]);
+
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
 
   const getApiPrefix = () => {
     const role = user?.role?.toLowerCase();
-    const employeeType = user?.employee_type?.toLowerCase();
-
     if (role === "admin") {
       return "admin";
     }
-
-    const employeeRoles = [
-      "employee",
-      "manager",
-      "supervisor",
-      "executive",
-      "outsource",
-    ];
-    if (employeeRoles.includes(role) || employeeRoles.includes(employeeType)) {
+    const employeeRoles = ["employee", "manager", "supervisor", "executive", "outsource"];
+    if (employeeRoles.includes(role)) {
       return "employee";
     }
-
     return "admin";
   };
 
   const endpointPrefix = getApiPrefix();
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
-
-  const workSessionPath =
-    user?.role === "manager" ||
-    user?.role === "supervisor" ||
-    user?.role === "executive" ||
-    user?.role === "outsource" ||
-    user?.role === "employee"
-      ? "/other-work-session"
-      : "/work-session";
+  const workSessionPath = ["manager", "supervisor", "executive", "outsource", "employee"].includes(user?.role)
+    ? "/other-work-session"
+    : "/work-session";
 
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
@@ -500,7 +469,6 @@ const AdminEmployeeWorkSession = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !employeeId || !user) return;
-
     const fetchEmployeeDetails = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/employee-user/${employeeId}`, {
@@ -519,7 +487,6 @@ const AdminEmployeeWorkSession = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-
     const fetchProjects = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/project`, {
@@ -530,9 +497,6 @@ const AdminEmployeeWorkSession = () => {
         if (typeof data === "object" && data !== null && !Array.isArray(data)) {
           setProjects(data);
         } else {
-          console.warn(
-            "Projects API returned an unexpected format, treating as single group."
-          );
           setProjects({ "All Projects": Array.isArray(data) ? data : [] });
         }
       } catch (error) {
@@ -545,12 +509,13 @@ const AdminEmployeeWorkSession = () => {
 
   useEffect(() => {
     if (!selectedProject || !user) {
-      setTasks([]);
-      setSelectedTask("");
+      setAllTasks([]);
+      setTaskFilters([]);
       return;
     }
     const fetchTasksForProject = async () => {
       setTasksLoading(true);
+      setAllTasks([]);
       try {
         const res = await fetch(`${API_BASE_URL}/project/${selectedProject}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -560,16 +525,15 @@ const AdminEmployeeWorkSession = () => {
             `Could not fetch tasks for project ID ${selectedProject}.`
           );
         const projectDetails = await res.json();
-
-        if (projectDetails && Array.isArray(projectDetails.tasks)) {
-          setTasks(projectDetails.tasks);
-        } else {
-          console.warn("Tasks array not found in project details.");
-          setTasks([]);
-        }
+        const tasksFromServer = projectDetails.all_tasks || [];
+        setAllTasks(tasksFromServer);
+        const parentTasks = tasksFromServer.filter(
+          (t) => t.parent_task_id === null
+        );
+        setTaskFilters([{ selected: "", options: parentTasks }]);
       } catch (error) {
         toast.error(error.message);
-        setTasks([]);
+        setTaskFilters([]);
       } finally {
         setTasksLoading(false);
       }
@@ -577,17 +541,36 @@ const AdminEmployeeWorkSession = () => {
     fetchTasksForProject();
   }, [selectedProject, token, API_BASE_URL, user]);
 
+  const handleTaskChange = (level, value) => {
+    const newTaskFilters = taskFilters.slice(0, level + 1);
+    newTaskFilters[level] = { ...newTaskFilters[level], selected: value };
+    if (!value) {
+      setTaskFilters(newTaskFilters);
+      return;
+    }
+    const children = allTasks.filter(
+      (task) => task.parent_task_id === parseInt(value)
+    );
+    if (children.length > 0) {
+      newTaskFilters.push({ selected: "", options: children });
+    }
+    setTaskFilters(newTaskFilters);
+  };
+
   const fetchWorkSessions = useCallback(async () => {
     if (!employeeId || !token || !user) return;
     setLoading(true);
     window.scrollTo(0, 0);
+
+    const finalTaskId =
+      taskFilters.map((f) => f.selected).filter(Boolean).pop() || "";
 
     const params = new URLSearchParams({
       page: currentPage.toString(),
       employee_id: employeeId,
     });
     if (selectedProject) params.append("project_id", selectedProject);
-    if (selectedTask) params.append("task_id", selectedTask);
+    if (finalTaskId) params.append("task_id", finalTaskId);
     if (dateRange && dateRange[0])
       params.append("start_date", formatDateForAPI(dateRange[0]));
     if (dateRange && dateRange.length > 1 && dateRange[1])
@@ -606,15 +589,12 @@ const AdminEmployeeWorkSession = () => {
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.message || "Failed to fetch data");
-
       const sessionsData = result.data;
       const fetchedSessions = Array.isArray(sessionsData)
         ? sessionsData.slice().reverse()
         : [];
-
       setSessions(fetchedSessions);
       setOverallTotalTime(result.overall_total_time || "0h 0m");
-
       const totalManualSeconds = fetchedSessions
         .filter((session) => session.type === "Manual")
         .reduce(
@@ -623,7 +603,6 @@ const AdminEmployeeWorkSession = () => {
           0
         );
       setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
-
       setPaginationInfo({
         currentPage: result.current_page,
         lastPage: result.last_page,
@@ -640,13 +619,13 @@ const AdminEmployeeWorkSession = () => {
     employeeId,
     currentPage,
     selectedProject,
-    selectedTask,
     dateRange,
     token,
     logout,
     API_BASE_URL,
     workSessionPath,
     user,
+    taskFilters,
   ]);
 
   useEffect(() => {
@@ -657,12 +636,12 @@ const AdminEmployeeWorkSession = () => {
   useEffect(() => {
     if (currentPage !== 1) setCurrentPage(1);
     else if (isAuthenticated && user) fetchWorkSessions();
-  }, [selectedTask, dateRange, selectedProject, isAuthenticated, user]);
+  }, [dateRange, selectedProject, isAuthenticated, user]);
 
   const handleResetFilters = () => {
     setSelectedProject("");
-    setSelectedTask("");
-    setTasks([]);
+    setAllTasks([]);
+    setTaskFilters([]);
     setDateRange(getTodayDateRange());
     setActivePreset("Today");
     setOverallTotalTime("0h 0m");
@@ -709,25 +688,21 @@ const AdminEmployeeWorkSession = () => {
         try {
           const adminApiBaseUrl = `${API_BASE}/api/admin`;
           const url = `${adminApiBaseUrl}/delete-idle-time?idle_time_id=${idleTimeId}`;
-
           const res = await fetch(url, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
           });
-
           if (!res.ok) {
             const errorData = await res
               .json()
               .catch(() => ({ message: "Failed to delete idle time." }));
             throw new Error(errorData.message);
           }
-
           Swal.fire(
             "Deleted!",
             "The idle time entry has been deleted.",
             "success"
           );
-
           setSelectedSessionIdleTimes((currentIdleTimes) => {
             const updatedIdleTimes = currentIdleTimes.filter(
               (idle) => idle.id !== idleTimeId
@@ -737,7 +712,6 @@ const AdminEmployeeWorkSession = () => {
             }
             return updatedIdleTimes;
           });
-
           fetchWorkSessions();
         } catch (e) {
           Swal.fire("Error!", e.message, "error");
@@ -782,6 +756,8 @@ const AdminEmployeeWorkSession = () => {
       </div>
     );
 
+  const taskLabels = ["Task", "Sub-Task", "Sub-Sub-Task"];
+
   return (
     <Card>
       <AddManualTimeModal
@@ -791,7 +767,7 @@ const AdminEmployeeWorkSession = () => {
         employeeId={employeeId}
         token={token}
         onSuccess={fetchWorkSessions}
-        apiPrefix={endpointPrefix} // --- MODIFICATION: Passing the dynamic prefix to the modal ---
+        apiPrefix={endpointPrefix}
       />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 gap-4">
         <div>
@@ -834,7 +810,8 @@ const AdminEmployeeWorkSession = () => {
       </div>
 
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* --- MODIFICATION: Grid changed to lg:grid-cols-4 --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
               Job
@@ -843,7 +820,8 @@ const AdminEmployeeWorkSession = () => {
               value={selectedProject}
               onChange={(e) => {
                 setSelectedProject(e.target.value);
-                setSelectedTask("");
+                setTaskFilters([]);
+                setAllTasks([]);
               }}
               className="form-select w-full"
             >
@@ -860,30 +838,34 @@ const AdminEmployeeWorkSession = () => {
               ))}
             </select>
           </div>
-          <div className="flex flex-col justify-end">
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-              Task
-            </label>
-            <select
-              value={selectedTask}
-              onChange={(e) => setSelectedTask(e.target.value)}
-              disabled={!selectedProject || tasksLoading}
-              className="form-select w-full disabled:bg-slate-100"
-            >
-              <option value="">All Tasks</option>
-              {tasksLoading ? (
-                <option disabled>Loading...</option>
-              ) : (
-                tasks.map((t) => (
+          
+          {taskFilters.map((filter, index) => (
+            <div key={index} className="flex flex-col justify-end">
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+                {taskLabels[index] || `Level ${index + 1} Task`}
+              </label>
+              <select
+                value={filter.selected}
+                onChange={(e) => handleTaskChange(index, e.target.value)}
+                disabled={
+                  tasksLoading ||
+                  !selectedProject ||
+                  (index > 0 && !taskFilters[index - 1]?.selected)
+                }
+                className="form-select w-full disabled:bg-slate-100"
+              >
+                <option value="">{`All ${taskLabels[index] || 'Tasks'}`}</option>
+                {filter.options.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.task_title}
                   </option>
-                ))
-              )}
-            </select>
-          </div>
+                ))}
+              </select>
+            </div>
+          ))}
 
-          <div className="flex flex-col justify-end lg:col-span-3">
+          {/* --- MODIFICATION: Date section restored and col-span adjusted for 4-column grid --- */}
+          <div className="flex flex-col justify-end lg:col-span-2">
             <div className="flex flex-col lg:flex-row lg:items-end gap-2">
               <div className="flex-shrink-0 w-full lg:w-auto">
                 <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
