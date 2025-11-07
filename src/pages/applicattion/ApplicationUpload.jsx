@@ -4,7 +4,7 @@ const versions = [
   {
     id: 1,
     version: '2.0.4',
-    releaseDate: 'October 28, 2023',
+    releaseDate: 'November 06, 2025',
     url: 'http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe',
     releaseNotes: [
       'New user interface design.',
@@ -14,7 +14,7 @@ const versions = [
   {
     id: 2,
     version: '2.0.3',
-    releaseDate: 'September 15, 2023',
+    releaseDate: 'September 15, 2025',
     url: '#', // In links ka hona ya na hona ab farq nahi daalta
     releaseNotes: ['Improved stability.', 'Minor bug fixes.'],
   },
