@@ -5,7 +5,7 @@ const versions = [
     id: 1,
     version: '2.0.4',
     releaseDate: 'October 28, 2023',
-    url: 'https://srv1535-files.hstgr.io/c694d133c93a8f12/api/raw/public_html/portal/Archilance%20LLC%20Setup%202.0.4.exe?auth=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoxLCJsb2NhbGUiOiJlbl9HQiIsInZpZXdNb2RlIjoibGlzdCIsInNpbmdsZUNsaWNrIjpmYWxzZSwicGVybSI6eyJhZG1pbiI6ZmFsc2UsImV4ZWN1dGUiOmZhbHNlLCJjcmVhdGUiOnRydWUsInJlbmFtZSI6dHJ1ZSwibW9kaWZ5Ijp0cnVlLCJkZWxldGUiOnRydWUsInNoYXJlIjpmYWxzZSwiZG93bmxvYWQiOnRydWV9LCJjb21tYW5kcyI6W10sImxvY2tQYXNzd29yZCI6dHJ1ZSwiaGlkZURvdGZpbGVzIjpmYWxzZSwiZGF0ZUZvcm1hdCI6ZmFsc2V9LCJpc3MiOiJGaWxlIEJyb3dzZXIiLCJleHAiOjE3NjI0Njg5NzksImlhdCI6MTc2MjQ2MTc3OX0.NaokEQgLQFCNF1PBGCHeajefRH_cYbriekKFX1ijaKQ&inline=true',
+    url: 'http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe',
     releaseNotes: [
       'New user interface design.',
       'Performance improvements for large projects.',
