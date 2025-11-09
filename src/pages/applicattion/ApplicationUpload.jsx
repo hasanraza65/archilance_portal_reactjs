@@ -1,29 +1,40 @@
-import React from 'react';
+import React from "react";
 
 const versions = [
   {
     id: 1,
-    version: '2.0.4',
-    releaseDate: 'November 06, 2025',
-    url: 'http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe',
+    version: "2.0.5",
+    releaseDate: "November 09, 2025",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.5.exe",
     releaseNotes: [
-      'New user interface design.',
-      'Performance improvements for large projects.',
+      "Status update feature for project tasks.",
+      "Fixed various small bugs to improve stability.",
+      "General performance enhancements.",
     ],
   },
   {
     id: 2,
-    version: '2.0.3',
-    releaseDate: 'September 15, 2025',
-    url: '#', // In links ka hona ya na hona ab farq nahi daalta
-    releaseNotes: ['Improved stability.', 'Minor bug fixes.'],
+    version: "2.0.4",
+    releaseDate: "November 06, 2025",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe",
+    releaseNotes: [
+      "New user interface design.",
+      "Performance improvements for large projects.",
+    ],
   },
   {
     id: 3,
-    version: '2.0.2',
-    releaseDate: 'August 01, 2025',
-    url: '#',
-    releaseNotes: ['Initial public release.'],
+    version: "2.0.3",
+    releaseDate: "September 15, 2025",
+    url: "#", // In links ka hona ya na hona ab farq nahi daalta
+    releaseNotes: ["Improved stability.", "Minor bug fixes."],
+  },
+  {
+    id: 4,
+    version: "2.0.2",
+    releaseDate: "August 01, 2025",
+    url: "#",
+    releaseNotes: ["Initial public release."],
   },
 ];
 
@@ -34,7 +45,6 @@ const ApplicationUpload = () => {
   return (
     <div className="bg-gray-100 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        
         {/* Page Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
@@ -71,7 +81,9 @@ const ApplicationUpload = () => {
               </div>
             </div>
             <div className="mt-6 border-t border-gray-200 pt-5">
-              <h3 className="text-base font-semibold text-gray-800">What's new:</h3>
+              <h3 className="text-base font-semibold text-gray-800">
+                What's new:
+              </h3>
               <ul className="mt-3 space-y-1 list-disc list-inside text-sm text-gray-600">
                 {latestVersion.releaseNotes.map((note, index) => (
                   <li key={index}>{note}</li>
@@ -90,7 +102,9 @@ const ApplicationUpload = () => {
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <ul className="divide-y divide-gray-200">
               {previousVersions.map((version) => (
-                <li key={version.id} className="p-4"> {/* Hover effect hata diya kiyunke action nahi hai */}
+                <li key={version.id} className="p-4">
+                  {" "}
+                  {/* Hover effect hata diya kiyunke action nahi hai */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
                     <div className="mb-3 sm:mb-0">
                       <p className="font-semibold text-gray-800">
@@ -100,7 +114,7 @@ const ApplicationUpload = () => {
                         Released on: {version.releaseDate}
                       </p>
                     </div>
-                    
+
                     {/* <<< YAHAN TABDEELI KI GAYI HAI >>> */}
                     {/* Humne <a> tag ki jagah ek disabled <button> istemaal kiya hai */}
                     <button
@@ -109,7 +123,6 @@ const ApplicationUpload = () => {
                     >
                       Archived
                     </button>
-                    
                   </div>
                 </li>
               ))}
