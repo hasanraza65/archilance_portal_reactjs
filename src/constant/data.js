@@ -79,6 +79,7 @@ export const menuItems = [
     link: "leaves",
     allowedRoles: ["admin"],
   },
+  
   {
     title: "Employees",
     isHide: false,
@@ -145,6 +146,13 @@ export const menuItems = [
     icon: "heroicons-outline:user-group",
     link: "customerteam",
     allowedRoles: ["admin"],
+  },
+   {
+    title: "Application",
+    isHide: false,
+    icon: "heroicons-outline:squares-2x2",
+    link: "application",
+     allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"],
   },
 ];
 
