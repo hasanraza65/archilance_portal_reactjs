@@ -16,6 +16,7 @@ import MyTeamAccess from "./pages/member/MyTeamAccess";
 import AllCustomerTeam from "./pages/admin/AllCustomerTeam";
 import AddCustomerTeam from "./pages/customers/CustomerTeam/AddCustomerTeam";
 import EditCustomerTeam from "./pages/customers/CustomerTeam/EditCustomerTeam";
+import ApplicationUpload from "./pages/applicattion/ApplicationUpload";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
 const WorkSession = lazy(() =>
@@ -544,6 +545,16 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={["admin"]}>
                   <AllCustomerTeam />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="application"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"]}
+                >
+                 <ApplicationUpload />
                 </ProtectedRoute>
               }
             />
