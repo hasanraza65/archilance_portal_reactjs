@@ -12,6 +12,7 @@ import Logo from "./Tools/Logo";
 import useRtl from "@/hooks/useRtl";
 import MonoChrome from "./Tools/MonoChrome";
 import Profile from "./Tools/23-012";
+import Notification from "./Tools/Notification";
 
 const Header = ({ className = "custom-class", mobileMenu, setMobileMenu }) => {
   const [collapsed, setMenuCollapsed] = useSidebar();
@@ -104,6 +105,7 @@ const Header = ({ className = "custom-class", mobileMenu, setMobileMenu }) => {
           <div className="nav-tools flex items-center lg:space-x-6 space-x-3 rtl:space-x-reverse">
             <SwitchDark />
             <MonoChrome />
+            {width >= breakpoints.md && <Notification />}
             {width >= breakpoints.md && <Profile />}
             {width <= breakpoints.md && (
               <div

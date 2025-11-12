@@ -17,6 +17,7 @@ import AllCustomerTeam from "./pages/admin/AllCustomerTeam";
 import AddCustomerTeam from "./pages/customers/CustomerTeam/AddCustomerTeam";
 import EditCustomerTeam from "./pages/customers/CustomerTeam/EditCustomerTeam";
 import ApplicationUpload from "./pages/applicattion/ApplicationUpload";
+import NotificationPage from "./pages/utility/notifications";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
 const WorkSession = lazy(() =>
@@ -555,6 +556,16 @@ function App() {
                   allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"]}
                 >
                  <ApplicationUpload />
+                </ProtectedRoute>
+              }
+            />
+             <Route 
+              path="notifications"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"]}
+                >
+                 <NotificationPage />
                 </ProtectedRoute>
               }
             />
