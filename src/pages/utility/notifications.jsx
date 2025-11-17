@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router-dom"; 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -10,9 +10,6 @@ import Icon from "@/components/ui/Icon";
 import Loading from "@/components/Loading";
 import DefaultUserImage from "@/assets/images/users/user-1.jpg";
 
-// ====================================================================
-// SECTION 1: API and HELPER FUNCTIONS (No changes here)
-// ====================================================================
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const NOTIFICATIONS_API_URL = `${BACKEND_BASE_URL}/api/my-notifications`;
 const MARK_AS_READ_API_URL = `${BACKEND_BASE_URL}/api/update-notification-read-status`;
@@ -56,7 +53,25 @@ const getNotificationStyles = (nature) => {
       return "border-l-4 border-transparent";
   }
 };
-// ====================================================================
+
+const getNotificationLink = (notification) => {
+  const { notification_type, project_id, task_id } = notification;
+
+  if (notification_type && notification_type.includes("task_")) {
+    if (task_id) {
+      return `/project/${task_id}`; 
+    }
+  }
+
+  if (notification_type && notification_type.includes("project_")) {
+    if (project_id) {
+      return `/jobs/${project_id}`; 
+    }
+  }
+
+  return "#";
+};
+
 
 const NotificationPage = () => {
   const queryClient = useQueryClient();
@@ -81,29 +96,18 @@ const NotificationPage = () => {
     },
   });
 
-  // ====================================================================
-  //  <<<<<<<<<<<<<<<<<< YAHAN CHANGE KIYA GAYA HAI >>>>>>>>>>>>>>>>>
-  // ====================================================================
   useEffect(() => {
-    // Agar data abhi load ho raha hai to kuch na karein
-    if (!notificationData) {
-      return;
-    }
-
-    // Check karein ke notification list mein koi aisi item hai jiska is_read === 0 hai
+    if (!notificationData) return;
+    
     const hasUnread =
       notificationData?.notifications?.data?.some(
         (item) => item.is_read === 0
       ) || false;
 
-
-    // Agar koi bhi unread notification hai, tab hi API call karein
     if (hasUnread) {
       updateReadStatus();
-    } else {
     }
   }, [notificationData, updateReadStatus]);
-  // ====================================================================
 
   const notificationList = notificationData?.notifications?.data || [];
 
@@ -129,23 +133,17 @@ const NotificationPage = () => {
               You have no notifications.
             </div>
           )}
+          
           {notificationList.map((item) => (
-            <div
+            <Link
               key={item.id}
-              className={`block w-full px-4 py-3 text-sm rounded-md ${getNotificationStyles(
+              to={getNotificationLink(item)} 
+              className={`block w-full px-4 py-3 text-sm rounded-md transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700 ${getNotificationStyles(
                 item.notification_nature
               )}`}
             >
               <div className="flex ltr:text-left rtl:text-right">
-                <div className="flex-none ltr:mr-4 rtl:ml-4">
-                  <div className="h-10 w-10 bg-white rounded-full">
-                    <img
-                      src={DefaultUserImage}
-                      alt="user"
-                      className="block w-full h-full object-cover rounded-full"
-                    />
-                  </div>
-                </div>
+               
                 <div className="flex-1">
                   <div className="text-slate-800 dark:text-slate-300 text-sm font-medium mb-1">
                     {formatNotificationType(item.notification_type)}
@@ -160,8 +158,9 @@ const NotificationPage = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
+
         </div>
       </Card>
     </div>
