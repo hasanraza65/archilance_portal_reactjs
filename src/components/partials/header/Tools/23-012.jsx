@@ -16,6 +16,30 @@ const API_DOMAIN_FOR_ASSETS =
 const API_BASE_URL_FOR_API_CALLS = `${BACKEND_BASE_URL}/api`;
 const PROFILE_API_URL = `${API_BASE_URL_FOR_API_CALLS}/me`;
 
+// ====================================================================
+// SECTION 1: API INTEGRATION FOR NOTIFICATIONS
+// ====================================================================
+
+// 1. Define the URL for your new notifications API
+const NOTIFICATIONS_API_URL = `${API_BASE_URL_FOR_API_CALLS}/my-notifications`;
+
+// 2. Create a new async function to fetch notifications
+const fetchNotificationsData = async () => {
+  const token = Cookies.get("token");
+  if (!token) {
+    throw new Error("No authentication token found for notifications.");
+  }
+  const response = await axios.get(NOTIFICATIONS_API_URL, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+  return response.data;
+};
+
+// ====================================================================
+
 const fetchProfileData = async () => {
   const token = Cookies.get("token");
   if (!token) {
@@ -44,6 +68,34 @@ const Profile = () => {
       console.error("Error fetching profile data:", error);
     },
   });
+
+  // ====================================================================
+  // SECTION 2: FETCHING NOTIFICATIONS WITH REACT QUERY
+  // ====================================================================
+
+  // 3. Use react-query to call your new notifications fetcher function.
+  // We use `enabled: !!userProfile` to ensure this API is only called *after*
+  // the profile API call has succeeded, confirming the user is authenticated.
+  const { data: notifications, isLoading: isLoadingNotifications } = useQuery({
+    queryKey: ["notificationsData"],
+    queryFn: fetchNotificationsData,
+    enabled: !!userProfile, // This is important! Only fetch notifications if profile fetch was successful.
+    refetchOnWindowFocus: false,
+    onError: (error) => {
+      console.error("Error fetching notifications data:", error);
+    },
+  });
+
+  // 4. (Optional) Log the fetched notifications to the console to verify they are being received.
+  useEffect(() => {
+    if (notifications) {
+      // You can now use this 'notifications' data.
+      // For example, you could store it in a global state (Redux, Zustand)
+      // or pass it down to other components to display a notification count.
+    }
+  }, [notifications]);
+
+  // ====================================================================
 
   useEffect(() => {
     if (userProfile && userProfile.profile_pic) {
@@ -75,8 +127,8 @@ const Profile = () => {
               alt="User Profile"
               className="block w-full h-full object-cover rounded-full"
               onError={(e) => {
-                e.target.onerror = null; 
-                e.target.style.display = "none"; 
+                e.target.onerror = null;
+                e.target.style.display = "none";
               }}
             />
           ) : (
