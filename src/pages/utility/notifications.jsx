@@ -1,14 +1,13 @@
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom"; 
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { formatDistanceToNow } from "date-fns";
-
 import Card from "@/components/ui/Card";
-import Icon from "@/components/ui/Icon";
 import Loading from "@/components/Loading";
 import DefaultUserImage from "@/assets/images/users/user-1.jpg";
+
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const NOTIFICATIONS_API_URL = `${BACKEND_BASE_URL}/api/my-notifications`;
@@ -26,19 +25,16 @@ const fetchNotifications = async () => {
 const markNotificationsAsRead = async () => {
   const token = Cookies.get("token");
   if (!token) throw new Error("Authentication token not found.");
-  const response = await axios.post(
+  await axios.post(
     MARK_AS_READ_API_URL,
     {},
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  return response.data;
 };
 
 const formatNotificationType = (type = "") => {
   if (!type) return "Notification";
-  return type
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 const getNotificationStyles = (nature) => {
@@ -56,19 +52,18 @@ const getNotificationStyles = (nature) => {
 
 const getNotificationLink = (notification) => {
   const { notification_type, project_id, task_id } = notification;
-
-  if (notification_type && notification_type.includes("task_")) {
-    if (task_id) {
-      return `/project/${task_id}`; 
-    }
-  }
-
-  if (notification_type && notification_type.includes("project_")) {
+  if (notification_type?.includes("task_")) {
+    if (task_id) return `/project/${task_id}`;
     if (project_id) {
-      return `/jobs/${project_id}`; 
+      console.warn(
+        `[Temporary Patch] Using project_id for a task notification. Fix in backend.`
+      );
+      return `/project/${project_id}`;
     }
   }
-
+  if (notification_type?.includes("project_")) {
+    if (project_id) return `/jobs/${project_id}`;
+  }
   return "#";
 };
 
@@ -76,11 +71,7 @@ const getNotificationLink = (notification) => {
 const NotificationPage = () => {
   const queryClient = useQueryClient();
 
-  const {
-    data: notificationData,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
   });
@@ -88,28 +79,19 @@ const NotificationPage = () => {
   const { mutate: updateReadStatus } = useMutation({
     mutationFn: markNotificationsAsRead,
     onSuccess: () => {
-      console.log("Successfully marked notifications as read.");
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
-    onError: (error) => {
-      console.error("Failed to mark notifications as read:", error);
-    },
+    onError: (error) =>
+      console.error("Failed to mark notifications as read:", error),
   });
 
   useEffect(() => {
-    if (!notificationData) return;
-    
-    const hasUnread =
-      notificationData?.notifications?.data?.some(
-        (item) => item.is_read === 0
-      ) || false;
-
-    if (hasUnread) {
+    if (data?.notifications?.data?.some((item) => item.is_read === 0)) {
       updateReadStatus();
     }
-  }, [notificationData, updateReadStatus]);
+  }, [data, updateReadStatus]);
 
-  const notificationList = notificationData?.notifications?.data || [];
+  const notificationList = data?.notifications?.data || [];
 
   return (
     <div>
@@ -118,49 +100,54 @@ const NotificationPage = () => {
           <h4 className="card-title mb-0">All Notifications</h4>
         </div>
         <div className="p-4 space-y-3">
-          {isLoading && (
+          {isLoading ? (
             <div className="flex justify-center items-center h-48">
               <Loading />
             </div>
-          )}
-          {isError && (
+          ) : isError ? (
             <div className="text-center text-red-500 p-4">
               Error loading notifications. Please try again later.
             </div>
-          )}
-          {!isLoading && !isError && notificationList.length === 0 && (
+          ) : notificationList.length === 0 ? (
             <div className="text-center text-slate-500 p-4">
               You have no notifications.
             </div>
-          )}
-          
-          {notificationList.map((item) => (
-            <Link
-              key={item.id}
-              to={getNotificationLink(item)} 
-              className={`block w-full px-4 py-3 text-sm rounded-md transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700 ${getNotificationStyles(
-                item.notification_nature
-              )}`}
-            >
-              <div className="flex ltr:text-left rtl:text-right">
-               
-                <div className="flex-1">
-                  <div className="text-slate-800 dark:text-slate-300 text-sm font-medium mb-1">
-                    {formatNotificationType(item.notification_type)}
+          ) : (
+            notificationList.map((item) => (
+              <Link
+                key={item.id}
+                to={getNotificationLink(item)}
+                className={`block w-full px-4 py-3 text-sm rounded-md transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700 ${getNotificationStyles(
+                  item.notification_nature
+                )}`}
+              >
+                <div className="flex ltr:text-left rtl:text-right">
+                  <div className="flex-none ltr:mr-4 rtl:ml-4">
+                    <div className="h-10 w-10 bg-white rounded-full">
+                      <img
+                        src={DefaultUserImage}
+                        alt="user"
+                        className="block w-full h-full object-cover rounded-full"
+                      />
+                    </div>
                   </div>
-                  <div className="text-slate-600 dark:text-slate-400 text-xs leading-4">
-                    {item.notification_message}
-                  </div>
-                  <div className="text-slate-400 dark:text-slate-500 text-xs mt-1">
-                    {formatDistanceToNow(new Date(item.created_at), {
-                      addSuffix: true,
-                    })}
+                  <div className="flex-1">
+                    <div className="text-slate-800 dark:text-slate-300 text-sm font-medium mb-1">
+                      {formatNotificationType(item.notification_type)}
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-400 text-xs leading-4">
+                      {item.notification_message}
+                    </div>
+                    <div className="text-slate-400 dark:text-slate-500 text-xs mt-1">
+                      {formatDistanceToNow(new Date(item.created_at), {
+                        addSuffix: true,
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-
+              </Link>
+            ))
+          )}
         </div>
       </Card>
     </div>
