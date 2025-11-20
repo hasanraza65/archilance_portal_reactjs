@@ -128,15 +128,7 @@ const NotificationPage = () => {
                 )}`}
               >
                 <div className="flex ltr:text-left rtl:text-right">
-                  <div className="flex-none ltr:mr-4 rtl:ml-4">
-                    <div className="h-10 w-10 bg-white rounded-full">
-                      <img
-                        src={DefaultUserImage}
-                        alt="user"
-                        className="block w-full h-full object-cover rounded-full"
-                      />
-                    </div>
-                  </div>
+                  
                   <div className="flex-1">
                     <div className="text-slate-800 dark:text-slate-300 text-sm font-medium mb-1">
                       {formatNotificationType(item.notification_type)}

@@ -187,15 +187,7 @@ const Notification = () => {
                 >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center">
-                      <div className="flex-none ltr:mr-3 rtl:ml-3">
-                        <div className="h-8 w-8 bg-white rounded-full">
-                          <img
-                            src={DefaultUserImage}
-                            alt="User"
-                            className="h-full w-full object-cover rounded-full"
-                          />
-                        </div>
-                      </div>
+                     
                       <div className="flex-1">
                         <div className="text-slate-800 dark:text-slate-300 text-sm font-medium mb-1">
                           {formatNotificationType(
