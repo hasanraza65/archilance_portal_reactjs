@@ -8,6 +8,9 @@ import Card from "@/components/ui/Card";
 import Loading from "@/components/Loading";
 import DefaultUserImage from "@/assets/images/users/user-1.jpg";
 
+// ====================================================================
+// SECTION 1: API AND HELPER FUNCTIONS
+// ====================================================================
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const NOTIFICATIONS_API_URL = `${BACKEND_BASE_URL}/api/my-notifications`;
@@ -67,6 +70,9 @@ const getNotificationLink = (notification) => {
   return "#";
 };
 
+// ====================================================================
+// SECTION 2: MAIN COMPONENT
+// ====================================================================
 
 const NotificationPage = () => {
   const queryClient = useQueryClient();

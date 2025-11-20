@@ -10,12 +10,16 @@ import { formatDistanceToNow } from "date-fns";
 import Loading from "@/components/Loading";
 import DefaultUserImage from "@/assets/images/users/user-1.jpg";
 
+// ====================================================================
+// SECTION 1: API AND HELPER FUNCTIONS
+// ====================================================================
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const NOTIFICATIONS_API_URL = `${BACKEND_BASE_URL}/api/my-notifications`;
 const MARK_ALL_AS_READ_API_URL = `${BACKEND_BASE_URL}/api/update-notification-read-status`;
 const MARK_SINGLE_AS_READ_BASE_URL = `${BACKEND_BASE_URL}/api/notifications`;
 
+// API Function: Backend se notifications fetch karne ke liye
 const fetchNotifications = async () => {
   const token = Cookies.get("token");
   if (!token) throw new Error("Authentication token not found.");
@@ -25,6 +29,7 @@ const fetchNotifications = async () => {
   return response.data;
 };
 
+// API Function: Sabhi notifications ko 'read' mark karne ke liye
 const markAllNotificationsAsRead = async () => {
   const token = Cookies.get("token");
   if (!token) throw new Error("Authentication token not found.");
@@ -35,6 +40,7 @@ const markAllNotificationsAsRead = async () => {
   );
 };
 
+// API Function: Sirf ek notification ko uski ID se 'read' mark karne ke liye
 const markSingleNotificationAsRead = async (notificationId) => {
   const token = Cookies.get("token");
   if (!token) throw new Error("Authentication token not found.");
@@ -45,11 +51,13 @@ const markSingleNotificationAsRead = async (notificationId) => {
   );
 };
 
+// Helper Function: Notification type ko format karne ke liye
 const formatNotificationType = (type = "") => {
   if (!type) return "Notification";
   return type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+// Helper Function: Notification nature ke hisab se CSS classes dene ke liye
 const getNotificationStyles = (nature) => {
   switch (nature) {
     case "success":
@@ -63,6 +71,7 @@ const getNotificationStyles = (nature) => {
   }
 };
 
+// Helper Function: Notification ke liye sahi link generate karne ke liye (WITH PATCH)
 const getNotificationLink = (notification) => {
   const { notification_type, project_id, task_id } = notification;
   if (notification_type?.includes("task_")) {
@@ -80,6 +89,9 @@ const getNotificationLink = (notification) => {
   return "#";
 };
 
+// ====================================================================
+// SECTION 2: UI COMPONENTS
+// ====================================================================
 
 const NotifyLabel = ({ unreadCount }) => (
   <span className="relative lg:h-[32px] lg:w-[32px] lg:bg-slate-100 text-slate-900 lg:dark:bg-slate-900 dark:text-white cursor-pointer rounded-full text-[20px] flex flex-col items-center justify-center">
