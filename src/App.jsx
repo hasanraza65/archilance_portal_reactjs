@@ -18,6 +18,7 @@ import AddCustomerTeam from "./pages/customers/CustomerTeam/AddCustomerTeam";
 import EditCustomerTeam from "./pages/customers/CustomerTeam/EditCustomerTeam";
 import ApplicationUpload from "./pages/applicattion/ApplicationUpload";
 import NotificationPage from "./pages/utility/notifications";
+import TrackingDashboard from "./pages/tracking/TrackingPage";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
 const WorkSession = lazy(() =>
@@ -556,6 +557,16 @@ function App() {
                   allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"]}
                 >
                  <ApplicationUpload />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="tracking"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]}
+                >
+                 <TrackingDashboard />
                 </ProtectedRoute>
               }
             />
