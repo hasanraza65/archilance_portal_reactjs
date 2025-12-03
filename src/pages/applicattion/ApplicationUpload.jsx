@@ -3,6 +3,17 @@ import React from "react";
 const versions = [
   {
     id: 1,
+    version: "2.0.7",
+    releaseDate: "December 04, 2025",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.7.exe",
+    releaseNotes: [
+      "Improved app speed for smoother performance.",
+      "Clear instructions for cache deletion to prevent errors.",
+      "Better overall responsiveness.",
+    ],
+  },
+  {
+    id: 2,
     version: "2.0.6",
     releaseDate: "November 19, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.6.exe",
@@ -13,7 +24,7 @@ const versions = [
     ],
   },
   {
-    id: 1,
+    id: 3,
     version: "2.0.5",
     releaseDate: "November 09, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.5.exe",
@@ -24,7 +35,7 @@ const versions = [
     ],
   },
   {
-    id: 2,
+    id: 4,
     version: "2.0.4",
     releaseDate: "November 06, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe",
@@ -32,26 +43,25 @@ const versions = [
       "New user interface design.",
       "Performance improvements for large projects.",
     ],
-  },
-  {
-    id: 3,
-    version: "2.0.3",
-    releaseDate: "September 15, 2025",
-    url: "#", // In links ka hona ya na hona ab farq nahi daalta
-    releaseNotes: ["Improved stability.", "Minor bug fixes."],
-  },
-  {
-    id: 4,
-    version: "2.0.2",
-    releaseDate: "August 01, 2025",
-    url: "#",
-    releaseNotes: ["Initial public release."],
-  },
+  }, 
 ];
 
 const ApplicationUpload = () => {
   const latestVersion = versions[0];
   const previousVersions = versions.slice(1);
+
+  if (!latestVersion) {
+    return (
+      <div className="bg-gray-100 min-h-screen flex items-center justify-center px-4">
+        <div className="bg-white p-6 rounded-lg shadow-md text-center max-w-sm">
+          <h1 className="text-xl font-semibold text-gray-800">No releases yet</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Release data is unavailable right now. Please check back later.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-100 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
