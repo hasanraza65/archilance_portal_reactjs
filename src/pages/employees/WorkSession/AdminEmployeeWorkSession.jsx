@@ -7,6 +7,291 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 import axios from "axios";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
+
+// --- COLORS FOR PIE CHART SLICES ---
+const PIE_COLORS = [
+  "#0088FE", // Blue
+  "#00C49F", // Teal
+  "#FFBB28", // Yellow
+  "#FF8042", // Orange
+  "#8884d8", // Purple
+  "#82ca9d", // Light Green
+  "#ffc658", // Gold
+  "#ff6b6b", // Red
+];
+
+// --- HELPER: Determine Category based on App Name & Window Title ---
+const determineCategory = (appName, windowTitle) => {
+  if (!appName) return "Neutral";
+
+  const lowerName = appName.toLowerCase();
+  const lowerTitle = windowTitle ? windowTitle.toLowerCase() : "";
+
+  // 1. SOCIAL / ENTERTAINMENT
+  const socialKeywords = [
+    "facebook",
+    "instagram",
+    "youtube",
+    "whatsapp",
+    "twitter",
+    "tiktok",
+    "netflix",
+    "spotify",
+    "hulu",
+    "prime video",
+    "steam",
+    "game",
+    "discord",
+    "telegram",
+    "messenger",
+    "snapchat",
+    "pinterest",
+    "reddit",
+  ];
+
+  if (
+    socialKeywords.some((k) => lowerName.includes(k) || lowerTitle.includes(k))
+  ) {
+    return "Social";
+  }
+
+  // 2. PRODUCTIVE / WORK
+  const productiveKeywords = [
+    // Coding & Development
+    "visual studio",
+    "vscode",
+    "pycharm",
+    "intellij",
+    "git",
+    "github",
+    "gitlab",
+    "docker",
+    "postman",
+    "stack overflow",
+    "laragon",
+    "xampp",
+    "code.exe",
+    // Office & Communication
+    "excel",
+    "word",
+    "powerpoint",
+    "outlook",
+    "teams",
+    "slack",
+    "zoom",
+    "meet",
+    "skype",
+    "sheet",
+    "docs",
+    // Design & Architecture
+    "archilance",
+    "autocad",
+    "revit",
+    "3ds max",
+    "sketchup",
+    "blender",
+    "photoshop",
+    "illustrator",
+    "indesign",
+    "figma",
+    "canva",
+    "lumion",
+    "rhino",
+    "civil 3d",
+    // AI Tools
+    "chatgpt",
+    "claude",
+    "gemini",
+    "ai studio",
+    "copilot",
+  ];
+
+  if (
+    productiveKeywords.some(
+      (k) => lowerName.includes(k) || lowerTitle.includes(k)
+    )
+  ) {
+    return "Productive";
+  }
+
+  // 3. BROWSERS (Context Based)
+  if (
+    lowerName.includes("chrome") ||
+    lowerName.includes("edge") ||
+    lowerName.includes("firefox") ||
+    lowerName.includes("safari")
+  ) {
+    if (
+      lowerTitle.includes("admin") ||
+      lowerTitle.includes("crm") ||
+      lowerTitle.includes("portal") ||
+      lowerTitle.includes("dashboard") ||
+      lowerTitle.includes("archilance")
+    ) {
+      return "Productive";
+    }
+    return "Neutral";
+  }
+
+  return "Neutral";
+};
+
+// --- HELPER: Seconds to Readable String ---
+const formatDuration = (totalSeconds) => {
+  if (!totalSeconds || totalSeconds <= 0) return "0s";
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m ${Math.floor(totalSeconds % 60)}s`;
+};
+
+// --- CUSTOM TOOLTIP COMPONENT (UPDATED FOR SINGLE APP) ---
+const CustomPieTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+
+    return (
+      <div className="bg-slate-800 text-white p-3 rounded-lg shadow-xl border border-slate-700 z-50">
+        <p className="font-bold text-sm mb-1">{data.name}</p>
+        <div className="flex items-center gap-2 text-xs opacity-90">
+          <span>{formatDuration(data.value)}</span>
+          {data.category && (
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
+                data.category === "Productive"
+                  ? "bg-green-500/20 text-green-300"
+                  : data.category === "Social"
+                  ? "bg-red-500/20 text-red-300"
+                  : "bg-slate-500/20 text-slate-300"
+              }`}
+            >
+              {data.category}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+// --- HELPER FUNCTIONS ---
+const getTodayDateRange = () => {
+  const today = new Date();
+  return [today, today];
+};
+const getWeekDateRange = (date = new Date()) => {
+  const current = new Date(date);
+  const day = current.getDay();
+  const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(current.setDate(diff));
+  const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
+  return [monday, sunday];
+};
+const getLastWeekDateRange = () => {
+  const today = new Date();
+  const lastWeekDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - 7
+  );
+  return getWeekDateRange(lastWeekDate);
+};
+const getCurrentMonthDateRange = () => {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  return [firstDay, lastDay];
+};
+const getLastMonthDateRange = () => {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+  return [firstDay, lastDay];
+};
+const PRESETS = [
+  { label: "Today", func: getTodayDateRange },
+  { label: "Current week", func: getWeekDateRange },
+  { label: "Last week", func: getLastWeekDateRange },
+  { label: "Current month", func: getCurrentMonthDateRange },
+  { label: "Last month", func: getLastMonthDateRange },
+];
+const ChevronDownIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-5 w-5"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+const TrashIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-4 w-4"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    />
+  </svg>
+);
+const formatTime = (timeStr) => {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":");
+  const d = new Date(0, 0, 0, h, m);
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+const formatScreenshotTime = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (error) {
+    return "Invalid Time";
+  }
+};
+const formatSecondsToHoursMinutes = (totalSeconds) => {
+  if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+};
+const formatDateForAPI = (date) => {
+  if (!date || !(date instanceof Date) || isNaN(date)) {
+    return "";
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 // --- Add Manual Time Modal Component ---
 const AddManualTimeModal = ({
@@ -284,123 +569,12 @@ const AddManualTimeModal = ({
   );
 };
 
-// --- HELPER FUNCTIONS ---
-
-const getTodayDateRange = () => {
-  const today = new Date();
-  return [today, today];
-};
-const getWeekDateRange = (date = new Date()) => {
-  const current = new Date(date);
-  const day = current.getDay();
-  const diff = current.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(current.setDate(diff));
-  const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
-  return [monday, sunday];
-};
-const getLastWeekDateRange = () => {
-  const today = new Date();
-  const lastWeekDate = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate() - 7
-  );
-  return getWeekDateRange(lastWeekDate);
-};
-const getCurrentMonthDateRange = () => {
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  return [firstDay, lastDay];
-};
-const getLastMonthDateRange = () => {
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
-  return [firstDay, lastDay];
-};
-const PRESETS = [
-  { label: "Today", func: getTodayDateRange },
-  { label: "Current week", func: getWeekDateRange },
-  { label: "Last week", func: getLastWeekDateRange },
-  { label: "Current month", func: getCurrentMonthDateRange },
-  { label: "Last month", func: getLastMonthDateRange },
-];
-const ChevronDownIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="h-5 w-5"
-    viewBox="0 0 20 20"
-    fill="currentColor"
-  >
-    <path
-      fillRule="evenodd"
-      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-const TrashIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="h-4 w-4"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-    />
-  </svg>
-);
-const formatTime = (timeStr) => {
-  if (!timeStr) return "";
-  const [h, m] = timeStr.split(":");
-  const d = new Date(0, 0, 0, h, m);
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
-const formatScreenshotTime = (isoString) => {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  } catch (error) {
-    return "Invalid Time";
-  }
-};
-const formatSecondsToHoursMinutes = (totalSeconds) => {
-  if (!totalSeconds || totalSeconds <= 0) return "0h 0m";
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return `${hours}h ${minutes}m`;
-};
-const formatDateForAPI = (date) => {
-  if (!date || !(date instanceof Date) || isNaN(date)) {
-    return "";
-  }
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
 // --- MAIN COMPONENT ---
 const AdminEmployeeWorkSession = () => {
   const { employeeId } = useParams();
   const { token, logout, isAuthenticated, user } = useAuth();
 
-  const [employeeName, setEmployeeName] = useState("");
+  const [employeeDetails, setEmployeeDetails] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -421,6 +595,19 @@ const AdminEmployeeWorkSession = () => {
   const [allTasks, setAllTasks] = useState([]);
   const [taskFilters, setTaskFilters] = useState([]);
 
+  // --- DASHBOARD STATE ---
+  const [dashboardData, setDashboardData] = useState({
+    pieData: [],
+    aggregatedApps: [],
+    stats: {
+      totalSeconds: 0,
+      productiveSeconds: 0,
+      socialSeconds: 0,
+      idleSeconds: 0,
+      neutralSeconds: 0,
+    },
+  });
+
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
 
   const getApiPrefix = () => {
@@ -428,7 +615,13 @@ const AdminEmployeeWorkSession = () => {
     if (role === "admin") {
       return "admin";
     }
-    const employeeRoles = ["employee", "manager", "supervisor", "executive", "outsource"];
+    const employeeRoles = [
+      "employee",
+      "manager",
+      "supervisor",
+      "executive",
+      "outsource",
+    ];
     if (employeeRoles.includes(role)) {
       return "employee";
     }
@@ -437,11 +630,147 @@ const AdminEmployeeWorkSession = () => {
 
   const endpointPrefix = getApiPrefix();
   const API_BASE_URL = `${API_BASE}/api/${endpointPrefix}`;
-  const workSessionPath = ["manager", "supervisor", "executive", "outsource", "employee"].includes(user?.role)
+  const workSessionPath = [
+    "manager",
+    "supervisor",
+    "executive",
+    "outsource",
+    "employee",
+  ].includes(user?.role)
     ? "/other-work-session"
     : "/work-session";
 
   const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
+
+  // --- Process Dashboard Data Logic (Calculates Top Apps per Category) ---
+  const processDashboardData = useCallback((sessionList, rootActivityList) => {
+    // Safety check
+    if (!sessionList) sessionList = [];
+    if (!rootActivityList) rootActivityList = [];
+
+    let appMap = {};
+    let categoryStats = { Productive: 0, Social: 0, Neutral: 0, Idle: 0 };
+    let totalActivitySeconds = 0;
+    let totalIdleSeconds = 0;
+
+    // 1. Process Windows Activity (FROM ROOT LEVEL)
+    if (Array.isArray(rootActivityList)) {
+      rootActivityList.forEach((activity) => {
+        if (activity && activity.app_name && activity.duration_seconds) {
+          const dur = parseFloat(activity.duration_seconds);
+
+          if (!isNaN(dur) && dur > 0) {
+            const cleanAppName = activity.app_name.trim();
+            const category = determineCategory(
+              cleanAppName,
+              activity.window_title
+            );
+
+            // Aggregate by App
+            if (!appMap[cleanAppName]) {
+              appMap[cleanAppName] = {
+                duration: 0,
+                category: category,
+                count: 0,
+              };
+            }
+            appMap[cleanAppName].duration += dur;
+            appMap[cleanAppName].count += 1;
+
+            // Aggregate by Category
+            if (categoryStats[category] !== undefined) {
+              categoryStats[category] += dur;
+            }
+            totalActivitySeconds += dur;
+          }
+        }
+      });
+    }
+
+    // 2. Process Idle Time
+    if (Array.isArray(sessionList)) {
+      sessionList.forEach((session) => {
+        if (session.idle_times && Array.isArray(session.idle_times)) {
+          session.idle_times.forEach((idle) => {
+            if (idle.start_time && idle.end_time) {
+              const startParts = idle.start_time.split(":");
+              const endParts = idle.end_time.split(":");
+
+              if (startParts.length === 3 && endParts.length === 3) {
+                const startSec =
+                  +startParts[0] * 3600 + +startParts[1] * 60 + +startParts[2];
+                const endSec =
+                  +endParts[0] * 3600 + +endParts[1] * 60 + +endParts[2];
+
+                let diff = endSec - startSec;
+                if (diff < 0) diff += 86400;
+
+                if (diff > 0) {
+                  categoryStats.Idle += diff;
+                  totalIdleSeconds += diff;
+                }
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // --- SORT APPS BY DURATION ---
+    const sortedApps = Object.entries(appMap)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.duration - a.duration);
+
+    // --- PREPARE DATA FOR PIE CHART (APPS BASED) ---
+    // Take top 5 Apps
+    const topAppsLimit = 5;
+    const topAppsData = sortedApps.slice(0, topAppsLimit).map((app, index) => ({
+      name: app.name,
+      value: app.duration,
+      category: app.category,
+      color: PIE_COLORS[index % PIE_COLORS.length],
+    }));
+
+    // Calculate "Others" (Remaining Apps)
+    const otherAppsDuration = sortedApps
+      .slice(topAppsLimit)
+      .reduce((acc, app) => acc + app.duration, 0);
+
+    const finalPieData = [...topAppsData];
+
+    if (otherAppsDuration > 0) {
+      finalPieData.push({
+        name: "Others",
+        value: otherAppsDuration,
+        category: "Multiple",
+        color: "#94a3b8", // Slate 400
+      });
+    }
+
+    // Add Idle Time to Pie Chart if it exists (so it sums to 100% of session time)
+    if (totalIdleSeconds > 0) {
+      finalPieData.push({
+        name: "Idle Time",
+        value: totalIdleSeconds,
+        category: "Idle",
+        color: "#f59e0b", // Amber 500
+      });
+    }
+
+    const grandTotal = totalActivitySeconds + totalIdleSeconds;
+
+    setDashboardData({
+      pieData: finalPieData,
+      aggregatedApps: sortedApps.slice(0, 10), // Top 10 for left panel
+      stats: {
+        totalSeconds: grandTotal,
+        productiveSeconds: categoryStats.Productive,
+        socialSeconds: categoryStats.Social,
+        idleSeconds: categoryStats.Idle,
+        neutralSeconds: categoryStats.Neutral,
+      },
+    });
+  }, []);
 
   useEffect(() => {
     if (isIdleTimeModalOpen || isManualTimeModalOpen) {
@@ -476,10 +805,9 @@ const AdminEmployeeWorkSession = () => {
         });
         if (!res.ok) throw new Error("Could not fetch employee details.");
         const data = await res.json();
-        setEmployeeName(data.name || "Employee");
+        setEmployeeDetails(data);
       } catch (error) {
         toast.error(error.message);
-        setEmployeeName("Unknown Employee");
       }
     };
     fetchEmployeeDetails();
@@ -560,14 +888,17 @@ const AdminEmployeeWorkSession = () => {
   const fetchWorkSessions = useCallback(async () => {
     if (!employeeId || !token || !user) return;
     setLoading(true);
-    window.scrollTo(0, 0);
 
     const finalTaskId =
-      taskFilters.map((f) => f.selected).filter(Boolean).pop() || "";
+      taskFilters
+        .map((f) => f.selected)
+        .filter(Boolean)
+        .pop() || "";
 
     const params = new URLSearchParams({
       page: currentPage.toString(),
       employee_id: employeeId,
+      per_page: "100", // Ensure we get enough data for the chart
     });
     if (selectedProject) params.append("project_id", selectedProject);
     if (finalTaskId) params.append("task_id", finalTaskId);
@@ -589,13 +920,19 @@ const AdminEmployeeWorkSession = () => {
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.message || "Failed to fetch data");
-      const sessionsData = result.data;
-      const fetchedSessions = Array.isArray(sessionsData)
-        ? sessionsData.slice().reverse()
-        : [];
-      setSessions(fetchedSessions);
+
+      const sessionsData = result.data || [];
+      const rootWindowsActivity = result.windows_activity || [];
+
+      setSessions(
+        Array.isArray(sessionsData) ? sessionsData.slice().reverse() : []
+      );
+
+      // --- PASS BOTH LISTS TO DASHBOARD LOGIC ---
+      processDashboardData(sessionsData, rootWindowsActivity);
+
       setOverallTotalTime(result.overall_total_time || "0h 0m");
-      const totalManualSeconds = fetchedSessions
+      const totalManualSeconds = sessionsData
         .filter((session) => session.type === "Manual")
         .reduce(
           (acc, session) =>
@@ -612,6 +949,7 @@ const AdminEmployeeWorkSession = () => {
       setSessions([]);
       setOverallTotalTime("0h 0m");
       setManualTotalTime("0h 0m");
+      processDashboardData([], []);
     } finally {
       setLoading(false);
     }
@@ -626,6 +964,7 @@ const AdminEmployeeWorkSession = () => {
     workSessionPath,
     user,
     taskFilters,
+    processDashboardData,
   ]);
 
   useEffect(() => {
@@ -749,6 +1088,35 @@ const AdminEmployeeWorkSession = () => {
     return `${minutes}m ${seconds}s`;
   };
 
+  // --- RECHARTS LABEL ---
+  const RADIAN = Math.PI / 180;
+  const renderCustomizedLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+  }) => {
+    if (percent < 0.05) return null; // Don't show label for tiny slices
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="text-[10px] font-bold pointer-events-none"
+        style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.5)" }}
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
   if (!isAuthenticated || !user)
     return (
       <div className="p-8 text-center">
@@ -769,48 +1137,205 @@ const AdminEmployeeWorkSession = () => {
         onSuccess={fetchWorkSessions}
         apiPrefix={endpointPrefix}
       />
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 gap-4">
-        <div>
-          <h4 className="card-title">
-            Work Diary for{" "}
-            <span className="text-slate-800 dark:text-slate-200">
-              {employeeName || "Loading..."}
-            </span>
-          </h4>
-          {!loading && (
-            <div className="flex items-baseline gap-4 mt-2">
-              <div className="text-slate-800 dark:text-slate-200 font-bold text-lg">
-                Total Time: {overallTotalTime}
-              </div>
-              {manualTotalTime !== "0h 0m" && (
-                <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Manual:{" "}
-                  <span className="font-semibold text-sky-700 dark:text-sky-400">
-                    ({manualTotalTime})
-                  </span>
+
+      {/* --- DASHBOARD SECTION --- */}
+      <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 mb-8 font-sans">
+        {/* User Info Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm bg-slate-200">
+            <img
+              src={
+                employeeDetails?.profile_pic
+                  ? `${STORAGE_URL}/${employeeDetails.profile_pic}`
+                  : "https://api.dicebear.com/7.x/avataaars/svg?seed=Archilance"
+              }
+              alt="User"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+              {employeeDetails?.name || "Employee"}
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {employeeDetails?.email || "email@example.com"}
+            </p>
+          </div>
+          <div className="ml-auto">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsManualTimeModalOpen(true)}
+                className="btn btn-sm btn-dark whitespace-nowrap"
+              >
+                Add Manual Time
+              </button>
+              <Link
+                to="/employees"
+                className="btn btn-sm btn-outline-dark whitespace-nowrap"
+              >
+                ← Back
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-semibold uppercase tracking-wider">
+              Total Time
+            </p>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              {formatDuration(dashboardData.stats.totalSeconds)}
+            </h2>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+            <p className="text-xs text-green-500 dark:text-green-400 mb-1 font-semibold uppercase tracking-wider">
+              Productive Time
+            </p>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              {formatDuration(dashboardData.stats.productiveSeconds)}
+            </h2>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+            <p className="text-xs text-amber-500 dark:text-amber-400 mb-1 font-semibold uppercase tracking-wider">
+              Idle Time
+            </p>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              {formatDuration(dashboardData.stats.idleSeconds)}
+            </h2>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+            <p className="text-xs text-indigo-500 dark:text-indigo-400 mb-1 font-semibold uppercase tracking-wider">
+              Productivity %
+            </p>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              {dashboardData.stats.totalSeconds > 0
+                ? Math.round(
+                    (dashboardData.stats.productiveSeconds /
+                      dashboardData.stats.totalSeconds) *
+                      100
+                  )
+                : 0}
+              %
+            </h2>
+          </div>
+        </div>
+
+        {/* Charts & Apps Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Top Apps */}
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+            <h3 className="text-slate-700 dark:text-slate-200 font-medium text-sm mb-5 uppercase tracking-wide border-b border-slate-100 dark:border-slate-700 pb-2">
+              Top Apps & Websites
+            </h3>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {dashboardData.aggregatedApps.length > 0 ? (
+                dashboardData.aggregatedApps.map((app, i) => {
+                  let badgeClass =
+                    "text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-300";
+                  if (app.category === "Productive")
+                    badgeClass =
+                      "text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400";
+                  if (app.category === "Social")
+                    badgeClass =
+                      "text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-400";
+
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            app.category === "Productive"
+                              ? "bg-green-500"
+                              : app.category === "Social"
+                              ? "bg-red-400"
+                              : "bg-slate-400"
+                          }`}
+                        ></div>
+                        <span
+                          className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate"
+                          title={app.name}
+                        >
+                          {app.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                          {formatDuration(app.duration)}
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${badgeClass}`}
+                        >
+                          {app.category}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-slate-400 text-center py-4">
+                  No app activity data available for this range.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Pie Chart */}
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center min-h-[350px]">
+            <h3 className="text-slate-700 dark:text-slate-200 font-medium text-sm mb-2 w-full text-left px-2 uppercase tracking-wide">
+              Activity Breakdown
+            </h3>
+            <div className="w-full h-[300px]">
+              {dashboardData.pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={dashboardData.pieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomizedLabel}
+                      innerRadius={70}
+                      outerRadius={110}
+                      dataKey="value"
+                      startAngle={90}
+                      endAngle={-270}
+                      paddingAngle={2}
+                    >
+                      {dashboardData.pieData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.color}
+                          strokeWidth={0}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomPieTooltip />} />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      iconType="circle"
+                      iconSize={8}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <p>No data to display</p>
                 </div>
               )}
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsManualTimeModalOpen(true)}
-            className="btn btn-sm btn-dark whitespace-nowrap"
-          >
-            Add Manual Time
-          </button>
-          <Link
-            to="/employees"
-            className="btn btn-sm btn-outline-dark whitespace-nowrap"
-          >
-            ← Back to Employee List
-          </Link>
+          </div>
         </div>
       </div>
+      {/* --- END DASHBOARD SECTION --- */}
 
+      {/* --- FILTER CONTROLS (Existing) --- */}
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
-        {/* --- MODIFICATION: Grid changed to lg:grid-cols-4 --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex flex-col justify-end">
             <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -838,7 +1363,7 @@ const AdminEmployeeWorkSession = () => {
               ))}
             </select>
           </div>
-          
+
           {taskFilters.map((filter, index) => (
             <div key={index} className="flex flex-col justify-end">
               <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -854,7 +1379,9 @@ const AdminEmployeeWorkSession = () => {
                 }
                 className="form-select w-full disabled:bg-slate-100"
               >
-                <option value="">{`All ${taskLabels[index] || 'Tasks'}`}</option>
+                <option value="">{`All ${
+                  taskLabels[index] || "Tasks"
+                }`}</option>
                 {filter.options.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.task_title}
@@ -864,7 +1391,6 @@ const AdminEmployeeWorkSession = () => {
             </div>
           ))}
 
-          {/* --- MODIFICATION: Date section restored and col-span adjusted for 4-column grid --- */}
           <div className="flex flex-col justify-end lg:col-span-2">
             <div className="flex flex-col lg:flex-row lg:items-end gap-2">
               <div className="flex-shrink-0 w-full lg:w-auto">
