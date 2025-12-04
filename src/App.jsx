@@ -25,7 +25,7 @@ const WorkSession = lazy(() =>
   import("./pages/employees/WorkSession/WorkSession")
 );
 const AdminEmployeeWorkSession = lazy(() =>
-  import("./pages/employees/WorkSession/AdminEmployeeWorkSession")
+  import("./pages/employees/WorkSession/AdminWorkSession/AdminEmployeeWorkSession")
 );
 
 const Subscription = lazy(() =>
