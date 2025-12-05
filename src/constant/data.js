@@ -154,13 +154,7 @@ export const menuItems = [
     link: "application",
      allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"],
   },
-  {
-  title: "Tracking",
-  isHide: false,
-  icon: "heroicons-outline:arrow-path",
-  link: "tracking",
-  allowedRoles: ["admin", "manager", "supervisor", "executive"],
-},
+  
 ];
 
 // ... (baaki file ka code waise hi rahega)

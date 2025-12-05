@@ -560,16 +560,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route 
-              path="tracking"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["admin", "manager", "supervisor", "executive"]}
-                >
-                 <TrackingDashboard />
-                </ProtectedRoute>
-              }
-            />
              <Route 
               path="notifications"
               element={

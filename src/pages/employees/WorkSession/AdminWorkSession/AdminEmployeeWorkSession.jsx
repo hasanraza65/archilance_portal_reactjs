@@ -112,6 +112,60 @@ const formatDateForAPI = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// --- FIX: Robust Idle Time Calculation ---
+const calculateIdleDuration = (startTime, endTime) => {
+  if (!startTime || !endTime) return "N/A";
+
+  const parseToDate = (timeStr) => {
+    let d = new Date(timeStr);
+    if (!isNaN(d.getTime())) return d;
+    d = new Date(`1970-01-01 ${timeStr}`);
+    if (!isNaN(d.getTime())) return d;
+    d = new Date(`1970-01-01T${timeStr}`);
+    if (!isNaN(d.getTime())) return d;
+    return null;
+  };
+
+  const start = parseToDate(startTime);
+  const end = parseToDate(endTime);
+
+  if (!start || !end) return "N/A";
+
+  let diff = (end.getTime() - start.getTime()) / 1000;
+  if (diff < 0) diff += 86400;
+
+  const hours = Math.floor(diff / 3600);
+  const minutes = Math.floor((diff % 3600) / 60);
+  const seconds = Math.floor(diff % 60);
+
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+};
+
+// --- Helper to get raw seconds for Idle Time ---
+const getIdleSeconds = (startTime, endTime) => {
+  if (!startTime || !endTime) return 0;
+  
+  const parseToDate = (timeStr) => {
+    let d = new Date(timeStr);
+    if (!isNaN(d.getTime())) return d;
+    d = new Date(`1970-01-01 ${timeStr}`);
+    if (!isNaN(d.getTime())) return d;
+    d = new Date(`1970-01-01T${timeStr}`);
+    if (!isNaN(d.getTime())) return d;
+    return null;
+  };
+
+  const start = parseToDate(startTime);
+  const end = parseToDate(endTime);
+
+  if (!start || !end) return 0;
+
+  let diff = (end.getTime() - start.getTime()) / 1000;
+  if (diff < 0) diff += 86400; // Handle midnight crossover
+  return diff;
+};
+
 // --- Manual Time Modal ---
 const AddManualTimeModal = ({
   isOpen,
@@ -374,6 +428,9 @@ const AdminEmployeeWorkSession = () => {
   const [allTasks, setAllTasks] = useState([]);
   const [taskFilters, setTaskFilters] = useState([]);
 
+  // Store total Idle Seconds calculated from sessions
+  const [totalIdleSeconds, setTotalIdleSeconds] = useState(0);
+
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
   const getApiPrefix = () => {
     const role = user?.role?.toLowerCase();
@@ -525,10 +582,20 @@ const AdminEmployeeWorkSession = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message);
 
-      setSessions(
-        Array.isArray(result.data) ? result.data.slice().reverse() : []
-      );
-      // Grab windows_activity from root
+      // --- CALCULATE TOTAL IDLE TIME HERE ---
+      const sessionsData = Array.isArray(result.data) ? result.data.slice().reverse() : [];
+      
+      let totalIdleSec = 0;
+      sessionsData.forEach(session => {
+        if (session.idle_times && Array.isArray(session.idle_times)) {
+          session.idle_times.forEach(idle => {
+            totalIdleSec += getIdleSeconds(idle.start_time, idle.end_time);
+          });
+        }
+      });
+      setTotalIdleSeconds(totalIdleSec); // Save for Dashboard
+
+      setSessions(sessionsData);
       setWindowsActivity(result.windows_activity || []);
 
       setPaginationInfo({
@@ -770,6 +837,7 @@ const AdminEmployeeWorkSession = () => {
         <EmployeeWorkStats
           sessions={sessions}
           rootActivityList={windowsActivity}
+          totalIdleSeconds={totalIdleSeconds} // <-- Pass calculated Idle Time
         />
       </div>
 
@@ -919,7 +987,9 @@ const AdminEmployeeWorkSession = () => {
                           ? formatScreenshotTime(idle.end_time)
                           : "N/A"}
                       </td>
-                      <td className="px-6 py-4">N/A</td>
+                      <td className="px-6 py-4">
+                        {calculateIdleDuration(idle.start_time, idle.end_time)}
+                      </td>
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleDeleteIdleTime(idle.id)}
