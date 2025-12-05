@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Send, User, Edit3, X } from "lucide-react";
-import Swal from "sweetalert2"; // Import SweetAlert2
+import Swal from "sweetalert2";
 
 const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
   const [startDate, setStartDate] = useState("");
@@ -55,20 +55,35 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
     { value: "other", label: "Other (Specify)" },
   ];
 
+  // --- UPDATED LOGIC: Excludes Weekends (Sat/Sun) ---
   const calculateDuration = (start, end) => {
     if (!start || !end) return 0;
+    
     const startDateObj = new Date(start);
     const endDateObj = new Date(end);
+    
     if (endDateObj < startDateObj) return 0;
-    const diffTime = Math.abs(endDateObj - startDateObj);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays;
+
+    let count = 0;
+    let currentDate = new Date(startDateObj);
+
+    // Loop through every day
+    while (currentDate <= endDateObj) {
+      const dayOfWeek = currentDate.getDay();
+      // 0 is Sunday, 6 is Saturday. We only count if it is NOT 0 and NOT 6.
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        count++;
+      }
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return count;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // --- MODIFICATION START: Replaced alerts with SweetAlert2 ---
     if (!reason || !startDate || !endDate || !leaveType) {
       Swal.fire({
         icon: 'error',
@@ -86,18 +101,18 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
       return;
     }
     
+    // Check duration using the new logic (excluding weekends)
     if (leaveType === 'casual' || leaveType === 'other') {
       const duration = calculateDuration(startDate, endDate);
       if (duration > 2) {
         Swal.fire({
             icon: 'error',
             title: 'Invalid Duration',
-            text: 'Casual leave cannot be for more than 2 days.',
+            text: `Casual leave cannot be for more than 2 working days. You selected ${duration} working days.`,
         });
         return;
       }
     }
-    // --- MODIFICATION END ---
 
     setIsSubmitting(true);
     try {

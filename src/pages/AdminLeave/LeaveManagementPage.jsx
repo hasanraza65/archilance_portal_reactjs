@@ -34,13 +34,30 @@ const formatDate = (dateStr) => {
   });
 };
 
+// --- UPDATED LOGIC: Excludes Weekends (Sat/Sun) ---
 const calculateDuration = (start, end) => {
   if (!start || !end) return 0;
+
   const startDate = new Date(start);
   const endDate = new Date(end);
+
   if (endDate < startDate) return 0;
-  const diffTime = Math.abs(endDate - startDate);
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  let count = 0;
+  let currentDate = new Date(startDate);
+
+  // Loop through every day to check for weekends
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
+    // Exclude Sunday (0) and Saturday (6)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++;
+    }
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return count;
 };
 
 const getStatusTextForModal = (count) => {
@@ -100,13 +117,11 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
 
   if (!isOpen || !request || !employee) return null;
 
-  // --- MODIFICATION START: Updated total leave values as per your request ---
   const leaveTypes = [
     { key: "casual", name: "Casual Leave", total: 10 },
-    { key: "annual", name: "Annual Leave", total: 10 }, // Changed from 15 to 10
-    { key: "sick", name: "Sick Leave", total: 8 },   // Changed from 7 to 8
+    { key: "annual", name: "Annual Leave", total: 10 },
+    { key: "sick", name: "Sick Leave", total: 8 },
   ];
-  // --- MODIFICATION END ---
 
   // Helper to determine progress bar color based on remaining leaves
   const getProgressBarColor = (remaining) => {
