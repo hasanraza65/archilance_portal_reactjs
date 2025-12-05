@@ -7,7 +7,7 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 import axios from "axios";
-// Import the separated component
+// Ensure correct import path
 import EmployeeWorkStats from "./EmployeeWorkStats";
 
 // --- HELPER FUNCTIONS ---
@@ -357,7 +357,7 @@ const AdminEmployeeWorkSession = () => {
   const { token, logout, isAuthenticated, user } = useAuth();
   const [employeeDetails, setEmployeeDetails] = useState(null);
   const [sessions, setSessions] = useState([]);
-  const [windowsActivity, setWindowsActivity] = useState([]); // New state for activity
+  const [windowsActivity, setWindowsActivity] = useState([]); // Store root activity here
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -528,7 +528,9 @@ const AdminEmployeeWorkSession = () => {
       setSessions(
         Array.isArray(result.data) ? result.data.slice().reverse() : []
       );
-      setWindowsActivity(result.windows_activity || []); // Save activity for Dashboard component
+      // Grab windows_activity from root
+      setWindowsActivity(result.windows_activity || []);
+
       setPaginationInfo({
         currentPage: result.current_page,
         lastPage: result.last_page,
@@ -622,49 +624,41 @@ const AdminEmployeeWorkSession = () => {
         apiPrefix={endpointPrefix}
       />
 
-      {/* DASHBOARD HEADER & STATS */}
-      <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 mb-8 font-sans">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm bg-slate-200">
-            <img
-              src={
-                employeeDetails?.profile_pic
-                  ? `${STORAGE_URL}/${employeeDetails.profile_pic}`
-                  : "https://api.dicebear.com/7.x/avataaars/svg?seed=Archilance"
-              }
-              alt="User"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              {employeeDetails?.name || "Employee"}
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {employeeDetails?.email}
-            </p>
-          </div>
-          <div className="ml-auto flex gap-2">
-            <button
-              onClick={() => setIsManualTimeModalOpen(true)}
-              className="btn btn-sm btn-dark"
-            >
-              Add Manual Time
-            </button>
-            <Link to="/employees" className="btn btn-sm btn-outline-dark">
-              ← Back
-            </Link>
-          </div>
+      {/* 1. Header (User Info) */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm bg-slate-200">
+          <img
+            src={
+              employeeDetails?.profile_pic
+                ? `${STORAGE_URL}/${employeeDetails.profile_pic}`
+                : "https://api.dicebear.com/7.x/avataaars/svg?seed=Archilance"
+            }
+            alt="User"
+            className="w-full h-full object-cover"
+          />
         </div>
-
-        {/* --- USE THE NEW COMPONENT HERE --- */}
-        <EmployeeWorkStats
-          sessions={sessions}
-          rootActivityList={windowsActivity}
-        />
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+            {employeeDetails?.name || "Employee"}
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {employeeDetails?.email}
+          </p>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <button
+            onClick={() => setIsManualTimeModalOpen(true)}
+            className="btn btn-sm btn-dark"
+          >
+            Add Manual Time
+          </button>
+          <Link to="/employees" className="btn btn-sm btn-outline-dark">
+            ← Back
+          </Link>
+        </div>
       </div>
 
-      {/* FILTERS */}
+      {/* 2. FILTERS (Moved ABOVE Dashboard) */}
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg mb-8 border border-slate-200 dark:border-slate-700">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -771,7 +765,15 @@ const AdminEmployeeWorkSession = () => {
         </div>
       </div>
 
-      {/* SESSIONS LIST */}
+      {/* 3. DASHBOARD STATS (Below Filters) */}
+      <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 mb-8 font-sans">
+        <EmployeeWorkStats
+          sessions={sessions}
+          rootActivityList={windowsActivity}
+        />
+      </div>
+
+      {/* 4. SESSIONS LIST */}
       <div className="pt-6">
         {loading ? (
           <div className="text-center py-16">

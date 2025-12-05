@@ -8,19 +8,16 @@ import {
   Legend,
 } from "recharts";
 
-// --- UPDATED COLORS (More Distinct) ---
-const PIE_COLORS = [
-  "#3b82f6", // Blue (Tailwind Blue 500)
-  "#10b981", // Emerald (Green)
-  "#f59e0b", // Amber (Yellow)
-  "#ef4444", // Red
-  "#8b5cf6", // Violet
-  "#ec4899", // Pink
-  "#06b6d4", // Cyan
-  "#f97316", // Orange
-];
+// --- COLORS ---
+const PIE_COLORS = {
+  Productive: "#10b981", // Emerald-500
+  Social: "#ef4444", // Red-500
+  Neutral: "#8b5cf6", // Violet-500
+  Idle: "#f59e0b", // Amber-500
+  Multiple: "#94a3b8", // Slate-400
+};
 
-// --- HELPERS ---
+// --- HELPER: Seconds to Readable String ---
 const formatDuration = (totalSeconds) => {
   if (!totalSeconds || totalSeconds <= 0) return "0s";
   const h = Math.floor(totalSeconds / 3600);
@@ -29,11 +26,13 @@ const formatDuration = (totalSeconds) => {
   return `${m}m ${Math.floor(totalSeconds % 60)}s`;
 };
 
+// --- HELPER: Categorize Apps ---
 const determineCategory = (appName, windowTitle) => {
   if (!appName) return "Neutral";
   const lowerName = appName.toLowerCase();
   const lowerTitle = windowTitle ? windowTitle.toLowerCase() : "";
 
+  // 1. Social
   const socialKeywords = [
     "facebook",
     "instagram",
@@ -45,8 +44,6 @@ const determineCategory = (appName, windowTitle) => {
     "spotify",
     "discord",
     "telegram",
-    "messenger",
-    "snapchat",
     "reddit",
   ];
   if (
@@ -54,6 +51,7 @@ const determineCategory = (appName, windowTitle) => {
   )
     return "Social";
 
+  // 2. Productive
   const productiveKeywords = [
     "visual studio",
     "vscode",
@@ -78,6 +76,7 @@ const determineCategory = (appName, windowTitle) => {
     "canva",
     "chatgpt",
     "claude",
+    "ai studio",
   ];
   if (
     productiveKeywords.some(
@@ -86,6 +85,7 @@ const determineCategory = (appName, windowTitle) => {
   )
     return "Productive";
 
+  // 3. Browsers (Context based)
   if (
     lowerName.includes("chrome") ||
     lowerName.includes("edge") ||
@@ -94,7 +94,8 @@ const determineCategory = (appName, windowTitle) => {
     if (
       lowerTitle.includes("admin") ||
       lowerTitle.includes("crm") ||
-      lowerTitle.includes("archilance")
+      lowerTitle.includes("archilance") ||
+      lowerTitle.includes("docs")
     )
       return "Productive";
     return "Neutral";
@@ -102,38 +103,45 @@ const determineCategory = (appName, windowTitle) => {
   return "Neutral";
 };
 
-// --- CUSTOM TOOLTIP ---
+// --- CUSTOM TOOLTIP COMPONENT ---
 const CustomPieTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-slate-800 text-white p-3 rounded-lg shadow-xl border border-slate-700 z-50">
-        <p className="font-bold text-sm mb-1">{data.name}</p>
-        <div className="flex items-center gap-2 text-xs opacity-90">
-          <span>{formatDuration(data.value)}</span>
-          {data.category && (
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
-                data.category === "Productive"
-                  ? "bg-green-500/20 text-green-300"
-                  : data.category === "Social"
-                  ? "bg-red-500/20 text-red-300"
-                  : data.category === "Multiple"
-                  ? "bg-slate-500/20 text-slate-300"
-                  : "bg-amber-500/20 text-amber-300"
-              }`}
-            >
-              {data.category}
-            </span>
-          )}
-        </div>
+      <div className="bg-slate-800 text-white p-3 rounded-lg shadow-xl border border-slate-700 z-50 max-w-[220px]">
+        <p className="font-bold text-sm mb-2 border-b border-slate-600 pb-1">
+          {data.name}: {formatDuration(data.value)}
+        </p>
+
+        {/* Show Apps contributing to this slice */}
+        {data.topApps && data.topApps.length > 0 ? (
+          <ul className="text-xs space-y-1">
+            {data.topApps.slice(0, 5).map((app, idx) => (
+              <li key={idx} className="flex justify-between items-center gap-2">
+                <span className="truncate opacity-90 w-24" title={app.name}>
+                  {app.name}
+                </span>
+                <span className="opacity-60 font-mono">
+                  {formatDuration(app.duration)}
+                </span>
+              </li>
+            ))}
+            {data.topApps.length > 5 && (
+              <li className="text-[10px] text-center opacity-50 pt-1">
+                + {data.topApps.length - 5} more apps
+              </li>
+            )}
+          </ul>
+        ) : (
+          <p className="text-xs opacity-50 italic">No specific apps</p>
+        )}
       </div>
     );
   }
   return null;
 };
 
-// --- RECHARTS LABEL (UPDATED: Shows label for > 1% slices) ---
+// --- RECHARTS LABEL ---
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({
   cx,
@@ -143,9 +151,7 @@ const renderCustomizedLabel = ({
   outerRadius,
   percent,
 }) => {
-  // FIX: Pehle ye 0.05 (5%) tha, ab 0.01 (1%) kar diya hai taaki sab numbering show ho
-  if (percent < 0.01) return null;
-
+  if (percent < 0.02) return null; // Hide label if slice is less than 2%
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -166,18 +172,22 @@ const renderCustomizedLabel = ({
 };
 
 const EmployeeWorkStats = ({ sessions, rootActivityList }) => {
-  // --- PROCESS DATA ---
+  // --- MAIN CALCULATION LOGIC ---
   const dashboardData = useMemo(() => {
     let appMap = {};
     let categoryStats = { Productive: 0, Social: 0, Neutral: 0, Idle: 0 };
+    // Arrays to hold apps for tooltip grouping
+    let appsByCategory = { Productive: [], Social: [], Neutral: [], Idle: [] };
+
     let totalActivitySeconds = 0;
     let totalIdleSeconds = 0;
 
-    // 1. Process Activity
+    // 1. Process Windows Activity (Active Time)
     if (Array.isArray(rootActivityList)) {
       rootActivityList.forEach((activity) => {
         if (activity?.app_name && activity?.duration_seconds) {
           const dur = parseFloat(activity.duration_seconds);
+          // Valid duration check
           if (!isNaN(dur) && dur > 0) {
             const cleanAppName = activity.app_name.trim();
             const category = determineCategory(
@@ -185,16 +195,19 @@ const EmployeeWorkStats = ({ sessions, rootActivityList }) => {
               activity.window_title
             );
 
-            if (!appMap[cleanAppName])
+            if (!appMap[cleanAppName]) {
               appMap[cleanAppName] = {
                 duration: 0,
                 category: category,
                 count: 0,
               };
+            }
             appMap[cleanAppName].duration += dur;
             appMap[cleanAppName].count += 1;
-            if (categoryStats[category] !== undefined)
+
+            if (categoryStats[category] !== undefined) {
               categoryStats[category] += dur;
+            }
             totalActivitySeconds += dur;
           }
         }
@@ -215,7 +228,7 @@ const EmployeeWorkStats = ({ sessions, rootActivityList }) => {
                 const endSec =
                   +endParts[0] * 3600 + +endParts[1] * 60 + +endParts[2];
                 let diff = endSec - startSec;
-                if (diff < 0) diff += 86400;
+                if (diff < 0) diff += 86400; // Midnight crossover
                 if (diff > 0) {
                   categoryStats.Idle += diff;
                   totalIdleSeconds += diff;
@@ -227,50 +240,50 @@ const EmployeeWorkStats = ({ sessions, rootActivityList }) => {
       });
     }
 
-    // 3. Sort & Prepare Pie Data
+    // 3. Sort Apps & Group for Tooltips
     const sortedApps = Object.entries(appMap)
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.duration - a.duration);
 
-    // Increase limit to show more individual apps in chart if needed, standard is 5
-    const topAppsLimit = 5;
-    const topAppsData = sortedApps.slice(0, topAppsLimit).map((app, index) => ({
-      name: app.name,
-      value: app.duration,
-      category: app.category,
-      color: PIE_COLORS[index % PIE_COLORS.length],
-    }));
+    sortedApps.forEach((app) => {
+      if (appsByCategory[app.category]) {
+        appsByCategory[app.category].push(app);
+      }
+    });
 
-    // Calculate "Others"
-    const otherAppsDuration = sortedApps
-      .slice(topAppsLimit)
-      .reduce((acc, app) => acc + app.duration, 0);
-
-    const finalPieData = [...topAppsData];
-
-    if (otherAppsDuration > 0) {
-      finalPieData.push({
-        name: "Others",
-        value: otherAppsDuration,
-        category: "Multiple",
-        color: "#94a3b8", // Slate 400 (Grey) for Others
-      });
-    }
-
-    if (totalIdleSeconds > 0) {
-      finalPieData.push({
-        name: "Idle Time",
-        value: totalIdleSeconds,
-        category: "Idle",
-        color: "#fbbf24", // Amber 400 for Idle
-      });
-    }
+    // 4. Prepare Pie Data
+    const finalPieData = [
+      {
+        name: "Productive",
+        value: categoryStats.Productive,
+        color: PIE_COLORS.Productive,
+        topApps: appsByCategory.Productive,
+      },
+      {
+        name: "Social",
+        value: categoryStats.Social,
+        color: PIE_COLORS.Social,
+        topApps: appsByCategory.Social,
+      },
+      {
+        name: "Neutral",
+        value: categoryStats.Neutral,
+        color: PIE_COLORS.Neutral,
+        topApps: appsByCategory.Neutral,
+      },
+      {
+        name: "Idle",
+        value: categoryStats.Idle,
+        color: PIE_COLORS.Idle,
+        topApps: [],
+      },
+    ].filter((item) => item.value > 0);
 
     const grandTotal = totalActivitySeconds + totalIdleSeconds;
 
     return {
       pieData: finalPieData,
-      aggregatedApps: sortedApps.slice(0, 10),
+      aggregatedApps: sortedApps.slice(0, 10), // Top 10 list
       stats: {
         totalSeconds: grandTotal,
         productiveSeconds: categoryStats.Productive,
@@ -344,8 +357,10 @@ const EmployeeWorkStats = ({ sessions, rootActivityList }) => {
                         app.category === "Productive"
                           ? "bg-green-500"
                           : app.category === "Social"
-                          ? "bg-red-400"
-                          : "bg-slate-400"
+                          ? "bg-red-500"
+                          : app.category === "Idle"
+                          ? "bg-amber-500"
+                          : "bg-violet-500"
                       }`}
                     ></div>
                     <span
@@ -395,7 +410,7 @@ const EmployeeWorkStats = ({ sessions, rootActivityList }) => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={renderCustomizedLabel} // Updated label function
+                    label={renderCustomizedLabel}
                     innerRadius={70}
                     outerRadius={110}
                     dataKey="value"
