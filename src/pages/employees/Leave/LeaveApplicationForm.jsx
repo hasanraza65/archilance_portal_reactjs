@@ -1,15 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { Calendar, Send, User, Edit3, X } from "lucide-react";
+import axios from "axios";
+import Cookies from "js-cookie";
+import { Calendar, Send, User, Edit3, X, Loader2 } from "lucide-react";
 import Swal from "sweetalert2";
+import { Toaster, toast } from "react-hot-toast";
 
-const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
+const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+
+const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [leaveType, setLeaveType] = useState("");
   const [otherLeaveType, setOtherLeaveType] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const isEditMode = !!initialData;
+
+  const leaveTypes = [
+    { value: "casual", label: "Casual Leave" },
+    { value: "annual", label: "Annual Leave" },
+    { value: "sick", label: "Sick Leave" },
+    { value: "other", label: "Other (Specify)" },
+  ];
 
   const handleResetForm = () => {
     setStartDate("");
@@ -19,6 +32,7 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
     setOtherLeaveType("");
   };
 
+  // --- Populate Form in Edit Mode ---
   useEffect(() => {
     if (isEditMode && initialData) {
       setStartDate(initialData.start_date || "");
@@ -27,6 +41,7 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
       const type = initialData.leave_type?.toLowerCase() || "";
       const reasonText = initialData.reason || "";
       
+      // Parse "Other" reason format if applicable
       const otherReasonMatch = reasonText.match(/^\[Other - (.*?)]: (.*)$/s);
 
       if (otherReasonMatch && type === 'casual') {
@@ -40,7 +55,9 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
           setReason(reasonText);
           setOtherLeaveType("");
         } else {
-          handleResetForm();
+          // Default fallback
+          setLeaveType("casual");
+          setReason(reasonText);
         }
       }
     } else {
@@ -48,14 +65,7 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
     }
   }, [initialData, isEditMode]);
 
-  const leaveTypes = [
-    { value: "casual", label: "Casual Leave" },
-    { value: "annual", label: "Annual Leave" },
-    { value: "sick", label: "Sick Leave" },
-    { value: "other", label: "Other (Specify)" },
-  ];
-
-  // --- UPDATED LOGIC: Excludes Weekends (Sat/Sun) ---
+  // --- LOGIC: Calculate Duration (Excludes Sat/Sun) ---
   const calculateDuration = (start, end) => {
     if (!start || !end) return 0;
     
@@ -67,74 +77,128 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
     let count = 0;
     let currentDate = new Date(startDateObj);
 
-    // Loop through every day
     while (currentDate <= endDateObj) {
       const dayOfWeek = currentDate.getDay();
-      // 0 is Sunday, 6 is Saturday. We only count if it is NOT 0 and NOT 6.
+      // 0 is Sunday, 6 is Saturday
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         count++;
       }
-      // Move to next day
       currentDate.setDate(currentDate.getDate() + 1);
     }
-
     return count;
   };
 
+  // --- MAIN SUBMISSION HANDLER ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // 1. Basic Validation
     if (!reason || !startDate || !endDate || !leaveType) {
       Swal.fire({
-        icon: 'error',
+        icon: 'warning',
         title: 'Incomplete Form',
-        text: 'Please fill in all required fields before submitting.',
+        text: 'Please fill in all required fields.',
       });
       return;
     }
+
     if (leaveType === "other" && !otherLeaveType.trim()) {
       Swal.fire({
-        icon: 'error',
+        icon: 'warning',
         title: 'Missing Information',
         text: 'Please specify the reason for the "Other" leave type.',
       });
       return;
     }
     
-    // Check duration using the new logic (excluding weekends)
+    // 2. Duration Check (Casual Limit)
     if (leaveType === 'casual' || leaveType === 'other') {
       const duration = calculateDuration(startDate, endDate);
       if (duration > 2) {
         Swal.fire({
             icon: 'error',
-            title: 'Invalid Duration',
-            text: `Casual leave cannot be for more than 2 working days. You selected ${duration} working days.`,
+            title: 'Policy Violation',
+            text: `Casual leave cannot be for more than 2 working days. You selected ${duration} working days. Please select Annual Leave instead.`,
         });
         return;
       }
     }
 
     setIsSubmitting(true);
-    try {
-      const finalLeaveType = leaveType === "other" ? "casual" : leaveType;
-      
-      const finalReason = leaveType === "other"
-        ? `[Other - ${otherLeaveType.trim()}]: ${reason}`
-        : reason;
+    const token = Cookies.get("token");
 
-      await onSubmit({ startDate, endDate, reason: finalReason, leaveType: finalLeaveType });
-      if (!isEditMode) {
-        handleResetForm();
+    // 3. Prepare Payload
+    const finalLeaveType = leaveType === "other" ? "casual" : leaveType;
+    const finalReason = leaveType === "other"
+      ? `[Other - ${otherLeaveType.trim()}]: ${reason}`
+      : reason;
+
+    const payload = {
+        start_date: startDate,
+        end_date: endDate,
+        reason: finalReason,
+        leave_type: finalLeaveType
+    };
+
+    try {
+      let response;
+      // 4. Determine Endpoint (Create vs Edit)
+      if (isEditMode) {
+         response = await axios.put(
+            `${API_BASE_URL}/api/employee/leave-request/${initialData.id}`, 
+            payload, 
+            { headers: { Authorization: `Bearer ${token}` } }
+         );
+      } else {
+         response = await axios.post(
+            `${API_BASE_URL}/api/employee/leave-request`, 
+            payload, 
+            { headers: { Authorization: `Bearer ${token}` } }
+         );
       }
+
+      // 5. Success Handling
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: isEditMode ? 'Leave request updated successfully.' : 'Leave request submitted successfully.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      
+      if (!isEditMode) handleResetForm();
+      if (onSuccess) onSuccess(); // Refresh parent list
+      if (onClose) onClose(); // Close modal if applicable
+
     } catch (error) {
-      console.log("Submission failed, keeping form open for correction.");
+      console.error("Submission Error:", error);
+
+      // --- 6. ROBUST ERROR HANDLING (Fixes "Stuck Submitting") ---
+      if (error.response && error.response.data && error.response.data.message) {
+        // This catches the "Limit Exceeded" message from backend
+        Swal.fire({
+            icon: 'error',
+            title: 'Request Failed',
+            text: error.response.data.message, // Shows: "You have exceeded your annual leave limit..."
+            footer: 'Please check your leave balance.'
+        });
+      } else if (error.response?.data?.errors) {
+        // Catches Validation Errors
+        const firstError = Object.values(error.response.data.errors)[0][0];
+        toast.error(firstError);
+      } else {
+        // Catches Network/Server Errors
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     } finally {
+      // 7. ALWAYS Stop Loading
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 rounded-3xl">
+      <Toaster position="top-right" />
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-4 shadow-lg">
@@ -159,6 +223,7 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
             </div>
           </div>
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            {/* Leave Type Selection */}
             <div className="space-y-3">
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Leave Type
@@ -189,6 +254,8 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
                 ))}
               </div>
             </div>
+
+            {/* Other Reason Input */}
             {leaveType === "other" && (
               <div className="space-y-3 pt-2 animate-fade-in-down">
                 <label
@@ -203,11 +270,13 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
                   value={otherLeaveType}
                   onChange={(e) => setOtherLeaveType(e.target.value)}
                   placeholder="e.g., Bereavement"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   required
                 />
               </div>
             )}
+
+            {/* Dates */}
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <label
@@ -221,12 +290,8 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
                   id="startDate"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  min={
-                    isEditMode
-                      ? undefined
-                      : new Date().toISOString().split("T")[0]
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl"
+                  min={isEditMode ? undefined : new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   required
                 />
               </div>
@@ -242,17 +307,14 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
                   id="endDate"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  min={
-                    startDate ||
-                    (isEditMode
-                      ? undefined
-                      : new Date().toISOString().split("T")[0])
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl"
+                  min={startDate || (isEditMode ? undefined : new Date().toISOString().split("T")[0])}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   required
                 />
               </div>
             </div>
+
+            {/* Reason */}
             <div className="space-y-3">
               <label
                 htmlFor="reason"
@@ -267,22 +329,24 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
                 rows="4"
                 maxLength="200"
                 placeholder="Please provide details..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl resize-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 outline-none"
                 required
               />
               <p className="text-sm text-gray-500 text-right">
                 {reason.length}/200
               </p>
             </div>
+
+            {/* Buttons */}
             <div className="pt-4 flex flex-col sm:flex-row gap-3">
-              {isEditMode && (
+              {isEditMode && onClose && (
                 <button
                   type="button"
                   onClick={onClose}
                   className="w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-4 rounded-xl font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                 >
                   <X className="w-5 h-5" />
-                  <span>Cancel Edit</span>
+                  <span>Cancel</span>
                 </button>
               )}
               <button
@@ -296,7 +360,7 @@ const LeaveApplicationForm = ({ onSubmit, initialData, onClose }) => {
               >
                 {isSubmitting ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <Loader2 className="animate-spin h-5 w-5" />
                     <span>{isEditMode ? "Updating..." : "Submitting..."}</span>
                   </>
                 ) : (
