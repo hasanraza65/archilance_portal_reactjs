@@ -166,6 +166,27 @@ const getIdleSeconds = (startTime, endTime) => {
   return diff;
 };
 
+// --- Helper to parse "2h 29m" or "29m" or "29s" to seconds ---
+const parseDurationString = (str) => {
+  if (!str) return 0;
+  let totalSeconds = 0;
+  
+  // Match hours
+  const hMatch = str.match(/(\d+)h/);
+  if (hMatch) totalSeconds += parseInt(hMatch[1]) * 3600;
+  
+  // Match minutes
+  const mMatch = str.match(/(\d+)m/);
+  if (mMatch) totalSeconds += parseInt(mMatch[1]) * 60;
+  
+  // Match seconds (if backend sends seconds like 30s)
+  const sMatch = str.match(/(\d+)s/);
+  if (sMatch) totalSeconds += parseInt(sMatch[1]);
+  
+  return totalSeconds;
+};
+
+
 // --- Manual Time Modal ---
 const AddManualTimeModal = ({
   isOpen,
@@ -435,7 +456,9 @@ const AdminEmployeeWorkSession = () => {
 
   // Store total Idle Seconds calculated from sessions
   const [totalIdleSeconds, setTotalIdleSeconds] = useState(0);
+  const [totalWorkSeconds, setTotalWorkSeconds] = useState(0);
   const [statsSessionsList, setStatsSessionsList] = useState([]);
+
 
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
@@ -644,7 +667,16 @@ const AdminEmployeeWorkSession = () => {
 
       // 3. Calculate Stats
       let totalIdleSec = 0;
+      let totalWorkSec = 0;
+
+      // Use overall_total_time directly from backend response
+      if (result.overall_total_time) {
+        totalWorkSec = parseDurationString(result.overall_total_time);
+      }
+
       statsSessions.forEach((session) => {
+        // Only calculate Idle Time (Manual sum needed?)
+        // Assuming we still need to calculate idle time manually if backend doesn't provide a total idle time.
         if (session.idle_times && Array.isArray(session.idle_times)) {
           session.idle_times.forEach((idle) => {
             totalIdleSec += getIdleSeconds(idle.start_time, idle.end_time);
@@ -653,14 +685,9 @@ const AdminEmployeeWorkSession = () => {
       });
       
       setTotalIdleSeconds(totalIdleSec);
+      setTotalWorkSeconds(totalWorkSec);
       setStatsWindowsActivity(statsActivity);
-      // We also need to pass 'statsSessions' to the chart component 
-      // because it calculates productive time from session durations/activities.
-      // Actually EmployeeWorkStats takes 'sessions' prop. 
-      // We should use a separate state for 'statsSesions' or modify how we pass it.
-      // Let's create a temporary state or just pass it directly if we refactor.
-      // To minimize risk, I will add a new state 'statsSessionsList'
-      setStatsSessionsList(statsSessions);
+
 
       // setWindowsActivity is used for the LIST? No, likely for the stats. 
       // The original code used 'windowsActivity' passed to EmployeeWorkStats.
@@ -907,6 +934,7 @@ const AdminEmployeeWorkSession = () => {
             sessions={statsSessionsList} // Pass the FULL list for stats
             rootActivityList={statsWindowsActivity} // Pass the FULL activity list
             totalIdleSeconds={totalIdleSeconds} // Values calculated from FULL list
+            totalWorkSeconds={totalWorkSeconds}
           />
         )}
 
