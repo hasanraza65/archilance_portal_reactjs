@@ -154,6 +154,7 @@ export const menuItems = [
     link: "application",
      allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"],
   },
+  
 ];
 
 // ... (baaki file ka code waise hi rahega)

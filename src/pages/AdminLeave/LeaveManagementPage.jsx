@@ -15,14 +15,13 @@ import {
   RefreshCw,
   AlertTriangle,
   Trash2,
-  X,
   Download,
-  BarChart3,
+  Plus, // Added for Create Button
+  X,
 } from "lucide-react";
 
 // --- Helper Functions ---
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-
 const getAuthToken = () => Cookies.get("token");
 
 const formatDate = (dateStr) => {
@@ -39,8 +38,16 @@ const calculateDuration = (start, end) => {
   const startDate = new Date(start);
   const endDate = new Date(end);
   if (endDate < startDate) return 0;
-  const diffTime = Math.abs(endDate - startDate);
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  let count = 0;
+  let currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  return count;
 };
 
 const getStatusTextForModal = (count) => {
@@ -49,7 +56,115 @@ const getStatusTextForModal = (count) => {
   return "Critical";
 };
 
-// --- Modal Component ---
+const getLeaveTypeColor = (type) => {
+  const normalizedType = type?.toLowerCase();
+  switch (normalizedType) {
+    case "sick":
+      return "bg-red-100 text-red-800";
+    case "medical":
+      return "bg-blue-100 text-blue-800";
+    case "emergency":
+      return "bg-orange-100 text-orange-800";
+    case "vacation":
+    case "annual":
+      return "bg-purple-100 text-purple-800";
+    case "casual":
+      return "bg-teal-100 text-teal-800";
+    case "other":
+      return "bg-gray-100 text-gray-800 border border-gray-300";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
+
+// --- COMPONENT: Create Leave Modal (Jahan Error Handle Hoga) ---
+const CreateLeaveModal = ({ isOpen, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    leave_type: "casual",
+    start_date: "",
+    end_date: "",
+    reason: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        leave_type: "casual",
+        start_date: "",
+        end_date: "",
+        reason: "",
+      });
+    }
+  }, [isOpen]);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Basic Validation
+    if (!formData.start_date || !formData.end_date || !formData.reason) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsSubmitting(true); // Loading Start
+    const token = getAuthToken();
+
+    try {
+      // API call to create request
+      await axios.post(`${API_BASE_URL}/api/leave-request`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      toast.success("Leave request submitted successfully!");
+      onSuccess(); // Parent component ko refresh karo
+      onClose(); // Modal band karo
+    } catch (error) {
+      console.error("Submission Error:", error);
+
+      // --- MAIN FIX LOGIC HERE ---
+      // Agar backend se specific message ("Limit exceeded etc") aaya hai:
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        // Backend ka exact message toast mein dikhao
+        toast.error(error.response.data.message, {
+          duration: 5000, // Thora lamba display karo taake user parh sake
+          style: {
+            border: "1px solid #EF4444",
+            padding: "16px",
+            color: "#713200",
+          },
+        });
+      } else if (error.response?.data?.errors) {
+        // Agar validation errors hain (Laravel style)
+        const firstError = Object.values(error.response.data.errors)[0][0];
+        toast.error(firstError);
+      } else {
+        // Fallback error
+        toast.error("Failed to submit leave request. Please try again.");
+      }
+    } finally {
+      // --- IMPORTANT: Loading Stop Karna ---
+      // Ye block hamesha chalega, chahe success ho ya error
+      setIsSubmitting(false);
+    }
+  };
+
+ 
+};
+
+// --- COMPONENT: Employee Detail Modal (Existing) ---
 const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   const [leaveSummary, setLeaveSummary] = useState(null);
   const [cycle, setCycle] = useState(null);
@@ -57,11 +172,8 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
 
   const employee = request?.user;
 
-  // useEffect hook to handle body scroll
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    }
+    if (isOpen) document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "auto";
     };
@@ -69,7 +181,6 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
 
   const fetchEmployeeLeaveDetails = useCallback(async () => {
     if (!request || !isOpen) return;
-
     setIsLoading(true);
     const token = getAuthToken();
     try {
@@ -85,7 +196,6 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
       setLeaveSummary(response.data.leave_summary);
       setCycle(response.data.cycle);
     } catch (err) {
-      console.error("Error fetching employee leave details:", err);
       toast.error("Failed to load employee leave details.");
     } finally {
       setIsLoading(false);
@@ -93,26 +203,22 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   }, [request, isOpen]);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchEmployeeLeaveDetails();
-    }
+    if (isOpen) fetchEmployeeLeaveDetails();
   }, [fetchEmployeeLeaveDetails, isOpen]);
 
   if (!isOpen || !request || !employee) return null;
 
-  // --- MODIFICATION START: Updated total leave values as per your request ---
   const leaveTypes = [
     { key: "casual", name: "Casual Leave", total: 10 },
-    { key: "annual", name: "Annual Leave", total: 10 }, // Changed from 15 to 10
-    { key: "sick", name: "Sick Leave", total: 8 },   // Changed from 7 to 8
+    { key: "annual", name: "Annual Leave", total: 10 },
+    { key: "sick", name: "Sick Leave", total: 8 },
+    // { key: "other", name: "Other Leave", total: 0 },
   ];
-  // --- MODIFICATION END ---
 
-  // Helper to determine progress bar color based on remaining leaves
   const getProgressBarColor = (remaining) => {
-    if (remaining >= 5) return "bg-emerald-500"; // Good
-    if (remaining >= 2) return "bg-amber-500"; // Low
-    return "bg-red-500"; // Critical
+    if (remaining >= 5) return "bg-emerald-500";
+    if (remaining >= 2) return "bg-amber-500";
+    return "bg-red-500";
   };
 
   return (
@@ -159,7 +265,7 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
           )}
           <div>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              Remaining Leaves
+              Leave Balance Summary
             </h3>
             {isLoading ? (
               <div className="text-center py-10">
@@ -171,8 +277,9 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
                 {leaveTypes.map((type) => {
                   const consumed = leaveSummary[type.key] ?? 0;
                   const total = type.total;
-                  const remaining = total - consumed;
-                  const progress = total > 0 ? (consumed / total) * 100 : 0;
+                  const hasQuota = total > 0;
+                  const remaining = hasQuota ? total - consumed : 0;
+                  const progress = hasQuota ? (consumed / total) * 100 : 0;
                   const progressBarColor = getProgressBarColor(remaining);
 
                   return (
@@ -185,29 +292,50 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
                           {type.name}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-gray-900 text-lg">
-                            {remaining}
-                          </span>
-                          <span className="text-gray-500 text-sm">
-                            days left
-                          </span>
+                          {hasQuota ? (
+                            <>
+                              <span className="font-bold text-gray-900 text-lg">
+                                {remaining}
+                              </span>
+                              <span className="text-gray-500 text-sm">
+                                days left
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-gray-500 text-sm italic bg-gray-100 px-2 py-1 rounded">
+                              No Limit
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="mt-3">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`${progressBarColor} h-2 rounded-full transition-all duration-500`}
-                            style={{ width: `${progress}%` }}
-                          ></div>
+                      {hasQuota ? (
+                        <div className="mt-3">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`${progressBarColor} h-2 rounded-full transition-all duration-500`}
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between mt-1.5">
+                            <span className="text-xs text-gray-500">{`Used: ${consumed}`}</span>
+                            <span className="text-xs font-medium text-gray-600">{`Status: ${getStatusTextForModal(
+                              remaining
+                            )}`}</span>
+                            <span className="text-xs text-gray-500">{`Total: ${total}`}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between mt-1.5">
-                          <span className="text-xs text-gray-500">{`Used: ${consumed}`}</span>
-                          <span className="text-xs font-medium text-gray-600">{`Status: ${getStatusTextForModal(
-                            remaining
-                          )}`}</span>
-                          <span className="text-xs text-gray-500">{`Total: ${total}`}</span>
+                      ) : (
+                        <div className="mt-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-700 font-medium">
+                              Total Consumed:
+                            </span>
+                            <span className="text-sm font-bold text-gray-900">
+                              {consumed}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })}
@@ -227,22 +355,14 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
           >
             Close
           </button>
-          <button
-            onClick={() => toast.success("Export feature coming soon!")}
-            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-black transition-colors shadow-sm"
-          >
-            <Download className="w-5 h-5" />
-            Export Report
-          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// --- Main Component ---
+// --- Main Page Component ---
 const LeaveManagementPage = () => {
-  // --- State Management ---
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -255,11 +375,13 @@ const LeaveManagementPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
+
+  // Modals State
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false); // New Create Modal State
 
   const ADMIN_LEAVE_API_URL = `${API_BASE_URL}/api/admin/leave-request`;
 
-  // --- API Calls ---
   const fetchLeaveRequests = useCallback(async () => {
     const token = getAuthToken();
     if (!token) {
@@ -267,7 +389,6 @@ const LeaveManagementPage = () => {
       setIsLoading(false);
       return;
     }
-
     setIsLoading(true);
     try {
       const response = await axios.get(ADMIN_LEAVE_API_URL, {
@@ -288,7 +409,7 @@ const LeaveManagementPage = () => {
       setError(null);
     } catch (err) {
       console.error("Error fetching leave requests:", err);
-      setError("Could not fetch leave requests. Please try again later.");
+      setError("Could not fetch leave requests.");
       toast.error("Failed to load data.");
     } finally {
       setIsLoading(false);
@@ -301,10 +422,6 @@ const LeaveManagementPage = () => {
 
   const handleStatusUpdate = async (id, newStatus) => {
     const token = getAuthToken();
-    if (!token) {
-      toast.error("Authentication failed.");
-      return;
-    }
     const toastId = toast.loading(`Updating status to ${newStatus}...`);
     const formData = new FormData();
     formData.append("status", newStatus);
@@ -320,17 +437,12 @@ const LeaveManagementPage = () => {
       toast.success("Status updated successfully!", { id: toastId });
       await fetchLeaveRequests();
     } catch (err) {
-      console.error("Error updating status:", err);
       toast.error("Failed to update status.", { id: toastId });
     }
   };
 
   const handleDeleteRequest = async (id) => {
     const token = getAuthToken();
-    if (!token) {
-      toast.error("Authentication failed.");
-      return;
-    }
     Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -349,11 +461,10 @@ const LeaveManagementPage = () => {
               Accept: "application/json",
             },
           });
-          toast.success("Leave request deleted successfully.", { id: toastId });
+          toast.success("Request deleted.", { id: toastId });
           await fetchLeaveRequests();
         } catch (err) {
-          console.error("Error deleting request:", err);
-          toast.error("Failed to delete request.", { id: toastId });
+          toast.error("Failed to delete.", { id: toastId });
         }
       }
     });
@@ -362,11 +473,6 @@ const LeaveManagementPage = () => {
   const handleViewDetailsClick = (request) => {
     setSelectedRequest(request);
     setIsDetailModalOpen(true);
-  };
-
-  const handleCloseDetailModal = () => {
-    setIsDetailModalOpen(false);
-    setSelectedRequest(null);
   };
 
   const getStatusConfig = (status) => {
@@ -393,21 +499,6 @@ const LeaveManagementPage = () => {
     }
   };
 
-  const getLeaveTypeColor = (type) => {
-    switch (type) {
-      case "Sick":
-        return "bg-red-100 text-red-800";
-      case "Medical":
-        return "bg-blue-100 text-blue-800";
-      case "Emergency":
-        return "bg-orange-100 text-orange-800";
-      case "Vacation":
-        return "bg-purple-100 text-purple-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const filteredRequests = leaveRequests.filter((request) => {
     const matchesFilter = filter === "All" || request.status === filter;
     const searchLower = searchTerm.toLowerCase();
@@ -423,10 +514,21 @@ const LeaveManagementPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Toaster position="top-center" reverseOrder={false} />
 
+      {/* Details Modal */}
       <EmployeeLeaveDetailModal
         request={selectedRequest}
         isOpen={isDetailModalOpen}
-        onClose={handleCloseDetailModal}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedRequest(null);
+        }}
+      />
+
+      {/* NEW Create Request Modal */}
+      <CreateLeaveModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={fetchLeaveRequests}
       />
 
       <div className="bg-white shadow-lg border-b border-gray-200">
@@ -434,29 +536,33 @@ const LeaveManagementPage = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Leave Management Dashboard
+                Leave Management
               </h1>
               <p className="text-gray-600 mt-2">
-                Manage and track employee leave requests
+                Manage and track leave requests
               </p>
             </div>
-            <button
-              onClick={fetchLeaveRequests}
-              disabled={isLoading}
-              className="p-3 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw
-                className={`w-5 h-5 text-gray-700 ${
-                  isLoading ? "animate-spin" : ""
-                }`}
-              />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchLeaveRequests}
+                disabled={isLoading}
+                className="p-3 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`w-5 h-5 text-gray-700 ${
+                    isLoading ? "animate-spin" : ""
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto p-4 sm:p-6">
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* ... (Same Stats Code as before) ... */}
           <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
@@ -513,13 +619,14 @@ const LeaveManagementPage = () => {
           </div>
         </div>
 
+        {/* Filters */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by employee name or email..."
+                placeholder="Search employee..."
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -543,6 +650,7 @@ const LeaveManagementPage = () => {
           </div>
         </div>
 
+        {/* List of Requests */}
         <div className="space-y-4">
           {isLoading ? (
             <div className="text-center py-12">
@@ -666,7 +774,6 @@ const LeaveManagementPage = () => {
                             <button
                               onClick={() => handleDeleteRequest(request.id)}
                               className="w-full lg:w-auto flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors shadow-md"
-                              aria-label="Delete Request"
                             >
                               <Trash2 className="w-4 h-4" />
                               <span>Delete</span>
@@ -688,9 +795,6 @@ const LeaveManagementPage = () => {
               <h3 className="text-xl font-medium text-gray-900 mb-2">
                 No Requests Found
               </h3>
-              <p className="text-gray-600">
-                Try adjusting your search or filter criteria.
-              </p>
             </div>
           )}
         </div>
