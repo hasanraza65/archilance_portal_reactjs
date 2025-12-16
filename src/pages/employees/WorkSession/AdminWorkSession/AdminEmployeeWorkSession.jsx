@@ -428,8 +428,15 @@ const AdminEmployeeWorkSession = () => {
   const [allTasks, setAllTasks] = useState([]);
   const [taskFilters, setTaskFilters] = useState([]);
 
+  // STATS STATES
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsWindowsActivity, setStatsWindowsActivity] = useState([]);
+
+
   // Store total Idle Seconds calculated from sessions
   const [totalIdleSeconds, setTotalIdleSeconds] = useState(0);
+  const [statsSessionsList, setStatsSessionsList] = useState([]);
+
 
   const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
   const getApiPrefix = () => {
@@ -554,15 +561,19 @@ const AdminEmployeeWorkSession = () => {
   const fetchWorkSessions = useCallback(async () => {
     if (!employeeId || !token || !user) return;
     setLoading(true);
+    setStatsLoading(true);
+
     const finalTaskId =
       taskFilters
         .map((f) => f.selected)
         .filter(Boolean)
         .pop() || "";
+        
+    // Base params for the PAGINATED list
     const params = new URLSearchParams({
       page: currentPage.toString(),
       employee_id: employeeId,
-      per_page: "100",
+      per_page: "100", // Keep page size 100 for listing
     });
     if (selectedProject) params.append("project_id", selectedProject);
     if (finalTaskId) params.append("task_id", finalTaskId);
@@ -571,6 +582,7 @@ const AdminEmployeeWorkSession = () => {
     if (dateRange[1]) params.append("end_date", formatDateForAPI(dateRange[1]));
 
     try {
+      // 1. Fetch Paginated Data for the LIST
       const response = await fetch(
         `${API_BASE_URL}${workSessionPath}?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -582,31 +594,85 @@ const AdminEmployeeWorkSession = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message);
 
-      // --- CALCULATE TOTAL IDLE TIME HERE ---
-      const sessionsData = Array.isArray(result.data) ? result.data.slice().reverse() : [];
+      const sessionsData = Array.isArray(result.data)
+        ? result.data.slice().reverse()
+        : [];
       
+      setSessions(sessionsData);
+      setPaginationInfo({
+        currentPage: result.current_page,
+        lastPage: result.last_page,
+        total: result.total, 
+      });
+
+      // 2. Fetch ALL Data for STATS (if needed)
+      // If we have more than 1 page, we MUST fetch everything to get correct totals.
+      // If we only have 1 page, we can just use 'result' from above.
+      let statsSessions = [];
+      let statsActivity = [];
+
+      if (result.last_page > 1) {
+        // Fetch ALL for stats
+        const allParams = new URLSearchParams({
+          page: "1",
+          employee_id: employeeId,
+          per_page: "10000", // Fetch a large number to get ALL
+        });
+        if (selectedProject) allParams.append("project_id", selectedProject);
+        if (finalTaskId) allParams.append("task_id", finalTaskId);
+        if (dateRange[0])
+          allParams.append("start_date", formatDateForAPI(dateRange[0]));
+        if (dateRange[1]) allParams.append("end_date", formatDateForAPI(dateRange[1]));
+        
+        const allRes = await fetch(
+          `${API_BASE_URL}${workSessionPath}?${allParams.toString()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (allRes.ok) {
+          const allResult = await allRes.json();
+          statsSessions = Array.isArray(allResult.data) ? allResult.data : [];
+          statsActivity = allResult.windows_activity || [];
+        }
+      } else {
+        // Single page, reuse data
+        statsSessions = sessionsData; // Already reversed? No, backend sends them. 
+        // Note: result.data usually comes sorted desc or asc. 
+        // For stats calculation, order doesn't matter.
+        statsSessions = Array.isArray(result.data) ? result.data : [];
+        statsActivity = result.windows_activity || [];
+      }
+
+      // 3. Calculate Stats
       let totalIdleSec = 0;
-      sessionsData.forEach(session => {
+      statsSessions.forEach((session) => {
         if (session.idle_times && Array.isArray(session.idle_times)) {
-          session.idle_times.forEach(idle => {
+          session.idle_times.forEach((idle) => {
             totalIdleSec += getIdleSeconds(idle.start_time, idle.end_time);
           });
         }
       });
-      setTotalIdleSeconds(totalIdleSec); // Save for Dashboard
+      
+      setTotalIdleSeconds(totalIdleSec);
+      setStatsWindowsActivity(statsActivity);
+      // We also need to pass 'statsSessions' to the chart component 
+      // because it calculates productive time from session durations/activities.
+      // Actually EmployeeWorkStats takes 'sessions' prop. 
+      // We should use a separate state for 'statsSesions' or modify how we pass it.
+      // Let's create a temporary state or just pass it directly if we refactor.
+      // To minimize risk, I will add a new state 'statsSessionsList'
+      setStatsSessionsList(statsSessions);
 
-      setSessions(sessionsData);
-      setWindowsActivity(result.windows_activity || []);
+      // setWindowsActivity is used for the LIST? No, likely for the stats. 
+      // The original code used 'windowsActivity' passed to EmployeeWorkStats.
+      // So we should update 'windowsActivity' with the FULL list.
+      setWindowsActivity(statsActivity); 
 
-      setPaginationInfo({
-        currentPage: result.current_page,
-        lastPage: result.last_page,
-      });
     } catch (err) {
       toast.error(err.message);
       setSessions([]);
     } finally {
       setLoading(false);
+      setStatsLoading(false);
     }
   }, [
     employeeId,
@@ -834,11 +900,16 @@ const AdminEmployeeWorkSession = () => {
 
       {/* 3. DASHBOARD STATS (Below Filters) */}
       <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 mb-8 font-sans">
-        <EmployeeWorkStats
-          sessions={sessions}
-          rootActivityList={windowsActivity}
-          totalIdleSeconds={totalIdleSeconds} // <-- Pass calculated Idle Time
-        />
+        {statsLoading ? (
+           <div className="h-40 flex items-center justify-center text-slate-500">Calculating stats...</div>
+        ) : (
+          <EmployeeWorkStats
+            sessions={statsSessionsList} // Pass the FULL list for stats
+            rootActivityList={statsWindowsActivity} // Pass the FULL activity list
+            totalIdleSeconds={totalIdleSeconds} // Values calculated from FULL list
+          />
+        )}
+
       </div>
 
       {/* 4. SESSIONS LIST */}
