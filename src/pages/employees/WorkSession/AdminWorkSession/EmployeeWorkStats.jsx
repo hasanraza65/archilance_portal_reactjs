@@ -225,7 +225,6 @@ const EmployeeWorkStats = ({
           </h2>
         </div>
         
-        {/* TEMPORARILY HIDDEN CARDS
         <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
           <p className="text-xs text-green-500 dark:text-green-400 mb-1 font-semibold uppercase tracking-wider">
             Productive Time
@@ -256,13 +255,12 @@ const EmployeeWorkStats = ({
               : 0}
             %
           </h2>
-        </div> 
-        */}
+        </div>
       </div>
 
       {/* Charts Grid */}
-      {/* Charts Grid - TEMPORARILY HIDDEN
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT: Detailed List */}
         <div className="lg:col-span-1 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
           <h3 className="text-slate-700 dark:text-slate-200 font-medium text-sm mb-5 uppercase tracking-wide border-b border-slate-100 dark:border-slate-700 pb-2">
             Top Apps
@@ -316,12 +314,14 @@ const EmployeeWorkStats = ({
           </div>
         </div>
 
+        {/* RIGHT: Donut Chart with Tooltip */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
           <h3 className="text-slate-700 dark:text-slate-200 font-medium text-sm mb-6 uppercase tracking-wide">
             Activity Breakdown
           </h3>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-8 h-full min-h-[300px]">
+            {/* Chart Area */}
             <div className="relative w-[240px] h-[240px] flex-shrink-0">
               {dashboardData.pieData.length > 0 ? (
                 <>
@@ -357,6 +357,7 @@ const EmployeeWorkStats = ({
                     </PieChart>
                   </ResponsiveContainer>
 
+                  {/* CUSTOM ABSOLUTE TOOLTIP */}
                   {hoveredSlice && (
                     <div
                       className="absolute z-50 bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl border border-slate-700 pointer-events-none transition-all duration-75 ease-out"
@@ -401,6 +402,7 @@ const EmployeeWorkStats = ({
                 </div>
               )}
 
+              {/* Center Text */}
               {dashboardData.pieData.length > 0 && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
                   <span className="text-2xl font-bold text-slate-800 dark:text-white">
@@ -417,6 +419,7 @@ const EmployeeWorkStats = ({
               )}
             </div>
 
+            {/* Side Legend */}
             <div className="flex-1 w-full max-w-sm">
               <div className="grid grid-cols-1 gap-3">
                 {dashboardData.pieData.map((entry, index) => (
@@ -462,7 +465,6 @@ const EmployeeWorkStats = ({
           </div>
         </div>
       </div>
-      */}
     </div>
   );
 };
