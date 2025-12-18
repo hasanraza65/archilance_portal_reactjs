@@ -17,6 +17,7 @@ import TaskHeader from "./PartialTask/TaskHeader";
 import TaskMetadata from "./PartialTask/TaskMetadata";
 import SubTaskList from "./PartialTask/SubTaskList";
 import CommentList from "./PartialTask/CommentList";
+import CustomerCommentList from "./PartialTask/CustomerCommentList";
 import LoadingState from "./PartialTask/LoadingState";
 import ErrorState from "./PartialTask/ErrorState";
 import AddSubTaskModal from "./PartialTask/AddSubTaskModal";
@@ -504,7 +505,7 @@ const TaskDetailsPage = () => {
     }
   };
 
-  const handleCommentSubmit = async (payload, isFormData) => {
+  const handleCommentSubmit = async (payload, isFormData, shouldRefresh = true) => {
     setIsSubmittingComment(true);
     setCommentError(null);
     const token = getAuthToken();
@@ -531,7 +532,9 @@ const TaskDetailsPage = () => {
             `Failed to post comment (status ${response.status})`
         );
       }
-      await initialFetchAndSetup(taskId);
+      if (shouldRefresh) {
+        await initialFetchAndSetup(taskId);
+      }
       setNewComment("");
       toast.success(responseData.message || "Comment posted!");
       return true;
@@ -544,7 +547,7 @@ const TaskDetailsPage = () => {
     }
   };
 
-  const handleEditComment = async (commentId, formData) => {
+  const handleEditComment = async (commentId, formData, shouldRefresh = true) => {
     setCommentError(null);
     const token = getAuthToken();
     if (!token) return false;
@@ -567,7 +570,9 @@ const TaskDetailsPage = () => {
             `Failed to update comment (status ${response.status})`
         );
       }
-      await initialFetchAndSetup(taskId);
+      if (shouldRefresh) {
+        await initialFetchAndSetup(taskId);
+      }
       toast.success("Comment updated successfully!");
       return true;
     } catch (err) {
@@ -577,7 +582,7 @@ const TaskDetailsPage = () => {
     }
   };
 
-  const handleDeleteComment = async (commentId) => {
+  const handleDeleteComment = async (commentId, shouldRefresh = true) => {
     setCommentError(null);
     const token = getAuthToken();
     if (!token) return false;
@@ -599,7 +604,9 @@ const TaskDetailsPage = () => {
             `Failed to delete comment (status ${response.status})`
         );
       }
-      await initialFetchAndSetup(taskId);
+      if (shouldRefresh) {
+        await initialFetchAndSetup(taskId);
+      }
       return true;
     } catch (err) {
       setCommentError(err.message);
@@ -841,6 +848,16 @@ const TaskDetailsPage = () => {
                   allCommentsLoaded={allCommentsLoaded}
                   totalCommentsFromApi={totalCommentsFromApi}
                   onLoadRepliesForComment={onLoadRepliesForComment}
+                />
+              )}
+
+              {canManageComments && (
+                <CustomerCommentList 
+                  taskId={taskId} 
+                  currentUserId={currentUserId}
+                  handleCommentSubmit={handleCommentSubmit}
+                  onEditComment={handleEditComment}
+                  onDeleteComment={handleDeleteComment}
                 />
               )}
             
