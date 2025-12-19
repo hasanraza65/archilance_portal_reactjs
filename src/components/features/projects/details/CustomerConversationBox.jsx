@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     MessageCircle,
     Paperclip,
@@ -30,12 +30,20 @@ const CustomerConversationBox = ({
 }) => {
     const fileInputRef = useRef(null);
     const chatEndRef = useRef(null);
+    const chatContainerRef = useRef(null); // Added ref for container
     const [editingMessage, setEditingMessage] = useState(null);
     const [editedText, setEditedText] = useState("");
     const [newAttachmentsForEdit, setNewAttachmentsForEdit] = useState([]);
     const [attachmentIdsToDelete, setAttachmentIdsToDelete] = useState([]);
     const [isProcessingAction, setIsProcessingAction] = useState(false);
     const [mobileActionMessageId, setMobileActionMessageId] = useState(null);
+
+    // Auto-scroll to bottom directly using scrollTop
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
 
     const STORAGE_BASE_URL = `${apiBaseUrl}/storage/`;
 
@@ -289,7 +297,10 @@ const CustomerConversationBox = ({
                     </div>
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4">
+            <div
+                ref={chatContainerRef} // Attached ref here
+                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4"
+            >
                 {isLoading && (
                     <div className="flex justify-center items-center h-full">
                         <Loader className="w-8 h-8 animate-spin text-blue-600" />

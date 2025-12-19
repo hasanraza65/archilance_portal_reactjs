@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     MessageCircle,
     Paperclip,
@@ -30,12 +30,20 @@ const ConversationBox = ({
 }) => {
     const fileInputRef = useRef(null);
     const chatEndRef = useRef(null);
+    const chatContainerRef = useRef(null); // Added ref for container
     const [editingMessage, setEditingMessage] = useState(null);
     const [editedText, setEditedText] = useState("");
     const [newAttachmentsForEdit, setNewAttachmentsForEdit] = useState([]);
     const [attachmentIdsToDelete, setAttachmentIdsToDelete] = useState([]);
     const [isProcessingAction, setIsProcessingAction] = useState(false);
     const [mobileActionMessageId, setMobileActionMessageId] = useState(null);
+
+    // Auto-scroll to bottom directly using scrollTop
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
 
     const STORAGE_BASE_URL = `${apiBaseUrl}/storage/`;
     const formatTime = (dateString) =>
@@ -157,9 +165,9 @@ const ConversationBox = ({
             {message.attachments?.length > 0 && (
                 <div
                     className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${message
-                            ? `mt-3 pt-3 border-t ${isSentByMe ? "border-white/20" : "border-gray-200/80"
-                            }`
-                            : ""
+                        ? `mt-3 pt-3 border-t ${isSentByMe ? "border-white/20" : "border-gray-200/80"
+                        }`
+                        : ""
                         }`}
                 >
                     {message.attachments.map((att) => (
@@ -197,8 +205,8 @@ const ConversationBox = ({
                                     <button
                                         onClick={() => toggleDeleteExistingAttachment(att.id)}
                                         className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md transition-all ${isMarkedForDeletion
-                                                ? "bg-green-500 hover:bg-green-600"
-                                                : "bg-red-500 hover:bg-red-600"
+                                            ? "bg-green-500 hover:bg-green-600"
+                                            : "bg-red-500 hover:bg-red-600"
                                             }`}
                                     >
                                         {isMarkedForDeletion ? (
@@ -271,7 +279,10 @@ const ConversationBox = ({
                     </h3>
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4">
+            <div
+                ref={chatContainerRef} // Attached ref here
+                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4"
+            >
                 {isLoading && (
                     <div className="flex justify-center items-center h-full">
                         <Loader className="w-8 h-8 animate-spin text-blue-600" />
@@ -315,8 +326,8 @@ const ConversationBox = ({
                                 </div>
                                 <div
                                     className={`group relative max-w-[85%] sm:max-w-md min-w-[120px] px-4 py-2 sm:px-5 sm:py-3 rounded-2xl shadow-lg ${isSentByMe
-                                            ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-br-md"
-                                            : "bg-white/90 dark:bg-slate-700 text-gray-800 dark:text-slate-200 rounded-bl-md"
+                                        ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-br-md"
+                                        : "bg-white/90 dark:bg-slate-700 text-gray-800 dark:text-slate-200 rounded-bl-md"
                                         }`}
                                 >
                                     {isEditing
@@ -324,8 +335,8 @@ const ConversationBox = ({
                                         : renderMessageContent(message, isSentByMe)}
                                     <p
                                         className={`text-xs mt-2 text-right ${isSentByMe
-                                                ? "text-blue-200"
-                                                : "text-gray-500 dark:text-slate-400"
+                                            ? "text-blue-200"
+                                            : "text-gray-500 dark:text-slate-400"
                                             }`}
                                     >
                                         {formatTime(message.created_at)}

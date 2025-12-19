@@ -376,9 +376,8 @@ const ProjectDetailsPage = () => {
 
       const apiPath = getApiBasePathForRole(`/project`);
       const queryString = params.toString();
-      const apiUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${id}${
-        queryString ? `?${queryString}` : ""
-      }`;
+      const apiUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${id}${queryString ? `?${queryString}` : ""
+        }`;
 
       const response = await fetch(apiUrl, { method: "GET", headers });
 
@@ -390,8 +389,7 @@ const ProjectDetailsPage = () => {
             .json()
             .catch(() => ({ message: "Failed to parse error response." }));
           throw new Error(
-            `Error ${response.status}: ${
-              errorData.message || response.statusText
+            `Error ${response.status}: ${errorData.message || response.statusText
             }`
           );
         }
@@ -580,7 +578,7 @@ const ProjectDetailsPage = () => {
               .catch(() => ({ message: "Server error during deletion." }));
             throw new Error(
               errorData.message ||
-                `Failed to delete task (Status: ${response.status})`
+              `Failed to delete task (Status: ${response.status})`
             );
           }
           toast.success("Project has been deleted.");
@@ -727,39 +725,44 @@ const ProjectDetailsPage = () => {
 
       {/* CHAT SECTION GRID */}
       {canViewChat && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mt-10">
+        <div
+          className={`grid grid-cols-1 gap-8 mt-10 ${currentUserRole !== "customer" ? "xl:grid-cols-2" : ""
+            }`}
+        >
           {/* INTERNAL TEAM CHAT */}
-          <div className="h-[700px] flex flex-col">
-            <h2 className="text-lg font-bold mb-3 text-slate-700 dark:text-slate-200 ml-2 uppercase tracking-wider">
-              Internal Team Chat
-            </h2>
-            <div className="flex-1 relative">
-              <ConversationBox
-                messages={messages}
-                newMessage={newMessage}
-                setNewMessage={setNewMessage}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                onSendMessage={() => handleSendMessage(false)}
-                onUpdateMessage={(mid, txt, files, del) =>
-                  handleUpdateMessage(mid, txt, files, del, false)
-                }
-                onDeleteMessage={(mid) => handleDeleteMessage(mid, false)}
-                isSending={isSending}
-                isLoading={isMessagesLoading}
-                error={messagesError}
-                currentUserId={currentUserId}
-                apiBaseUrl={API_BASE_URL}
-              />
+          {currentUserRole !== "customer" && (
+            <div className="h-[600px] flex flex-col">
+              <h2 className="text-lg font-bold mb-3 text-slate-700 dark:text-slate-200 ml-2 uppercase tracking-wider">
+                Internal Team Chat
+              </h2>
+              <div className="flex-1 relative min-h-0">
+                <ConversationBox
+                  messages={messages}
+                  newMessage={newMessage}
+                  setNewMessage={setNewMessage}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
+                  onSendMessage={() => handleSendMessage(false)}
+                  onUpdateMessage={(mid, txt, files, del) =>
+                    handleUpdateMessage(mid, txt, files, del, false)
+                  }
+                  onDeleteMessage={(mid) => handleDeleteMessage(mid, false)}
+                  isSending={isSending}
+                  isLoading={isMessagesLoading}
+                  error={messagesError}
+                  currentUserId={currentUserId}
+                  apiBaseUrl={API_BASE_URL}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* CUSTOMER COMMUNICATION CHAT */}
-          <div className="h-[700px] flex flex-col">
+          <div className="h-[600px] flex flex-col">
             <h2 className="text-lg font-bold mb-3 text-blue-700 dark:text-blue-400 ml-2 uppercase tracking-wider">
               Customer Communication
             </h2>
-            <div className="flex-1 relative">
+            <div className="flex-1 relative min-h-0">
               <CustomerConversationBox
                 messages={customerMessages}
                 newMessage={customerNewMessage}
