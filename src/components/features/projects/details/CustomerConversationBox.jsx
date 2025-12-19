@@ -280,6 +280,22 @@ const CustomerConversationBox = ({
         </div>
     );
 
+    const getMessageStyle = (isSentByMe, roleId) => {
+        if (isSentByMe) {
+            return "bg-gradient-to-br from-indigo-600 to-blue-700 text-white rounded-br-md";
+        }
+        // Role ID 4 is Customer -> Emerald/Green theme
+        if (roleId === 4) {
+            return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-bl-md";
+        }
+        // Role ID 2 is Admin -> Purple theme
+        if (roleId === 2) {
+            return "bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 border border-purple-200 dark:border-purple-800 rounded-bl-md";
+        }
+        // Default (Employee/Other) -> White/Gray theme
+        return "bg-white/90 dark:bg-slate-700 text-gray-800 dark:text-slate-200 border border-gray-100 dark:border-slate-600 rounded-bl-md";
+    };
+
     return (
         <div className="bg-white/70 dark:bg-slate-800/70 rounded-2xl shadow-2xl border border-blue-200 dark:border-blue-900/30 h-full flex flex-col overflow-hidden">
             <div className="p-4 sm:p-6 bg-blue-50/50 dark:bg-slate-900 flex-shrink-0">
@@ -292,7 +308,7 @@ const CustomerConversationBox = ({
                             <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                                 Customer Chat
                             </h3>
-                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -313,6 +329,8 @@ const CustomerConversationBox = ({
                         const isSentByMe = message.sender_id === currentUserId;
                         const isEditing =
                             editingMessage && editingMessage.id === message.id;
+                        const senderRoleId = message.sender?.user_role;
+
                         return (
                             <div
                                 key={message.id}
@@ -342,10 +360,7 @@ const CustomerConversationBox = ({
                                     )}
                                 </div>
                                 <div
-                                    className={`group relative max-w-[85%] sm:max-w-md min-w-[120px] px-4 py-2 sm:px-5 sm:py-3 rounded-2xl shadow-lg ${isSentByMe
-                                        ? "bg-gradient-to-br from-indigo-600 to-blue-700 text-white rounded-br-md"
-                                        : "bg-white/90 dark:bg-slate-700 text-gray-800 dark:text-slate-200 rounded-bl-md"
-                                        }`}
+                                    className={`group relative max-w-[85%] sm:max-w-md min-w-[120px] px-4 py-2 sm:px-5 sm:py-3 rounded-2xl shadow-lg ${getMessageStyle(isSentByMe, senderRoleId)}`}
                                 >
                                     {isEditing
                                         ? renderEditView()
