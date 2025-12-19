@@ -292,8 +292,7 @@ const CustomerConversationBox = ({
                             <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                                 Customer Chat
                             </h3>
-                            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Visible to Customer</p>
-                        </div>
+                            </div>
                     </div>
                 </div>
             </div>

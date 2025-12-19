@@ -87,12 +87,12 @@ const TaskDetailsPage = () => {
     userRole === "admin" ||
     userRole === "employee" ||
     userRole === "manager" ||
-    userRole === "supervisor"||
+    userRole === "supervisor" ||
     userRole === "executive" ||
     userRole === "customer";
-  
+
   // ++ YAHAN TABDEELI KI GAYI HAI: Nayi condition banayi gayi hai ++
-  const canViewTimeLogs = ["admin", "manager", "supervisor", "customer","executive"].includes(userRole);
+  const canViewTimeLogs = ["admin", "manager", "supervisor", "customer", "executive"].includes(userRole);
 
 
   const apiPrefix = getApiPrefix();
@@ -211,16 +211,16 @@ const TaskDetailsPage = () => {
       navigate,
     ]
   );
-// --- START: REPLACEMENT CODE for your Task Details Page ---
+  // --- START: REPLACEMENT CODE for your Task Details Page ---
 
   useEffect(() => {
     // This part remains the same if you are passing breadcrumbs via location state
     if (location.state?.breadcrumbs) {
       setBreadcrumbs(location.state.breadcrumbs);
-    } 
+    }
     // This is the main logic we are fixing
     else if (parentTaskDetails) {
-      
+
       // Determine the correct "parent" page link for the main project list
       let projectListCrumb = { title: "Jobs", link: "/jobs" }; // Default for customer, admin, etc.
       if (currentUserRole === 'member') {
@@ -237,7 +237,7 @@ const TaskDetailsPage = () => {
         const projectLink = (currentUserRole === 'member')
           ? `/order-details/${jobDetails.id}`
           : `/jobs/${jobDetails.id}`;
-          
+
         newCrumbs.push({ title: jobDetails.project_name, link: projectLink });
       }
 
@@ -268,7 +268,7 @@ const TaskDetailsPage = () => {
     currentUserRole, // Use currentUserRole instead of isCustomer
   ]);
 
-// --- END: REPLACEMENT CODE ---
+  // --- END: REPLACEMENT CODE ---
   const initialFetchAndSetup = async (currentTaskId) => {
     if (!canManageComments) return;
     const authToken = getAuthToken();
@@ -519,17 +519,17 @@ const TaskDetailsPage = () => {
         headers: isFormData
           ? { Authorization: `Bearer ${token}`, Accept: "application/json" }
           : {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-              "Content-Type": "application/json",
-            },
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
         body: isFormData ? payload : JSON.stringify(payload),
       });
       const responseData = await response.json();
       if (!response.ok) {
         throw new Error(
           responseData.message ||
-            `Failed to post comment (status ${response.status})`
+          `Failed to post comment (status ${response.status})`
         );
       }
       if (shouldRefresh) {
@@ -567,7 +567,7 @@ const TaskDetailsPage = () => {
       if (!response.ok) {
         throw new Error(
           responseData.message ||
-            `Failed to update comment (status ${response.status})`
+          `Failed to update comment (status ${response.status})`
         );
       }
       if (shouldRefresh) {
@@ -601,7 +601,7 @@ const TaskDetailsPage = () => {
         const responseData = await response.json().catch(() => ({}));
         throw new Error(
           responseData.message ||
-            `Failed to delete comment (status ${response.status})`
+          `Failed to delete comment (status ${response.status})`
         );
       }
       if (shouldRefresh) {
@@ -633,7 +633,7 @@ const TaskDetailsPage = () => {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.message ||
-            `Error ${response.status}: Could not load replies.`
+          `Error ${response.status}: Could not load replies.`
         );
       }
       const fetchedParentCommentData = await response.json();
@@ -755,7 +755,7 @@ const TaskDetailsPage = () => {
   const currentAssigneeUserIds = currentAssignees
     .map((a) => a?.user?.id)
     .filter((id) => id != null);
-  
+
   const showSidebar = canManageComments || canViewTimeLogs;
   const gridLayoutClass = showSidebar
     ? "grid lg:grid-cols-3 gap-6"
@@ -803,7 +803,7 @@ const TaskDetailsPage = () => {
                 onDescriptionUpdate={
                   canEditTaskDetails
                     ? (newDescription) =>
-                        handleUpdateTaskField("description", newDescription)
+                      handleUpdateTaskField("description", newDescription)
                     : null
                 }
                 isUpdatingField={isUpdatingField}
@@ -831,7 +831,7 @@ const TaskDetailsPage = () => {
 
           {showSidebar && (
             <div className="lg:col-span-1 space-y-6">
-              {canManageComments && (
+              {canManageComments && !isCustomer && (
                 <CommentList
                   comments={comments}
                   newComment={newComment}
@@ -852,15 +852,15 @@ const TaskDetailsPage = () => {
               )}
 
               {canManageComments && (
-                <CustomerCommentList 
-                  taskId={taskId} 
+                <CustomerCommentList
+                  taskId={taskId}
                   currentUserId={currentUserId}
                   handleCommentSubmit={handleCommentSubmit}
                   onEditComment={handleEditComment}
                   onDeleteComment={handleDeleteComment}
                 />
               )}
-            
+
               {canViewTimeLogs && (
                 <TimeLogSummary timeLogs={timeLogs} />
               )}

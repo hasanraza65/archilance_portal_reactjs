@@ -732,9 +732,6 @@ const ProjectDetailsPage = () => {
           {/* INTERNAL TEAM CHAT */}
           {currentUserRole !== "customer" && (
             <div className="h-[600px] flex flex-col">
-              <h2 className="text-lg font-bold mb-3 text-slate-700 dark:text-slate-200 ml-2 uppercase tracking-wider">
-                Internal Team Chat
-              </h2>
               <div className="flex-1 relative min-h-0">
                 <ConversationBox
                   messages={messages}
@@ -759,9 +756,6 @@ const ProjectDetailsPage = () => {
 
           {/* CUSTOMER COMMUNICATION CHAT */}
           <div className="h-[600px] flex flex-col">
-            <h2 className="text-lg font-bold mb-3 text-blue-700 dark:text-blue-400 ml-2 uppercase tracking-wider">
-              Customer Communication
-            </h2>
             <div className="flex-1 relative min-h-0">
               <CustomerConversationBox
                 messages={customerMessages}
