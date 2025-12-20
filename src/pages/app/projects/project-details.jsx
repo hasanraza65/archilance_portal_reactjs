@@ -98,30 +98,35 @@ const ProjectDetailsPage = () => {
   const [customerAttachments, setCustomerAttachments] = useState([]);
   const [isCustomerSending, setIsCustomerSending] = useState(false);
 
-  // Fetch Internal Chat Messages
+  // 1. Fetch Internal Chat Messages
   const fetchMessages = useCallback(async () => {
+    // SECURITY: Agar user "customer" hai to internal chat fetch nahi honi chahiye
+    if (currentUserRole === "customer") {
+      setIsMessagesLoading(false);
+      return;
+    }
+
     const canViewChat = [
-      "admin",
-      "manager",
-      "employee",
-      "outsource",
-      "supervisor",
-      "executive",
-      "customer",
+      "admin", "manager", "employee", "outsource", "supervisor", "executive",
     ].includes(currentUserRole);
+
     if (!canViewChat || !token || !id) {
       setIsMessagesLoading(false);
       return;
     }
+
     const chatApiPath = getApiBasePathForRole("/project-chat");
+    const fullUrl = `${API_BASE_URL}${chatApiPath}/${id}`;
+    
+
     try {
-      const response = await fetch(`${API_BASE_URL}${chatApiPath}/${id}`, {
+      const response = await fetch(fullUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
       });
-      if (!response.ok) throw new Error("Failed to fetch messages.");
+      if (!response.ok) throw new Error("Failed to fetch internal messages.");
       const data = await response.json();
       setMessages(data.chats || []);
       setMessagesError(null);
@@ -132,17 +137,24 @@ const ProjectDetailsPage = () => {
     }
   }, [id, token, currentUserRole, API_BASE_URL]);
 
-  // Fetch Customer Chat Messages
+  // 2. Fetch Customer Chat Messages
   const fetchCustomerMessages = useCallback(async () => {
     if (!token || !id) {
       setIsCustomerMessagesLoading(false);
       return;
     }
 
-    const customerChatApiPath = getApiBasePathForRole(
-      "/project-chat-with-customers"
-    );
-    const customerChatUrl = `${API_BASE_URL}${customerChatApiPath}/${id}`;
+    let customerChatUrl;
+
+    if (currentUserRole === "customer") {
+      // Role Customer: Hits .../api/customer/project-chat/125
+      const apiPath = getApiBasePathForRole("/project-chat");
+      customerChatUrl = `${API_BASE_URL}${apiPath}/${id}`;
+    } else {
+      // Role Admin/Manager: Hits .../backend/project-chat-with-customers/125 (Removing /public check)
+      const cleanBaseUrl = API_BASE_URL.replace(/\/public$/, "").replace(/\/public\/$/, "");
+      customerChatUrl = `${cleanBaseUrl}/project-chat-with-customers/${id}`;
+    }
 
     try {
       const response = await fetch(customerChatUrl, {
@@ -160,40 +172,28 @@ const ProjectDetailsPage = () => {
     } finally {
       setIsCustomerMessagesLoading(false);
     }
-  }, [id, token, API_BASE_URL]);
+  }, [id, token, API_BASE_URL, currentUserRole]);
 
   useEffect(() => {
     const canViewChat = [
-      "admin",
-      "manager",
-      "employee",
-      "outsource",
-      "supervisor",
-      "executive",
-      "customer",
+      "admin", "manager", "employee", "outsource", "supervisor", "executive", "customer",
     ].includes(currentUserRole);
+
     if (canViewChat) {
+      // ACTIONS: Sirf mount par hit hongi APIs.
+      // Auto-polling (setInterval) ko hata diya gaya hai.
       fetchMessages();
       fetchCustomerMessages();
-      const pollInterval = setInterval(() => {
-        fetchMessages();
-        fetchCustomerMessages();
-      }, 20000);
-      return () => clearInterval(pollInterval);
     }
   }, [fetchMessages, fetchCustomerMessages, currentUserRole]);
 
-  // Handle Send Message (Logic same for both, but different endpoints/flags)
+  // Handle Send Message
   const handleSendMessage = async (isCustomerChat = false) => {
     const msgText = isCustomerChat ? customerNewMessage : newMessage;
     const fileList = isCustomerChat ? customerAttachments : attachments;
     const setMsgText = isCustomerChat ? setCustomerNewMessage : setNewMessage;
-    const setFileList = isCustomerChat
-      ? setCustomerAttachments
-      : setAttachments;
-    const setSendingState = isCustomerChat
-      ? setIsCustomerSending
-      : setIsSending;
+    const setFileList = isCustomerChat ? setCustomerAttachments : setAttachments;
+    const setSendingState = isCustomerChat ? setIsCustomerSending : setIsSending;
     const isSendingFlag = isCustomerChat ? isCustomerSending : isSending;
 
     if ((!msgText.trim() && fileList.length === 0) || isSendingFlag) return;
@@ -203,14 +203,12 @@ const ProjectDetailsPage = () => {
     formData.append("project_id", id);
     formData.append("message", msgText.trim());
 
-    // Add allowed_customer=1 for customer communication
     if (isCustomerChat) {
       formData.append("allowed_customer", "1");
     }
 
     fileList.forEach((att) => formData.append("attachments[]", att.file));
 
-    // Send logic uses the standard API path (with /public/api/admin) as requested
     const chatApiPath = getApiBasePathForRole("/project-chat");
     try {
       const response = await fetch(`${API_BASE_URL}${chatApiPath}`, {
@@ -625,35 +623,13 @@ const ProjectDetailsPage = () => {
     return (
       <div className="container mx-auto p-4">
         <div className="text-center p-10 bg-white dark:bg-slate-800 rounded-lg shadow">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              vectorEffect="non-scaling-stroke"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
+          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">
-            Job Not Found
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-            {error ? error : `The job with ID: ${id} could not be found.`}
-          </p>
+          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Job Not Found</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{error ? error : `The job with ID: ${id} could not be found.`}</p>
           <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => navigate("/jobs")}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Go to Jobs
-            </button>
+            <button type="button" onClick={() => navigate("/jobs")} className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Go to Jobs</button>
           </div>
         </div>
       </div>
@@ -661,21 +637,10 @@ const ProjectDetailsPage = () => {
   }
 
   const canViewBriefs = [
-    "admin",
-    "manager",
-    "employee",
-    "outsource",
-    "supervisor",
-    "executive",
+    "admin", "manager", "employee", "outsource", "supervisor", "executive",
   ].includes(currentUserRole);
   const canViewChat = [
-    "admin",
-    "manager",
-    "employee",
-    "outsource",
-    "supervisor",
-    "customer",
-    "executive",
+    "admin", "manager", "employee", "outsource", "supervisor", "customer", "executive",
   ].includes(currentUserRole);
 
   return (
@@ -725,11 +690,9 @@ const ProjectDetailsPage = () => {
 
       {/* CHAT SECTION GRID */}
       {canViewChat && (
-        <div
-          className={`grid grid-cols-1 gap-8 mt-10 ${currentUserRole !== "customer" ? "xl:grid-cols-2" : ""
-            }`}
-        >
-          {/* INTERNAL TEAM CHAT */}
+        <div className={`grid grid-cols-1 gap-8 mt-10 ${currentUserRole !== "customer" ? "xl:grid-cols-2" : ""}`}>
+          
+          {/* INTERNAL TEAM CHAT (Hidden for Customers) */}
           {currentUserRole !== "customer" && (
             <div className="h-[600px] flex flex-col">
               <div className="flex-1 relative min-h-0">
@@ -740,9 +703,7 @@ const ProjectDetailsPage = () => {
                   attachments={attachments}
                   setAttachments={setAttachments}
                   onSendMessage={() => handleSendMessage(false)}
-                  onUpdateMessage={(mid, txt, files, del) =>
-                    handleUpdateMessage(mid, txt, files, del, false)
-                  }
+                  onUpdateMessage={(mid, txt, files, del) => handleUpdateMessage(mid, txt, files, del, false)}
                   onDeleteMessage={(mid) => handleDeleteMessage(mid, false)}
                   isSending={isSending}
                   isLoading={isMessagesLoading}
@@ -764,9 +725,7 @@ const ProjectDetailsPage = () => {
                 attachments={customerAttachments}
                 setAttachments={setCustomerAttachments}
                 onSendMessage={() => handleSendMessage(true)}
-                onUpdateMessage={(mid, txt, files, del) =>
-                  handleUpdateMessage(mid, txt, files, del, true)
-                }
+                onUpdateMessage={(mid, txt, files, del) => handleUpdateMessage(mid, txt, files, del, true)}
                 onDeleteMessage={(mid) => handleDeleteMessage(mid, true)}
                 isSending={isCustomerSending}
                 isLoading={isCustomerMessagesLoading}
@@ -785,6 +744,7 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
+      {/* MODALS SECTION */}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={handleCloseAddTaskModal}
