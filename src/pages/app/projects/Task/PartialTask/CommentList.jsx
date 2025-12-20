@@ -295,6 +295,7 @@ const CommentList = ({
         payload.append("comment_message", "");
         if (replyingToComment)
           payload.append("reply_to", replyingToComment.id.toString());
+        payload.append("allowed_customer", "0");
         payload.append("attachments[]", audioFile, audioFile.name);
         const success = await handleCommentSubmit(payload, true);
         if (success) {
@@ -515,11 +516,16 @@ const CommentList = ({
       payload.append("comment_message", newComment || "");
       if (replyingToComment)
         payload.append("reply_to", replyingToComment.id.toString());
+      payload.append("allowed_customer", "0");
       attachments.forEach((att) =>
         payload.append("attachments[]", att.file, att.file.name)
       );
     } else {
-      payload = { task_id: numTaskId, comment_message: newComment || "" };
+      payload = {
+        task_id: numTaskId,
+        comment_message: newComment || "",
+        allowed_customer: 0,
+      };
       if (replyingToComment) payload.reply_to = replyingToComment.id;
     }
     const success = await handleCommentSubmit(payload, isFormData);
@@ -1326,7 +1332,7 @@ const CommentList = ({
         </p>
       </div>
 
-      <div ref={commentsListRef} className="p-6 space-y-2">
+      <div ref={commentsListRef} className="p-6 space-y-2 h-[300px] overflow-y-auto custom-scrollbar">
         {isLoadingOlderComments && (
           <div className="flex justify-center items-center py-3">
             <svg
