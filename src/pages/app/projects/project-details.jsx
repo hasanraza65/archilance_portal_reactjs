@@ -139,9 +139,14 @@ const ProjectDetailsPage = () => {
       return;
     }
 
-    const customerChatApiPath = getApiBasePathForRole(
-      "/project-chat-with-customers"
-    );
+    // For role map 4 (customer), use /api/customer/project-chat/{id}
+    // For all other roles, use the existing endpoint
+    let customerChatApiPath;
+    if (currentUserRole === "customer") {
+      customerChatApiPath = getApiBasePathForRole("/project-chat");
+    } else {
+      customerChatApiPath = getApiBasePathForRole("/project-chat-with-customers");
+    }
     const customerChatUrl = `${API_BASE_URL}${customerChatApiPath}/${id}`;
 
     try {
@@ -160,7 +165,7 @@ const ProjectDetailsPage = () => {
     } finally {
       setIsCustomerMessagesLoading(false);
     }
-  }, [id, token, API_BASE_URL]);
+  }, [id, token, API_BASE_URL, currentUserRole]);
 
   useEffect(() => {
     const canViewChat = [
