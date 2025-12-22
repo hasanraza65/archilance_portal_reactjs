@@ -19,6 +19,7 @@ import {
   Plus, // Added for Create Button
   X,
 } from "lucide-react";
+import { getApiPrefix, getApiBasePathForRole } from "../utility/apiHelper";
 
 // --- Helper Functions ---
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
@@ -31,6 +32,14 @@ const formatDate = (dateStr) => {
     month: "short",
     day: "numeric",
   });
+};
+
+const getBaseApiUrl = () => {
+  const prefix = getApiPrefix();
+  if (prefix === "admin") {
+    return `${API_BASE_URL}/api/admin/leave-request`;
+  }
+  return `${API_BASE_URL}${getApiBasePathForRole("other-leave-request")}`;
 };
 
 const calculateDuration = (start, end) => {
@@ -161,7 +170,7 @@ const CreateLeaveModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
- 
+
 };
 
 // --- COMPONENT: Employee Detail Modal (Existing) ---
@@ -184,8 +193,9 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
     setIsLoading(true);
     const token = getAuthToken();
     try {
+      const baseUrl = getBaseApiUrl();
       const response = await axios.get(
-        `${API_BASE_URL}/api/admin/leave-request/${request.id}`,
+        `${baseUrl}/${request.id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -380,18 +390,21 @@ const LeaveManagementPage = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false); // New Create Modal State
 
-  const ADMIN_LEAVE_API_URL = `${API_BASE_URL}/api/admin/leave-request`;
+  // const ADMIN_LEAVE_API_URL = `${API_BASE_URL}/api/admin/leave-request`; // REMOVED
 
   const fetchLeaveRequests = useCallback(async () => {
     const token = getAuthToken();
     if (!token) {
-      setError("Authentication failed. Please log in as an admin.");
+      setError("Authentication failed. Please log in as an admin or authorized user.");
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
+
+    const apiUrl = getBaseApiUrl();
+    
     try {
-      const response = await axios.get(ADMIN_LEAVE_API_URL, {
+      const response = await axios.get(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
@@ -409,12 +422,15 @@ const LeaveManagementPage = () => {
       setError(null);
     } catch (err) {
       console.error("Error fetching leave requests:", err);
+      // Fallback message
       setError("Could not fetch leave requests.");
-      toast.error("Failed to load data.");
+      if(err.response?.status !== 401) {
+          toast.error("Failed to load data.");
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [ADMIN_LEAVE_API_URL]);
+  }, []);
 
   useEffect(() => {
     fetchLeaveRequests();
@@ -428,7 +444,8 @@ const LeaveManagementPage = () => {
     formData.append("_method", "put");
 
     try {
-      await axios.post(`${ADMIN_LEAVE_API_URL}/${id}`, formData, {
+      const apiUrl = getBaseApiUrl();
+      await axios.post(`${apiUrl}/${id}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
@@ -455,7 +472,8 @@ const LeaveManagementPage = () => {
       if (result.isConfirmed) {
         const toastId = toast.loading("Deleting request...");
         try {
-          await axios.delete(`${ADMIN_LEAVE_API_URL}/${id}`, {
+          const apiUrl = getBaseApiUrl();
+          await axios.delete(`${apiUrl}/${id}`, {
             headers: {
               Authorization: `Bearer ${token}`,
               Accept: "application/json",

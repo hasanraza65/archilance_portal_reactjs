@@ -206,6 +206,10 @@ const CommentList = ({
     aac: "audio/aac",
     m4a: "audio/m4a",
   };
+  
+  useEffect(() => {
+    initialLoadScrollAttempted.current = false;
+  }, [taskId]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -691,8 +695,12 @@ const CommentList = ({
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
   useEffect(() => {
-    if (!initialLoadScrollAttempted.current && comments.length > 0) {
-      window.scrollTo(0, document.body.scrollHeight);
+    if (
+      !initialLoadScrollAttempted.current &&
+      comments.length > 0 &&
+      commentsListRef.current
+    ) {
+      commentsListRef.current.scrollTop = commentsListRef.current.scrollHeight;
       initialLoadScrollAttempted.current = true;
     }
   }, [comments]);

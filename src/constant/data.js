@@ -73,11 +73,11 @@ export const menuItems = [
     allowedRoles: ["admin", "employee", "outsource", "manager", "supervisor", "executive"],
   },
   {
-    title: "Leaves",
+    title: "Employee Leaves",
     isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "leaves",
-    allowedRoles: ["admin"],
+    allowedRoles: ["admin", "manager", "supervisor", "executive", "member"],
   },
   
   {
