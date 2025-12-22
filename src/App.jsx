@@ -68,6 +68,7 @@ const CustomerView = lazy(() => import("./pages/customers/ViewCustomer"));
 const UpdateCustomer = lazy(() => import("./pages/customers/UpdateCustomer"));
 const ShowEmployee = lazy(() => import("./pages/employees/ShowEmployee"));
 const EditEmployee = lazy(() => import("./pages/employees/UpdateEmployee"));
+const ManageWorkHours = lazy(() => import("./pages/employees/ManageWorkHours"));
 const TaskDetailsPage = lazy(() =>
   import("./pages/app/projects/Task/TaskDetailsPage")
 );
@@ -351,6 +352,17 @@ function App() {
                   allowedRoles={["admin", "manager", "supervisor", "executive"]} // Added executive
                 >
                   <EditEmployee />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/employees/work-hours/:employeeId"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "manager", "supervisor", "executive"]}
+                >
+                  <ManageWorkHours />
                 </ProtectedRoute>
               }
             />

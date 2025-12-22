@@ -169,6 +169,13 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
           >
             <Icon icon="heroicons-outline:eye" className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => navigate(`/employees/work-hours/${row.original.id}`)}
+            className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700 rounded-md transition-all duration-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
+            title="Manage Work Hours"
+          >
+            <Icon icon="heroicons-outline:clock" className="w-4 h-4" />
+          </button>
           {hasPermission && (
             <>
               <button
