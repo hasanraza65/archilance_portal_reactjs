@@ -32,6 +32,10 @@ const TaskDetailsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [taskId]);
+
   const jobId = location.state?.jobId;
   const currentUserRole = getUserRole();
 
