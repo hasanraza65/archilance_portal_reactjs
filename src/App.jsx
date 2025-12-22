@@ -305,7 +305,7 @@ function App() {
             <Route
               path="leaves"
               element={
-                <ProtectedRoute allowedRoles={["admin"]}>
+                <ProtectedRoute allowedRoles={["admin", "manager", "supervisor", "executive", "member"]}>
                   <LeaveManagementPage />
                 </ProtectedRoute>
               }
