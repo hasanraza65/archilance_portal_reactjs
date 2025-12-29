@@ -26,6 +26,7 @@ import TaskAttachments from "./PartialTask/TaskAttachments";
 import EditTaskModal from "./PartialTask/EditTaskModal";
 import TaskBriefsSection from "../TaskBrief/TaskBriefDetail";
 import TimeLogSummary from "./PartialTask/TimeLogSummary";
+import NotesContainer from "@/components/features/notes/NotesContainer";
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
@@ -815,6 +816,14 @@ const TaskDetailsPage = () => {
               />
             </div>
 
+            <div className="mt-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+              <NotesContainer
+                initialNotes={parentTaskDetails?.all_notes || []}
+                parentId={taskId}
+                type="task"
+              />
+            </div>
+            
             <TaskBriefsSection
               briefs={taskBriefs}
               taskId={taskId}

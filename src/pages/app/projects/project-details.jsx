@@ -708,6 +708,7 @@ const ProjectDetailsPage = () => {
             activeStartDate={timeSummaryFilters.start_date}
             activeEndDate={timeSummaryFilters.end_date}
           />
+
         </div>
       </div>
 
