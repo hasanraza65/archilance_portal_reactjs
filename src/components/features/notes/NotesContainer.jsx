@@ -75,7 +75,7 @@ const NotesContainer = ({ initialNotes = [], parentId, type }) => {
     );
 
     try {
-      await notesApi.updateNote(note.id, { status: newStatus });
+      await notesApi.updateNoteStatus(note.id, newStatus);
     } catch (error) {
       setNotes((prev) =>
         prev.map((n) => (n.id === note.id ? { ...n, status: oldStatus } : n))

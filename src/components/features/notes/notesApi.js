@@ -30,10 +30,23 @@ export const notesApi = {
   },
 
   updateNote: async (noteId, data) => {
-    // data can be { status: ... } or { note_text: ... } or both
+    // data can be { note_text: ... }
     const response = await axiosInstance.put(
       `${getBaseUrl()}/${noteId}`,
       data,
+      getConfig()
+    );
+    return response.data;
+  },
+
+  updateNoteStatus: async (noteId, status) => {
+    const prefix = getApiPrefix();
+    const response = await axiosInstance.post(
+      `/${prefix}/update-note-status`,
+      {
+        note_id: noteId,
+        status: status,
+      },
       getConfig()
     );
     return response.data;
