@@ -39,7 +39,7 @@ const NotesContainer = ({ initialNotes = [], parentId, type }) => {
     }
   };
 
-  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed as per "expand and collapse version" request, asking to make it expandable. Or maybe default expanded? Let's default false to keep it clean, or true if items exist. Let's try default false to keep header clean.
+  const [isExpanded, setIsExpanded] = useState(true); // Default collapsed as per "expand and collapse version" request, asking to make it expandable. Or maybe default expanded? Let's default false to keep it clean, or true if items exist. Let's try default false to keep header clean.
   // Actually, user said "make more professional and eexpand and collapse version". usually means toggleable. 
   
   // Update: Let's default to TRUE if there are notes, FALSE if empty? Or just TRUE. 
@@ -115,24 +115,12 @@ const NotesContainer = ({ initialNotes = [], parentId, type }) => {
     <div className="mt-2 transition-all duration-300">
       {/* Header Section */}
       <div 
-        className="flex items-center justify-between py-2 cursor-pointer group"
+        className="flex items-center justify-between py-2 cursor-pointer group mb-2"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-2">
-           <div className={`p-1.5 rounded-md transition-colors ${
-                isExpanded ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "bg-slate-100/50 text-slate-500 group-hover:bg-slate-100 dark:bg-slate-800"
-            }`}>
-              <Icon icon="heroicons:list-bullet" className="w-5 h-5" />
-            </div>
-             <div>
-                 <h3 className="font-semibold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
-                Notes & Checklist
-                 <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                    {stats.completed}/{stats.total}
-                </span>
-                </h3>
-            </div>
-        </div>
+         <h3 className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+            Notes & Checklist
+        </h3>
         
         <Icon 
             icon="heroicons:chevron-down" 
@@ -140,18 +128,12 @@ const NotesContainer = ({ initialNotes = [], parentId, type }) => {
         />
       </div>
 
-      {/* Progress Bar */}
-      <div className={`w-full h-1 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden transition-all duration-300 ${isExpanded ? "opacity-100 mb-4" : "opacity-0 mb-0 h-0"}`}>
-        <div
-            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-            style={{ width: `${stats.percentage}%` }}
-        />
-      </div>
+      {/* Progress Bar - Removed as per reference design which is cleaner */}
 
       {/* Content Section */}
       <div className={`transition-all duration-300 ease-in-out ${isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
         <div className="">
-            <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-1 max-h-[200px] overflow-y-auto px-1 custom-scrollbar">
             {notes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
                 <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-full mb-2">
