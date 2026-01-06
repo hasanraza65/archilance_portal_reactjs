@@ -39,7 +39,7 @@ const NotesContainer = ({ initialNotes = [], parentId, type }) => {
     }
   };
 
-  const [isExpanded, setIsExpanded] = useState(true); // Default collapsed as per "expand and collapse version" request, asking to make it expandable. Or maybe default expanded? Let's default false to keep it clean, or true if items exist. Let's try default false to keep header clean.
+  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed as per "expand and collapse version" request, asking to make it expandable. Or maybe default expanded? Let's default false to keep it clean, or true if items exist. Let's try default false to keep header clean.
   // Actually, user said "make more professional and eexpand and collapse version". usually means toggleable. 
   
   // Update: Let's default to TRUE if there are notes, FALSE if empty? Or just TRUE. 
