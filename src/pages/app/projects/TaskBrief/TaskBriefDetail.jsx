@@ -8,11 +8,19 @@ import EditTaskBriefModal from "./EditTaskBriefModal";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 // Helper functions
-const getAttachmentUrl = (filePath) => {
+const getAttachmentUrl = (filePath, createdAt = null) => {
   const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
   if (!backendBaseUrl || !filePath) return "#";
   const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
   const cleanFilePath = filePath.replace(/^\//, "");
+  
+  const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+  const attachmentCreatedAt = createdAt ? new Date(createdAt) : null;
+  
+  if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+    return `${cleanBaseUrl}/onedrive-image?path=${cleanFilePath}`;
+  }
+  
   return `${cleanBaseUrl}/storage/${cleanFilePath}`;
 };
 
@@ -168,7 +176,7 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
                       {brief.attachments.map((att) => (
                         <a
                           key={att.id}
-                          href={getAttachmentUrl(att.file_path)}
+                          href={getAttachmentUrl(att.file_path, att.created_at)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline text-sm"

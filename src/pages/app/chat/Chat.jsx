@@ -736,11 +736,19 @@ const Chat = () => {
                                 className="pt-1"
                               >
                                 {isImage(att) ? (
-                                  <img
-                                    src={att.url}
-                                    alt={att.file_name}
-                                    className="max-w-[250px] h-auto rounded-md object-cover"
-                                  />
+                                  <a
+                                    href={att.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                    title={`View ${att.file_name || "Image"}`}
+                                  >
+                                    <img
+                                      src={att.url}
+                                      alt={att.file_name}
+                                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded border border-slate-200 shadow-sm bg-slate-100"
+                                    />
+                                  </a>
                                 ) : isAudio(att) ? (
                                   <AudioPlayer src={att.url} />
                                 ) : (

@@ -484,13 +484,53 @@ const CustomerCommentList = ({
                   {commentNode.comment_message}
                 </p>
                 {commentNode.comment_attachments?.map((att) => {
-                  const path = att.file_path.startsWith("http")
-                    ? att.file_path
-                    : `${STORAGE_BASE_PATH}${att.file_path}`;
+                  let path = att.file_path;
+                  if (path && path.startsWith("http")) {
+                    path = att.file_path;
+                  } else if (path) {
+                    const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+                    const normalizedBase = backendBaseUrl.endsWith("/")
+                      ? backendBaseUrl
+                      : backendBaseUrl + "/";
+                    const seg = path.startsWith("/")
+                      ? path.substring(1)
+                      : path;
+                    
+                    const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+                    const attachmentCreatedAt = att.created_at
+                      ? new Date(att.created_at)
+                      : null;
+                    
+                    if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+                      path = normalizedBase + "onedrive-image?path=" + seg;
+                    } else {
+                      path = normalizedBase + "storage/" + seg;
+                    }
+                  }
+                  
+                  const isImageFile = att.file_type?.startsWith("image/") || 
+                    (att.file_name && ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(
+                      att.file_name.split(".").pop().toLowerCase()
+                    ));
+                  
                   return (
                     <div key={att.id} className="mt-1">
                       {isAudio(att) ? (
                         <AudioPlayer src={path} />
+                      ) : isImageFile ? (
+                        <a
+                          href={path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                          title={`View ${att.file_name || "Image"}`}
+                        >
+                          <img
+                            src={path}
+                            alt={att.file_name}
+                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded border border-slate-200 shadow-sm bg-slate-100"
+                          />
+                        </a>
                       ) : (
                         <a
                           href={path}

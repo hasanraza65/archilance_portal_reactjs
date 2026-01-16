@@ -8,6 +8,25 @@ const IMAGE_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
 const getTokenFromCookie = () => Cookies.get("token");
 
+const getAttachmentUrl = (filePath, createdAt = null) => {
+  const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+  const normalizedBase = backendBaseUrl.endsWith("/")
+    ? backendBaseUrl
+    : backendBaseUrl + "/";
+  const seg = filePath.startsWith("/")
+    ? filePath.substring(1)
+    : filePath;
+  
+  const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+  const attachmentCreatedAt = createdAt ? new Date(createdAt) : null;
+  
+  if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+    return normalizedBase + "onedrive-image?path=" + seg;
+  }
+  
+  return normalizedBase + "storage/" + seg;
+};
+
 export const fetchUsers = createAsyncThunk(
   "appchat/fetchUsers",
   async (_, { rejectWithValue }) => {
@@ -68,7 +87,7 @@ export const fetchConversation = createAsyncThunk(
         reactions: msg.reactions || [],
         attachments: (msg.attachments || []).map((att) => ({
           ...att,
-          url: `${IMAGE_BASE_URL}${att.file_path}`,
+          url: getAttachmentUrl(att.file_path, att.created_at),
         })),
         parent: msg.parent || null,
       }));
@@ -114,7 +133,7 @@ export const fetchOlderConversation = createAsyncThunk(
         reactions: msg.reactions || [],
         attachments: (msg.attachments || []).map((att) => ({
           ...att,
-          url: `${IMAGE_BASE_URL}${att.file_path}`,
+          url: getAttachmentUrl(att.file_path, att.created_at),
         })),
         parent: msg.parent || null,
       }));
@@ -170,7 +189,7 @@ export const sendMessageToServer = createAsyncThunk(
       const formattedAttachments = (newMessage.attachments || []).map(
         (att) => ({
           ...att,
-          url: `${IMAGE_BASE_URL}${att.file_path}`,
+          url: getAttachmentUrl(att.file_path, att.created_at),
         })
       );
 
@@ -395,7 +414,7 @@ export const appChatSlice = createSlice({
         newMessage.sender_id == state.user.id
       ) {
         const formattedAttachments = (newMessage.attachments || []).map(
-          (att) => ({ ...att, url: `${IMAGE_BASE_URL}${att.file_path}` })
+          (att) => ({ ...att, url: getAttachmentUrl(att.file_path, att.created_at) })
         );
         const formattedMessage = {
           id: newMessage.id || `socket-${Date.now()}`,

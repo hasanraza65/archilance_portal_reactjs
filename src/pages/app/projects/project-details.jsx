@@ -419,7 +419,7 @@ const ProjectDetailsPage = () => {
             ),
             attachments: (brief.attachments || []).map((att) => ({
               ...att,
-              url: getAttachmentUrl(att.file_path),
+              url: getAttachmentUrl(att.file_path, att.created_at),
             })),
           }))
         );
