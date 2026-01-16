@@ -21,6 +21,14 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [briefToEdit, setBriefToEdit] = useState(null);
 
+  const handleOpenAddModal = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setIsAddModalOpen(true);
+  };
+
   const handleOpenEditModal = (brief) => {
     setBriefToEdit(brief);
     setIsEditModalOpen(true);
@@ -97,8 +105,14 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
             )}
           </div>
           <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-sm flex items-center space-x-2"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOpenAddModal(e);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-sm flex items-center space-x-2 transition-colors cursor-pointer relative z-10"
+            style={{ pointerEvents: 'auto' }}
           >
             <svg
               className="w-4 h-4"
