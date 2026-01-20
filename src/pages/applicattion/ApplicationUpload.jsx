@@ -3,7 +3,7 @@ import React from "react";
 const versions = [
   {
   id: 1,
-  version: "2.0.8",
+  version: "2.0.9",
   releaseDate: "January 21, 2026",
   url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.9.exe",
   releaseNotes: [
