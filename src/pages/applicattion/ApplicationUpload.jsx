@@ -2,7 +2,18 @@ import React from "react";
 
 const versions = [
   {
-    id: 1,
+  id: 1,
+  version: "2.0.8",
+  releaseDate: "January 21, 2026",
+  url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.9.exe",
+  releaseNotes: [
+    "Version upgraded with overall performance improvements.",
+    "Multiple issues and bugs from previous versions have been fixed.",
+    "Application stability and efficiency have been enhanced."
+  ],
+},
+  {
+    id: 2,
     version: "2.0.8",
     releaseDate: "December 25, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.8.exe",
@@ -13,7 +24,7 @@ const versions = [
     ],
   },
   {
-    id: 2,
+    id: 3,
     version: "2.0.7",
     releaseDate: "December 04, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.7.exe",
@@ -24,7 +35,7 @@ const versions = [
     ],
   },
   {
-    id: 3,
+    id: 4,
     version: "2.0.6",
     releaseDate: "November 19, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.6.exe",
@@ -35,7 +46,7 @@ const versions = [
     ],
   },
   {
-    id: 4,
+    id: 5,
     version: "2.0.5",
     releaseDate: "November 09, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.5.exe",
@@ -46,7 +57,7 @@ const versions = [
     ],
   },
   {
-    id: 5,
+    id: 6,
     version: "2.0.4",
     releaseDate: "November 06, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe",
