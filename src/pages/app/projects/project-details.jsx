@@ -727,6 +727,13 @@ const ProjectDetailsPage = () => {
         isManagerOrAdmin={isManagerOrAdmin}
         id={id}
         projectDetails={projectDetails}
+        onStatusUpdate={(taskId, newStatus) => {
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === taskId ? { ...t, task_status: newStatus } : t
+            )
+          );
+        }}
       />
 
       {/* CHAT SECTION GRID */}

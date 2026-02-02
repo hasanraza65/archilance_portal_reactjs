@@ -8,6 +8,8 @@ import {
 } from "./utils";
 import { useNavigate } from "react-router-dom";
 
+import EditableTaskStatus from "@/pages/app/projects/EditableTaskStatus";
+
 const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
 
 const ProjectTasks = ({
@@ -25,6 +27,7 @@ const ProjectTasks = ({
     isManagerOrAdmin,
     id,
     projectDetails,
+    onStatusUpdate,
 }) => {
     const navigate = useNavigate();
 
@@ -107,8 +110,8 @@ const ProjectTasks = ({
                                 type="button"
                                 onClick={() => setTasksViewMode("grid")}
                                 className={`py-2 px-4 text-sm font-medium ${tasksViewMode === "grid"
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white text-gray-900"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-white text-gray-900"
                                     } rounded-l-lg border border-gray-200 hover:bg-gray-100`}
                             >
                                 Grid
@@ -117,8 +120,8 @@ const ProjectTasks = ({
                                 type="button"
                                 onClick={() => setTasksViewMode("list")}
                                 className={`py-2 px-4 text-sm font-medium ${tasksViewMode === "list"
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white text-gray-900"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-white text-gray-900"
                                     } rounded-r-md border border-gray-200 hover:bg-gray-100`}
                             >
                                 List
@@ -207,6 +210,9 @@ const ProjectTasks = ({
                                                     Name
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-2/12">
+                                                    Status
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-2/12">
                                                     Assignees
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-2/12">
@@ -242,6 +248,17 @@ const ProjectTasks = ({
                                                             <span className="text-slate-900 dark:text-slate-100 truncate">
                                                                 {task.task_title || "N/A"}
                                                             </span>
+                                                        </td>
+                                                        <td
+                                                            data-label="Status"
+                                                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
+                                                        >
+                                                            <EditableTaskStatus
+                                                                taskId={task.id}
+                                                                currentStatus={task.task_status}
+                                                                onStatusUpdate={onStatusUpdate}
+                                                                isEditable={true}
+                                                            />
                                                         </td>
                                                         <td
                                                             data-label="Assignees"
@@ -418,7 +435,12 @@ const ProjectTasks = ({
                                         {task.task_title || "N/A"}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap">
-                                        <StatusBadge status={task.task_status} />
+                                        <EditableTaskStatus
+                                            taskId={task.id}
+                                            currentStatus={task.task_status}
+                                            onStatusUpdate={onStatusUpdate}
+                                            isEditable={true}
+                                        />
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap">
                                         {mappedTaskAssignees.length > 0 ? (
