@@ -60,23 +60,16 @@ const getStatusSelectedBarColor = (status) => {
       return "bg-gray-500";
   }
 };
-const getApiBasePathForRole = (basePath) => {
-  const role = getApiPrefix();
-  const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  console.log(role);
-  if (role) {
-    return `/api/${role}${cleanBasePath}`;
-  }
-  return `/api/admin${cleanBasePath}`;
-};
+import { useDispatch } from "react-redux";
+import { updateProjectStatusAPI } from "./store";
+
 const EditableProjectStatus = ({
   projectId,
   currentStatus,
   onStatusUpdate,
   isEditable,
-
-  token,
 }) => {
+  const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const buttonRef = useRef(null);
@@ -134,31 +127,10 @@ const EditableProjectStatus = ({
     setIsSaving(true);
     setIsOpen(false);
 
-    const formData = new FormData();
-    formData.append("project_id", projectId);
-    formData.append("status", newStatus);
-    //update-project-status
     try {
-      const apiBaseUrl = getApiBasePathForRole("/update-project-status");
-      const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiBaseUrl}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-          body: formData,
-        }
-      );
-      const responseData = await response.json();
-      if (!response.ok)
-        throw new Error(responseData.message || "Failed to update.");
-
-      toast.success(responseData.message || "Status updated!");
-      onStatusUpdate();
+      await dispatch(updateProjectStatusAPI({ projectId, status: newStatus })).unwrap();
     } catch (error) {
-      toast.error(error.message || "An error occurred.");
+      // Toast is already handled in the thunk
     } finally {
       setIsSaving(false);
     }
@@ -193,9 +165,8 @@ const EditableProjectStatus = ({
           >
             {displayStatus.toUpperCase()}
             <svg
-              className={`w-3 h-3 sm:w-4 sm:h-4 ml-1.5 sm:ml-2 transform transition-transform duration-200 ${
-                isOpen ? "rotate-180" : ""
-              }`}
+              className={`w-3 h-3 sm:w-4 sm:h-4 ml-1.5 sm:ml-2 transform transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+                }`}
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -222,11 +193,10 @@ const EditableProjectStatus = ({
                   <button
                     key={option}
                     onClick={() => handleSelectOption(option)}
-                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center relative ${
-                      displayStatus === option
+                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center relative ${displayStatus === option
                         ? "font-semibold text-blue-600 dark:text-blue-400"
                         : "text-slate-700 dark:text-slate-300"
-                    }`}
+                      }`}
                   >
                     {displayStatus === option && (
                       <span

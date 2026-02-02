@@ -280,9 +280,11 @@ export const updateProjectAssigneesAPI = createAsyncThunk(
   }
 );
 
+// ... existing code ...
 export const updateProjectFieldAPI = createAsyncThunk(
   "project/updateField",
   async ({ projectId, field, value }, { rejectWithValue }) => {
+    // ... existing code ...
     try {
       const token = Cookies.get("token");
       if (!token) return rejectWithValue("Authentication token not found.");
@@ -314,6 +316,52 @@ export const updateProjectFieldAPI = createAsyncThunk(
         error.response?.data?.message || error.message || "An error occurred.";
       toast.error(errorMessage);
       return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const updateProjectStatusAPI = createAsyncThunk(
+  "project/updateProjectStatus",
+  async ({ projectId, status }, { rejectWithValue }) => {
+    try {
+      const token = Cookies.get("token");
+      if (!token) return rejectWithValue("Authentication token not found.");
+
+      const role = getApiPrefix();
+      // Ensure we have a valid role-based path
+      const apiPath = role ? `/${role}/update-project-status` : `/admin/update-project-status`;
+       
+      const formData = new FormData();
+      formData.append("project_id", projectId);
+      formData.append("status", status);
+
+      const response = await axios.post(
+        `${API_ROOT}${apiPath}`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+     if (response.status === 200 || response.status === 201) {
+          toast.success("Status updated!");
+          return { projectId, status };
+      } else {
+           const errorMsg = response.data?.message || "Failed to update status.";
+           toast.error(errorMsg);
+           return rejectWithValue(errorMsg);
+      }
+
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "An error occurred while updating status.";
+      toast.error(errorMessage);
+        return rejectWithValue(errorMessage);
     }
   }
 );
@@ -446,6 +494,29 @@ export const appProjectSlice = createSlice({
           state.projects[newStatus] = [];
         }
         state.projects[newStatus].unshift(updatedProject);
+      })
+      .addCase(updateProjectStatusAPI.fulfilled, (state, action) => {
+        const { projectId, status: newStatus } = action.payload;
+        let projectToUpdate = null;
+
+        // Find and remove the project from its old status
+        for (const status in state.projects) {
+            const index = state.projects[status].findIndex(p => p.id === projectId);
+            if (index !== -1) {
+                projectToUpdate = { ...state.projects[status][index] };
+                state.projects[status].splice(index, 1);
+                break;
+            }
+        }
+
+        // Add to the new status
+        if (projectToUpdate) {
+            projectToUpdate.status = newStatus;
+             if (!state.projects[newStatus]) {
+                state.projects[newStatus] = [];
+            }
+            state.projects[newStatus].unshift(projectToUpdate);
+        }
       });
   },
 });
