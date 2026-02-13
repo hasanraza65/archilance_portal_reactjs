@@ -3,13 +3,13 @@ import React from "react";
 const versions = [
   {
   id: 1,
-  version: "2.0.9",
+  version: "3.0.0",
   releaseDate: "January 21, 2026",
-  url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.9.exe",
+  url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.0.exe",
   releaseNotes: [
     "Version upgraded with overall performance improvements.",
     "Multiple issues and bugs from previous versions have been fixed.",
-    "Application stability and efficiency have been enhanced."
+    "Added Dark Mode support."
   ],
 },
   {
