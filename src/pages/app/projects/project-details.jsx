@@ -5,6 +5,7 @@ import AddTaskModal from "../projects/Task/PartialTask/AddSubTaskModal";
 import EditTaskModal from "../projects/Task/PartialTask/EditTaskModal";
 import AddBriefModal from "./Brief-task/AddBriefModel";
 import EditBriefModal from "./Brief-task/EditBriefModel";
+import ProjectBriefsSection from "./Brief-task/ProjectBriefsSection";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import DOMPurify from "dompurify";
@@ -737,6 +738,16 @@ const ProjectDetailsPage = () => {
       />
 
       {/* CHAT SECTION GRID */}
+      {projectDetails && canViewBriefs && (
+        <ProjectBriefsSection
+          briefs={briefs}
+          projectId={id}
+          onBriefsUpdated={fetchProjectData}
+          onEditBrief={handleOpenEditBriefModal}
+          onAddBrief={handleOpenAddBriefModal}
+        />
+      )}
+
       {canViewChat && (
         <div
           className={`grid grid-cols-1 gap-8 mt-10 ${currentUserRole !== "customer" ? "xl:grid-cols-2" : ""
@@ -792,11 +803,6 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
-      {projectDetails && canViewBriefs && briefs.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden mt-10">
-          {/* Briefs section can go here */}
-        </div>
-      )}
 
       <AddTaskModal
         isOpen={isAddTaskModalOpen}

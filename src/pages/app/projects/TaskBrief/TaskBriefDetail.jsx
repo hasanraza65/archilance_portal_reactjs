@@ -7,21 +7,65 @@ import AddTaskBriefModal from "./AddTaskBriefModal";
 import EditTaskBriefModal from "./EditTaskBriefModal";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
-// Helper functions
 const getAttachmentUrl = (filePath, createdAt = null) => {
   const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
   if (!backendBaseUrl || !filePath) return "#";
   const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
   const cleanFilePath = filePath.replace(/^\//, "");
-  
+
   const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
   const attachmentCreatedAt = createdAt ? new Date(createdAt) : null;
-  
+
   if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
     return `${cleanBaseUrl}/onedrive-image?path=${cleanFilePath}`;
   }
-  
+
   return `${cleanBaseUrl}/storage/${cleanFilePath}`;
+};
+
+const getMimeTypeFromFileExtension = (fileName) => {
+  if (typeof fileName !== "string") return "application/octet-stream";
+  const extension = fileName.split(".").pop()?.toLowerCase();
+  if (!extension) return "application/octet-stream";
+
+  const mimeTypes = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    txt: "text/plain",
+    csv: "text/csv",
+  };
+  return mimeTypes[extension] || "application/octet-stream";
+};
+
+const getFileIcon = (fileType) => {
+  const iconClasses = "w-4 h-4";
+  if (fileType?.startsWith("image/")) {
+    return (
+      <svg className={`${iconClasses} text-green-500`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    );
+  } else if (fileType === "application/pdf") {
+    return (
+      <svg className={`${iconClasses} text-red-500`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={`${iconClasses} text-blue-500`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
 };
 
 const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
@@ -87,12 +131,12 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50/50">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden mb-6">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-700/50">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
               <svg
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-blue-600 dark:text-blue-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -105,9 +149,9 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
                 ></path>
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-slate-800">Project Briefs</h2>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Project Briefs</h2>
             {briefs && briefs.length > 0 && (
-              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">
                 {briefs.length} {briefs.length === 1 ? "Brief" : "Briefs"}
               </span>
             )}
@@ -140,18 +184,18 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
         </div>
 
         {briefs && briefs.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
             {briefs.map((brief) => (
               <div
                 key={brief.id}
-                className="grid grid-cols-12 gap-4 p-6 items-start"
+                className="grid grid-cols-12 gap-4 p-6 items-start hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
               >
                 <div className="col-span-12 md:col-span-5">
-                  <p className="font-semibold text-slate-500 text-xs uppercase mb-1">
+                  <p className="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase mb-2">
                     Description
                   </p>
                   <div
-                    className="prose prose-sm max-w-none"
+                    className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
                     dangerouslySetInnerHTML={{
                       __html: DOMPurify.sanitize(
                         brief.brief_description || "No description"
@@ -160,69 +204,85 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
                   />
                 </div>
                 <div className="col-span-6 md:col-span-2">
-                  <p className="font-semibold text-slate-500 text-xs uppercase mb-1">
+                  <p className="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase mb-2">
                     Date
                   </p>
-                  <p className="text-slate-700">
-                    {new Date(brief.brief_date).toLocaleDateString()}
+                  <p className="text-slate-700 dark:text-slate-300 text-sm">
+                    {new Date(brief.brief_date).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
                   </p>
                 </div>
-                <div className="col-span-6 md:col-span-3">
-                  <p className="font-semibold text-slate-500 text-xs uppercase mb-1">
+                <div className="col-span-12 md:col-span-3">
+                  <p className="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase mb-2">
                     Attachments
                   </p>
                   {brief.attachments && brief.attachments.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {brief.attachments.map((att) => (
-                        <a
-                          key={att.id}
-                          href={getAttachmentUrl(att.file_path, att.created_at)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          {att.file_name}
-                        </a>
-                      ))}
+                    <div className="flex flex-col gap-2">
+                      {brief.attachments.map((att) => {
+                        const mimeType = getMimeTypeFromFileExtension(att.file_name);
+                        return (
+                          <a
+                            key={att.id}
+                            href={getAttachmentUrl(att.file_path, att.created_at)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 group transition-all"
+                            title={att.file_name}
+                          >
+                            <div className="flex-shrink-0">
+                              {getFileIcon(mimeType)}
+                            </div>
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate max-w-[150px]">
+                              {att.file_name}
+                            </span>
+                          </a>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <p className="text-slate-500 text-sm">No attachments</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs italic">No attachments</p>
                   )}
                 </div>
                 <div className="col-span-12 md:col-span-2 flex items-center justify-end space-x-2">
                   <button
                     onClick={() => handleOpenEditModal(brief)}
                     title="Edit Brief"
-                    className="p-2 text-slate-500 hover:bg-slate-200 rounded-full transition-colors"
+                    className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                   >
                     <svg
                       className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path>
                       <path
-                        fillRule="evenodd"
-                        d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
-                        clipRule="evenodd"
-                      ></path>
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                      />
                     </svg>
                   </button>
                   <button
                     onClick={() => handleDeleteBrief(brief.id)}
                     title="Delete Brief"
-                    className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors"
+                    className="p-2 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                   >
                     <svg
                       className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
                       <path
-                        fillRule="evenodd"
-                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                        clipRule="evenodd"
-                      ></path>
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -231,8 +291,8 @@ const TaskBriefsSection = ({ briefs, taskId, onBriefsUpdated }) => {
           </div>
         ) : (
           <div className="p-12 text-center">
-            <p className="text-slate-500">
-              No briefs have been added to this task yet.
+            <p className="text-slate-500 dark:text-slate-400 italic">
+              No briefs have been added to this job yet.
             </p>
           </div>
         )}
