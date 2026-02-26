@@ -35,7 +35,7 @@ const EmployeeDashboard = () => {
   const LEAVE_API_ENDPOINT = `${API_BASE_URL}/api/employee/leave-request`;
 
   // --- API Functions ---
-  const fetchLeaveData = useCallback(async () => {
+  const fetchLeaveData = useCallback(async (silent = false) => {
     const token = getAuthToken();
     if (!token) {
       setError("Authentication token not found. Please log in.");
@@ -43,7 +43,7 @@ const EmployeeDashboard = () => {
       return;
     }
 
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     setError(null);
 
     try {
@@ -71,74 +71,25 @@ const EmployeeDashboard = () => {
       );
     } catch (err) {
       console.error("Error fetching leave data:", err);
-      setError("Failed to fetch leave data. Please try again later.");
+      if (!silent) setError("Failed to fetch leave data. Please try again later.");
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [LEAVE_API_ENDPOINT]);
 
   useEffect(() => {
     fetchLeaveData();
+
+    // Set up polling to refresh data every 30 seconds silently
+    const intervalId = setInterval(() => {
+      fetchLeaveData(true);
+    }, 30000);
+
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
   }, [fetchLeaveData]);
 
-  // Handles both Create and Update operations
-  const handleFormSubmit = async (leaveData) => {
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("Authentication error. Please log in again.");
-      throw new Error("No auth token");
-    }
-
-    const isEditing = !!editingLeave;
-    const url = isEditing
-      ? `${LEAVE_API_ENDPOINT}/${editingLeave.id}`
-      : LEAVE_API_ENDPOINT;
-
-    const formData = new FormData();
-    formData.append("start_date", leaveData.startDate);
-    formData.append("end_date", leaveData.endDate);
-    formData.append("reason", leaveData.reason);
-
-    // --- MODIFICATION START ---
-    // Send leave type in lowercase as per the new requirement
-    const formattedLeaveType = leaveData.leaveType.toLowerCase();
-    formData.append("leave_type", formattedLeaveType);
-    // --- MODIFICATION END ---
-
-    if (isEditing) {
-      formData.append("_method", "put");
-    }
-
-    const toastId = toast.loading(
-      isEditing ? "Updating request..." : "Submitting request..."
-    );
-
-    try {
-      const response = await axios.post(url, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
-
-      toast.success(response.data.message || "Request successful!", {
-        id: toastId,
-      });
-
-      handleCloseForm();
-      await fetchLeaveData();
-    } catch (err) {
-      let errorMessage = "Request failed. Please try again.";
-      if (err.response && err.response.status === 422) {
-        const firstError = Object.values(err.response.data.errors)[0][0];
-        errorMessage = firstError || "Please check the form for errors.";
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
-      toast.error(errorMessage, { id: toastId });
-      throw err;
-    }
-  };
+  // Handles both Create and Update operations - REMOVED AS IT IS HANDLED IN LeaveApplicationForm
 
   // Handles deleting a leave request
   const handleDeleteRequest = async (id) => {
@@ -168,7 +119,7 @@ const EmployeeDashboard = () => {
           });
 
           toast.success("Leave request deleted successfully.", { id: toastId });
-          await fetchLeaveData();
+          await fetchLeaveData(true);
         } catch (err) {
           console.error("Error deleting request:", err);
           toast.error("Failed to delete request.", { id: toastId });
@@ -207,7 +158,7 @@ const EmployeeDashboard = () => {
         leaveTypesCount={leaveTypesCount}
         isLoading={isLoading}
         error={error}
-        onRefresh={fetchLeaveData}
+        onRefresh={() => fetchLeaveData(false)} // Explicitly show loader on manual refresh
         onEdit={handleEditClick}
         onDelete={handleDeleteRequest}
         isFormVisible={isFormVisible}
@@ -215,7 +166,7 @@ const EmployeeDashboard = () => {
         editingLeaveId={editingLeave?.id}
       >
         <LeaveApplicationForm
-          onSubmit={handleFormSubmit}
+          onSuccess={() => fetchLeaveData(true)}
           initialData={editingLeave}
           onClose={handleCloseForm}
         />
