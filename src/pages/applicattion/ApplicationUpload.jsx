@@ -3,29 +3,41 @@ import React from "react";
 
 const versions = [
   {
-  id: 1,
-  version: "3.0.1",
-  releaseDate: "March 03, 2026",
-  url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.1.exe",
-  releaseNotes: [
-    "Version upgraded with overall performance improvements.",
-    "Multiple issues and bugs from previous versions have been fixed.",
+    id: 1,
+    version: "3.0.2",
+    releaseDate: "March 11, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.2.exe",
+    releaseNotes: [
+      "Version upgraded with overall performance improvements.",
+      "Multiple issues and bugs from previous versions have been fixed.",
       "Improved app stability and responsiveness.",
-  ],
-},
-   {
-  id: 2,
-  version: "3.0.0",
-  releaseDate: "January 21, 2026",
-  url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.0.exe",
-  releaseNotes: [
-    "Version upgraded with overall performance improvements.",
-    "Multiple issues and bugs from previous versions have been fixed.",
-    "Added Dark Mode support."
-  ],
-},
+      "We've blurred WhatsApp screenshots to enhance privacy.",
+    ],
+  },
+  {
+    id: 2,
+    version: "3.0.1",
+    releaseDate: "March 03, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.1.exe",
+    releaseNotes: [
+      "Version upgraded with overall performance improvements.",
+      "Multiple issues and bugs from previous versions have been fixed.",
+      "Improved app stability and responsiveness.",
+    ],
+  },
   {
     id: 3,
+    version: "3.0.0",
+    releaseDate: "January 21, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.0.exe",
+    releaseNotes: [
+      "Version upgraded with overall performance improvements.",
+      "Multiple issues and bugs from previous versions have been fixed.",
+      "Added Dark Mode support.",
+    ],
+  },
+  {
+    id: 4,
     version: "2.0.8",
     releaseDate: "December 25, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.8.exe",
@@ -36,7 +48,7 @@ const versions = [
     ],
   },
   {
-    id: 4,
+    id: 5,
     version: "2.0.7",
     releaseDate: "December 04, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.7.exe",
@@ -47,7 +59,7 @@ const versions = [
     ],
   },
   {
-    id: 5,
+    id: 6,
     version: "2.0.6",
     releaseDate: "November 19, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.6.exe",
@@ -58,7 +70,7 @@ const versions = [
     ],
   },
   {
-    id: 6,
+    id: 7,
     version: "2.0.5",
     releaseDate: "November 09, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.5.exe",
@@ -69,7 +81,7 @@ const versions = [
     ],
   },
   {
-    id: 7,
+    id: 8,
     version: "2.0.4",
     releaseDate: "November 06, 2025",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe",
@@ -77,7 +89,7 @@ const versions = [
       "New user interface design.",
       "Performance improvements for large projects.",
     ],
-  }, 
+  },
 ];
 
 
