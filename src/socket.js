@@ -8,7 +8,7 @@ import {
   updateContactLastMessage
 } from './pages/app/chat/store';
 
-const SOCKET_URL = "https://chat.aentora.com";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://chat.aentora.com";
 let socket;
 
 export const connectSocket = (dispatch, userId) => {
@@ -27,7 +27,7 @@ export const connectSocket = (dispatch, userId) => {
     socket.on('chat-message', (data) => {
       dispatch(addLiveMessage(data));
       dispatch(updateContactLastMessage(data));
-      console.log(object`%c[SOCKET] Received "chat-message":`, 'color: blue;', data);
+      console.log('%c[SOCKET] Received "chat-message":', 'color: blue;', data);
     });
 
     socket.on('message-deleted', (data) => {
@@ -43,6 +43,7 @@ export const connectSocket = (dispatch, userId) => {
       console.log('socket testing', data);
       dispatch(liveUpdateReaction(data));
     });
+
   }
 };
 

@@ -11,6 +11,7 @@ import {
   getApiBasePathForRole,
 } from "@/pages/utility/apiHelper";
 import Cookies from "js-cookie";
+import { getSocket } from "@/socket";
 
 const STORAGE_BASE_PATH = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
@@ -207,6 +208,57 @@ const CustomerCommentList = ({
     };
   }, [taskId]);
 
+  // WebSocket listeners for real-time customer comment updates
+  useEffect(() => {
+    const socket = getSocket();
+    if (socket && taskId) {
+      const handleCommentAdded = (data) => {
+        // Only handle if it's for this task and it's a customer comment
+        if (String(data.task_id) === String(taskId) && data.allowed_customer === 1) {
+          setComments((prev) => {
+            if (prev.find((c) => c.id === data.id)) return prev;
+            return [...prev, data];
+          });
+          setTotalComments((prev) => prev + 1);
+          // Scroll to bottom
+          setTimeout(() => {
+            if (commentsListRef.current) {
+              commentsListRef.current.scrollTop = commentsListRef.current.scrollHeight;
+            }
+          }, 300);
+        }
+      };
+
+      const handleCommentUpdated = (data) => {
+        if (String(data.task_id) === String(taskId) && data.allowed_customer === 1) {
+          setComments((prev) =>
+            prev.map((c) => (c.id === data.id ? { ...c, ...data } : c))
+          );
+        }
+      };
+
+      const handleCommentDeleted = (data) => {
+        const deletedId = data.id || data;
+        setComments((prev) => prev.filter((c) => c.id !== deletedId));
+        setTotalComments((prev) => Math.max(0, prev - 1));
+      };
+
+      socket.on("comment-added", handleCommentAdded);
+      socket.on("comment-updated", handleCommentUpdated);
+      socket.on("comment-deleted", handleCommentDeleted);
+      socket.on("comment-replied", handleCommentAdded); // Customer chat usually treats replies as messages or same list
+      socket.on("comment-reacted", handleCommentUpdated);
+
+      return () => {
+        socket.off("comment-added", handleCommentAdded);
+        socket.off("comment-updated", handleCommentUpdated);
+        socket.off("comment-deleted", handleCommentDeleted);
+        socket.off("comment-replied", handleCommentAdded);
+        socket.off("comment-reacted", handleCommentUpdated);
+      };
+    }
+  }, [taskId]);
+
   // Stable Polling (No Loop)
   useEffect(() => {
     let timeoutId;
@@ -268,6 +320,18 @@ const CustomerCommentList = ({
           commentsListRef.current.scrollTop =
             commentsListRef.current.scrollHeight;
       }, 300);
+
+      // Emit socket event
+      const socket = getSocket();
+      if (socket) {
+        // We typically get the new comment in 'success' logic if fetchComments() is called, 
+        // but here we might need to find the latest comment or the responseData from handleCommentSubmit
+        // Since handleCommentSubmit returns success (bool), we rely on fetchComments to update state,
+        // but for real-time we should ideally emit the new data.
+        // However, since we just called fetchComments(), we can emit a simple notification or the data if available.
+        // For simplicity, let's assume we want to trigger a refresh for others.
+        socket.emit("comment-added", { task_id: taskId, allowed_customer: 1 });
+      }
     }
     setIsSubmittingComment(false);
   };
