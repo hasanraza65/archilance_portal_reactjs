@@ -349,6 +349,7 @@ const Allemployees = () => {
         return;
       }
 
+      console.log("Raw API Data (from /employee-user):", rawData);
       setEmployeeData(rawData);
     } catch (err) {
       setFetchError(
@@ -377,25 +378,38 @@ const Allemployees = () => {
 
     let roleFilteredData = [];
 
-    if (currentUserRole === "admin") {
-      roleFilteredData = employeeData;
-    } else if (currentUserType === "manager" || currentUserType === "executive") {
-      roleFilteredData = employeeData.filter((emp) => {
-        const empType = emp.employee_type?.toLowerCase();
-        return (
+    console.log("Current User Role:", currentUserRole);
+    console.log("Current User Type:", currentUserType);
+
+    const isExecutive = currentUserType === "executive";
+
+    roleFilteredData = employeeData.filter((emp) => {
+      const empType = emp.employee_type?.toLowerCase().trim();
+      let keep = false;
+
+      if (currentUserRole === "admin") {
+        keep = true;
+      } else if (currentUserType === "manager" || currentUserType === "executive") {
+        keep =
+          (isExecutive && empType === "manager") ||
           empType === "supervisor" ||
           empType === "employee" ||
-          !emp.employee_type
-        );
-      });
-    } else if (currentUserType === "supervisor") {
-      roleFilteredData = employeeData.filter((emp) => {
-        const empType = emp.employee_type?.toLowerCase();
-        return empType === "employee" || !emp.employee_type;
-      });
-    } else if (currentUserType === "employee") {
-      roleFilteredData = employeeData.filter((emp) => emp.id === currentUserId);
-    }
+          !emp.employee_type;
+      } else if (currentUserType === "supervisor") {
+        keep = empType === "employee" || !emp.employee_type;
+      } else if (currentUserType === "employee") {
+        keep = emp.id === currentUserId;
+      }
+
+      // Detailed log for debugging specific IDs like 22 or 24
+      if (emp.id === 22 || emp.id === 24 || empType === "manager") {
+         console.log(`Checking Emp ID ${emp.id} (${emp.name}): Type="${emp.employee_type}", empType="${empType}", Keep=${keep}`);
+      }
+
+      return keep;
+    });
+
+    console.log("Filtered Data Results Count:", roleFilteredData.length);
 
     if (statusFilter === "all" || statusFilter === "") {
       return roleFilteredData;
