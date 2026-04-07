@@ -313,7 +313,7 @@ const EditBriefModal = ({ isOpen, onClose, onBriefUpdated, briefData, projectId,
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <a
-                                                    href={getAttachmentUrl(att.file_path)}
+                                                    href={getAttachmentUrl(att.file_path, att.created_at)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className={`text-sm font-medium hover:underline truncate block

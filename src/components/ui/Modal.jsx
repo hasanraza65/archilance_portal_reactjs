@@ -46,7 +46,8 @@ const Modal = ({
           <Transition appear show={showModal} as={Fragment}>
             <Dialog
               as="div"
-              className="relative z-99999"
+              className="relative"
+              style={{ zIndex: 99999 }}
               onClose={!disableBackdrop ? closeModal : returnNull}
             >
               {!disableBackdrop && (
@@ -113,7 +114,7 @@ const Modal = ({
         </>
       ) : (
         <Transition appear show={activeModal} as={Fragment}>
-          <Dialog as="div" className="relative z-99999" onClose={onClose}>
+          <Dialog as="div" className="relative" style={{ zIndex: 99999 }} onClose={onClose}>
             <TransitionChild
               as={Fragment}
               enter={noFade ? "" : "duration-300 ease-out"}

@@ -131,11 +131,19 @@ export const getPriorityClass = (priority) => {
   }
 };
 
-export const getAttachmentUrl = (filePath) => {
+export const getAttachmentUrl = (filePath, createdAt = null) => {
   const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
   if (!backendBaseUrl || !filePath) return "#";
   const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
   const cleanFilePath = filePath.replace(/^\//, "");
+  
+  const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+  const attachmentCreatedAt = createdAt ? new Date(createdAt) : null;
+  
+  if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+    return `${cleanBaseUrl}/onedrive-image?path=${cleanFilePath}`;
+  }
+  
   return `${cleanBaseUrl}/storage/${cleanFilePath}`;
 };
 

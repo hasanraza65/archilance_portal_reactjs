@@ -7,11 +7,19 @@ import DOMPurify from 'dompurify';
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 // Helper functions
-const getAttachmentUrl = (filePath) => {
+const getAttachmentUrl = (filePath, createdAt = null) => {
     const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
     if (!backendBaseUrl || !filePath) return "#";
     const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
     const cleanFilePath = filePath.replace(/^\//, "");
+    
+    const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+    const attachmentCreatedAt = createdAt ? new Date(createdAt) : null;
+    
+    if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+        return `${cleanBaseUrl}/onedrive-image?path=${cleanFilePath}`;
+    }
+    
     return `${cleanBaseUrl}/storage/${cleanFilePath}`;
 };
 
@@ -105,7 +113,7 @@ const ProjectBriefDetailPage = () => {
                     sanitized_description: DOMPurify.sanitize(fetchedBrief.brief_description || ""),
                     attachments: (fetchedBrief.attachments || []).map(att => ({
                         ...att,
-                        url: getAttachmentUrl(att.file_path),
+                        url: getAttachmentUrl(att.file_path, att.created_at),
                         file_type: att.file_type || (att.file_name ? (att.file_name.split('.').pop().toLowerCase() === 'pdf' ? 'application/pdf' : (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(att.file_name.split('.').pop().toLowerCase()) ? `image/${att.file_name.split('.').pop().toLowerCase()}` : 'application/octet-stream')) : 'application/octet-stream')
                     }))
                 });

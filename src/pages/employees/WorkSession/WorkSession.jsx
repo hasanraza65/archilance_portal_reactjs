@@ -882,36 +882,39 @@
                       <div className="mt-4">
                         {session.screenshots.length > 0 ? (
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                            {session.screenshots.map((ss) => (
-                              <div
-                                key={ss.id}
-                                className="text-center group/ss relative"
-                              >
-                                <a
-                                  href={`${STORAGE_URL}/${ss.screenshot_file}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                            {session.screenshots.map((ss) => {
+                              const screenshotPath = user?.role === "admin" ? ss.screenshot_file : ss.emp_screenshot_file;
+                              return (
+                                <div
+                                  key={ss.id}
+                                  className="text-center group/ss relative"
                                 >
-                                  <img
-                                    src={`${STORAGE_URL}/${ss.screenshot_file}`}
-                                    alt={`Screenshot`}
-                                    className="w-full rounded-lg border-2 border-transparent group-hover/ss:border-blue-500 transition"
-                                  />
-                                </a>
-                                <button
-                                  onClick={() =>
-                                    handleDeleteScreenshot(session.id, ss.id)
-                                  }
-                                  title="Delete Screenshot"
-                                  className="absolute top-1.5 right-1.5 p-1 bg-red-600/80 text-white rounded-full opacity-0 group-hover/ss:opacity-100 transition-opacity duration-200 hover:bg-red-700"
-                                >
-                                  <TrashIcon />
-                                </button>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                                  {formatDateTime(ss.created_at)}
-                                </p>
-                              </div>
-                            ))}
+                                  <a
+                                    href={`${STORAGE_URL}/${screenshotPath}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <img
+                                      src={`${STORAGE_URL}/${screenshotPath}`}
+                                      alt={`Screenshot`}
+                                      className="w-full rounded-lg border-2 border-transparent group-hover/ss:border-blue-500 transition"
+                                    />
+                                  </a>
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteScreenshot(session.id, ss.id)
+                                    }
+                                    title="Delete Screenshot"
+                                    className="absolute top-1.5 right-1.5 p-1 bg-red-600/80 text-white rounded-full opacity-0 group-hover/ss:opacity-100 transition-opacity duration-200 hover:bg-red-700"
+                                  >
+                                    <TrashIcon />
+                                  </button>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                                    {formatDateTime(ss.created_at)}
+                                  </p>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           session.type !== "Manual" && (

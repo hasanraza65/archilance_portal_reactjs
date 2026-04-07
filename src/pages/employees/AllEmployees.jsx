@@ -13,6 +13,7 @@ import {
 import GlobalFilter from "../table/react-table/GlobalFilter";
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import Alert from "@/components/ui/Alert";
+import Tooltip from "@/components/ui/Tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { canManageEmployees } from "@/pages/utility/apiHelper";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
@@ -29,11 +30,55 @@ const getApiBasePathForRole = (basePath) => {
   return `/api/admin${cleanBasePath}`;
 };
 
+const calculateElapsedHours = (startDatetime) => {
+  if (!startDatetime) return 0;
+  const start = new Date(startDatetime);
+  const now = new Date();
+  const diffMs = now - start;
+  return diffMs / (1000 * 60 * 60);
+};
+
+const formatElapsedTime = (startDatetime) => {
+  if (!startDatetime) return "";
+  const elapsedHours = calculateElapsedHours(startDatetime);
+  const hours = Math.floor(elapsedHours);
+  const minutes = Math.floor((elapsedHours - hours) * 60);
+  
+  if (hours === 0 && minutes === 0) {
+    return "Just started";
+  }
+  
+  if (hours === 0) {
+    return `${minutes} min${minutes !== 1 ? "s" : ""}`;
+  }
+  
+  if (minutes === 0) {
+    return `${hours} hour${hours !== 1 ? "s" : ""}`;
+  }
+  
+  return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} min${minutes !== 1 ? "s" : ""}`;
+};
+
+const formatDatetime = (datetime) => {
+  if (!datetime) return "N/A";
+  const date = new Date(datetime);
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 const EMPLOYEE_API_COLUMNS_CONFIG = (
   navigate,
   openDeleteModalHandler,
-  hasPermission
-) => [
+  hasPermission,
+  isAdmin = false
+) => {
+  const baseColumns = [
   {
     Header: "Id",
     accessor: "id",
@@ -146,6 +191,59 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     accessor: "user_role",
     Cell: ({ cell: { value } }) => <span>{value}</span>,
   },
+  ...(isAdmin
+    ? [
+        {
+          Header: "Status",
+          accessor: "status",
+          Cell: ({ row }) => {
+            const { start_datetime } = row.original;
+            const isOnline =
+              start_datetime !== null && start_datetime !== undefined;
+            const elapsedHours = calculateElapsedHours(start_datetime);
+            const isExceededThreshold = elapsedHours >= 8;
+
+            let dotColor = "bg-slate-400";
+            let statusText = "Offline";
+
+            if (isOnline) {
+              statusText = "Online";
+              if (isExceededThreshold) {
+                dotColor = "bg-red-500";
+              } else {
+                dotColor = "bg-green-500";
+              }
+            }
+
+            const elapsedTimeText = isOnline
+              ? formatElapsedTime(start_datetime)
+              : "";
+            const tooltipContent = start_datetime ? (
+              <div className="text-left">
+                <div>Started: {formatDatetime(start_datetime)}</div>
+                <div>Elapsed: {elapsedTimeText}</div>
+              </div>
+            ) : (
+              "Offline"
+            );
+
+            return (
+              <Tooltip content={tooltipContent} placement="top" arrow>
+                <div className="flex items-center space-x-2 rtl:space-x-reverse cursor-pointer">
+                  <span
+                    className={`w-2 h-2 rounded-full ${dotColor}`}
+                    aria-label={statusText}
+                  />
+                  <span className="text-sm text-slate-600 dark:text-slate-300">
+                    {statusText}
+                  </span>
+                </div>
+              </Tooltip>
+            );
+          },
+        },
+      ]
+    : []),
   {
     Header: "Action",
     accessor: "action",
@@ -198,7 +296,10 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
       );
     },
   },
-];
+  ];
+
+  return baseColumns;
+};
 
 const Allemployees = () => {
   const { user } = useAuth();
@@ -211,6 +312,7 @@ const Allemployees = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
   const hasManagementPermission = useMemo(() => canManageEmployees(), []);
 
   const fetchEmployees = useCallback(async () => {
@@ -247,6 +349,7 @@ const Allemployees = () => {
         return;
       }
 
+      console.log("Raw API Data (from /employee-user):", rawData);
       setEmployeeData(rawData);
     } catch (err) {
       setFetchError(
@@ -273,36 +376,62 @@ const Allemployees = () => {
     const currentUserType = user.employee_type?.toLowerCase();
     const currentUserId = user.id;
 
-    if (currentUserRole === "admin") {
-      return employeeData;
+    let roleFilteredData = [];
+
+    console.log("Current User Role:", currentUserRole);
+    console.log("Current User Type:", currentUserType);
+
+    const isExecutive = currentUserType === "executive";
+
+    roleFilteredData = employeeData.filter((emp) => {
+      const empType = emp.employee_type?.toLowerCase().trim();
+      let keep = false;
+
+      if (currentUserRole === "admin") {
+        keep = true;
+      } else if (currentUserType === "manager" || currentUserType === "executive") {
+        keep =
+          (isExecutive && empType === "manager") ||
+          empType === "supervisor" ||
+          empType === "employee" ||
+          !emp.employee_type;
+      } else if (currentUserType === "supervisor") {
+        keep = empType === "employee" || !emp.employee_type;
+      } else if (currentUserType === "employee") {
+        keep = emp.id === currentUserId;
+      }
+
+      // Detailed log for debugging specific IDs like 22 or 24
+      if (emp.id === 22 || emp.id === 24 || empType === "manager") {
+         console.log(`Checking Emp ID ${emp.id} (${emp.name}): Type="${emp.employee_type}", empType="${empType}", Keep=${keep}`);
+      }
+
+      return keep;
+    });
+
+    console.log("Filtered Data Results Count:", roleFilteredData.length);
+
+    if (statusFilter === "all" || statusFilter === "") {
+      return roleFilteredData;
     }
 
-    // Executive has the same visibility as a Manager
-    if (currentUserType === "manager" || currentUserType === "executive") {
-      return employeeData.filter((emp) => {
-        const empType = emp.employee_type?.toLowerCase();
-        return (
-          empType === "supervisor" || // Manager/Executive can see Supervisors
-          empType === "employee" || // Manager/Executive can see Employees
-          !emp.employee_type
-        );
-      });
-    }
+    return roleFilteredData.filter((emp) => {
+      const { start_datetime } = emp;
+      const isOnline = start_datetime !== null && start_datetime !== undefined;
+      const elapsedHours = calculateElapsedHours(start_datetime);
+      const isExceededThreshold = elapsedHours >= 8;
 
-    if (currentUserType === "supervisor") {
-      return employeeData.filter((emp) => {
-        const empType = emp.employee_type?.toLowerCase();
-        // Supervisor can only see Employees
-        return empType === "employee" || !emp.employee_type;
-      });
-    }
+      if (statusFilter === "online") {
+        return isOnline && !isExceededThreshold;
+      } else if (statusFilter === "offline") {
+        return !isOnline;
+      } else if (statusFilter === "extra-time") {
+        return isOnline && isExceededThreshold;
+      }
 
-    if (currentUserType === "employee") {
-      return employeeData.filter((emp) => emp.id === currentUserId);
-    }
-
-    return [];
-  }, [employeeData, user]);
+      return true;
+    });
+  }, [employeeData, user, statusFilter]);
   // --- END OF UPDATE ---
 
   const handleOpenDeleteModal = useCallback((employee) => {
@@ -361,14 +490,19 @@ const Allemployees = () => {
     }
   }, [employeeToDelete, handleCloseDeleteModal]);
 
+  const isAdmin = useMemo(() => {
+    return user?.role?.toLowerCase() === "admin";
+  }, [user]);
+
   const columns = useMemo(
     () =>
       EMPLOYEE_API_COLUMNS_CONFIG(
         navigate,
         handleOpenDeleteModal,
-        hasManagementPermission
+        hasManagementPermission,
+        isAdmin
       ),
-    [navigate, handleOpenDeleteModal, hasManagementPermission]
+    [navigate, handleOpenDeleteModal, hasManagementPermission, isAdmin]
   );
 
   const data = useMemo(() => filteredData, [filteredData]);
@@ -432,6 +566,23 @@ const Allemployees = () => {
                 placeholder="Search employees..."
               />
             </div>
+            {isAdmin && (
+              <div className="w-auto min-w-[150px]">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="form-control h-10 w-full"
+                >
+                  <option value="" disabled>
+                    Filter
+                  </option>
+                  <option value="all">All</option>
+                  <option value="online">Online</option>
+                  <option value="offline">Offline</option>
+                  <option value="extra-time">Extra Time</option>
+                </select>
+              </div>
+            )}
             {hasManagementPermission && (
               <button
                 className="btn btn-dark flex items-center justify-center h-10"

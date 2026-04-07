@@ -1005,24 +1005,27 @@ const AdminEmployeeWorkSession = () => {
                     </p>
                   )}
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {session.screenshots?.map((ss) => (
-                      <div key={ss.id} className="text-center">
-                        <a
-                          href={`${STORAGE_URL}/${ss.screenshot_file}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <img
-                            src={`${STORAGE_URL}/${ss.screenshot_file}`}
-                            className="w-full rounded border hover:border-blue-500"
-                            alt="Screen"
-                          />
-                        </a>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {formatScreenshotTime(ss.created_at)}
-                        </p>
-                      </div>
-                    ))}
+                    {session.screenshots?.map((ss) => {
+                      const screenshotPath = user?.role === "admin" ? ss.screenshot_file : ss.emp_screenshot_file;
+                      return (
+                        <div key={ss.id} className="text-center">
+                          <a
+                            href={`${STORAGE_URL}/${screenshotPath}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <img
+                              src={`${STORAGE_URL}/${screenshotPath}`}
+                              className="w-full rounded border hover:border-blue-500"
+                              alt="Screen"
+                            />
+                          </a>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {formatScreenshotTime(ss.created_at)}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

@@ -166,16 +166,28 @@ Current path used: ${attachmentPathFromDb}`
           ? backendBaseUrl
           : backendBaseUrl + "/";
 
-        const storageSegment = "storage/";
-
         const normalizedRelativePath =
           attachmentPathFromDb.startsWith("/") &&
           attachmentPathFromDb.length > 0
             ? attachmentPathFromDb.substring(1)
             : attachmentPathFromDb;
 
-        attachmentUrl =
-          normalizedBase + storageSegment + normalizedRelativePath;
+        const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+        const attachmentCreatedAt = attachment.created_at
+          ? new Date(attachment.created_at)
+          : null;
+
+        if (
+          attachmentCreatedAt &&
+          attachmentCreatedAt >= cutoffDate
+        ) {
+          attachmentUrl =
+            normalizedBase + "onedrive-image?path=" + normalizedRelativePath;
+        } else {
+          const storageSegment = "storage/";
+          attachmentUrl =
+            normalizedBase + storageSegment + normalizedRelativePath;
+        }
       }
     }
 
