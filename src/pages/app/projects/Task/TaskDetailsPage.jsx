@@ -26,6 +26,8 @@ import TaskAttachments from "./PartialTask/TaskAttachments";
 import EditTaskModal from "./PartialTask/EditTaskModal";
 import TaskBriefsSection from "../TaskBrief/TaskBriefDetail";
 import TimeLogSummary from "./PartialTask/TimeLogSummary";
+import NotesContainer from "@/components/features/notes/NotesContainer";
+import { getSocket } from "@/socket";
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
@@ -406,6 +408,67 @@ const TaskDetailsPage = () => {
     }
   }, [taskId, fetchAllDetails, canManageAssignees]);
 
+  // WebSocket listeners for real-time comment updates
+  useEffect(() => {
+    const socket = getSocket();
+    if (socket && taskId) {
+      const handleCommentAdded = (data) => {
+        if (String(data.task_id) === String(taskId) && data.allowed_customer === 0) {
+          setComments((prev) => {
+            if (prev.find((c) => c.id === data.id)) return prev;
+            return [...prev, data];
+          });
+          setTotalCommentsFromApi((prev) => prev + 1);
+        }
+      };
+
+      const handleCommentUpdated = (data) => {
+        if (String(data.task_id) === String(taskId) && data.allowed_customer === 0) {
+          setComments((prev) =>
+            prev.map((c) => (c.id === data.id ? { ...c, ...data } : c))
+          );
+        }
+      };
+
+      const handleCommentDeleted = (data) => {
+        const deletedId = data.id || data;
+        setComments((prev) => prev.filter((c) => c.id !== deletedId));
+        setTotalCommentsFromApi((prev) => Math.max(0, prev - 1));
+      };
+
+      const handleCommentReplied = (data) => {
+        if (String(data.task_id) === String(taskId) && data.allowed_customer === 0) {
+          setComments((prev) => {
+            if (prev.find((c) => c.id === data.id)) return prev;
+            return [...prev, data];
+          });
+          if (data.reply_to) {
+            setComments(prev => prev.map(c => 
+              c.id === data.reply_to ? { ...c, replies_count: (c.replies_count || 0) + 1 } : c
+            ));
+          }
+        }
+      };
+
+      socket.on("comment-added", handleCommentAdded);
+      socket.on("comment-updated", handleCommentUpdated);
+      socket.on("comment-deleted", handleCommentDeleted);
+      socket.on("comment-replied", handleCommentReplied);
+      socket.on("comment-reacted", handleCommentUpdated);
+
+      // Join task room
+      socket.emit('join', `task_${taskId}`);
+
+      return () => {
+        socket.off("comment-added", handleCommentAdded);
+        socket.off("comment-updated", handleCommentUpdated);
+        socket.off("comment-deleted", handleCommentDeleted);
+        socket.off("comment-replied", handleCommentReplied);
+        socket.off("comment-reacted", handleCommentUpdated);
+      };
+    }
+  }, [taskId]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -541,6 +604,15 @@ const TaskDetailsPage = () => {
       }
       setNewComment("");
       toast.success(responseData.message || "Comment posted!");
+
+      // Emit socket event
+      const socket = getSocket();
+      if (socket) {
+        const commentData = responseData.data || responseData.comment || responseData;
+        const eventName = payload.reply_to ? "comment-replied" : "comment-added";
+        const emitData = { ...commentData, allowed_customer: payload.allowed_customer || 0 };
+        socket.emit(eventName, emitData);
+      }
       return true;
     } catch (err) {
       setCommentError(err.message);
@@ -578,6 +650,14 @@ const TaskDetailsPage = () => {
         await initialFetchAndSetup(taskId);
       }
       toast.success("Comment updated successfully!");
+
+      // Emit socket event
+      const socket = getSocket();
+      if (socket) {
+        const commentData = responseData.data || responseData.comment || responseData;
+        const emitData = { ...commentData, allowed_customer: 0 }; // internal edit
+        socket.emit("comment-updated", emitData);
+      }
       return true;
     } catch (err) {
       setCommentError(err.message);
@@ -610,6 +690,13 @@ const TaskDetailsPage = () => {
       }
       if (shouldRefresh) {
         await initialFetchAndSetup(taskId);
+      }
+      
+      // Emit socket event
+      const socket = getSocket();
+      if (socket) {
+        const emitData = { id: commentId, task_id: taskId, allowed_customer: 0 };
+        socket.emit("comment-deleted", emitData);
       }
       return true;
     } catch (err) {
@@ -815,6 +902,14 @@ const TaskDetailsPage = () => {
               />
             </div>
 
+            <div className="mt-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+              <NotesContainer
+                initialNotes={parentTaskDetails?.all_notes || []}
+                parentId={taskId}
+                type="task"
+              />
+            </div>
+            
             <TaskBriefsSection
               briefs={taskBriefs}
               taskId={taskId}

@@ -4,6 +4,7 @@ import { Edit } from "lucide-react";
 import EditableProjectStatus from "@/pages/app/projects/EditableProjectStatus";
 import DOMPurify from "dompurify";
 import { getApiBasePathForRole } from "./utils";
+import NotesContainer from "@/components/features/notes/NotesContainer";
 
 const ProjectHeader = ({
   projectDetails,
@@ -144,6 +145,14 @@ const ProjectHeader = ({
             )}
           </div>
         </div>
+      </div>
+      
+      <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
+         <NotesContainer
+            initialNotes={projectDetails.all_notes || []}
+            parentId={projectDetails.id}
+            type="project"
+          />
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ const ROLE_MAP = {
   4: "customer",
   5: "member",
   6: "supervisor",
-  7: "executive", // Added executive
+  7: "executive",
 };
 // --- END OF UPDATE ---
 
