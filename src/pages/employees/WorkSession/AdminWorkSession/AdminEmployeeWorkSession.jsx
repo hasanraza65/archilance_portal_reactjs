@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
 import Swal from "sweetalert2";
@@ -429,7 +429,13 @@ const AddManualTimeModal = ({
 // --- MAIN COMPONENT ---
 const AdminEmployeeWorkSession = () => {
   const { employeeId } = useParams();
+  const navigate = useNavigate();
   const { token, logout, isAuthenticated, user } = useAuth();
+  const [employeeList, setEmployeeList] = useState([]);
+  const [employeeListLoading, setEmployeeListLoading] = useState(false);
+  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  const employeeDropdownRef = useRef(null);
   const [employeeDetails, setEmployeeDetails] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [windowsActivity, setWindowsActivity] = useState([]); // Store root activity here
@@ -502,10 +508,38 @@ const AdminEmployeeWorkSession = () => {
         !presetDropdownRef.current.contains(e.target)
       )
         setIsPresetDropdownOpen(false);
+      if (
+        employeeDropdownRef.current &&
+        !employeeDropdownRef.current.contains(e.target)
+      )
+        setIsEmployeeDropdownOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fetch Employee List for dropdown
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    const fetchEmployeeList = async () => {
+      setEmployeeListLoading(true);
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/employee-user`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setEmployeeList(Array.isArray(data) ? data : []);
+        }
+      } catch (e) {
+        console.error("Error fetching employee list", e);
+      } finally {
+        setEmployeeListLoading(false);
+      }
+    };
+    fetchEmployeeList();
+  }, [isAuthenticated, token, API_BASE_URL]);
 
   // Fetch Employee Details & Projects
   useEffect(() => {
@@ -785,34 +819,109 @@ const AdminEmployeeWorkSession = () => {
       />
 
       {/* 1. Header (User Info) */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm bg-slate-200">
-          <img
-            src={
-              employeeDetails?.profile_pic
-                ? `${STORAGE_URL}/${employeeDetails.profile_pic}`
-                : "https://api.dicebear.com/7.x/avataaars/svg?seed=Archilance"
-            }
-            alt="User"
-            className="w-full h-full object-cover"
-          />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm bg-slate-200 flex-shrink-0">
+            <img
+              src={
+                employeeDetails?.profile_pic
+                  ? `${STORAGE_URL}/${employeeDetails.profile_pic}`
+                  : "https://api.dicebear.com/7.x/avataaars/svg?seed=Archilance"
+              }
+              alt="User"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 truncate">
+              {employeeDetails?.name || "Employee"}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">
+              {employeeDetails?.email}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-            {employeeDetails?.name || "Employee"}
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {employeeDetails?.email}
-          </p>
-        </div>
-        <div className="ml-auto flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center sm:ml-auto">
+          {/* Employee Selector Dropdown */}
+          <div className="relative" ref={employeeDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsEmployeeDropdownOpen(!isEmployeeDropdownOpen);
+                setEmployeeSearchQuery("");
+              }}
+              className="btn btn-sm btn-dark flex items-center gap-1 whitespace-nowrap"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span className="hidden xs:inline">Switch</span> Employee
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${isEmployeeDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {isEmployeeDropdownOpen && (
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50">
+                <div className="p-2 border-b border-slate-200 dark:border-slate-700">
+                  <div className="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search employee..."
+                      value={employeeSearchQuery}
+                      onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                      className="form-input w-full text-sm pl-8 py-1.5"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {employeeListLoading ? (
+                    <div className="px-3 py-4 text-center text-sm text-slate-500">Loading...</div>
+                  ) : (
+                    employeeList
+                      .filter((emp) =>
+                        emp.name.toLowerCase().includes(employeeSearchQuery.toLowerCase())
+                      )
+                      .map((emp) => (
+                        <button
+                          key={emp.id}
+                          onClick={() => {
+                            navigate(`/employees/work-sessions/${emp.id}`);
+                            setIsEmployeeDropdownOpen(false);
+                            setEmployeeSearchQuery("");
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${
+                            String(emp.id) === String(employeeId)
+                              ? 'bg-slate-100 dark:bg-slate-700 font-semibold text-slate-900 dark:text-white'
+                              : 'text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {emp.name}
+                        </button>
+                      ))
+                  )}
+                  {!employeeListLoading &&
+                    employeeList.filter((emp) =>
+                      emp.name.toLowerCase().includes(employeeSearchQuery.toLowerCase())
+                    ).length === 0 && (
+                      <div className="px-3 py-4 text-center text-sm text-slate-500">
+                        No employees found
+                      </div>
+                    )}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setIsManualTimeModalOpen(true)}
-            className="btn btn-sm btn-dark"
+            className="btn btn-sm btn-dark whitespace-nowrap"
           >
             Add Manual Time
           </button>
-          <Link to="/employees" className="btn btn-sm btn-outline-dark">
+          <Link to="/employees" className="btn btn-sm btn-outline-dark whitespace-nowrap">
             ← Back
           </Link>
         </div>
