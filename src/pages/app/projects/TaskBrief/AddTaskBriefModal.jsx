@@ -153,7 +153,7 @@ const AddTaskBriefModal = ({ isOpen, onClose, onTaskBriefAdded, taskId }) => {
       title="Add New Task Brief"
       activeModal={isOpen}
       onClose={onClose}
-      unmountOnClose
+      centered
     >
       <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
         <FormGroup label="Brief Description" error={errors.brief_description}>

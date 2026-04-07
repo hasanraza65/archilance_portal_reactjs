@@ -42,10 +42,10 @@ const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
                     e.target.onerror = null;
                     const initials = name
                       ? name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
                       : "?";
                     e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
                   }}
@@ -64,19 +64,19 @@ const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
       );
     },
   },
-  
-       {
-        Header: "Email",
-        accessor: "email",
-        Cell: ({ cell: { value } }) => {
-          const displayValue = value ? value.toLowerCase() : "N/A";
-          return (
-            <span style={{ textTransform: 'none' }}>
-              {displayValue}
-            </span>
-          );
-        },
-      },
+
+  {
+    Header: "Email",
+    accessor: "email",
+    Cell: ({ cell: { value } }) => {
+      const displayValue = value ? value.toLowerCase() : "N/A";
+      return (
+        <span style={{ textTransform: 'none' }}>
+          {displayValue}
+        </span>
+      );
+    },
+  },
 
   {
     Header: "Username",
@@ -185,7 +185,7 @@ const AllCustomers = () => {
       return;
     }
     try {
-            const apiPath = getApiBasePathForRole("/customer-user");
+      const apiPath = getApiBasePathForRole("/customer-user");
 
       const response = await axios.get(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
@@ -209,8 +209,8 @@ const AllCustomers = () => {
     } catch (err) {
       setFetchError(
         err.response?.data?.message ||
-          err.message ||
-          "Failed to fetch customers."
+        err.message ||
+        "Failed to fetch customers."
       );
       setCustomerData([]);
     } finally {
@@ -246,11 +246,11 @@ const AllCustomers = () => {
       setIsDeleteModalOpen(false);
       return;
     }
-    try {      const apiPath = getApiBasePathForRole("/customer-user");
+    try {
+      const apiPath = getApiBasePathForRole("/customer-user");
 
       await axios.delete(
-         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${
-          customerToDelete.id
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}/${customerToDelete.id
         }`,
         {
           headers: {
@@ -271,8 +271,8 @@ const AllCustomers = () => {
       console.error("Error deleting customer:", err.response);
       setDeleteError(
         err.response?.data?.message ||
-          err.message ||
-          "Failed to delete customer."
+        err.message ||
+        "Failed to delete customer."
       );
     } finally {
       setDeleteLoading(false);
@@ -339,16 +339,16 @@ const AllCustomers = () => {
       <Card noBorder>
         <div className="md:flex justify-between items-center mb-6">
           <h4 className="card-title mb-4 md:mb-0">Customer List</h4>
-          
+
           <div className="flex items-center space-x-3 w-full md:w-auto">
             <div className="flex-1">
-              <CustomSearchFilter 
-                value={globalFilter}
-                onChange={setGlobalFilter}
+              <CustomSearchFilter
+                filter={globalFilter}
+                setFilter={setGlobalFilter}
                 placeholder="Search customers..."
               />
             </div>
-            
+
             <button
               className="btn btn-dark flex items-center justify-center h-10"
               onClick={() => navigate("/customers/add")}
@@ -503,9 +503,8 @@ const AllCustomers = () => {
             <ul className="flex items-center space-x-2 rtl:space-x-reverse">
               <li>
                 <button
-                  className={`pagination-link ${
-                    !canPreviousPage ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`pagination-link ${!canPreviousPage ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   onClick={() => gotoPage(0)}
                   disabled={!canPreviousPage}
                 >
@@ -514,9 +513,8 @@ const AllCustomers = () => {
               </li>
               <li>
                 <button
-                  className={`pagination-link ${
-                    !canPreviousPage ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`pagination-link ${!canPreviousPage ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   onClick={() => previousPage()}
                   disabled={!canPreviousPage}
                 >
@@ -542,9 +540,8 @@ const AllCustomers = () => {
               </li>
               <li>
                 <button
-                  className={`pagination-link ${
-                    !canNextPage ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`pagination-link ${!canNextPage ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   onClick={() => nextPage()}
                   disabled={!canNextPage}
                 >
@@ -553,9 +550,8 @@ const AllCustomers = () => {
               </li>
               <li>
                 <button
-                  className={`pagination-link ${
-                    !canNextPage ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`pagination-link ${!canNextPage ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   onClick={() => gotoPage(pageCount - 1)}
                   disabled={!canNextPage}
                 >

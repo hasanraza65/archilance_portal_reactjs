@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
@@ -124,6 +125,7 @@ const formatDateForAPI = (date) => {
 
 const WorkDiaryPage = () => {
   const { projectId } = useParams();
+  const { user } = useAuth();
   const token = Cookies.get("token");
 
   const [sessions, setSessions] = useState([]);
@@ -407,24 +409,27 @@ const WorkDiaryPage = () => {
                     <div className="mt-4">
                       {session.screenshots && session.screenshots.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                          {session.screenshots.map((ss) => (
-                            <div key={ss.id} className="text-center">
-                              <a
-                                href={`${STORAGE_URL}/${ss.screenshot_file}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <img
-                                  src={`${STORAGE_URL}/${ss.screenshot_file}`}
-                                  alt={`Screenshot`}
-                                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
-                                />
-                              </a>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                                {formatTime(ss.created_at.split("T")[1])}
-                              </p>
-                            </div>
-                          ))}
+                          {session.screenshots.map((ss) => {
+                            const screenshotPath = user?.role === "admin" ? ss.screenshot_file : ss.emp_screenshot_file;
+                            return (
+                              <div key={ss.id} className="text-center">
+                                <a
+                                  href={`${STORAGE_URL}/${screenshotPath}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <img
+                                    src={`${STORAGE_URL}/${screenshotPath}`}
+                                    alt={`Screenshot`}
+                                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
+                                  />
+                                </a>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                                  {formatTime(ss.created_at.split("T")[1])}
+                                </p>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-sm text-slate-400 italic">

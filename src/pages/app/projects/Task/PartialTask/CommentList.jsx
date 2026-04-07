@@ -804,6 +804,7 @@ const CommentList = ({
             name: fn,
             file_type: ft,
             file_size: att.file_size || null,
+            created_at: att.created_at || null,
           };
         })
         .filter(Boolean);
@@ -877,13 +878,24 @@ const CommentList = ({
                             url &&
                             !(url.startsWith("http") || url.startsWith("blob"))
                           ) {
-                            const base = STORAGE_BASE_PATH.endsWith("/")
-                              ? STORAGE_BASE_PATH
-                              : STORAGE_BASE_PATH + "/";
+                            const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+                            const normalizedBase = backendBaseUrl.endsWith("/")
+                              ? backendBaseUrl
+                              : backendBaseUrl + "/";
                             const seg = url.startsWith("/")
                               ? url.substring(1)
                               : url;
-                            url = base + seg;
+                            
+                            const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+                            const attachmentCreatedAt = att.created_at
+                              ? new Date(att.created_at)
+                              : null;
+                            
+                            if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+                              url = normalizedBase + "onedrive-image?path=" + seg;
+                            } else {
+                              url = normalizedBase + "storage/" + seg;
+                            }
                           }
                           const img = att.file_type?.startsWith("image/");
                           const name = att.name || `Attachment`;
@@ -1096,13 +1108,24 @@ const CommentList = ({
                             )
                               url = att.file_path;
                             else if (url) {
-                              const base = STORAGE_BASE_PATH.endsWith("/")
-                                ? STORAGE_BASE_PATH
-                                : STORAGE_BASE_PATH + "/";
+                              const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
+                              const normalizedBase = backendBaseUrl.endsWith("/")
+                                ? backendBaseUrl
+                                : backendBaseUrl + "/";
                               const seg = url.startsWith("/")
                                 ? url.substring(1)
                                 : url;
-                              url = base + seg;
+                              
+                              const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+                              const attachmentCreatedAt = att.created_at
+                                ? new Date(att.created_at)
+                                : null;
+                              
+                              if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+                                url = normalizedBase + "onedrive-image?path=" + seg;
+                              } else {
+                                url = normalizedBase + "storage/" + seg;
+                              }
                             } else url = "";
                             const name = att.name || `Attachment`;
                             if (isAudio(att)) {

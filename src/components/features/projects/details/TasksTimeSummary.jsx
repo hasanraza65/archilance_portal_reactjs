@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import { PRESETS } from "./utils";
+import { Link } from "react-router-dom";
 
 const ChevronDownIcon = () => (
     <svg
@@ -232,7 +233,12 @@ const TasksTimeSummary = ({ summary, onDateFilterChange, activeStartDate, active
                                     className="border-b border-slate-200 dark:border-slate-600 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                                 >
                                     <td className="p-3 align-top font-medium text-slate-800 dark:text-slate-200">
-                                        {task.task_title || "Untitled Task"}
+                                        <Link
+                                            to={`/project/${task.task_id}`}
+                                            className="hover:text-blue-600 hover:underline cursor-pointer"
+                                        >
+                                            {task.task_title || "Untitled Task"}
+                                        </Link>
                                     </td>
                                     <td className="p-3 align-top text-slate-600 dark:text-slate-300">
                                         {task.total_hours_formatted || "N/A"}

@@ -43,3 +43,6 @@ README.txt
 
 # typescript
 *.tsbuildinfo
+
+#documentation
+/docs

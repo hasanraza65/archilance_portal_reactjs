@@ -157,9 +157,8 @@ const LeaveHistoryTable = ({
               className="p-2 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw
-                className={`w-5 h-5 text-gray-600 ${
-                  isLoading ? "animate-spin" : ""
-                }`}
+                className={`w-5 h-5 text-gray-600 ${isLoading ? "animate-spin" : ""
+                  }`}
               />
             </button>
           </div>
@@ -288,11 +287,10 @@ const LeaveHistoryTable = ({
               <div className="w-full md:w-auto">
                 <button
                   onClick={onToggleForm}
-                  className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${
-                    isFormVisible
+                  className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${isFormVisible
                       ? "bg-gradient-to-r from-gray-500 to-gray-600"
                       : "bg-gradient-to-r from-blue-500 to-indigo-600"
-                  }`}
+                    }`}
                 >
                   {isFormVisible ? (
                     <X className="w-5 h-5" />
@@ -309,11 +307,10 @@ const LeaveHistoryTable = ({
         </div>
 
         <div
-          className={`transition-all duration-700 ease-in-out overflow-hidden ${
-            isFormVisible
+          className={`transition-all duration-700 ease-in-out overflow-hidden ${isFormVisible
               ? "max-h-[2000px] opacity-100 mb-8"
               : "max-h-0 opacity-0"
-          }`}
+            }`}
         >
           {isFormVisible && children}
         </div>
@@ -362,11 +359,10 @@ const LeaveHistoryTable = ({
                       return (
                         <tr
                           key={leave.id}
-                          className={`${
-                            editingLeaveId === leave.id
+                          className={`${editingLeaveId === leave.id
                               ? "bg-blue-100"
                               : "hover:bg-blue-50/50"
-                          } transition-all duration-300 group`}
+                            } transition-all duration-300 group`}
                         >
                           <td className="px-6 py-6">
                             <div className="flex items-center gap-3">
@@ -405,10 +401,9 @@ const LeaveHistoryTable = ({
                               </div>
                               {leave.leave_type && (
                                 <span
-                                  className={`px-3 py-1 text-xs font-medium rounded-full ${
-                                    leaveTypeColors[leave.leave_type] ||
+                                  className={`px-3 py-1 text-xs font-medium rounded-full ${leaveTypeColors[leave.leave_type] ||
                                     "bg-gray-100 text-gray-800"
-                                  }`}
+                                    }`}
                                 >
                                   {capitalizeFirstLetter(leave.leave_type)}
                                 </span>
@@ -418,22 +413,20 @@ const LeaveHistoryTable = ({
                           <td className="px-6 py-6">
                             <div className="flex items-center justify-between">
                               <div
-                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm ${
-                                  statusConfig[leave.status]?.className ||
+                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm ${statusConfig[leave.status]?.className ||
                                   "bg-gray-100 text-gray-800"
-                                }`}
+                                  }`}
                               >
                                 <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    statusConfig[leave.status]?.dotColor ||
+                                  className={`w-2 h-2 rounded-full ${statusConfig[leave.status]?.dotColor ||
                                     "bg-gray-400"
-                                  }`}
+                                    }`}
                                 ></div>
                                 <StatusIcon className="w-4 h-4" />
                                 {leave.status}
                               </div>
                               <div className="flex items-center">
-                                {leave.status === "Pending" && (
+                                {(leave.status === "Pending" || leave.status === "Approved") && (
                                   <>
                                     <button
                                       onClick={() => onEdit(leave)}

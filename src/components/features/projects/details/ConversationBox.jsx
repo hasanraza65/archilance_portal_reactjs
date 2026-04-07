@@ -126,11 +126,37 @@ const ConversationBox = ({
             setIsProcessingAction(false);
         }
     };
-    const renderAttachment = (url, name, isPreview = false) => {
+    const renderAttachment = (url, name, isPreview = false, createdAt = null) => {
         const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(
             name.split(".").pop().toLowerCase()
         );
-        const finalUrl = isPreview ? url : `${STORAGE_BASE_URL}${url}`;
+        
+        let finalUrl;
+        if (isPreview) {
+            finalUrl = url;
+        } else if (url && url.startsWith("http")) {
+            finalUrl = url;
+        } else if (url) {
+            const backendBaseUrl = apiBaseUrl;
+            const normalizedBase = backendBaseUrl.endsWith("/")
+                ? backendBaseUrl
+                : backendBaseUrl + "/";
+            const seg = url.startsWith("/")
+                ? url.substring(1)
+                : url;
+            
+            const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+            const attachmentCreatedAt = createdAt ? new Date(createdAt) : null;
+            
+            if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+                finalUrl = normalizedBase + "onedrive-image?path=" + seg;
+            } else {
+                finalUrl = normalizedBase + "storage/" + seg;
+            }
+        } else {
+            finalUrl = "";
+        }
+        
         return (
             <a
                 href={finalUrl}
@@ -175,7 +201,8 @@ const ConversationBox = ({
                             {renderAttachment(
                                 att.file_path,
                                 att.file_name,
-                                att.file_path.startsWith("blob:")
+                                att.file_path.startsWith("blob:"),
+                                att.created_at
                             )}
                         </div>
                     ))}
@@ -201,7 +228,7 @@ const ConversationBox = ({
                             );
                             return (
                                 <div key={att.id} className="relative group">
-                                    {renderAttachment(att.file_path, att.file_name)}
+                                    {renderAttachment(att.file_path, att.file_name, false, att.created_at)}
                                     <button
                                         onClick={() => toggleDeleteExistingAttachment(att.id)}
                                         className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-md transition-all ${isMarkedForDeletion

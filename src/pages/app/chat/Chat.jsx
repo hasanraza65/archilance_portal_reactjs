@@ -161,7 +161,7 @@ const Chat = () => {
           ...basePayload,
           caption: caption,
           attachments: [attachment],
-        })
+        }),
       )
         .unwrap()
         .then((result) => {
@@ -178,7 +178,7 @@ const Chat = () => {
           ...basePayload,
           content: message.trim(),
           attachments: [],
-        })
+        }),
       )
         .unwrap()
         .then((result) => {
@@ -300,22 +300,23 @@ const Chat = () => {
         break;
       case "react": {
         const myReaction = currentMessage.reactions.find(
-          (r) => r.user_id === loggedInUser.id
+          (r) => r.user_id === loggedInUser.id,
         );
 
-        const actionToDispatch =
-          myReaction && myReaction.reaction === data
-            ? removeReaction({ messageId: currentMessage.id })
-            : addReaction({ messageId: currentMessage.id, emoji: data });
+        const isRemoving = !!(myReaction && myReaction.reaction === data);
+        const actionToDispatch = isRemoving
+          ? removeReaction({ messageId: currentMessage.id })
+          : addReaction({ messageId: currentMessage.id, emoji: data });
 
         dispatch(actionToDispatch)
           .unwrap()
           .then((result) => {
             if (socket?.connected) {
-              if (actionToDispatch.type.includes("removeReaction")) {
+              if (isRemoving) {
                 socket.emit("message-reacted", {
                   messageId: result.messageId,
                   userId: result.userId,
+                  reaction: data,
                   removed: true,
                   receiverId: user.id,
                 });
@@ -371,7 +372,7 @@ const Chat = () => {
         const audioFile = new File(
           [audioBlob],
           `voice-message-${Date.now()}.webm`,
-          { type: "audio/webm" }
+          { type: "audio/webm" },
         );
 
         const basePayload = {
@@ -384,7 +385,7 @@ const Chat = () => {
             ...basePayload,
             caption: "",
             attachments: [audioFile],
-          })
+          }),
         )
           .unwrap()
           .then((result) => {
@@ -593,12 +594,12 @@ const Chat = () => {
               </span>
             </a>
             {width > breakpoints.lg && (
-                <div
+              <div
                 onClick={() => dispatch(infoToggle(!openinfo))}
                 className="msg-action-btn cursor-pointer"
-                >
+              >
                 <Icon icon="heroicons-outline:dots-horizontal" />
-                </div>
+              </div>
             )}
           </div>
         </div>
@@ -645,7 +646,9 @@ const Chat = () => {
                 className="block md:px-6 px-4"
                 key={item.id}
                 onContextMenu={(e) => handleRightClick(e, item)}
-                onDoubleClick={(e) => { if (width < breakpoints.lg) handleRightClick(e, item); }}
+                onDoubleClick={(e) => {
+                  if (width < breakpoints.lg) handleRightClick(e, item);
+                }}
                 onTouchStart={(e) => handleTouchStart(e, item)}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchEnd}
@@ -736,11 +739,19 @@ const Chat = () => {
                                 className="pt-1"
                               >
                                 {isImage(att) ? (
-                                  <img
-                                    src={att.url}
-                                    alt={att.file_name}
-                                    className="max-w-[250px] h-auto rounded-md object-cover"
-                                  />
+                                  <a
+                                    href={att.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                    title={`View ${att.file_name || "Image"}`}
+                                  >
+                                    <img
+                                      src={att.url}
+                                      alt={att.file_name}
+                                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded border border-slate-200 shadow-sm bg-slate-100"
+                                    />
+                                  </a>
                                 ) : isAudio(att) ? (
                                   <AudioPlayer src={att.url} />
                                 ) : (
@@ -778,18 +789,18 @@ const Chat = () => {
                     </div>
 
                     {item.reactions && item.reactions.length > 0 && (
-                        <div className="-mt-3 z-10">
-                            <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] scrollbar-hide py-1">
-                                {item.reactions.map((reaction) => (
-                                    <div
-                                    key={reaction.id}
-                                    className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded-full text-xs shadow-md border border-slate-200 dark:border-slate-600 flex-shrink-0"
-                                    >
-                                    {reaction.reaction}
-                                    </div>
-                                ))}
+                      <div className="-mt-3 z-10">
+                        <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] scrollbar-hide py-1">
+                          {item.reactions.map((reaction) => (
+                            <div
+                              key={reaction.id}
+                              className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded-full text-xs shadow-md border border-slate-200 dark:border-slate-600 flex-shrink-0"
+                            >
+                              {reaction.reaction}
                             </div>
+                          ))}
                         </div>
+                      </div>
                     )}
                   </div>
                   {width > breakpoints.lg &&

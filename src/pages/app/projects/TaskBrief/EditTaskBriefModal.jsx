@@ -37,11 +37,19 @@ const getFileIcon = (fileType, isSmall = false) => {
     return <svg className={`${iconSizeClass} text-blue-500`} fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" /></svg>;
 };
 
-const getAttachmentUrl = (filePath) => {
+const getAttachmentUrl = (filePath, createdAt = null) => {
     const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
     if (!backendBaseUrl || !filePath) return "#";
     const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
     const cleanFilePath = filePath.replace(/^\//, "");
+    
+    const cutoffDate = new Date("2026-01-10T00:00:00.000Z");
+    const attachmentCreatedAt = createdAt ? new Date(createdAt) : null;
+    
+    if (attachmentCreatedAt && attachmentCreatedAt >= cutoffDate) {
+        return `${cleanBaseUrl}/onedrive-image?path=${cleanFilePath}`;
+    }
+    
     return `${cleanBaseUrl}/storage/${cleanFilePath}`;
 };
 
@@ -202,7 +210,7 @@ const EditTaskBriefModal = ({ isOpen, onClose, onTaskBriefUpdated, briefData, ta
                                     <div key={`existing-${att.id}`} className={`flex items-center justify-between p-2.5 rounded-lg border transition-all duration-150 ${isMarkedForDelete ? 'bg-red-50 border-red-300' : 'bg-slate-100 border-slate-200'}`}>
                                         <div className="flex items-center space-x-2.5 min-w-0">
                                             <div className="flex-shrink-0">{getFileIcon(att.file_type, true)}</div>
-                                            <a href={getAttachmentUrl(att.file_path)} target="_blank" rel="noopener noreferrer" className={`text-sm font-medium hover:underline truncate block ${isMarkedForDelete ? 'text-red-700 line-through' : 'text-blue-600'}`} title={att.file_name}>
+                                            <a href={getAttachmentUrl(att.file_path, att.created_at)} target="_blank" rel="noopener noreferrer" className={`text-sm font-medium hover:underline truncate block ${isMarkedForDelete ? 'text-red-700 line-through' : 'text-blue-600'}`} title={att.file_name}>
                                                 {att.file_name || 'Attachment'}
                                             </a>
                                         </div>
