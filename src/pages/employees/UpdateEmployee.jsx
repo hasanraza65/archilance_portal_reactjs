@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Textinput from "@/components/ui/Textinput";
@@ -24,6 +26,7 @@ const EditEmployee = () => {
     formState: { errors: formErrors },
     watch,
     reset,
+    control,
   } = useForm({
     mode: "onChange",
   });
@@ -106,6 +109,7 @@ const EditEmployee = () => {
             ? String(employee.phone).replace(/[\r\n]+/g, "")
             : "",
           employee_type: employee.employee_type || "Employee",
+          joining_date: employee.joining_date || null,
           password: "",
           password_confirmation: "",
         });
@@ -175,6 +179,21 @@ const EditEmployee = () => {
     dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("employee_type", formData.employee_type);
     dataToSubmit.append("user_role", userRoleId); // Append the correct role ID
+    
+    if (formData.joining_date) {
+      const date = Array.isArray(formData.joining_date) 
+        ? formData.joining_date[0] 
+        : new Date(formData.joining_date);
+      
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const formattedDate = `${year}-${month}-${day}`;
+        dataToSubmit.append("joining_date", formattedDate);
+      }
+    }
+
     dataToSubmit.append("_method", "PUT");
 
     if (formData.profile_pic && formData.profile_pic[0]) {
@@ -308,33 +327,63 @@ const EditEmployee = () => {
           />
         </div>
 
-        {/* --- UPDATED CODE --- */}
-        <div>
-          <label htmlFor="employee_type" className="form-label">
-            Employee Type*
-          </label>
-          <select
-            id="employee_type"
-            className={`form-control py-2 ${
-              formErrors.employee_type ? "border-danger-500" : ""
-            }`}
-            {...register("employee_type", {
-              required: "Employee type is required",
-            })}
-          >
-            <option value="Employee">Employee</option>
-            <option value="Manager">Manager</option>
-            <option value="Executive">Executive</option>
-            <option value="Supervisor">Coordinator</option>
-            <option value="Outsource">Outsource</option>
-          </select>
-          {formErrors.employee_type && (
-            <p className="text-danger-500 text-xs mt-1">
-              {formErrors.employee_type.message}
-            </p>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="employee_type" className="form-label">
+              Employee Type*
+            </label>
+            <select
+              id="employee_type"
+              className={`form-control py-2 ${
+                formErrors.employee_type ? "border-danger-500" : ""
+              }`}
+              {...register("employee_type", {
+                required: "Employee type is required",
+              })}
+            >
+              <option value="Employee">Employee</option>
+              <option value="Manager">Manager</option>
+              <option value="Executive">Executive</option>
+              <option value="Supervisor">Coordinator</option>
+              <option value="Outsource">Outsource</option>
+            </select>
+            {formErrors.employee_type && (
+              <p className="text-danger-500 text-xs mt-1">
+                {formErrors.employee_type.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="joining_date" className="form-label">
+              Joining Date
+            </label>
+            <Controller
+              name="joining_date"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Flatpickr
+                  value={value || ""}
+                  className={`form-control py-2 ${
+                    formErrors.joining_date ? "border-danger-500" : ""
+                  }`}
+                  placeholder="Select joining date"
+                  onChange={onChange}
+                  options={{
+                    altInput: true,
+                    altFormat: "M j, Y",
+                    dateFormat: "Y-m-d",
+                  }}
+                />
+              )}
+            />
+            {formErrors.joining_date && (
+              <p className="text-danger-500 text-xs mt-1">
+                {formErrors.joining_date.message}
+              </p>
+            )}
+          </div>
         </div>
-        {/* --- END OF UPDATE --- */}
 
         <div>
           <label

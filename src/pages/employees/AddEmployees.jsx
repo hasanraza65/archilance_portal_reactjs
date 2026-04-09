@@ -3,15 +3,19 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
+import { useForm, Controller } from "react-hook-form";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
+import Textinput from "@/components/ui/Textinput";
+import Button from "@/components/ui/Button";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/light.css";
 import { canManageEmployees } from "@/pages/utility/apiHelper";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  console.log(role);
   if (role) {
     return `/api/${role}${cleanBasePath}`;
   }
@@ -20,18 +24,25 @@ const getApiBasePathForRole = (basePath) => {
 
 const AddEmployee = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    username: "",
-    phone: "",
-    password: "",
-    password_confirmation: "",
-    employee_type: "Employee", // Default type
-    user_role: "3", // Default role ID for "Employee"
-  });
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [profilePicPreview, setProfilePicPreview] = useState(null);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+    watch,
+    reset,
+  } = useForm({
+    mode: "onChange",
+    defaultValues: {
+      employee_type: "Employee",
+    },
+  });
+
+  const passwordValue = watch("password");
+  const watchedProfilePic = watch("profile_pic");
 
   useEffect(() => {
     if (!canManageEmployees()) {
@@ -40,80 +51,19 @@ const AddEmployee = () => {
     }
   }, [navigate]);
 
-  // --- UPDATED CODE ---
-  // This function now also sets the correct user_role when employee_type changes.
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    // Create an object to hold the state updates
-    const updates = { [name]: value };
-
-    // If the changed field is 'employee_type', set the corresponding user_role ID
-    if (name === "employee_type") {
-      switch (value) {
-        case "Manager":
-          updates.user_role = "5";
-          break;
-        case "Supervisor":
-          updates.user_role = "6";
-          break;
-        case "Executive": // Added Executive role
-          updates.user_role = "7";
-          break;
-        case "Employee":
-        case "Outsource":
-        default:
-          updates.user_role = "3";
-          break;
-      }
+  useEffect(() => {
+    if (watchedProfilePic && watchedProfilePic[0]) {
+      const file = watchedProfilePic[0];
+      const url = URL.createObjectURL(file);
+      setProfilePicPreview(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setProfilePicPreview(null);
     }
+  }, [watchedProfilePic]);
 
-    setFormData((prev) => ({ ...prev, ...updates }));
-
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: null }));
-    }
-  };
-  // --- END OF UPDATE ---
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Name is required.";
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required.";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid.";
-    }
-    if (!formData.username.trim()) newErrors.username = "Username is required.";
-    if (formData.phone.trim() && !/^\+?[0-9\s-()]{10,}$/.test(formData.phone)) {
-      newErrors.phone = "Phone number is invalid (e.g., +923001234567).";
-    }
-    if (!formData.password) {
-      newErrors.password = "Password is required.";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters.";
-    }
-    if (!formData.password_confirmation) {
-      newErrors.password_confirmation = "Password confirmation is required.";
-    } else if (formData.password !== formData.password_confirmation) {
-      newErrors.password_confirmation = "Passwords do not match.";
-    }
-    if (!formData.employee_type)
-      newErrors.employee_type = "Employee type is required.";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      toast.error("Please correct the form errors.");
-      return;
-    }
-
+  const onSubmit = async (formData) => {
     setLoading(true);
-    setErrors({});
     const token = Cookies.get("token");
 
     if (!token) {
@@ -123,219 +73,258 @@ const AddEmployee = () => {
       return;
     }
 
-    const payload = {
-      ...formData,
-      user_role: parseInt(formData.user_role, 10),
-    };
+    // Determine user_role based on employee_type
+    let userRoleId;
+    switch (formData.employee_type) {
+      case "Manager":
+        userRoleId = "5";
+        break;
+      case "Supervisor":
+        userRoleId = "6";
+        break;
+      case "Executive":
+        userRoleId = "7";
+        break;
+      default:
+        userRoleId = "3";
+        break;
+    }
+
+    const dataToSubmit = new FormData();
+    dataToSubmit.append("name", formData.name);
+    dataToSubmit.append("email", formData.email);
+    dataToSubmit.append("username", formData.username);
+    dataToSubmit.append("phone", formData.phone || "");
+    dataToSubmit.append("employee_type", formData.employee_type);
+    dataToSubmit.append("user_role", userRoleId);
+    dataToSubmit.append("password", formData.password);
+    dataToSubmit.append("password_confirmation", formData.password_confirmation);
+
+    if (formData.joining_date) {
+      const date = Array.isArray(formData.joining_date)
+        ? formData.joining_date[0]
+        : new Date(formData.joining_date);
+      if (!isNaN(date.getTime())) {
+        const formattedDate = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        dataToSubmit.append("joining_date", formattedDate);
+      }
+    }
+
+    if (formData.profile_pic && formData.profile_pic[0]) {
+      dataToSubmit.append("profile_pic", formData.profile_pic[0]);
+    }
 
     try {
       const apiPath = getApiBasePathForRole("/employee-user");
       await axios.post(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
-        payload,
+        dataToSubmit,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
             Accept: "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
       toast.success("Employee added successfully!");
       navigate("/employees");
     } catch (error) {
-      if (error.response) {
-        if (error.response.data && error.response.data.errors) {
-          const backendErrors = error.response.data.errors;
-          const formattedErrors = {};
-          for (const key in backendErrors) {
-            formattedErrors[key] = backendErrors[key][0];
-          }
-          setErrors(formattedErrors);
-          toast.error("Validation failed. Please check the form.");
-        } else if (error.response.data && error.response.data.message) {
-          toast.error(error.response.data.message);
-        } else {
-          toast.error("Failed to add employee. Server error.");
-        }
-      } else if (error.request) {
-        toast.error("Failed to add employee. No response from server.");
+      if (error.response?.data?.errors) {
+        const backendErrors = error.response.data.errors;
+        Object.keys(backendErrors).forEach((key) => {
+          toast.error(`${key}: ${backendErrors[key][0]}`);
+        });
       } else {
-        toast.error(`Failed to add employee: ${error.message}`);
+        toast.error(error.response?.data?.message || error.message || "Failed to add employee.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const inputClass = "form-control py-2";
-  const errorClass = "text-danger-500 text-xs mt-1";
-  const labelClass = "form-label";
-
   return (
-    <Card title="Add New Employee">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="name" className={labelClass}>
-            Full Name
-          </label>
-          <input
-            type="text"
-            name="name"
-            id="name"
-            className={`${inputClass} ${
-              errors.name ? "border-danger-500" : ""
-            }`}
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Enter full name"
-          />
-          {errors.name && <p className={errorClass}>{errors.name}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="email" className={labelClass}>
-            Email Address
-          </label>
-          <input
-            type="email"
-            name="email"
-            id="email"
-            className={`${inputClass} ${
-              errors.email ? "border-danger-500" : ""
-            }`}
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter email address"
-          />
-          {errors.email && <p className={errorClass}>{errors.email}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="username" className={labelClass}>
-            Username
-          </label>
-          <input
-            type="text"
-            name="username"
-            id="username"
-            className={`${inputClass} ${
-              errors.username ? "border-danger-500" : ""
-            }`}
-            value={formData.username}
-            onChange={handleChange}
-            placeholder="Enter username"
-          />
-          {errors.username && <p className={errorClass}>{errors.username}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="phone" className={labelClass}>
-            Phone Number
-          </label>
-          <input
-            type="tel"
-            name="phone"
-            id="phone"
-            className={`${inputClass} ${
-              errors.phone ? "border-danger-500" : ""
-            }`}
-            value={formData.phone}
-            onChange={handleChange}
-            placeholder="+923001234567"
-          />
-          {errors.phone && <p className={errorClass}>{errors.phone}</p>}
-        </div>
-
-        {/* --- UPDATED CODE --- */}
-        <div>
-          <label htmlFor="employee_type" className={labelClass}>
-            Employee Type
-          </label>
-          <select
-            name="employee_type"
-            id="employee_type"
-            className={`${inputClass} ${
-              errors.employee_type ? "border-danger-500" : ""
-            }`}
-            value={formData.employee_type}
-            onChange={handleChange}
-          >
-            <option value="Employee">Employee</option>
-            <option value="Manager">Manager</option>
-            <option value="Executive">Executive</option>
-            <option value="Supervisor">Coordinator</option>
-            <option value="Outsource">Outsource</option>
-          </select>
-          {errors.employee_type && (
-            <p className={errorClass}>{errors.employee_type}</p>
-          )}
-        </div>
-        {/* --- END OF UPDATE --- */}
-
-        <div>
-          <label htmlFor="password" className={labelClass}>
-            Password
-          </label>
-          <input
-            type="password"
-            name="password"
-            id="password"
-            className={`${inputClass} ${
-              errors.password ? "border-danger-500" : ""
-            }`}
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Enter password"
-          />
-          {errors.password && <p className={errorClass}>{errors.password}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="password_confirmation" className={labelClass}>
-            Confirm Password
-          </label>
-          <input
-            type="password"
-            name="password_confirmation"
-            id="password_confirmation"
-            className={`${inputClass} ${
-              errors.password_confirmation ? "border-danger-500" : ""
-            }`}
-            value={formData.password_confirmation}
-            onChange={handleChange}
-            placeholder="Confirm password"
-          />
-          {errors.password_confirmation && (
-            <p className={errorClass}>{errors.password_confirmation}</p>
-          )}
-        </div>
-
-        <div className="flex justify-end space-x-3 pt-4">
-          <button
-            type="button"
-            className="btn btn-light"
-            onClick={() => navigate("/employees")}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="btn btn-dark flex items-center"
-            disabled={loading}
-          >
-            {loading && (
-              <Icon
-                icon="eos-icons:loading"
-                className="animate-spin w-4 h-4 mr-2"
+    <div className="space-y-6">
+      <Card title="Add New Employee">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 md:p-6 space-y-6">
+          {/* Personal Information Section */}
+          <div>
+            <h4 className="text-base font-medium text-slate-900 dark:text-white mb-4 flex items-center">
+              <Icon icon="heroicons-outline:user" className="mr-2" />
+              Personal Information
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Textinput
+                label="Full Name*"
+                name="name"
+                type="text"
+                placeholder="Enter full name"
+                register={register}
+                validate={{ required: "Full name is required" }}
+                error={errors.name}
               />
-            )}
-            {loading ? "Submitting..." : "Add Employee"}
-          </button>
-        </div>
-      </form>
-    </Card>
+              <Textinput
+                label="Email Address*"
+                name="email"
+                type="email"
+                placeholder="Enter email address"
+                register={register}
+                validate={{
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address",
+                  },
+                }}
+                error={errors.email}
+              />
+              <Textinput
+                label="Phone Number"
+                name="phone"
+                type="tel"
+                placeholder="+923001234567"
+                register={register}
+                error={errors.phone}
+              />
+              <div>
+                <label className="form-label block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Profile Picture
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="profile_pic"
+                      className="form-control py-2 px-3 w-full"
+                      {...register("profile_pic")}
+                      accept="image/*"
+                    />
+                  </div>
+                  {profilePicPreview && (
+                    <div className="w-12 h-12 rounded-full overflow-hidden flex-none ring-2 ring-primary-500">
+                      <img
+                        src={profilePicPreview}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr className="border-slate-200 dark:border-slate-700" />
+
+          {/* Account & Administration Section */}
+          <div>
+            <h4 className="text-base font-medium text-slate-900 dark:text-white mb-4 flex items-center">
+              <Icon icon="heroicons-outline:cog" className="mr-2" />
+              Account & Administration
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Textinput
+                label="Username*"
+                name="username"
+                type="text"
+                placeholder="Enter username"
+                register={register}
+                validate={{ required: "Username is required" }}
+                error={errors.username}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="employee_type" className="form-label mb-1">
+                    Employee Type*
+                  </label>
+                  <select
+                    id="employee_type"
+                    className={`form-control py-2 ${
+                      errors.employee_type ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
+                    }`}
+                    {...register("employee_type", { required: "Type is required" })}
+                  >
+                    <option value="Employee">Employee</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Executive">Executive</option>
+                    <option value="Supervisor">Coordinator</option>
+                    <option value="Outsource">Outsource</option>
+                  </select>
+                  {errors.employee_type && (
+                    <p className="text-danger-500 text-xs mt-1">{errors.employee_type.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="joining_date" className="form-label mb-1">
+                    Joining Date
+                  </label>
+                  <Controller
+                    name="joining_date"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <Flatpickr
+                        value={value || ""}
+                        className="form-control py-2"
+                        placeholder="Select date"
+                        onChange={onChange}
+                        options={{ altInput: true, altFormat: "M j, Y", dateFormat: "Y-m-d" }}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+
+              <Textinput
+                label="Password*"
+                name="password"
+                type="password"
+                placeholder="Minimum 8 characters"
+                hasicon
+                register={register}
+                validate={{
+                  required: "Password is required",
+                  minLength: { value: 8, message: "Minimum 8 characters" },
+                }}
+                error={errors.password}
+              />
+              <Textinput
+                label="Confirm Password*"
+                name="password_confirmation"
+                type="password"
+                placeholder="Re-enter password"
+                hasicon
+                register={register}
+                validate={{
+                  required: "Please confirm password",
+                  validate: (val) => val === passwordValue || "Passwords do not match",
+                }}
+                error={errors.password_confirmation}
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-6 border-t border-slate-200 dark:border-slate-700">
+            <Button
+              text="Cancel"
+              className="btn-outline-secondary"
+              type="button"
+              onClick={() => navigate("/employees")}
+              disabled={loading}
+            />
+            <Button
+              text={loading ? "Creating..." : "Add Employee"}
+              className="btn-dark"
+              type="submit"
+              isLoading={loading}
+              disabled={loading}
+            />
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 };
 
