@@ -5,6 +5,9 @@ import LeaveApplicationForm from "./LeaveApplicationForm";
 import Cookies from "js-cookie";
 import { Toaster, toast } from "react-hot-toast";
 import Swal from "sweetalert2";
+import { useDispatch, useSelector } from "react-redux";
+import { setUser } from "@/store/api/auth/authSlice";
+import axiosInstance from "@/store/api/app/axiosInstance";
 
 // --- Helper Functions & Constants ---
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
@@ -14,6 +17,7 @@ const getAuthToken = () => {
 };
 
 const EmployeeDashboard = () => {
+  const dispatch = useDispatch();
   // --- State Management ---
   const [leaves, setLeaves] = useState([]);
   const [counts, setCounts] = useState({
@@ -31,6 +35,7 @@ const EmployeeDashboard = () => {
   const [error, setError] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
+  const user = useSelector((state) => state.auth.user);
 
   const LEAVE_API_ENDPOINT = `${API_BASE_URL}/api/employee/leave-request`;
 
@@ -76,6 +81,40 @@ const EmployeeDashboard = () => {
       if (!silent) setIsLoading(false);
     }
   }, [LEAVE_API_ENDPOINT]);
+
+  const fetchUserProfile = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await axiosInstance.get("/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      
+      const freshData = response.data.data || response.data;
+      if (freshData && freshData.joining_date) {
+        // PATCH only the joining_date to avoid breaking current roles/state
+        const updatedUser = {
+          ...user,
+          joining_date: freshData.joining_date
+        };
+
+        // Update Redux Store
+        dispatch(setUser(updatedUser));
+        // Update Cookie to persist
+        Cookies.set("user", JSON.stringify(updatedUser));
+      }
+    } catch (err) {
+      console.error("Error refreshing user profile:", err);
+    }
+  }, [dispatch]); // Removed 'user' dependency to prevent infinite loop
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [fetchUserProfile]); // This is now stable because fetchUserProfile doesn't depend on user
 
   useEffect(() => {
     fetchLeaveData();

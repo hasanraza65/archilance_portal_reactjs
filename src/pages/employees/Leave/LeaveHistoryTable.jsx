@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { useSelector } from "react-redux";
 import {
   Calendar,
   Filter,
@@ -56,20 +57,50 @@ const LeaveHistoryTable = ({
     },
   };
 
+  const user = useSelector((state) => state.auth.user);
+  const joiningDate = user?.joining_date;
+
+  const eligibility = useMemo(() => {
+    if (!joiningDate) return { casual: false, annual: false };
+    
+    // Convert to Date object and validate
+    const join = new Date(joiningDate);
+    if (isNaN(join.getTime())) return { casual: false, annual: false };
+    
+    const now = new Date();
+    
+    // Calculate difference in months
+    let months = (now.getFullYear() - join.getFullYear()) * 12 + (now.getMonth() - join.getMonth());
+    
+    // Adjust if current day is before joining day of the month
+    if (now.getDate() < join.getDate()) {
+      months--;
+    }
+    
+    return {
+      casual: months >= 1,
+      annual: months >= 6,
+    };
+  }, [joiningDate]);
+
   const leaveTypeConfig = {
     casual: {
-      total: 10,
+      total: eligibility.casual ? 10 : 0,
       label: "Casual Leaves",
       icon: Briefcase,
-      color: "blue",
+      color: eligibility.casual ? "blue" : "slate",
+      isLocked: !eligibility.casual,
+      unlockMessage: eligibility.casual ? null : "Available after 1 month of joining"
     },
     annual: {
-      total: 10,
+      total: eligibility.annual ? 10 : 0,
       label: "Annual Leaves",
       icon: FileText,
-      color: "green",
+      color: eligibility.annual ? "green" : "slate",
+      isLocked: !eligibility.annual,
+      unlockMessage: eligibility.annual ? null : "Available after 6 months of joining"
     },
-    sick: { total: 8, label: "Sick Leaves", icon: Heart, color: "purple" },
+    sick: { total: 8, label: "Sick Leaves", icon: Heart, color: "purple", isLocked: false },
   };
 
   const leaveTypeColors = {
@@ -226,31 +257,42 @@ const LeaveHistoryTable = ({
                 return (
                   <div
                     key={key}
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20"
+                    className={`bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20 transition-all duration-300 ${
+                      config.isLocked ? "bg-slate-100/50 opacity-75 grayscale-[0.5]" : ""
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Icon className={`w-5 h-5 text-${config.color}-500`} />
-                        <p className="text-md font-semibold text-gray-800">
+                        <p className={`text-md font-semibold ${config.isLocked ? "text-slate-500" : "text-gray-800"}`}>
                           {config.label}
                         </p>
                       </div>
-                      <p className="font-bold text-lg text-gray-900">
+                      <p className={`font-bold text-lg ${config.isLocked ? "text-slate-400" : "text-gray-900"}`}>
                         {used}
                         <span className="text-sm font-medium text-gray-500">
                           /{config.total}
                         </span>
                       </p>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1 overflow-hidden">
                       <div
-                        className={`bg-${config.color}-500 h-2.5 rounded-full`}
+                        className={`bg-${config.color}-500 h-2.5 rounded-full transition-all duration-500`}
                         style={{ width: `${percentage}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-right text-gray-500">
-                      {remaining} days remaining
-                    </p>
+                    <div className="flex justify-between items-center mt-1">
+                      {config.unlockMessage ? (
+                         <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
+                           <AlertCircle className="w-3 h-3" /> {config.unlockMessage}
+                         </p>
+                      ) : (
+                         <span />
+                      )}
+                      <p className="text-xs text-right text-gray-500">
+                        {remaining} days remaining
+                      </p>
+                    </div>
                   </div>
                 );
               })}
