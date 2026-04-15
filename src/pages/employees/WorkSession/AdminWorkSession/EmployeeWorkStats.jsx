@@ -113,6 +113,7 @@ const EmployeeWorkStats = ({
   rootActivityList,
   totalIdleSeconds = 0,
   totalWorkSeconds = 0,
+  totalManualSeconds = 0,
 }) => {
   const [hoveredSlice, setHoveredSlice] = useState(null);
 
@@ -215,7 +216,7 @@ const EmployeeWorkStats = ({
   return (
     <div className="font-sans">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-semibold uppercase tracking-wider">
             Total Time
@@ -254,6 +255,15 @@ const EmployeeWorkStats = ({
                 )
               : 0}
             %
+          </h2>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-xs text-sky-500 dark:text-sky-400 mb-1 font-semibold uppercase tracking-wider">
+            Manual Time
+          </p>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+            {formatDuration(totalManualSeconds)}
           </h2>
         </div>
       </div>

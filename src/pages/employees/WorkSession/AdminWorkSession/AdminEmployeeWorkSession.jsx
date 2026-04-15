@@ -463,6 +463,7 @@ const AdminEmployeeWorkSession = () => {
   // Store total Idle Seconds calculated from sessions
   const [totalIdleSeconds, setTotalIdleSeconds] = useState(0);
   const [totalWorkSeconds, setTotalWorkSeconds] = useState(0);
+  const [totalManualSeconds, setTotalManualSeconds] = useState(0);
   const [statsSessionsList, setStatsSessionsList] = useState([]);
 
 
@@ -702,6 +703,7 @@ const AdminEmployeeWorkSession = () => {
       // 3. Calculate Stats
       let totalIdleSec = 0;
       let totalWorkSec = 0;
+      let totalManualSec = 0;
 
       // Use overall_total_time directly from backend response
       if (result.overall_total_time) {
@@ -709,6 +711,11 @@ const AdminEmployeeWorkSession = () => {
       }
 
       statsSessions.forEach((session) => {
+        // Calculate Manual Time
+        if (session.type === "Manual" && session.total_time) {
+          totalManualSec += parseDurationString(session.total_time);
+        }
+
         // Only calculate Idle Time (Manual sum needed?)
         // Assuming we still need to calculate idle time manually if backend doesn't provide a total idle time.
         if (session.idle_times && Array.isArray(session.idle_times)) {
@@ -720,6 +727,7 @@ const AdminEmployeeWorkSession = () => {
       
       setTotalIdleSeconds(totalIdleSec);
       setTotalWorkSeconds(totalWorkSec);
+      setTotalManualSeconds(totalManualSec);
       setStatsWindowsActivity(statsActivity);
 
 
@@ -1044,6 +1052,7 @@ const AdminEmployeeWorkSession = () => {
             rootActivityList={statsWindowsActivity} // Pass the FULL activity list
             totalIdleSeconds={totalIdleSeconds} // Values calculated from FULL list
             totalWorkSeconds={totalWorkSeconds}
+            totalManualSeconds={totalManualSeconds}
           />
         )}
 
