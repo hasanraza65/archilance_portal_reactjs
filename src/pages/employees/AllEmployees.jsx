@@ -338,6 +338,22 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
             );
           },
         },
+        {
+          Header: "Today Time",
+          accessor: "today_time",
+          Cell: ({ row }) => {
+            const val = row.original?.today_time;
+            return <span className="text-sm text-slate-600 dark:text-slate-300">{val || "0h 0m"}</span>;
+          },
+        },
+        {
+          Header: "Week Time",
+          accessor: "week_time",
+          Cell: ({ row }) => {
+            const val = row.original?.week_time;
+            return <span className="text-sm text-slate-600 dark:text-slate-300">{val || "0h 0m"}</span>;
+          },
+        },
       ]
     : []),
   {
