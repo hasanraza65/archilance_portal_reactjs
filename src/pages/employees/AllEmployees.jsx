@@ -219,54 +219,64 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
       // --- END OF UPDATE ---
 
       return (
-        <div
-          className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer group"
-          onClick={() => navigate(`/employees/work-sessions/${id}`)}
-          title={`View work sessions for ${name}`}
-        >
-          <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
-            {profile_pic ? (
-              <img
-                src={`${PFP_BASE_URL}${profile_pic}`}
-                alt={name || "Profile"}
-                className="object-cover w-full h-full rounded-full"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  const initials = name
-                    ? name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                    : "?";
-                  e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
-                }}
-              />
-            ) : (
-              <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
-                {name ? name.charAt(0).toUpperCase() : "?"}
-              </span>
-            )}
-          </span>
-          <div className="flex flex-col">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
-                {name}
-              </span>
-
-              {showBadge && (
-                <span
-                  className={`px-2 py-0.5 text-[10px] leading-tight font-semibold rounded-full capitalize ${badgeClass}`}
-                >
-                  {displayType}
+        <div className="flex items-center space-x-3 rtl:space-x-reverse group" title={`View work sessions for ${name}`}>
+          {/* Use a real anchor so browser shows "Open link in new tab" in context menu.
+              Left-click still navigates via router (preventDefault + navigate) */}
+          <a
+            href={`/employees/work-sessions/${id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              // keep SPA navigation on left click
+              e.preventDefault();
+              navigate(`/employees/work-sessions/${id}`);
+            }}
+            className="flex items-center space-x-3 rtl:space-x-reverse"
+          >
+            <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
+              {profile_pic ? (
+                <img
+                  src={`${PFP_BASE_URL}${profile_pic}`}
+                  alt={name || "Profile"}
+                  className="object-cover w-full h-full rounded-full"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    const initials = name
+                      ? name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                      : "?";
+                    e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
+                  }}
+                />
+              ) : (
+                <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
+                  {name ? name.charAt(0).toUpperCase() : "?"}
                 </span>
               )}
+            </span>
+            <div className="flex flex-col">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
+                  {name}
+                </span>
+
+                {showBadge && (
+                  <span
+                    className={`px-2 py-0.5 text-[10px] leading-tight font-semibold rounded-full capitalize ${badgeClass}`}
+                  >
+                    {displayType}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
+                {email && <span className="lowercase truncate max-w-[150px]" title={email}>{email}</span>}
+                {phone && <span>{phone}</span>}
+              </div>
             </div>
-            <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
-              {email && <span className="lowercase truncate max-w-[150px]" title={email}>{email}</span>}
-              {phone && <span>{phone}</span>}
-            </div>
-          </div>
+          </a>
         </div>
       );
     },
