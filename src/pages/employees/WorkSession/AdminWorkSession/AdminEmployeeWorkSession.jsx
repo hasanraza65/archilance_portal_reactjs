@@ -451,6 +451,11 @@ const AdminEmployeeWorkSession = () => {
   const presetDropdownRef = useRef(null);
   const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
   const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [trackingData, setTrackingData] = useState([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [selectedTrackingSessionId, setSelectedTrackingSessionId] = useState(null);
+  const [hoveredSegment, setHoveredSegment] = useState(null);
   const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
   const [allTasks, setAllTasks] = useState([]);
   const [taskFilters, setTaskFilters] = useState([]);
@@ -494,13 +499,13 @@ const AdminEmployeeWorkSession = () => {
   const STORAGE_URL = `${API_BASE}/storage`;
 
   useEffect(() => {
-    if (isIdleTimeModalOpen || isManualTimeModalOpen)
+    if (isIdleTimeModalOpen || isManualTimeModalOpen || isTrackingModalOpen)
       document.body.style.overflow = "hidden";
     else document.body.style.overflow = "unset";
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isIdleTimeModalOpen, isManualTimeModalOpen]);
+  }, [isIdleTimeModalOpen, isManualTimeModalOpen, isTrackingModalOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -807,6 +812,54 @@ const AdminEmployeeWorkSession = () => {
     });
   };
 
+  // Tracking fetch & helpers
+  const fetchTrackingData = async (sessionId) => {
+    setTrackingLoading(true);
+    try {
+      const url = `${API_BASE_URL}/fetch-activity-logs/${sessionId}`;
+      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data && res.data.status) setTrackingData(res.data.data || []);
+      else {
+        setTrackingData([]);
+        toast.error(res.data?.message || "No tracking data");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to fetch tracking data");
+      setTrackingData([]);
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  const openTrackingModal = async (sessionId) => {
+    setSelectedTrackingSessionId(sessionId);
+    setIsTrackingModalOpen(true);
+    await fetchTrackingData(sessionId);
+  };
+
+  const secondsBetween = (start, end) => {
+    try {
+      const s = new Date(start);
+      const e = new Date(end);
+      let diff = (e.getTime() - s.getTime()) / 1000;
+      if (isNaN(diff) || diff < 0) return 0;
+      return diff;
+    } catch (err) {
+      return 0;
+    }
+  };
+
+  const formatDurationFromSeconds = (sec) => {
+    if (!sec) return "0s";
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
+
   if (!isAuthenticated || !user)
     return (
       <div className="p-8 text-center">
@@ -1109,6 +1162,14 @@ const AdminEmployeeWorkSession = () => {
                           Show Idle Time
                         </button>
                       )}
+                      {session.id && (
+                        <button
+                          onClick={() => openTrackingModal(session.id)}
+                          className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-xs ml-2"
+                        >
+                          Track
+                        </button>
+                      )}
                     </div>
                     <button
                       onClick={() => handleDelete(session.id)}
@@ -1231,6 +1292,170 @@ const AdminEmployeeWorkSession = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* TRACKING MODAL */}
+      {isTrackingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-[rgba(255,255,255,0.85)] dark:bg-[rgba(15,23,42,0.85)] backdrop-blur-sm px-4">
+          <div className="relative bg-white dark:bg-slate-800 p-3 rounded-lg shadow-xl w-full max-w-2xl border dark:border-slate-700 max-h-[75vh] overflow-hidden mt-6">
+            <div className="flex items-start justify-between px-2">
+              <h3 className="text-lg font-bold mb-2">Session Tracking</h3>
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-slate-500">Session: {selectedTrackingSessionId}</div>
+                <button
+                  onClick={() => setIsTrackingModalOpen(false)}
+                  aria-label="Close"
+                  className="px-3 py-1 rounded bg-slate-800 text-white text-sm hover:opacity-90"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {/* Hide table scrollbar (WebKit + Firefox) */}
+            <style>{`.tracking-table::-webkit-scrollbar{display:none} .tracking-table{-ms-overflow-style:none; scrollbar-width:none;}`}</style>
+
+            {/* Timeline card */}
+            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded mb-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 bg-green-500 rounded-full"></span>
+                  <span className="text-sm">Active</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 bg-amber-400 rounded-full"></span>
+                  <span className="text-sm">Idle</span>
+                </div>
+              </div>
+
+              <div className="w-full bg-white dark:bg-slate-800 rounded p-3 border">
+                <div className="w-full bg-slate-100 dark:bg-slate-700 rounded h-10 overflow-hidden relative">
+                  {trackingLoading ? (
+                    <div className="flex-1 flex items-center justify-center text-sm text-slate-500">Loading timeline...</div>
+                  ) : trackingData.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-sm text-slate-500">No data</div>
+                  ) : (
+                    (() => {
+                      const total = trackingData.reduce((acc, s) => acc + secondsBetween(s.start_time, s.end_time), 0) || 1;
+                      const first = trackingData[0];
+                      const startMs = first ? new Date(first.start_time).getTime() : 0;
+                      // segments container
+                      const segments = (
+                        <div className="flex h-full">
+                          {trackingData.map((s, idx) => {
+                            const dur = secondsBetween(s.start_time, s.end_time);
+                            const w = (dur / total) * 100;
+                            const bg = s.is_idle ? "#f59e0b" : "#10b981";
+                            return (
+                              <div
+                                key={idx}
+                                style={{ width: `${w}%`, background: bg }}
+                                title={`${s.start_time} - ${s.end_time}`}
+                                onMouseEnter={() => setHoveredSegment({ ...s, durationSec: dur })}
+                                onMouseLeave={() => setHoveredSegment(null)}
+                              />
+                            );
+                          })}
+                        </div>
+                      );
+
+                      // ticks every 60s
+                      const ticks = [];
+                      for (let t = 60; t < total; t += 60) ticks.push(t);
+
+                      const ticksOverlay = (
+                        <div className="absolute inset-0 pointer-events-none">
+                          {ticks.map((sec, i) => {
+                            const left = (sec / total) * 100;
+                            const labelTime = new Date(startMs + sec * 1000);
+                            return (
+                              <div key={i} style={{ left: `${left}%` }} className="absolute top-0 bottom-0">
+                                <div className="w-px h-3 bg-slate-300/80 mx-auto" style={{ transform: 'translateX(-0.5px)' }} />
+                                <div className="text-[10px] text-slate-400 mt-1 text-center" style={{ transform: 'translateX(-50%)', position: 'relative', top: '6px', left: 0 }}>
+                                  {formatScreenshotTime(labelTime.toISOString())}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+
+                      return (
+                        <>
+                          {segments}
+                          {ticksOverlay}
+                        </>
+                      );
+                    })()
+                  )}
+                </div>
+
+                {/* Hover / summary details */}
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm px-1">
+                  {(() => {
+                    const totalSec = trackingData.reduce((acc, s) => acc + secondsBetween(s.start_time, s.end_time), 0);
+                    const totalKeys = trackingData.reduce((acc, s) => acc + (s.keyboard_clicks || 0), 0);
+                    const totalMouse = trackingData.reduce((acc, s) => acc + (s.mouse_clicks || 0), 0);
+                    const first = trackingData[0];
+                    const last = trackingData[trackingData.length - 1];
+                    const type = (trackingData.filter((s) => s.is_idle).length / Math.max(trackingData.length,1)) > 0.5 ? 'Inactivity' : 'Activity';
+                    if (hoveredSegment) {
+                      return (
+                        <>
+                          <div><strong>Time Range:</strong><div>{hoveredSegment.start_time ? formatScreenshotTime(hoveredSegment.start_time) : '-'} - {hoveredSegment.end_time ? formatScreenshotTime(hoveredSegment.end_time) : '-'}</div></div>
+                          <div><strong>Duration:</strong><div>{formatDurationFromSeconds(hoveredSegment.durationSec)}</div></div>
+                          <div><strong>Keys/Mouse:</strong><div>{hoveredSegment.keyboard_clicks ?? 0} / {hoveredSegment.mouse_clicks ?? 0}</div></div>
+                          <div><strong>State:</strong><div>{hoveredSegment.is_idle ? 'Idle' : 'Active'}</div></div>
+                        </>
+                      );
+                    }
+                    return (
+                      <>
+                        <div><strong>Time Range:</strong><div>{first ? formatScreenshotTime(first.start_time) : '-'} - {last ? formatScreenshotTime(last.end_time) : '-'}</div></div>
+                        <div><strong>Duration:</strong><div>{formatDurationFromSeconds(totalSec)}</div></div>
+                        <div><strong>Type:</strong><div className="text-pink-600">{type}</div></div>
+                        <div><strong>Clicks (K/M):</strong><div>{totalKeys} / {totalMouse}</div></div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Activity Logs */}
+            <div className="bg-white dark:bg-slate-800 tracking-table p-3 rounded border max-h-[60vh] overflow-y-auto mt-3">
+              <h4 className="text-sm font-semibold mb-2 px-1">Detailed Activity Logs</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left table-auto">
+                  <thead className="text-xs uppercase bg-slate-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2">Timestamp</th>
+                      <th className="px-3 py-2">Category</th>
+                      <th className="px-3 py-2">Action / Info</th>
+                      <th className="px-3 py-2">Duration</th>
+                      <th className="px-3 py-2">Keyboard</th>
+                      <th className="px-3 py-2">Mouse</th>
+                      <th className="px-3 py-2">Intensity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {trackingData.map((r) => (
+                      <tr key={r.id} className="align-top">
+                        <td className="px-3 py-3 align-top">{r.start_time ? formatScreenshotTime(r.start_time) : 'N/A'}</td>
+                        <td className="px-3 py-3 align-top">{r.is_idle ? <span className="text-amber-700 font-semibold">IDLE</span> : <span className="text-green-700 font-semibold">ACTIVE</span>}</td>
+                        <td className="px-3 py-3 align-top break-words max-w-[36ch]">{r.active_window_title ?? 'Screen Idle / System Lock'}</td>
+                        <td className="px-3 py-3 align-top">{calculateIdleDuration(r.start_time, r.end_time)}</td>
+                        <td className="px-3 py-3 align-top text-center">{r.keyboard_clicks ?? 0}</td>
+                        <td className="px-3 py-3 align-top text-center">{r.mouse_clicks ?? 0}</td>
+                        <td className="px-3 py-3 align-top">{(r.keyboard_clicks || 0) + (r.mouse_clicks || 0) > 50 ? 'High' : ((r.keyboard_clicks || 0) + (r.mouse_clicks || 0) > 0 ? 'Medium' : 'None')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
           </div>
         </div>
       )}
