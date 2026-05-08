@@ -94,6 +94,21 @@ const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
     },
   },
   {
+    Header: "Subscription From",
+    accessor: "subscription_from",
+    Cell: ({ cell: { value } }) => {
+      if (!value) return <span>N/A</span>;
+      try {
+        const d = new Date(value);
+        if (isNaN(d)) return <span>{value}</span>;
+        const formatted = d.toLocaleDateString();
+        return <span>{formatted}</span>;
+      } catch (e) {
+        return <span>{value}</span>;
+      }
+    },
+  },
+  {
     Header: "Role ID",
     accessor: "user_role",
     Cell: ({ cell: { value } }) => <span>{value}</span>,
