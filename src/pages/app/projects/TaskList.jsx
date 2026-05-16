@@ -613,7 +613,7 @@ const TaskList = ({
             </div>
           </div>
           <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-            {(employeeType === "Manager" ||
+            {userRole !== "admin" && (employeeType === "Manager" ||
               employeeType === "Supervisor" ||
               employeeType === "Executive" ||
               employeeType === "Employee") && (
