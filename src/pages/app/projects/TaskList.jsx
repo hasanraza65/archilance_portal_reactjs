@@ -328,10 +328,32 @@ const TaskList = ({
         });
 
         const responseData = response.data;
-        const rawItems = Array.isArray(responseData.data)
-          ? responseData.data
-          : [];
-        const formattedItems = rawItems.map(formatTaskItem);
+        let rawItems = [];
+        let isClientPaginated = false;
+
+        if (responseData && Array.isArray(responseData.data)) {
+          rawItems = responseData.data;
+        } else if (Array.isArray(responseData)) {
+          rawItems = responseData;
+          isClientPaginated = true;
+        }
+        
+        let formattedItems = [];
+        let totalItems = 0;
+        let lastPageNum = 1;
+
+        if (isClientPaginated) {
+           totalItems = rawItems.length;
+           lastPageNum = Math.ceil(totalItems / 10) || 1;
+           const startIndex = (page - 1) * 10;
+           const endIndex = startIndex + 10;
+           const itemsToFormat = rawItems.slice(startIndex, endIndex);
+           formattedItems = itemsToFormat.map(formatTaskItem);
+        } else {
+           formattedItems = rawItems.map(formatTaskItem);
+           totalItems = responseData.total !== undefined ? responseData.total : 0;
+           lastPageNum = responseData.last_page || 1;
+        }
 
         setTasksData((prev) => {
           const currentStatusData = prev[lowerStatus];
@@ -341,9 +363,9 @@ const TaskList = ({
               items: isLoadMore
                 ? [...currentStatusData.items, ...formattedItems]
                 : formattedItems,
-              currentPage: responseData.current_page || page,
-              lastPage: responseData.last_page || 1,
-              total: responseData.total || 0,
+              currentPage: isClientPaginated ? page : (responseData.current_page || page),
+              lastPage: lastPageNum,
+              total: totalItems,
               isLoading: false,
             },
           };
