@@ -18,6 +18,7 @@ import UpdateAssigneesModal from "./UpdateAssigneesModal";
 import Icon from "@/components/ui/Icon";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 import MembersView from "./MembersView/MembersView";
+import CalendarView from "./CalendarView/CalendarView";
 
 const STATUS_OPTIONS = [
   "On Hold",
@@ -137,7 +138,7 @@ const ProjectPostPage = () => {
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
     const statusFromUrl = searchParams.get("status");
-    if (["tasks", "projects", "members"].includes(tabFromUrl))
+    if (["tasks", "projects", "members", "calendar"].includes(tabFromUrl))
       setActiveTab(tabFromUrl);
     if (statusFromUrl && STATUS_OPTIONS.includes(statusFromUrl)) {
       const targetTab = tabFromUrl || activeTab;
@@ -194,6 +195,7 @@ const ProjectPostPage = () => {
     if (activeTab === "projects") return "Jobs";
     if (activeTab === "tasks") return "Projects";
     if (activeTab === "members") return "Members View";
+    if (activeTab === "calendar") return "Calendar View";
     return "Jobs";
   }, [activeTab]);
 
@@ -281,6 +283,14 @@ const ProjectPostPage = () => {
             onClick={() => setActiveTab("members")}
           >
             Members View
+          </button>
+        )}
+        {isAuthorizedForTabs && (
+          <button
+            className={getTabClassName("calendar")}
+            onClick={() => setActiveTab("calendar")}
+          >
+            Calendar View
           </button>
         )}
       </div>
@@ -497,6 +507,7 @@ const ProjectPostPage = () => {
         />
       )}
       {activeTab === "members" && <MembersView />}
+      {activeTab === "calendar" && <CalendarView />}
       <AddProject />
       <EditProject />
       <UpdateAssigneesModal />
