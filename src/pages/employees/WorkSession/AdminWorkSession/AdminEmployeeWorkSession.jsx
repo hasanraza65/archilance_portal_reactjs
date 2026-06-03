@@ -459,6 +459,10 @@ const AdminEmployeeWorkSession = () => {
   const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
   const [allTasks, setAllTasks] = useState([]);
   const [taskFilters, setTaskFilters] = useState([]);
+  const [isDeletedScreenshotsModalOpen, setIsDeletedScreenshotsModalOpen] = useState(false);
+  const [deletedScreenshots, setDeletedScreenshots] = useState([]);
+  const [deletedScreenshotsLoading, setDeletedScreenshotsLoading] = useState(false);
+  const [selectedDeletedSessionId, setSelectedDeletedSessionId] = useState(null);
 
   // STATS STATES
   const [statsLoading, setStatsLoading] = useState(false);
@@ -838,6 +842,25 @@ const AdminEmployeeWorkSession = () => {
     await fetchTrackingData(sessionId);
   };
 
+  const openDeletedScreenshotsModal = async (sessionId) => {
+    setSelectedDeletedSessionId(sessionId);
+    setDeletedScreenshots([]);
+    setDeletedScreenshotsLoading(true);
+    setIsDeletedScreenshotsModalOpen(true);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/admin/deleted-screenshots/${sessionId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      setDeletedScreenshots(Array.isArray(data) ? data : []);
+    } catch {
+      setDeletedScreenshots([]);
+    } finally {
+      setDeletedScreenshotsLoading(false);
+    }
+  };
+
   const secondsBetween = (start, end) => {
     try {
       const s = new Date(start);
@@ -1170,6 +1193,14 @@ const AdminEmployeeWorkSession = () => {
                           Track
                         </button>
                       )}
+                      {user?.role === "admin" && (
+                        <button
+                          onClick={() => openDeletedScreenshotsModal(session.id)}
+                          className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs"
+                        >
+                          View Deleted Screenshots
+                        </button>
+                      )}
                     </div>
                     <button
                       onClick={() => handleDelete(session.id)}
@@ -1295,6 +1326,43 @@ const AdminEmployeeWorkSession = () => {
           </div>
         </div>
       )}
+      {/* DELETED SCREENSHOTS MODAL */}
+      {isDeletedScreenshotsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-4xl border dark:border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Deleted Screenshots</h3>
+              <button
+                onClick={() => setIsDeletedScreenshotsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            {deletedScreenshotsLoading ? (
+              <p className="text-center text-slate-500 py-8">Loading...</p>
+            ) : deletedScreenshots.length === 0 ? (
+              <p className="text-center text-slate-500 py-8">No deleted screenshots found.</p>
+            ) : (
+              <div className="max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {deletedScreenshots.map((ss) => (
+                    <div key={ss.id} className="text-center">
+                      <div className="w-full aspect-video bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 flex items-center justify-center">
+                        <span className="text-xs text-slate-400 text-center px-1">Image not available</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {formatScreenshotTime(ss.created_at)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* TRACKING MODAL */}
       {isTrackingModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4 py-8 overflow-hidden">
