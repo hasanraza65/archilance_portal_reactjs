@@ -1328,13 +1328,13 @@ const AdminEmployeeWorkSession = () => {
       )}
       {/* DELETED SCREENSHOTS MODAL */}
       {isDeletedScreenshotsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-4xl border dark:border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Deleted Screenshots</h3>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[rgba(255,255,255,0.8)] dark:bg-[rgba(15,23,42,0.8)] backdrop-blur px-4 py-6">
+          <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-4xl border dark:border-slate-700 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+              <h3 className="text-base sm:text-lg font-bold">Deleted Screenshots</h3>
               <button
                 onClick={() => setIsDeletedScreenshotsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
               >
                 ✕
               </button>
@@ -1344,12 +1344,36 @@ const AdminEmployeeWorkSession = () => {
             ) : deletedScreenshots.length === 0 ? (
               <p className="text-center text-slate-500 py-8">No deleted screenshots found.</p>
             ) : (
-              <div className="max-h-[70vh] overflow-y-auto">
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
                   {deletedScreenshots.map((ss) => (
                     <div key={ss.id} className="text-center">
-                      <div className="w-full aspect-video bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 flex items-center justify-center">
-                        <span className="text-xs text-slate-400 text-center px-1">Image not available</span>
+                      <div className="w-full aspect-video bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600 flex items-center justify-center overflow-hidden">
+                        {ss.screenshot_file ? (
+                          <a
+                            href={`${STORAGE_URL}/${ss.screenshot_file}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full h-full"
+                          >
+                            <img
+                              src={`${STORAGE_URL}/${ss.screenshot_file}`}
+                              alt="deleted screenshot"
+                              className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                                e.target.parentElement.style.display = "none";
+                                e.target.parentElement.nextSibling.style.display = "flex";
+                              }}
+                            />
+                          </a>
+                        ) : null}
+                        <span
+                          className="text-xs text-slate-400 text-center px-1"
+                          style={{ display: ss.screenshot_file ? "none" : "flex" }}
+                        >
+                          Image not available
+                        </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
                         {formatScreenshotTime(ss.created_at)}
