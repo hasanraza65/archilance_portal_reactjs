@@ -1198,7 +1198,7 @@ const AdminEmployeeWorkSession = () => {
                           onClick={() => openDeletedScreenshotsModal(session.id)}
                           className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs"
                         >
-                          View Deleted Screenshots
+                          Deleted Shots
                         </button>
                       )}
                     </div>
