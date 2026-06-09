@@ -1,4 +1,7 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { toast } from "react-toastify";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/light.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -23,7 +26,7 @@ const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  console.log(role);
+
   if (role) {
     return `/api/${role}${cleanBasePath}`;
   }
@@ -59,6 +62,99 @@ const formatElapsedTime = (startDatetime) => {
   return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} min${minutes !== 1 ? "s" : ""}`;
 };
 
+const formatDate = (date) => {
+  if (!date) return "N/A";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "N/A";
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+  const JoiningDateCell = ({ value, id, onUpdateSuccess }) => {
+  const [updating, setUpdating] = useState(false);
+  const isUpdatingRef = useRef(false);
+  const fpInstanceRef = useRef(null);
+
+  const handleDateChange = async (selectedDates) => {
+    if (selectedDates.length === 0 || isUpdatingRef.current) return;
+    
+    const date = selectedDates[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const formattedDate = `${year}-${month}-${day}`;
+
+    // Prevent duplicate calls if the date is the same as current
+    const currentFormatted = value ? new Date(value).toISOString().split("T")[0] : "";
+    if (formattedDate === currentFormatted) return;
+
+    const token = Cookies.get("token");
+    if (!token) {
+      toast.error("Authentication required");
+      return;
+    }
+
+    isUpdatingRef.current = true;
+    setUpdating(true);
+    try {
+      const apiPath = getApiBasePathForRole("/update-joining-date");
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
+        {
+          employee_id: id,
+          joining_date: formattedDate,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      toast.success("Joining date updated successfully");
+      if (onUpdateSuccess) onUpdateSuccess();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || "Failed to update date");
+    } finally {
+      isUpdatingRef.current = false;
+      setUpdating(false);
+    }
+  };
+
+  return (
+    <div className="relative group min-w-[120px]">
+      <div 
+        className={`inline-flex items-center space-x-2 py-1.5 px-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer rounded text-slate-600 dark:text-slate-300 ${updating ? 'opacity-50 cursor-wait' : ''}`}
+        onClick={() => !updating && fpInstanceRef.current?.open()}
+      >
+        <span className="text-sm border-b border-dashed border-slate-400 dark:border-slate-500 group-hover:border-blue-500 group-hover:text-blue-600">
+          {formatDate(value)}
+        </span>
+        <Icon 
+          icon="heroicons-outline:calendar" 
+          className="w-4 h-4 text-slate-400 group-hover:text-blue-500" 
+        />
+      </div>
+      <div className="absolute opacity-0 pointer-events-none">
+        <Flatpickr
+          value={value || ""}
+          onReady={(selectedDates, dateStr, instance) => { 
+            fpInstanceRef.current = instance; 
+          }}
+          onChange={handleDateChange}
+          options={{
+            disableMobile: true,
+            dateFormat: "Y-m-d",
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const formatDatetime = (datetime) => {
   if (!datetime) return "N/A";
   const date = new Date(datetime);
@@ -76,7 +172,8 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
   navigate,
   openDeleteModalHandler,
   hasPermission,
-  isAdmin = false
+  isAdmin = false,
+  onUpdateSuccess
 ) => {
   const baseColumns = [
   {
@@ -88,7 +185,7 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     Header: "Name",
     accessor: "name",
     Cell: ({ row }) => {
-      const { name, profile_pic, id, employee_type } = row.original;
+      const { name, profile_pic, id, employee_type, email, phone } = row.original;
       const lowerCaseEmployeeType = employee_type?.toLowerCase();
 
       // --- UPDATED CODE ---
@@ -122,58 +219,66 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
       // --- END OF UPDATE ---
 
       return (
-        <div
-          className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer group"
-          onClick={() => navigate(`/employees/work-sessions/${id}`)}
-          title={`View work sessions for ${name}`}
-        >
-          <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
-            {profile_pic ? (
-              <img
-                src={`${PFP_BASE_URL}${profile_pic}`}
-                alt={name || "Profile"}
-                className="object-cover w-full h-full rounded-full"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  const initials = name
-                    ? name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                    : "?";
-                  e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
-                }}
-              />
-            ) : (
-              <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
-                {name ? name.charAt(0).toUpperCase() : "?"}
-              </span>
-            )}
-          </span>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
-              {name}
+        <div className="flex items-center space-x-3 rtl:space-x-reverse group" title={`View work sessions for ${name}`}>
+          {/* Use a real anchor so browser shows "Open link in new tab" in context menu.
+              Left-click still navigates via router (preventDefault + navigate) */}
+          <a
+            href={`/employees/work-sessions/${id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              // keep SPA navigation on left click
+              e.preventDefault();
+              navigate(`/employees/work-sessions/${id}`);
+            }}
+            className="flex items-center space-x-3 rtl:space-x-reverse"
+          >
+            <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
+              {profile_pic ? (
+                <img
+                  src={`${PFP_BASE_URL}${profile_pic}`}
+                  alt={name || "Profile"}
+                  className="object-cover w-full h-full rounded-full"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    const initials = name
+                      ? name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                      : "?";
+                    e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
+                  }}
+                />
+              ) : (
+                <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
+                  {name ? name.charAt(0).toUpperCase() : "?"}
+                </span>
+              )}
             </span>
+            <div className="flex flex-col">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
+                  {name}
+                </span>
 
-            {showBadge && (
-              <span
-                className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${badgeClass}`}
-              >
-                {displayType}
-              </span>
-            )}
-          </div>
+                {showBadge && (
+                  <span
+                    className={`px-2 py-0.5 text-[10px] leading-tight font-semibold rounded-full capitalize ${badgeClass}`}
+                  >
+                    {displayType}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
+                {email && <span className="lowercase truncate max-w-[150px]" title={email}>{email}</span>}
+                {phone && <span>{phone}</span>}
+              </div>
+            </div>
+          </a>
         </div>
       );
-    },
-  },
-  {
-    Header: "Email",
-    accessor: "email",
-    Cell: ({ cell: { value } }) => {
-      const displayValue = value ? value.toLowerCase() : "N/A";
-      return <span style={{ textTransform: "none" }}>{displayValue}</span>;
     },
   },
   {
@@ -182,14 +287,15 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     Cell: ({ cell: { value } }) => <span>{value}</span>,
   },
   {
-    Header: "Phone",
-    accessor: "phone",
-    Cell: ({ cell: { value } }) => <span>{value || "N/A"}</span>,
-  },
-  {
-    Header: "Role ID",
-    accessor: "user_role",
-    Cell: ({ cell: { value } }) => <span>{value}</span>,
+    Header: "Joining Date",
+    accessor: "joining_date",
+    Cell: ({ row, cell: { value } }) => (
+      <JoiningDateCell 
+        value={value} 
+        id={row.original.id} 
+        onUpdateSuccess={onUpdateSuccess} 
+      />
+    ),
   },
   ...(isAdmin
     ? [
@@ -240,6 +346,22 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
                 </div>
               </Tooltip>
             );
+          },
+        },
+        {
+          Header: "Today Time",
+          accessor: "today_time",
+          Cell: ({ row }) => {
+            const val = row.original?.today_time;
+            return <span className="text-sm text-slate-600 dark:text-slate-300">{val || "0h 0m"}</span>;
+          },
+        },
+        {
+          Header: "Week Time",
+          accessor: "week_time",
+          Cell: ({ row }) => {
+            const val = row.original?.week_time;
+            return <span className="text-sm text-slate-600 dark:text-slate-300">{val || "0h 0m"}</span>;
           },
         },
       ]
@@ -349,7 +471,7 @@ const Allemployees = () => {
         return;
       }
 
-      console.log("Raw API Data (from /employee-user):", rawData);
+
       setEmployeeData(rawData);
     } catch (err) {
       setFetchError(
@@ -378,8 +500,7 @@ const Allemployees = () => {
 
     let roleFilteredData = [];
 
-    console.log("Current User Role:", currentUserRole);
-    console.log("Current User Type:", currentUserType);
+
 
     const isExecutive = currentUserType === "executive";
 
@@ -402,14 +523,12 @@ const Allemployees = () => {
       }
 
       // Detailed log for debugging specific IDs like 22 or 24
-      if (emp.id === 22 || emp.id === 24 || empType === "manager") {
-         console.log(`Checking Emp ID ${emp.id} (${emp.name}): Type="${emp.employee_type}", empType="${empType}", Keep=${keep}`);
-      }
+
 
       return keep;
     });
 
-    console.log("Filtered Data Results Count:", roleFilteredData.length);
+
 
     if (statusFilter === "all" || statusFilter === "") {
       return roleFilteredData;
@@ -500,9 +619,10 @@ const Allemployees = () => {
         navigate,
         handleOpenDeleteModal,
         hasManagementPermission,
-        isAdmin
+        isAdmin,
+        fetchEmployees
       ),
-    [navigate, handleOpenDeleteModal, hasManagementPermission, isAdmin]
+    [navigate, handleOpenDeleteModal, hasManagementPermission, isAdmin, fetchEmployees]
   );
 
   const data = useMemo(() => filteredData, [filteredData]);

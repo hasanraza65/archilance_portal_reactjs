@@ -9,14 +9,16 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const AddCustomer = () => {
   const navigate = useNavigate();
+  const today = new Date().toISOString().slice(0, 10);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     username: '',
     phone: '',
-    password: '',
+  password: '',
     password_confirmation: '',
     user_role: '4',
+  subscription_from: today,
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -52,6 +54,10 @@ const AddCustomer = () => {
         newErrors.password_confirmation = "Passwords do not match.";
     }
     if (!formData.user_role) newErrors.user_role = "User role is required.";
+    // optional: basic date validation for subscription_from
+    if (formData.subscription_from && isNaN(Date.parse(formData.subscription_from))) {
+      newErrors.subscription_from = "Subscription start date is invalid.";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -201,6 +207,20 @@ const getApiBasePathForRole = (basePath) => {
             placeholder="+923001234567"
           />
           {errors.phone && <p className={errorClass}>{errors.phone}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="subscription_from" className={labelClass}>Subscription From</label>
+          <input
+            type="date"
+            name="subscription_from"
+            id="subscription_from"
+            className={`${inputClass} ${errors.subscription_from ? 'border-danger-500' : ''}`}
+            value={formData.subscription_from}
+            onChange={handleChange}
+            placeholder="YYYY-MM-DD"
+          />
+          {errors.subscription_from && <p className={errorClass}>{errors.subscription_from}</p>}
         </div>
 
         <div>

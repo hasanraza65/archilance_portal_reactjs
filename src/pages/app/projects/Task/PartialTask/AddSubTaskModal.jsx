@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
+import Select from "react-select";
+import axios from "axios";
 
 import Modal from "@/components/ui/Modal";
 import Textinput from "@/components/ui/Textinput";
@@ -14,6 +16,28 @@ import * as yup from "yup";
 
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+
+const selectStyles = {
+  control: (base) => ({
+    ...base,
+    borderColor: "#e2e8f0",
+    borderRadius: "0.375rem",
+    minHeight: "48px",
+    "&:hover": { borderColor: "#cbd5e1" },
+    boxShadow: "none",
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected
+      ? "#0f172a"
+      : state.isFocused
+      ? "#f1f5f9"
+      : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+};
 
 // Helper functions (getFileIcon, formatFileSize)
 const getFileIcon = (fileType) => {
@@ -86,12 +110,15 @@ const AddSubTaskModal = ({
   const [quillDescription, setQuillDescription] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   const FormValidationSchema = yup
     .object({
       task_title: yup.string().required("Title is required"),
       task_description: yup.string().nullable(),
       due_date: yup.date().nullable().typeError("Invalid date format"),
+      assignees: yup.array().nullable(),
     })
     .required();
 
@@ -110,6 +137,7 @@ const AddSubTaskModal = ({
       task_title: "",
       task_description: "",
       due_date: null,
+      assignees: [],
     },
   });
 
@@ -127,6 +155,35 @@ const AddSubTaskModal = ({
       setAttachments([]);
     }
   }, [isOpen, reset]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchEmployees = async () => {
+        setLoadingEmployees(true);
+        try {
+          const token = Cookies.get("token");
+          const apiPath = getApiBasePathForRole("/employee-user");
+          const response = await axios.get(
+            `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          const employeeOptions = response.data.map((emp) => ({
+            value: emp.id,
+            label: emp.name,
+          }));
+          setEmployees(employeeOptions);
+        } catch (error) {
+          console.error("Error fetching employees:", error);
+          toast.error("Failed to load employees.");
+        } finally {
+          setLoadingEmployees(false);
+        }
+      };
+      fetchEmployees();
+    }
+  }, [isOpen]);
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
@@ -212,6 +269,12 @@ const AddSubTaskModal = ({
           "due_date",
           new Date(data.due_date).toISOString().split("T")[0]
         );
+      }
+
+      if (data.assignees && data.assignees.length > 0) {
+        data.assignees.forEach((a) => {
+          formDataPayload.append("employee_ids[]", a.value);
+        });
       }
 
       attachments.forEach((file, index) => {
@@ -323,27 +386,51 @@ const AddSubTaskModal = ({
           />
         </FormGroup>
 
-        <FormGroup label="Due Date (Optional)" error={errors.due_date}>
-          <Controller
-            name="due_date"
-            control={control}
-            render={({ field }) => (
-              <Flatpickr
-                {...field}
-                className="form-control h-[48px] dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300"
-                placeholder="YYYY-MM-DD"
-                options={{
-                  altInput: true,
-                  altFormat: "F j, Y",
-                  dateFormat: "Y-m-d",
-                }}
-                value={field.value}
-                onChange={(date) => field.onChange(date[0] || null)}
-                disabled={isSubmitting}
-              />
-            )}
-          />
-        </FormGroup>
+        <div className="grid lg:grid-cols-2 gap-4 grid-cols-1">
+          <FormGroup label="Due Date (Optional)" error={errors.due_date}>
+            <Controller
+              name="due_date"
+              control={control}
+              render={({ field }) => (
+                <Flatpickr
+                  {...field}
+                  className="form-control h-[48px] dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300"
+                  placeholder="YYYY-MM-DD"
+                  options={{
+                    altInput: true,
+                    altFormat: "F j, Y",
+                    dateFormat: "Y-m-d",
+                  }}
+                  value={field.value}
+                  onChange={(date) => field.onChange(date[0] || null)}
+                  disabled={isSubmitting}
+                />
+              )}
+            />
+          </FormGroup>
+
+          <FormGroup label="Assignees (Optional)" error={errors.assignees}>
+            <Controller
+              name="assignees"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  options={employees}
+                  isLoading={loadingEmployees}
+                  styles={selectStyles}
+                  isMulti
+                  isClearable
+                  placeholder={
+                    loadingEmployees ? "Loading employees..." : "Select employees"
+                  }
+                  classNamePrefix="select"
+                  disabled={isSubmitting}
+                />
+              )}
+            />
+          </FormGroup>
+        </div>
 
         <FormGroup label="Attachments (Optional)">
           <div className="mb-2">

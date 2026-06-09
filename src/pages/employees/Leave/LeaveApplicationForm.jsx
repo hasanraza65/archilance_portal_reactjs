@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { Calendar, Send, User, Edit3, X, Loader2 } from "lucide-react";
@@ -17,11 +18,27 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
   
   const isEditMode = !!initialData;
 
+  const user = useSelector((state) => state.auth.user);
+  const joiningDate = user?.joining_date;
+
+  const eligibility = useMemo(() => {
+    if (!joiningDate) return { casual: false, annual: false };
+    const join = new Date(joiningDate);
+    const now = new Date();
+    let months = (now.getFullYear() - join.getFullYear()) * 12 + (now.getMonth() - join.getMonth());
+    if (now.getDate() < join.getDate()) months--;
+    
+    return {
+      casual: months >= 1,
+      annual: months >= 6,
+    };
+  }, [joiningDate]);
+
   const leaveTypes = [
-    { value: "casual", label: "Casual Leave" },
-    { value: "annual", label: "Annual Leave" },
-    { value: "sick", label: "Sick Leave" },
-    { value: "other", label: "Other (Specify)" },
+    { value: "casual", label: "Casual Leave", isEligible: eligibility.casual },
+    { value: "annual", label: "Annual Leave", isEligible: eligibility.annual },
+    { value: "sick", label: "Sick Leave", isEligible: true },
+    { value: "other", label: "Other (Specify)", isEligible: true },
   ];
 
   const handleResetForm = () => {
@@ -232,11 +249,19 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
                 {leaveTypes.map((type) => (
                   <div
                     key={type.value}
-                    onClick={() => setLeaveType(type.value)}
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                      leaveType === type.value
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                    onClick={() => {
+                      if (type.isEligible) {
+                        setLeaveType(type.value);
+                      } else {
+                        toast.error(`${type.label} is available after ${type.value === 'casual' ? '1 month' : '6 months'} of joining.`);
+                      }
+                    }}
+                    className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                      !type.isEligible 
+                        ? "opacity-50 grayscale bg-gray-50 cursor-not-allowed" 
+                        : leaveType === type.value
+                          ? "border-blue-500 bg-blue-50 cursor-pointer"
+                          : "border-gray-200 hover:border-gray-300 cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center space-x-3">
@@ -245,10 +270,15 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
                         name="leaveType"
                         value={type.value}
                         checked={leaveType === type.value}
-                        onChange={(e) => setLeaveType(e.target.value)}
+                        disabled={!type.isEligible}
+                        onChange={(e) => {
+                          if (type.isEligible) setLeaveType(e.target.value);
+                        }}
                         className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                       />
-                      <p className="font-medium text-gray-900">{type.label}</p>
+                      <p className={`font-medium ${!type.isEligible ? "text-gray-400" : "text-gray-900"}`}>
+                        {type.label}
+                      </p>
                     </div>
                   </div>
                 ))}

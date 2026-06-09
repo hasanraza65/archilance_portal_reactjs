@@ -371,12 +371,19 @@
     const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
     const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
     const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
+    
+    // Tracking states
+    const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+    const [trackingData, setTrackingData] = useState([]);
+    const [trackingLoading, setTrackingLoading] = useState(false);
+    const [selectedTrackingSessionId, setSelectedTrackingSessionId] = useState(null);
+    const [hoveredSegment, setHoveredSegment] = useState(null);
 
     const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/employee`;
     const STORAGE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage`;
 
     useEffect(() => {
-      if (isIdleTimeModalOpen || isManualTimeModalOpen) {
+      if (isIdleTimeModalOpen || isManualTimeModalOpen || isTrackingModalOpen) {
         document.body.style.overflow = "hidden";
       } else {
         document.body.style.overflow = "unset";
@@ -384,7 +391,7 @@
       return () => {
         document.body.style.overflow = "unset";
       };
-    }, [isIdleTimeModalOpen, isManualTimeModalOpen]);
+    }, [isIdleTimeModalOpen, isManualTimeModalOpen, isTrackingModalOpen]);
 
     useEffect(() => {
       if (!isAuthenticated || !user) return;
@@ -628,6 +635,55 @@
       }
     };
 
+    // Tracking fetch & helpers
+    const fetchTrackingData = async (sessionId) => {
+      setTrackingLoading(true);
+      try {
+        const url = `${API_BASE_URL}/fetch-activity-logs/${sessionId}`;
+        const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.data && res.data.status) {
+          setTrackingData(res.data.data || []);
+        } else {
+          setTrackingData([]);
+          toast.error(res.data?.message || "No tracking data");
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Failed to fetch tracking data");
+        setTrackingData([]);
+      } finally {
+        setTrackingLoading(false);
+      }
+    };
+
+    const openTrackingModal = async (sessionId) => {
+      setSelectedTrackingSessionId(sessionId);
+      setIsTrackingModalOpen(true);
+      await fetchTrackingData(sessionId);
+    };
+
+    const secondsBetween = (start, end) => {
+      try {
+        const s = new Date(start);
+        const e = new Date(end);
+        let diff = (e.getTime() - s.getTime()) / 1000;
+        if (isNaN(diff) || diff < 0) return 0;
+        return diff;
+      } catch (err) {
+        return 0;
+      }
+    };
+
+    const formatDurationFromSeconds = (sec) => {
+      if (!sec) return "0s";
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      if (h > 0) return `${h}h ${m}m ${s}s`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    };
+
     if (!isAuthenticated && !loading) {
       return (
         <div className="p-8 text-center">
@@ -864,6 +920,14 @@
                                   Idle Time
                                 </button>
                               )}
+                            {session.id && (
+                              <button
+                                onClick={() => openTrackingModal(session.id)}
+                                className="px-2.5 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 rounded-full text-xs font-semibold hover:bg-indigo-200"
+                              >
+                                Track
+                              </button>
+                            )}
                           </div>
                         </div>
                         <button
@@ -1028,6 +1092,279 @@
                 >
                   Close
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* TRACKING MODAL */}
+        {isTrackingModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4 py-8 overflow-hidden">
+            <div className="relative bg-white dark:bg-slate-900 flex flex-col rounded-2xl shadow-2xl w-full max-w-4xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-none mb-1">Session Tracking</h3>
+                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400">ID: {selectedTrackingSessionId}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsTrackingModalOpen(false)}
+                  className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                  aria-label="Close"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-6 tracking-table">
+                <style>{`.tracking-table::-webkit-scrollbar{width:6px;height:6px} .tracking-table::-webkit-scrollbar-track{background:transparent} .tracking-table::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px} .dark .tracking-table::-webkit-scrollbar-thumb{background:#475569}`}</style>
+
+                {/* Timeline card */}
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-xl mb-6 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Activity Timeline</h4>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Active</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"></span>
+                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Idle</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-md h-12 overflow-hidden relative group">
+                      {trackingLoading ? (
+                        <div className="flex-1 h-full flex items-center justify-center text-sm text-slate-500 animate-pulse">Loading timeline...</div>
+                      ) : trackingData.length === 0 ? (
+                        <div className="flex-1 h-full flex items-center justify-center text-sm text-slate-500">No data available</div>
+                      ) : (
+                        (() => {
+                          const total = trackingData.reduce((acc, s) => acc + secondsBetween(s.start_time, s.end_time), 0) || 1;
+                          const first = trackingData[0];
+                          const startMs = first ? new Date(first.start_time).getTime() : 0;
+                          
+                          const segments = (
+                            <div className="flex h-full w-full">
+                              {trackingData.map((s, idx) => {
+                                const dur = secondsBetween(s.start_time, s.end_time);
+                                const w = (dur / total) * 100;
+                                const bg = s.is_idle ? "#fbbf24" : "#10b981";
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="h-full transition-opacity hover:opacity-80 cursor-crosshair border-r border-white/20 last:border-r-0"
+                                    style={{ width: `${w}%`, backgroundColor: bg }}
+                                    onMouseEnter={() => setHoveredSegment({ ...s, durationSec: dur })}
+                                    onMouseLeave={() => setHoveredSegment(null)}
+                                  />
+                                );
+                              })}
+                            </div>
+                          );
+
+                          const ticks = [];
+                          for (let t = 60; t < total; t += 60) ticks.push(t);
+
+                          const ticksOverlay = (
+                            <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              {ticks.map((sec, i) => {
+                                const left = (sec / total) * 100;
+                                const labelTime = new Date(startMs + sec * 1000);
+                                return (
+                                  <div key={i} style={{ left: `${left}%` }} className="absolute top-0 bottom-0">
+                                    <div className="w-px h-full bg-black/10 dark:bg-white/10 mx-auto" />
+                                    <div className="absolute -bottom-5 text-[10px] text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap bg-white dark:bg-slate-800 px-1 rounded shadow-sm border border-slate-200 dark:border-slate-700 z-10" style={{ transform: 'translateX(-50%)' }}>
+                                      {formatDateTime(labelTime.toISOString())}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+
+                          return (
+                            <>
+                              {segments}
+                              {ticksOverlay}
+                            </>
+                          );
+                        })()
+                      )}
+                    </div>
+
+                    {/* Summary details */}
+                    <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {(() => {
+                        const totalSec = trackingData.reduce((acc, s) => acc + secondsBetween(s.start_time, s.end_time), 0);
+                        const totalKeys = trackingData.reduce((acc, s) => acc + (s.keyboard_clicks || 0), 0);
+                        const totalMouse = trackingData.reduce((acc, s) => acc + (s.mouse_clicks || 0), 0);
+                        const first = trackingData[0];
+                        const last = trackingData[trackingData.length - 1];
+                        const type = (trackingData.filter((s) => s.is_idle).length / Math.max(trackingData.length,1)) > 0.5 ? 'Inactivity' : 'Activity';
+                        
+                        const StatItem = ({ label, value, highlight, icon }) => (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider flex items-center gap-1.5">
+                              {icon} {label}
+                            </span>
+                            <span className={`text-sm font-semibold ${highlight || 'text-slate-800 dark:text-slate-200'}`}>
+                              {value}
+                            </span>
+                          </div>
+                        );
+
+                        if (hoveredSegment) {
+                          return (
+                            <>
+                              <StatItem 
+                                label="Time Range" 
+                                value={`${hoveredSegment.start_time ? formatDateTime(hoveredSegment.start_time) : '-'} - ${hoveredSegment.end_time ? formatDateTime(hoveredSegment.end_time) : '-'}`}
+                                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                              />
+                              <StatItem 
+                                label="Duration" 
+                                value={formatDurationFromSeconds(hoveredSegment.durationSec)}
+                                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                              />
+                              <StatItem 
+                                label="Keys / Mouse" 
+                                value={`${hoveredSegment.keyboard_clicks ?? 0} / ${hoveredSegment.mouse_clicks ?? 0}`}
+                                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>}
+                              />
+                              <StatItem 
+                                label="State" 
+                                value={hoveredSegment.is_idle ? 'Idle' : 'Active'}
+                                highlight={hoveredSegment.is_idle ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}
+                                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                              />
+                            </>
+                          );
+                        }
+                        return (
+                          <>
+                            <StatItem 
+                              label="Total Range" 
+                              value={`${first ? formatDateTime(first.start_time) : '-'} - ${last ? formatDateTime(last.end_time) : '-'}`}
+                              icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                            />
+                            <StatItem 
+                              label="Total Duration" 
+                              value={formatDurationFromSeconds(totalSec)}
+                              icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                            />
+                            <StatItem 
+                              label="Primary Type" 
+                              value={type}
+                              highlight={type === 'Inactivity' ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400'}
+                              icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
+                            />
+                            <StatItem 
+                              label="Clicks (K/M)" 
+                              value={`${totalKeys} / ${totalMouse}`}
+                              icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>}
+                            />
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detailed Activity Logs */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200">Detailed Activity Logs</h4>
+                  <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700">
+                          <tr>
+                            <th className="px-3 py-3">Time</th>
+                            <th className="px-3 py-3">Status</th>
+                            <th className="px-3 py-3">Activity</th>
+                            <th className="px-3 py-3">Duration</th>
+                            <th className="px-3 py-3 text-center">Keys</th>
+                            <th className="px-3 py-3 text-center">Mouse</th>
+                            <th className="px-3 py-3">Level</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {trackingData.length > 0 ? trackingData.map((r) => {
+                            const totalClicks = (r.keyboard_clicks || 0) + (r.mouse_clicks || 0);
+                            const intensityBadge = totalClicks > 50 
+                              ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200 dark:border-red-500/20" 
+                              : totalClicks > 0 
+                                ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border-blue-200 dark:border-blue-500/20" 
+                                : "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700";
+                                
+                            return (
+                              <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group">
+                                <td className="px-3 py-3 text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap">
+                                  {r.start_time ? formatDateTime(r.start_time) : 'N/A'}
+                                </td>
+                                <td className="px-3 py-3">
+                                  {r.is_idle ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/50 dark:border-amber-500/20">
+                                      <span className="w-1 h-1 rounded-full bg-amber-500"></span> Idle
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-500/20">
+                                      <span className="w-1 h-1 rounded-full bg-emerald-500"></span> Active
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-3 text-slate-700 dark:text-slate-300 max-w-[240px] truncate group-hover:whitespace-normal group-hover:break-words transition-all duration-300">
+                                  {r.active_window_title ?? 'Screen Idle / System Lock'}
+                                </td>
+                                <td className="px-3 py-3 text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap">
+                                  {calculateIdleDuration(r.start_time, r.end_time)}
+                                </td>
+                                <td className="px-3 py-3 text-center">
+                                  <span className="inline-flex items-center justify-center min-w-[1.5rem] px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700">
+                                    {r.keyboard_clicks ?? 0}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-center">
+                                  <span className="inline-flex items-center justify-center min-w-[1.5rem] px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700">
+                                    {r.mouse_clicks ?? 0}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <span className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold border ${intensityBadge}`}>
+                                    {totalClicks > 50 ? 'High' : (totalClicks > 0 ? 'Med' : 'None')}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          }) : (
+                            <tr>
+                              <td colSpan="7" className="px-3 py-10 text-center text-slate-500 dark:text-slate-400">
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2-2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                  </svg>
+                                  <span>No activity logs found.</span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

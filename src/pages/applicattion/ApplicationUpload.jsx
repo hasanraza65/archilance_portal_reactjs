@@ -4,9 +4,20 @@ import React from "react";
 const versions = [
   {
     id: 1,
-    version: "3.0.2",
+    version: "3.0.4",
+    releaseDate: "May 6, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.4.exe",
+    releaseNotes: [
+      "Version upgraded with overall performance improvements.",
+       "Added activity recording to improve analytics: keyboard inputs and click events are now recorded.",
+      "Multiple issues and bugs from previous versions have been fixed.",
+    ],
+  },
+  {
+    id: 2,
+    version: "3.0.3",
     releaseDate: "March 11, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.2.exe",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.3.exe",
     releaseNotes: [
       "Version upgraded with overall performance improvements.",
       "Multiple issues and bugs from previous versions have been fixed.",
@@ -15,79 +26,14 @@ const versions = [
     ],
   },
   {
-    id: 2,
-    version: "3.0.1",
-    releaseDate: "March 03, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.1.exe",
-    releaseNotes: [
-      "Version upgraded with overall performance improvements.",
-      "Multiple issues and bugs from previous versions have been fixed.",
-      "Improved app stability and responsiveness.",
-    ],
-  },
-  {
     id: 3,
-    version: "3.0.0",
-    releaseDate: "January 21, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.0.exe",
+    version: "3.0.2",
+    releaseDate: "March 03, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.2.exe",
     releaseNotes: [
       "Version upgraded with overall performance improvements.",
       "Multiple issues and bugs from previous versions have been fixed.",
-      "Added Dark Mode support.",
-    ],
-  },
-  {
-    id: 4,
-    version: "2.0.8",
-    releaseDate: "December 25, 2025",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.8.exe",
-    releaseNotes: [
-      "Fixed various bugs reported in previous versions.",
-      "Added Working Hour permission to control work-time access.",
       "Improved app stability and responsiveness.",
-    ],
-  },
-  {
-    id: 5,
-    version: "2.0.7",
-    releaseDate: "December 04, 2025",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.7.exe",
-    releaseNotes: [
-      "Improved app speed for smoother performance.",
-      "Clear instructions for cache deletion to prevent errors.",
-      "Better overall responsiveness.",
-    ],
-  },
-  {
-    id: 6,
-    version: "2.0.6",
-    releaseDate: "November 19, 2025",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.6.exe",
-    releaseNotes: [
-      "Improved app speed for smoother performance.",
-      "Added clear instructions for cache deletion to avoid errors.",
-      "Enhanced overall app responsiveness.",
-    ],
-  },
-  {
-    id: 7,
-    version: "2.0.5",
-    releaseDate: "November 09, 2025",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.5.exe",
-    releaseNotes: [
-      "Status update feature for project tasks.",
-      "Fixed various small bugs to improve stability.",
-      "General performance enhancements.",
-    ],
-  },
-  {
-    id: 8,
-    version: "2.0.4",
-    releaseDate: "November 06, 2025",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%202.0.4.exe",
-    releaseNotes: [
-      "New user interface design.",
-      "Performance improvements for large projects.",
     ],
   },
 ];

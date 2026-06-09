@@ -101,6 +101,7 @@ const UpdateCustomer = () => {
           phone: customer.phone
             ? String(customer.phone).replace(/[\r\n]+/g, "")
             : "",
+          subscription_from: customer.subscription_from || "",
           user_role: customer.user_role || "",
           password: "",
           password_confirmation: "",
@@ -153,6 +154,7 @@ const UpdateCustomer = () => {
     dataToSubmit.append("username", formData.username);
     dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("user_role", formData.user_role);
+  dataToSubmit.append("subscription_from", formData.subscription_from || "");
     dataToSubmit.append("_method", "PUT");
 
     if (formData.profile_pic && formData.profile_pic[0]) {
@@ -299,6 +301,14 @@ const UpdateCustomer = () => {
             placeholder="Enter phone number"
             register={register}
             error={formErrors.phone}
+          />
+          <Textinput
+            label="Subscription From"
+            name="subscription_from"
+            type="date"
+            placeholder="YYYY-MM-DD"
+            register={register}
+            error={formErrors.subscription_from}
           />
         </div>
 
