@@ -3,9 +3,9 @@ import React from "react";
 const versions = [
   {
     id: 1,
-    version: "3.0.5",
+    version: "3.1.0",
     releaseDate: "June 11, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.5.exe",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.1.0.exe",
     releaseNotes: [
       "Version upgraded with overall performance improvements.",
       "You can now add manual time entries by uploading supporting proof/documents.",
