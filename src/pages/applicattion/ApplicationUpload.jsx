@@ -1,20 +1,30 @@
 import React from "react";
 
-
 const versions = [
   {
     id: 1,
-    version: "3.0.4",
-    releaseDate: "May 6, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.4.exe",
+    version: "3.0.5",
+    releaseDate: "June 11, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.5.exe",
     releaseNotes: [
       "Version upgraded with overall performance improvements.",
-       "Added activity recording to improve analytics: keyboard inputs and click events are now recorded.",
+      "You can now add manual time entries by uploading supporting proof/documents.",
       "Multiple issues and bugs from previous versions have been fixed.",
     ],
   },
   {
     id: 2,
+    version: "3.0.4",
+    releaseDate: "May 6, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.4.exe",
+    releaseNotes: [
+      "Version upgraded with overall performance improvements.",
+      "Added activity recording to improve analytics: keyboard inputs and click events are now recorded.",
+      "Multiple issues and bugs from previous versions have been fixed.",
+    ],
+  },
+  {
+    id: 3,
     version: "3.0.3",
     releaseDate: "March 11, 2026",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.3.exe",
@@ -25,19 +35,7 @@ const versions = [
       "We've blurred WhatsApp screenshots to enhance privacy.",
     ],
   },
-  {
-    id: 3,
-    version: "3.0.2",
-    releaseDate: "March 03, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.2.exe",
-    releaseNotes: [
-      "Version upgraded with overall performance improvements.",
-      "Multiple issues and bugs from previous versions have been fixed.",
-      "Improved app stability and responsiveness.",
-    ],
-  },
 ];
-
 
 const ApplicationUpload = () => {
   const latestVersion = versions[0];
@@ -47,7 +45,9 @@ const ApplicationUpload = () => {
     return (
       <div className="bg-gray-100 min-h-screen flex items-center justify-center px-4">
         <div className="bg-white p-6 rounded-lg shadow-md text-center max-w-sm">
-          <h1 className="text-xl font-semibold text-gray-800">No releases yet</h1>
+          <h1 className="text-xl font-semibold text-gray-800">
+            No releases yet
+          </h1>
           <p className="mt-2 text-sm text-gray-600">
             Release data is unavailable right now. Please check back later.
           </p>

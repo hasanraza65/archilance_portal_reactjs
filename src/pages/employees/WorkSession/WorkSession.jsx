@@ -1,4 +1,4 @@
-  import React, { useState, useEffect, useCallback } from "react";
+  import React, { useState, useEffect, useCallback, useRef } from "react";
   import { toast } from "react-toastify";
   import { useAuth } from "@/context/AuthContext";
   import Swal from "sweetalert2";
@@ -18,6 +18,79 @@
         </option>,
         ...renderTaskOptions(tasks, task.id, depth + 1),
       ]);
+  };
+
+  const flattenTasksForDropdown = (tasks, parentId = null, depth = 0) =>
+    tasks
+      .filter((t) => t.parent_task_id === parentId)
+      .flatMap((t) => [
+        { id: t.id, label: t.task_title, depth },
+        ...flattenTasksForDropdown(tasks, t.id, depth + 1),
+      ]);
+
+  const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) => {
+    const [open, setOpen] = useState(false);
+    const triggerRef = useRef(null);
+    const panelRef = useRef(null);
+    const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 0 });
+
+    const handleToggle = () => {
+      if (disabled) return;
+      if (!open && triggerRef.current) {
+        const r = triggerRef.current.getBoundingClientRect();
+        setPanelPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
+      setOpen((o) => !o);
+    };
+
+    useEffect(() => {
+      if (!open) return;
+      const handler = (e) => {
+        if (
+          !triggerRef.current?.contains(e.target) &&
+          !panelRef.current?.contains(e.target)
+        )
+          setOpen(false);
+      };
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
+    }, [open]);
+
+    return (
+      <div>
+        <button
+          type="button"
+          ref={triggerRef}
+          onClick={handleToggle}
+          disabled={disabled}
+          className={`w-full flex items-center justify-between gap-2 px-3 h-10 text-sm border rounded-lg bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 ${
+            disabled
+              ? "opacity-60 cursor-not-allowed"
+              : "cursor-pointer hover:border-slate-400 dark:hover:border-slate-500"
+          } ${!value ? "text-slate-400 dark:text-slate-500" : "text-slate-700 dark:text-slate-200"}`}
+        >
+          <span className="truncate">{value || placeholder}</span>
+          <svg
+            className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {open && (
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: panelPos.top, left: panelPos.left, width: panelPos.width, zIndex: 9999 }}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-52 py-1"
+          >
+            {children((v) => { onChange(v); setOpen(false); })}
+          </div>
+        )}
+      </div>
+    );
   };
   const getTodayDateRange = () => {
     const today = new Date();
@@ -109,7 +182,9 @@
     const [endDate, setEndDate] = useState(new Date());
     const [endTime, setEndTime] = useState("");
     const [memoContent, setMemoContent] = useState("");
+    const [proofFile, setProofFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const proofFileInputRef = useRef(null);
     const API_BASE = import.meta.env.VITE_BACKEND_BASE_URL;
     const API_URL = `${API_BASE}/api/employee/manual-time`;
 
@@ -146,6 +221,7 @@
       setEndDate(new Date());
       setEndTime("");
       setMemoContent("");
+      setProofFile(null);
     };
     const handleClose = () => {
       resetForm();
@@ -164,6 +240,10 @@
         toast.error("Please fill all required fields.");
         return;
       }
+      if (!proofFile) {
+        toast.error("Please upload a proof file.");
+        return;
+      }
       const startDateTime = new Date(startDate);
       const [startH, startM] = startTime.split(":");
       startDateTime.setHours(startH, startM);
@@ -175,19 +255,18 @@
         return;
       }
       setIsSubmitting(true);
-      const payload = {
-        task_id: selectedTask,
-        start_date: formatDateForAPI(startDate),
-        start_time: startTime,
-        end_date: formatDateForAPI(endDate),
-        end_time: endTime,
-        memo_content: memoContent.trim(),
-      };
+      const formData = new FormData();
+      formData.append("task_id", selectedTask);
+      formData.append("start_date", formatDateForAPI(startDate));
+      formData.append("start_time", startTime);
+      formData.append("end_date", formatDateForAPI(endDate));
+      formData.append("end_time", endTime);
+      formData.append("memo_content", memoContent.trim());
+      formData.append("proof_pdf", proofFile);
       try {
-        await axios.post(API_URL, payload, {
+        await axios.post(API_URL, formData, {
           headers: {
             Authorization: `Bearer ${token}`,
-            Accept: "application/json",
           },
         });
         toast.success("Manual time added successfully!");
@@ -201,145 +280,171 @@
         setIsSubmitting(false);
       }
     };
+    const getProjectLabel = () => {
+      for (const [, list] of Object.entries(projects)) {
+        if (!Array.isArray(list)) continue;
+        const found = list.find((p) => String(p.id) === String(selectedProject));
+        if (found) return found.project_name;
+      }
+      return null;
+    };
+    const getTaskLabel = () =>
+      flattenTasksForDropdown(tasks).find((t) => String(t.id) === String(selectedTask))?.label || null;
+
     if (!isOpen) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.8)] backdrop-blur-sm">
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl border dark:border-slate-700">
-          <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-              Add Manual Time
-            </h3>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.8)] backdrop-blur-sm p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+          {/* Header */}
+          <div className="flex justify-between items-center px-6 py-3.5 border-b border-slate-200 dark:border-slate-700 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-slate-900 dark:bg-slate-600 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Add Manual Time</h3>
+            </div>
             <button
               onClick={handleClose}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-slate-300 transition-colors"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <form onSubmit={handleSubmit} className="p-5 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="form-label mb-1">Job*</label>
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                  className="form-select w-full"
-                >
-                  <option value="" disabled>
-                    Select a job
-                  </option>
-                  {Object.entries(projects).map(([status, projectList]) => (
-                    <optgroup key={status} label={status}>
-                      {Array.isArray(projectList) &&
-                        projectList.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.project_name}
-                          </option>
-                        ))}{" "}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-              {selectedProject && (
+
+          {/* Body + Footer inside form */}
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+
+              {/* Job & Task */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="form-label mb-1">Task*</label>
-                  <select
-                    value={selectedTask}
-                    onChange={(e) => setSelectedTask(e.target.value)}
-                    disabled={!selectedProject || isTasksLoading}
-                    className="form-select w-full"
-                  >
-                    <option value="" disabled>
-                      Select a Task
-                    </option>
-                    {isTasksLoading ? (
-                      <option disabled>Loading...</option>
-                    ) : (
-                      renderTaskOptions(tasks)
-                    )}
-                  </select>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Job <span className="text-red-500">*</span></label>
+                  <CustomDropdown value={getProjectLabel()} onChange={setSelectedProject} placeholder="Select a job">
+                    {(select) =>
+                      Object.entries(projects).map(([status, projectList]) => (
+                        <div key={status}>
+                          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
+                          {Array.isArray(projectList) &&
+                            projectList.map((p) => (
+                              <button key={p.id} type="button" onClick={() => select(p.id)}
+                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                  String(selectedProject) === String(p.id)
+                                    ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                                }`}
+                              >
+                                {p.project_name}
+                              </button>
+                            ))}
+                        </div>
+                      ))
+                    }
+                  </CustomDropdown>
                 </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="form-label mb-1">Start Date*</label>
-                <Flatpickr
-                  className="form-input w-full"
-                  value={startDate}
-                  options={{ dateFormat: "Y-m-d" }}
-                  onChange={([date]) => setStartDate(date)}
-                />
+                {selectedProject && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Task <span className="text-red-500">*</span></label>
+                    <CustomDropdown
+                      value={getTaskLabel()}
+                      onChange={setSelectedTask}
+                      placeholder={isTasksLoading ? "Loading..." : "Select a Task"}
+                      disabled={isTasksLoading}
+                    >
+                      {(select) =>
+                        flattenTasksForDropdown(tasks).map(({ id, label, depth }) => (
+                          <button key={id} type="button" onClick={() => select(id)}
+                            style={{ paddingLeft: `${12 + depth * 14}px` }}
+                            className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
+                              String(selectedTask) === String(id)
+                                ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                            }`}
+                          >
+                            {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
+                            {label}
+                          </button>
+                        ))
+                      }
+                    </CustomDropdown>
+                  </div>
+                )}
               </div>
+
+              {/* Time Range */}
               <div>
-                <label className="form-label mb-1">Start Time*</label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="form-input w-full"
-                  step="1"
-                />
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Time Range</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Start Date <span className="text-red-500">*</span></label>
+                    <Flatpickr className="form-input w-full" value={startDate} options={{ dateFormat: "Y-m-d" }} onChange={([date]) => setStartDate(date)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Start Time <span className="text-red-500">*</span></label>
+                    <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="form-input w-full" step="1" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">End Date <span className="text-red-500">*</span></label>
+                    <Flatpickr className="form-input w-full" value={endDate} options={{ dateFormat: "Y-m-d" }} onChange={([date]) => setEndDate(date)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">End Time <span className="text-red-500">*</span></label>
+                    <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="form-input w-full" step="1" />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Memo */}
               <div>
-                <label className="form-label mb-1">End Date*</label>
-                <Flatpickr
-                  className="form-input w-full"
-                  value={endDate}
-                  options={{ dateFormat: "Y-m-d" }}
-                  onChange={([date]) => setEndDate(date)}
-                />
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Memo / Reason <span className="text-red-500">*</span></label>
+                <textarea rows="3" className="form-textarea w-full" placeholder="What did you work on?" value={memoContent} onChange={(e) => setMemoContent(e.target.value)}></textarea>
               </div>
+
+              {/* Proof File */}
               <div>
-                <label className="form-label mb-1">End Time*</label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="form-input w-full"
-                  step="1"
-                />
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File <span className="text-red-500">*</span></label>
+                <input ref={proofFileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setProofFile(e.target.files[0] || null)} />
+                {proofFile ? (
+                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
+                    <div className="w-7 h-7 rounded-md bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm text-slate-700 dark:text-slate-200 truncate flex-1">{proofFile.name}</span>
+                    <button type="button" onClick={() => { setProofFile(null); if (proofFileInputRef.current) proofFileInputRef.current.value = ""; }}
+                      className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => proofFileInputRef.current?.click()}
+                    className="w-full flex flex-col items-center justify-center gap-1.5 px-4 py-4 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-slate-400 hover:text-slate-600 dark:hover:border-slate-500 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span className="text-xs font-medium">Click to upload PDF</span>
+                  </button>
+                )}
               </div>
+
             </div>
-            <div>
-              <label className="form-label mb-1">Memo / Reason*</label>
-              <textarea
-                rows="3"
-                className="form-textarea"
-                placeholder="What did you work on?"
-                value={memoContent}
-                onChange={(e) => setMemoContent(e.target.value)}
-              ></textarea>
-            </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700 mt-5">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="btn btn-light"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-dark"
-                disabled={isSubmitting}
-              >
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2.5 px-6 py-3.5 border-t border-slate-200 dark:border-slate-700 shrink-0">
+              <button type="button" onClick={handleClose} className="btn btn-light" disabled={isSubmitting}>Cancel</button>
+              <button type="submit" className="btn btn-dark flex items-center gap-2" disabled={isSubmitting}>
+                {isSubmitting && (
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                )}
                 {isSubmitting ? "Saving..." : "Save Time"}
               </button>
             </div>
@@ -942,6 +1047,26 @@
                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-md border border-slate-200 dark:border-slate-700">
                           {session.memo_content}
                         </p>
+                      )}
+                      {session.proof_pdf && (
+                        <div className="mt-2">
+                          <a
+                            href={`${STORAGE_URL}/${session.proof_pdf}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/50 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group/pdf"
+                          >
+                            <div className="w-5 h-5 rounded bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-300 group-hover/pdf:text-red-600 dark:group-hover/pdf:text-red-400 transition-colors">Proof File</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-slate-400 group-hover/pdf:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        </div>
                       )}
                       <div className="mt-4">
                         {session.screenshots.length > 0 ? (
