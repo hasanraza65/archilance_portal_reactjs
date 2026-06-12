@@ -3,6 +3,17 @@ import React from "react";
 const versions = [
   {
     id: 1,
+    version: "3.1.1",
+    releaseDate: "June 12, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.1.1.exe",
+    releaseNotes: [
+      "Version upgraded with overall performance improvements.",
+      "You can now add manual time entries by uploading supporting proof/documents.",
+      "Multiple issues and bugs from previous versions have been fixed.",
+    ],
+  },
+  {
+    id: 2,
     version: "3.1.0",
     releaseDate: "June 11, 2026",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.1.0.exe",
@@ -13,7 +24,7 @@ const versions = [
     ],
   },
   {
-    id: 2,
+    id: 3,
     version: "3.0.4",
     releaseDate: "May 6, 2026",
     url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.4.exe",
@@ -23,18 +34,7 @@ const versions = [
       "Multiple issues and bugs from previous versions have been fixed.",
     ],
   },
-  {
-    id: 3,
-    version: "3.0.3",
-    releaseDate: "March 11, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.0.3.exe",
-    releaseNotes: [
-      "Version upgraded with overall performance improvements.",
-      "Multiple issues and bugs from previous versions have been fixed.",
-      "Improved app stability and responsiveness.",
-      "We've blurred WhatsApp screenshots to enhance privacy.",
-    ],
-  },
+  
 ];
 
 const ApplicationUpload = () => {
