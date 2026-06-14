@@ -1052,7 +1052,7 @@
                       {session.proof_pdf && (
                         <div className="mt-2">
                           <a
-                            href={getMediaUrl(session.proof_pdf)}
+                            href={getMediaUrl(session.proof_pdf, session.created_at)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/50 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group/pdf"
@@ -1080,12 +1080,12 @@
                                   className="text-center group/ss relative"
                                 >
                                   <a
-                                    href={getMediaUrl(screenshotPath)}
+                                    href={getMediaUrl(screenshotPath, ss.created_at)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                   >
                                     <img
-                                      src={getMediaUrl(screenshotPath)}
+                                      src={getMediaUrl(screenshotPath, ss.created_at)}
                                       alt={`Screenshot`}
                                       className="w-full rounded-lg border-2 border-transparent group-hover/ss:border-blue-500 transition"
                                     />

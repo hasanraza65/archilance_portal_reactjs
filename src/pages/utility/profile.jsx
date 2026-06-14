@@ -46,7 +46,7 @@ const Profile = () => {
   let profilePicSrc = null;
 
   if (userProfile && userProfile.profile_pic) {
-    profilePicSrc = getMediaUrl(userProfile.profile_pic);
+    profilePicSrc = getMediaUrl(userProfile.profile_pic, userProfile.created_at);
   }
 
   if (isLoading) {

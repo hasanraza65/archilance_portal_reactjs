@@ -82,12 +82,21 @@ export const getApiBasePathForRole = (basePath) => {
   return `/api/${prefix}${cleanBasePath}`;
 };
 
-// Media URL helper — builds storage URLs from relative paths.
+// Media URL helper — routes files to the correct server based on upload date.
+// Files before June 14 2026 live on the old server (portal.archilance.net/backend/public).
+// Files from June 14 2026 onwards live on the new server (VITE_BACKEND_BASE_URL).
 // Already-absolute URLs (OneDrive, CDN, etc.) are returned untouched.
-export const getMediaUrl = (path) => {
+const MEDIA_CUTOFF = new Date('2026-06-14T00:00:00Z');
+const OLD_STORAGE_BASE = 'https://portal.archilance.net/backend/public';
+
+export const getMediaUrl = (path, createdAt = null) => {
   if (!path) return null;
   const str = String(path);
   if (str.startsWith('http://') || str.startsWith('https://')) return str;
   const cleanPath = str.replace(/^\/+/, '');
-  return `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${cleanPath}`;
+  const base =
+    createdAt && new Date(createdAt) >= MEDIA_CUTOFF
+      ? import.meta.env.VITE_BACKEND_BASE_URL
+      : OLD_STORAGE_BASE;
+  return `${base}/storage/${cleanPath}`;
 };

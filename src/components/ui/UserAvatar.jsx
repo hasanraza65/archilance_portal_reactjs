@@ -22,11 +22,11 @@ const getInitials = (name = "") => {
   return '?';
 };
 
-const UserAvatar = ({ avatarUrl, fullName, className = 'h-10 w-10' }) => {
+const UserAvatar = ({ avatarUrl, fullName, className = 'h-10 w-10', createdAt = null }) => {
   if (avatarUrl) {
     const fullAvatarUrl = avatarUrl.startsWith('data:')
       ? avatarUrl
-      : getMediaUrl(avatarUrl);
+      : getMediaUrl(avatarUrl, createdAt);
 
     return <img src={fullAvatarUrl} alt={fullName || 'avatar'} className={`block object-cover rounded-full ${className}`} />;
   }
