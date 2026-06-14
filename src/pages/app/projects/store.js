@@ -373,6 +373,7 @@ export const appProjectSlice = createSlice({
     projects: {},
     totalProjects: 0,
     isLoading: false,
+    isRefreshing: false,
     isAdding: false,
     isUpdating: false,
     isDeleting: false,
@@ -397,22 +398,43 @@ export const appProjectSlice = createSlice({
         ? action.payload.project
         : null;
     },
+    // Load cached projects instantly — no loading spinner
+    setProjectsCache: (state, action) => {
+      state.projects = action.payload.projects;
+      state.totalProjects = action.payload.meta?.totalProjects || 0;
+      state.isLoading = false;
+      state.error = null;
+    },
+    // Clear projects when switching to a filter with no cached data
+    clearProjects: (state) => {
+      state.projects = {};
+      state.totalProjects = 0;
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchProjectsAPI.pending, (state) => {
-        state.isLoading = true;
+        // Only show full skeleton when there's nothing to display yet
+        if (Object.keys(state.projects).length === 0) {
+          state.isLoading = true;
+        }
+        state.isRefreshing = true;
         state.error = null;
       })
       .addCase(fetchProjectsAPI.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.isRefreshing = false;
         state.projects = action.payload.projects;
         state.totalProjects = action.payload.meta.totalProjects;
       })
       .addCase(fetchProjectsAPI.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload;
-        state.projects = {};
+        state.isRefreshing = false;
+        // Only show error / clear projects when there's no cached data to fall back to
+        if (Object.keys(state.projects).length === 0) {
+          state.error = action.payload;
+          state.projects = {};
+        }
       })
       .addCase(addProjectAPI.pending, (state) => {
         state.isAdding = true;
@@ -525,6 +547,8 @@ export const {
   toggleAddModal,
   setEditModalAndItem,
   toggleUpdateAssigneesModal,
+  setProjectsCache,
+  clearProjects,
 } = appProjectSlice.actions;
 
 export default appProjectSlice.reducer;

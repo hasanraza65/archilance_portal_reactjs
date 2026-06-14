@@ -8,7 +8,7 @@ import ProjectList from "./ProjectList";
 import TaskList from "./TaskList";
 import GridLoading from "@/components/skeleton/Grid";
 import TableLoading from "@/components/skeleton/Table";
-import { toggleAddModal, fetchProjectsAPI } from "./store";
+import { toggleAddModal, fetchProjectsAPI, setProjectsCache, clearProjects } from "./store";
 import AddProject from "./AddProject";
 import EditProject from "./EditProject";
 import { ToastContainer } from "react-toastify";
@@ -149,13 +149,32 @@ const ProjectPostPage = () => {
 
   useEffect(() => {
     const apiParams = {};
-    if (assignedToMeFilter) {
-      apiParams.assigned_me = 1;
-    }
-    if (isUpworkFilterActive) {
-      apiParams.customer_id = 52;
-    }
-    dispatch(fetchProjectsAPI(apiParams));
+    if (assignedToMeFilter) apiParams.assigned_me = 1;
+    if (isUpworkFilterActive) apiParams.customer_id = 52;
+
+    const cacheKey = `proj_v1_${JSON.stringify(apiParams)}`;
+
+    // Show cached data instantly — avoids skeleton on every navigation
+    let hasCachedData = false;
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        dispatch(setProjectsCache(JSON.parse(cached)));
+        hasCachedData = true;
+      }
+    } catch (_) {}
+
+    // If no cache for these params, clear stale data from a different filter
+    if (!hasCachedData) dispatch(clearProjects());
+
+    // Fetch fresh data in the background
+    dispatch(fetchProjectsAPI(apiParams)).then((action) => {
+      if (action.payload?.projects) {
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify(action.payload));
+        } catch (_) {}
+      }
+    });
   }, [dispatch, assignedToMeFilter, isUpworkFilterActive]);
 
   useEffect(() => {
