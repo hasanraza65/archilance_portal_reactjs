@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 import Swal from "sweetalert2";
 import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
-import { getApiBasePathForRole } from "@/pages/utility/apiHelper";
+import { getApiBasePathForRole, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const getAuthToken = () => Cookies.get("token");
 
@@ -14,7 +14,7 @@ const mapApiUserToLocal = (user) => {
     const avatarChar = name?.charAt(0).toUpperCase() || "U";
     let profilePic = null;
     if (user.profile_pic) {
-        profilePic = user.profile_pic.startsWith('http') ? user.profile_pic : `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${user.profile_pic}`;
+        profilePic = getMediaUrl(user.profile_pic);
     }
     let color = 'bg-slate-500';
     if (user.id) {

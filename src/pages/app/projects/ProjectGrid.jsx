@@ -12,6 +12,7 @@ import {
 } from "./store";
 import Swal from "sweetalert2";
 import DOMPurify from "dompurify";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 // Helper function for status badge styling (Updated for new statuses)
 const getStatusClass = (status) => {
@@ -41,9 +42,7 @@ const Avatar = ({ user }) => {
     return null;
   }
   const initials = user.name ? user.name.charAt(0).toUpperCase() : "U";
-  const avatarUrl = user.profile_pic
-    ? `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${user.profile_pic}`
-    : null;
+  const avatarUrl = user.profile_pic ? getMediaUrl(user.profile_pic) : null;
   return (
     <div
       title={user.name}

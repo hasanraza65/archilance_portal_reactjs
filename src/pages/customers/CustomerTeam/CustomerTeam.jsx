@@ -14,8 +14,7 @@ import {
 } from "react-table";
 
 import GlobalFilter from "@/pages/table/react-table/GlobalFilter";
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 // Column configuration (Actions ke saath)
 const CUSTOMER_TEAM_COLUMNS_CONFIG = (navigate, handleDeleteClick) => [
@@ -35,7 +34,7 @@ const CUSTOMER_TEAM_COLUMNS_CONFIG = (navigate, handleDeleteClick) => [
           <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
             {profile_pic ? (
               <img
-                src={`${PFP_BASE_URL}${profile_pic}`}
+                src={getMediaUrl(profile_pic)}
                 alt={name || "Profile"}
                 className="object-cover w-full h-full rounded-full"
                 onError={(e) => {

@@ -16,7 +16,7 @@ import {
 import EditableProjectStatus from "./EditableProjectStatus";
 import EditableProjectStartDate from "./EditProjectDate/EditableProjectStartDate";
 import EditableProjectDueDate from "./EditProjectDate/EditableProjectDueDate";
-import { getApiBasePathForRole } from "@/pages/utility/apiHelper";
+import { getApiBasePathForRole, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const getStatusGradient = (status) => {
   const s = String(status || "").toLowerCase();
@@ -38,11 +38,7 @@ const AvatarStack = ({ assignees }) => {
     <div className="flex items-center -space-x-2">
       {assignees.slice(0, 3).map(({ id, user }) => {
         if (!user) return null;
-        const avatarUrl = user.profile_pic
-          ? `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${
-              user.profile_pic
-            }`
-          : null;
+        const avatarUrl = user.profile_pic ? getMediaUrl(user.profile_pic) : null;
         return (
           <div
             key={id}

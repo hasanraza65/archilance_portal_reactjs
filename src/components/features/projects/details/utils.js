@@ -1,4 +1,4 @@
-import { getApiPrefix } from "@/pages/utility/apiHelper";
+import { getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 
 export const getTodayDateRange = () => {
   const today = new Date();
@@ -97,19 +97,7 @@ export const mapApiAssigneeToLocal = (apiUser) => {
   let profilePic = null;
   if (user.profile_picture_url) profilePic = user.profile_picture_url;
   else if (user.profile_pic) {
-    if (
-      user.profile_pic.startsWith("http://") ||
-      user.profile_pic.startsWith("https://")
-    )
-      profilePic = user.profile_pic;
-    else {
-      const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
-      if (backendBaseUrl) {
-        const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
-        const cleanProfilePicPath = user.profile_pic.replace(/^\//, "");
-        profilePic = `${cleanBaseUrl}/storage/${cleanProfilePicPath}`;
-      } else profilePic = `/storage/${user.profile_pic.replace(/^\//, "")}`;
-    }
+    profilePic = getMediaUrl(user.profile_pic);
   }
   return { id, name, avatar: avatarChar, color, profilePic };
 };

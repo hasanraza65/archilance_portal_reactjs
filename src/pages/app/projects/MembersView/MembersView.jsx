@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import GridLoading from "@/components/skeleton/Grid";
-import { getEmployeeType, getApiPrefix } from "@/pages/utility/apiHelper";
+import { getEmployeeType, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 
 import EditableTaskStatus from "../EditableTaskStatus";
 import EditableDueDate from "../EditTaskDate/EditableDueDate";
@@ -608,7 +608,7 @@ const MembersView = () => {
               >
                 <div className="flex items-center space-x-4">
                   <img
-                    src={`${VITE_BASE_URL}/storage/${member.profile_pic}`}
+                    src={getMediaUrl(member.profile_pic)}
                     alt={member.name}
                     className="w-10 h-10 rounded-full object-cover"
                   />

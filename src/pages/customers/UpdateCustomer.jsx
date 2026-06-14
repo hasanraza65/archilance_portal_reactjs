@@ -8,9 +8,7 @@ import Icon from "@/components/ui/Icon";
 import Textinput from "@/components/ui/Textinput";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
@@ -108,7 +106,7 @@ const UpdateCustomer = () => {
         });
 
         if (customer.profile_pic) {
-          const picUrl = `${PFP_BASE_URL}${customer.profile_pic}`;
+          const picUrl = getMediaUrl(customer.profile_pic);
           setCurrentProfilePicUrl(picUrl);
           setProfilePicPreview(picUrl);
         } else {

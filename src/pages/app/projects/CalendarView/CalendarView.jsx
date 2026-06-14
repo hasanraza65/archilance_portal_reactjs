@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import GridLoading from "@/components/skeleton/Grid";
-import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
+import { getApiPrefix, getEmployeeType, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
@@ -107,9 +107,7 @@ const getDayName = (dateStr) => {
 // --- Assignee Avatar ---
 const AssigneeAvatar = ({ user }) => {
   if (!user) return null;
-  const avatarUrl = user.profile_pic
-    ? `${VITE_BASE_URL}/storage/${user.profile_pic}`
-    : null;
+  const avatarUrl = user.profile_pic ? getMediaUrl(user.profile_pic) : null;
   const initials = user.name ? user.name.charAt(0).toUpperCase() : "?";
 
   return (

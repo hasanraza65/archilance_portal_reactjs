@@ -4,6 +4,7 @@ import Icon from "@/components/ui/Icon";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 import FooterAvatar from "@/assets/images/users/user-1.jpg";
 
@@ -41,17 +42,9 @@ const MobileFooter = () => {
         });
 
         if (response.data && response.data.profile_pic) {
-          const picPath = String(response.data.profile_pic);
-          let imageUrl;
-
-          if (picPath.startsWith("http://") || picPath.startsWith("https://")) {
-            imageUrl = picPath;
-          } else {
-            const cleanPicPath = picPath.replace(/^\//, "");
-            imageUrl = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`;
-          }
-
-          setProfilePicSrc(imageUrl);
+          setProfilePicSrc(
+            getMediaUrl(response.data.profile_pic, response.data.updated_at) || FooterAvatar
+          );
         }
       } catch (error) {
         console.error("MobileFooter: Error fetching profile picture:", error);

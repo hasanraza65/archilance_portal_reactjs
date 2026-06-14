@@ -12,6 +12,7 @@ import {
     Undo2,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 const ConversationBox = ({
     messages,
@@ -339,7 +340,7 @@ const ConversationBox = ({
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0">
                                     {message.sender?.profile_pic ? (
                                         <img
-                                            src={`${STORAGE_BASE_URL}${message.sender.profile_pic}`}
+                                            src={getMediaUrl(message.sender.profile_pic)}
                                             alt={message.sender.name}
                                             className="w-full h-full rounded-full object-cover border-2 border-white shadow-md"
                                         />

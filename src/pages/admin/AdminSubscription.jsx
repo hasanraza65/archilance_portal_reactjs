@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, User, CreditCard, AlertCircle, CheckCircle, XCircle, RefreshCw, TrendingUp, Users } from 'lucide-react';
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 const UserAvatar = ({ user }) => {
   const [hasError, setHasError] = useState(false);
@@ -18,7 +17,7 @@ const UserAvatar = ({ user }) => {
   if (shouldUseImage) {
     return (
       <img
-        src={`${PFP_BASE_URL}${profile_pic}`}
+        src={getMediaUrl(profile_pic)}
         alt={name || 'Profile'}
         className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-lg flex-shrink-0"
         onError={() => setHasError(true)}

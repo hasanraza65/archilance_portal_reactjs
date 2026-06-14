@@ -1,6 +1,5 @@
 import React from 'react';
-
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+import { getMediaUrl } from '@/pages/utility/apiHelper';
 
 const generateHslColor = (name = "") => {
   if (!name) return 'hsl(205, 70%, 45%)';
@@ -23,12 +22,11 @@ const getInitials = (name = "") => {
   return '?';
 };
 
-const UserAvatar = ({ avatarUrl, fullName, className = 'h-10 w-10' }) => {
+const UserAvatar = ({ avatarUrl, fullName, className = 'h-10 w-10', createdAt = null }) => {
   if (avatarUrl) {
-    let fullAvatarUrl = avatarUrl;
-    if (!avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
-        fullAvatarUrl = `${BACKEND_BASE_URL}/storage/${avatarUrl}`;
-    }
+    const fullAvatarUrl = avatarUrl.startsWith('data:')
+      ? avatarUrl
+      : getMediaUrl(avatarUrl, createdAt);
 
     return <img src={fullAvatarUrl} alt={fullName || 'avatar'} className={`block object-cover rounded-full ${className}`} />;
   }

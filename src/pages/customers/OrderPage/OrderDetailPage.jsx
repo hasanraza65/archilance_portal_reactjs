@@ -30,7 +30,7 @@ import {
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 
-import { getApiPrefix } from "@/pages/utility/apiHelper";
+import { getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 import { useBreadcrumbs } from "../../../components/ui/BreadcrumbsContext";
 
 // =================================================================
@@ -559,7 +559,7 @@ const ProjectTasksList = ({ tasks, apiBaseUrl, onTaskClick }) => {
                   return assignee.user.profile_pic ? (
                     <img
                       key={assignee.id}
-                      src={`${apiBaseUrl}/storage/${assignee.user.profile_pic}`}
+                      src={getMediaUrl(assignee.user.profile_pic)}
                       alt={assignee.user.name}
                       title={assignee.user.name}
                       className="w-8 h-8 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform duration-300"

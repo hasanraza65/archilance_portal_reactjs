@@ -1,4 +1,5 @@
 // src/components/TaskDetails/taskDetailsUtils.js
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 export const mapApiUserToLocal = (apiUser) => {
   if (!apiUser || typeof apiUser !== "object") {
@@ -65,17 +66,7 @@ export const mapApiUserToLocal = (apiUser) => {
     ) {
       profilePic = apiUser.profile_pic;
     } else {
-      const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
-      if (backendBaseUrl) {
-        const cleanBaseUrl = backendBaseUrl.replace(/\/$/, "");
-        const cleanProfilePicPath = apiUser.profile_pic.replace(/^\//, "");
-        profilePic = `${cleanBaseUrl}/storage/${cleanProfilePicPath}`;
-      } else {
-        console.warn(
-          "VITE_BACKEND_BASE_URL is not set. Profile picture URL for relative paths might be incorrect."
-        );
-        profilePic = `/storage/${apiUser.profile_pic.replace(/^\//, "")}`;
-      }
+      profilePic = getMediaUrl(apiUser.profile_pic);
     }
   }
 

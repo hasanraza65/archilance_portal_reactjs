@@ -14,9 +14,7 @@ import {
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
 import Alert from "@/components/ui/Alert";
 import CustomSearchFilter from "../table/react-table/CustomSearchFilter";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
   {
@@ -35,7 +33,7 @@ const CUSTOMER_API_COLUMNS_CONFIG = (navigate, openDeleteModalHandler) => [
             <span className="w-7 h-7 rounded-full ltr:mr-3 rtl:ml-3 flex-none bg-slate-600">
               {profile_pic ? (
                 <img
-                  src={`${PFP_BASE_URL}${profile_pic}`}
+                  src={getMediaUrl(profile_pic)}
                   alt={name || "Profile"}
                   className="object-cover w-full h-full rounded-full"
                   onError={(e) => {

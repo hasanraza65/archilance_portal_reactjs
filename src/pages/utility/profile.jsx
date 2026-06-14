@@ -11,9 +11,8 @@ import { useQuery } from "@tanstack/react-query";
 import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
 import UpdatePassword from "./UpdatePassword";
 import axiosInstance from "@/store/api/app/axiosInstance";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-// PROFILE_API_URL mein se base URL hata dein kyun ke woh ab axiosInstance mein hai
 const PROFILE_API_URL = "/me";
 
 const fetchProfileData = async () => {
@@ -47,14 +46,7 @@ const Profile = () => {
   let profilePicSrc = null;
 
   if (userProfile && userProfile.profile_pic) {
-    const picPath = String(userProfile.profile_pic);
-
-    if (picPath.startsWith("http://") || picPath.startsWith("https://")) {
-      profilePicSrc = picPath;
-    } else {
-      const cleanPicPath = picPath.replace(/^\//, "");
-      profilePicSrc = `${BACKEND_BASE_URL}/storage/${cleanPicPath}`;
-    }
+    profilePicSrc = getMediaUrl(userProfile.profile_pic, userProfile.updated_at);
   }
 
   if (isLoading) {

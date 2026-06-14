@@ -4,10 +4,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
-
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const DetailItem = ({ label, value }) => {
   let displayValue = value;
@@ -102,7 +99,7 @@ const CustomerView = () => {
     if (profile_pic) {
       return (
         <img
-          src={`${PFP_BASE_URL}${profile_pic}`}
+          src={getMediaUrl(profile_pic)}
           alt={name || 'Profile'}
           className="object-cover w-full h-full rounded-full"
           onError={(e) => {

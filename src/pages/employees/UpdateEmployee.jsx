@@ -10,11 +10,8 @@ import Icon from "@/components/ui/Icon";
 import Textinput from "@/components/ui/Textinput";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
-import { canManageEmployees } from "@/pages/utility/apiHelper";
+import { canManageEmployees, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 import { toast } from "react-toastify";
-import { getApiPrefix } from "@/pages/utility/apiHelper";
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
 const EditEmployee = () => {
   const { employeeId } = useParams();
@@ -114,7 +111,7 @@ const EditEmployee = () => {
           password_confirmation: "",
         });
         if (employee.profile_pic) {
-          const picUrl = `${PFP_BASE_URL}${employee.profile_pic}`;
+          const picUrl = getMediaUrl(employee.profile_pic);
           setCurrentProfilePicUrl(picUrl);
           setProfilePicPreview(picUrl);
         } else {

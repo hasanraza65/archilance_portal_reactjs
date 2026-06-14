@@ -15,8 +15,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Swal from "sweetalert2";
 import CustomSearchFilter from "../table/react-table/CustomSearchFilter";
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 const AllCustomerTeam = () => {
   const [teamData, setTeamData] = useState([]);
@@ -146,7 +145,7 @@ const AllCustomerTeam = () => {
               <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
                 {profile_pic ? (
                   <img
-                    src={`${PFP_BASE_URL}${profile_pic}`}
+                    src={getMediaUrl(profile_pic)}
                     alt={name}
                     className="object-cover w-full h-full rounded-full"
                   />

@@ -7,6 +7,7 @@ import {
   getApiPrefix,
   getEmployeeType,
   getApiBasePathForRole,
+  getMediaUrl,
 } from "@/pages/utility/apiHelper";
 
 import Card from "@/components/ui/Card";
@@ -162,7 +163,6 @@ const AvatarStack = ({ assignees, onClick }) => {
     );
   }
 
-  const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
   return (
     <div
       className="flex items-center -space-x-2 cursor-pointer"
@@ -170,9 +170,7 @@ const AvatarStack = ({ assignees, onClick }) => {
     >
       {assignees.slice(0, 3).map(({ user }) => {
         if (!user) return null;
-        const avatarUrl = user.profile_pic
-          ? `${VITE_BASE_URL}/storage/${user.profile_pic}`
-          : null;
+        const avatarUrl = user.profile_pic ? getMediaUrl(user.profile_pic) : null;
         const getInitials = (name) =>
           name ? name.charAt(0).toUpperCase() : "U";
         return (

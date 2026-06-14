@@ -19,7 +19,7 @@ import {
   Plus, // Added for Create Button
   X,
 } from "lucide-react";
-import { getApiPrefix, getApiBasePathForRole } from "../utility/apiHelper";
+import { getApiPrefix, getApiBasePathForRole, getMediaUrl } from "../utility/apiHelper";
 
 // --- Helper Functions ---
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
@@ -263,7 +263,7 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
             <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden shrink-0 border-2 border-white shadow-md">
               {employee.profile_pic ? (
                 <img
-                  src={`${API_BASE_URL}/storage/${employee.profile_pic}`}
+                  src={getMediaUrl(employee.profile_pic)}
                   alt="avatar"
                   className="w-full h-full object-cover"
                 />
@@ -731,7 +731,7 @@ const LeaveManagementPage = () => {
               const StatusIcon = statusConfig.icon;
               const userAvatar = request.user?.profile_pic ? (
                 <img
-                  src={`${API_BASE_URL}/storage/${request.user.profile_pic}`}
+                  src={getMediaUrl(request.user.profile_pic)}
                   alt="avatar"
                   className="w-full h-full object-cover"
                 />

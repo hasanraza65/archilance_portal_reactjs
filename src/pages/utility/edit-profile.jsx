@@ -15,6 +15,7 @@ import Button from "@/components/ui/Button";
 import Loading from "@/components/Loading";
 import Icon from "@/components/ui/Icon";
 import DefaultProfileImage from "@/assets/images/users/user-1.jpg";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 const editProfileSchema = yup.object({
   name: yup.string().required("Name is required"),
@@ -113,15 +114,7 @@ const EditProfile = () => {
       });
 
       if (currentProfile.profile_pic) {
-        const picPath = String(currentProfile.profile_pic);
-        let fullPicUrl = DefaultProfileImage;
-        if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
-          fullPicUrl = picPath;
-        } else if (BACKEND_BASE_URL) { 
-          const cleanPicPath = picPath.replace(/^\//, '');
-          
-          fullPicUrl = `${BACKEND_BASE_URL}/storage/${cleanPicPath}`; 
-        }
+        const fullPicUrl = getMediaUrl(currentProfile.profile_pic, currentProfile.updated_at) || DefaultProfileImage;
         setImagePreview(fullPicUrl);
       } else {
         setImagePreview(DefaultProfileImage);
@@ -138,14 +131,7 @@ const EditProfile = () => {
     } else {
       setSelectedFileObject(null);
       if (currentProfile && currentProfile.profile_pic) {
-          const picPath = String(currentProfile.profile_pic);
-          let fullPicUrl = DefaultProfileImage;
-          if (picPath.startsWith('http://') || picPath.startsWith('https://')) {
-            fullPicUrl = picPath;
-          } else if (BACKEND_BASE_URL) { 
-            const cleanPicPath = picPath.replace(/^\//, '');
-            fullPicUrl = `${BACKEND_BASE_URL}/storage/${cleanPicPath}`; 
-          }
+          const fullPicUrl = getMediaUrl(currentProfile.profile_pic, currentProfile.updated_at) || DefaultProfileImage;
           setImagePreview(fullPicUrl);
       } else {
           setImagePreview(DefaultProfileImage);
@@ -236,15 +222,8 @@ const EditProfile = () => {
       queryClient.invalidateQueries({ queryKey: ["profileData"] });
 
       if (latestUserData.profile_pic) {
-          const newPicPath = String(latestUserData.profile_pic);
-          let newFullPicUrl = DefaultProfileImage;
-          if (newPicPath.startsWith('http://') || newPicPath.startsWith('https://')) {
-            newFullPicUrl = newPicPath;
-          } else if (BACKEND_BASE_URL) { 
-            const cleanNewPicPath = newPicPath.replace(/^\//, '');
-          
-            newFullPicUrl = `${BACKEND_BASE_URL}/storage/${cleanNewPicPath}`; 
-          }
+          // Newly uploaded pic — use today's date so it resolves to the new storage URL
+          const newFullPicUrl = getMediaUrl(latestUserData.profile_pic, new Date().toISOString()) || DefaultProfileImage;
           setImagePreview(newFullPicUrl);
       } else if (!selectedFileObject) {
           setImagePreview(DefaultProfileImage);

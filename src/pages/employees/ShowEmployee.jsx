@@ -6,11 +6,7 @@ import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
-import { canManageEmployees } from "@/pages/utility/apiHelper"; // Import the helper
-import { getApiPrefix } from "@/pages/utility/apiHelper";
-
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { canManageEmployees, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const DetailItem = ({ label, value }) => {
   let displayValue = value;
@@ -109,7 +105,7 @@ const ShowEmployee = () => {
     if (profile_pic) {
       return (
         <img
-          src={`${PFP_BASE_URL}${profile_pic}`}
+          src={getMediaUrl(profile_pic)}
           alt={name || 'Profile'}
           className="object-cover w-full h-full rounded-full"
           onError={(e) => {

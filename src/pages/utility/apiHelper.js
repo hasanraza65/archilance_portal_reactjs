@@ -81,3 +81,21 @@ export const getApiBasePathForRole = (basePath) => {
 
   return `/api/${prefix}${cleanBasePath}`;
 };
+
+// Media URL helper — routes files to old or new base URL based on upload date.
+// Files uploaded before June 14 2026 live under the old backend path; newer files under VITE_BACKEND_BASE_URL.
+// OneDrive / already-absolute URLs are returned untouched.
+const MEDIA_CUTOFF = new Date('2026-06-14T00:00:00Z');
+const OLD_STORAGE_BASE = 'http://portal.archilance.net/backend';
+
+export const getMediaUrl = (path, createdAt = null) => {
+  if (!path) return null;
+  const str = String(path);
+  if (str.startsWith('http://') || str.startsWith('https://')) return str;
+  const cleanPath = str.replace(/^\/+/, '');
+  const base =
+    createdAt && new Date(createdAt) >= MEDIA_CUTOFF
+      ? import.meta.env.VITE_BACKEND_BASE_URL
+      : OLD_STORAGE_BASE;
+  return `${base}/storage/${cleanPath}`;
+};

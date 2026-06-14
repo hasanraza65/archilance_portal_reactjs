@@ -8,8 +8,7 @@ import GlobalFilter from "@/pages/table/react-table/GlobalFilter";
 import Tooltip from "@/components/ui/Tooltip";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-const PFP_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 const MyTeamAccess = () => {
   const [teamData, setTeamData] = useState([]);
@@ -118,7 +117,7 @@ const MyTeamAccess = () => {
               <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
                 {profile_pic ? (
                   <img
-                    src={`${PFP_BASE_URL}${profile_pic}`}
+                    src={getMediaUrl(profile_pic)}
                     alt={name || "Profile"}
                     className="object-cover w-full h-full rounded-full"
                     onError={(e) => {

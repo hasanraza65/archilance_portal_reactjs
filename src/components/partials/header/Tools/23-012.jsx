@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 const BACKEND_BASE_URL =
@@ -99,15 +100,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (userProfile && userProfile.profile_pic) {
-      const picPath = String(userProfile.profile_pic);
-      let imageUrl;
-      if (picPath.startsWith("http://") || picPath.startsWith("https://")) {
-        imageUrl = picPath;
-      } else {
-        const cleanPicPath = picPath.replace(/^\//, "");
-        imageUrl = `${API_DOMAIN_FOR_ASSETS}/${cleanPicPath}`;
-      }
-      setProfilePicSrc(imageUrl);
+      setProfilePicSrc(getMediaUrl(userProfile.profile_pic, userProfile.updated_at));
     } else {
       setProfilePicSrc(null);
     }

@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import { Loader2, AlertCircle, ArrowLeft, BookOpenCheck } from "lucide-react";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 // --- START: Helper Functions ---
 
@@ -414,12 +415,12 @@ const WorkDiaryPage = () => {
                             return (
                               <div key={ss.id} className="text-center">
                                 <a
-                                  href={`${STORAGE_URL}/${screenshotPath}`}
+                                  href={getMediaUrl(screenshotPath, ss.created_at)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
                                   <img
-                                    src={`${STORAGE_URL}/${screenshotPath}`}
+                                    src={getMediaUrl(screenshotPath, ss.created_at)}
                                     alt={`Screenshot`}
                                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
                                   />

@@ -5,6 +5,7 @@ import EditableProjectStatus from "@/pages/app/projects/EditableProjectStatus";
 import DOMPurify from "dompurify";
 import { getApiBasePathForRole } from "./utils";
 import NotesContainer from "@/components/features/notes/NotesContainer";
+import { getMediaUrl } from "@/pages/utility/apiHelper";
 
 const ProjectHeader = ({
   projectDetails,
@@ -123,7 +124,7 @@ const ProjectHeader = ({
                         key={user.id}
                         src={
                           user.profile_pic
-                            ? `${API_BASE_URL}/storage/${user.profile_pic}`
+                            ? getMediaUrl(user.profile_pic)
                             : `https://ui-avatars.com/api/?name=${user.name}&background=random`
                         }
                         alt={user.name}

@@ -6,7 +6,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { toggleUpdateAssigneesModal, updateProjectAssigneesAPI, fetchProjectsAPI } from "./store";
-import { getApiPrefix, getEmployeeType } from "@/pages/utility/apiHelper";
+import { getApiPrefix, getEmployeeType, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const UpdateAssigneesModal = () => {
   const { updateAssigneesModal, projectToUpdateAssignees, isUpdating } = useSelector((state) => state.project);
@@ -28,7 +28,7 @@ const UpdateAssigneesModal = () => {
     const avatarChar = name?.charAt(0).toUpperCase() || "U";
     let profilePic = null;
     if (user.profile_pic) {
-        profilePic = user.profile_pic.startsWith('http') ? user.profile_pic : `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/${user.profile_pic}`;
+        profilePic = getMediaUrl(user.profile_pic);
     }
     let color = 'bg-slate-500';
     if (user.id) {

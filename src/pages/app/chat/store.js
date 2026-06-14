@@ -3,8 +3,9 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 
+import { getMediaUrl } from "@/pages/utility/apiHelper";
+
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/chat`;
-const IMAGE_BASE_URL = `${import.meta.env.VITE_BACKEND_BASE_URL}/storage/`;
 
 const getTokenFromCookie = () => Cookies.get("token");
 
@@ -41,7 +42,7 @@ export const fetchUsers = createAsyncThunk(
         id: user.id,
         fullName: user.name,
         avatar: user.profile_pic
-          ? `${IMAGE_BASE_URL}${user.profile_pic}`
+          ? getMediaUrl(user.profile_pic)
           : null,
         role: "User",
         status: "active",
@@ -81,7 +82,7 @@ export const fetchConversation = createAsyncThunk(
           minute: "2-digit",
         }),
         img: msg.sender.profile_pic
-          ? `${IMAGE_BASE_URL}${msg.sender.profile_pic}`
+          ? getMediaUrl(msg.sender.profile_pic)
           : null,
         senderFullName: msg.sender.name,
         reactions: msg.reactions || [],
@@ -127,7 +128,7 @@ export const fetchOlderConversation = createAsyncThunk(
           minute: "2-digit",
         }),
         img: msg.sender.profile_pic
-          ? `${IMAGE_BASE_URL}${msg.sender.profile_pic}`
+          ? getMediaUrl(msg.sender.profile_pic)
           : null,
         senderFullName: msg.sender.name,
         reactions: msg.reactions || [],
@@ -425,7 +426,7 @@ export const appChatSlice = createSlice({
             minute: "2-digit",
           }),
           img: newMessage.sender_avatar
-            ? `${IMAGE_BASE_URL}${newMessage.sender_avatar}`
+            ? getMediaUrl(newMessage.sender_avatar)
             : null,
           senderFullName: newMessage.sender_name,
           reactions: newMessage.reactions || [],
