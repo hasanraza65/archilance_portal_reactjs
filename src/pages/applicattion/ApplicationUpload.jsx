@@ -2,6 +2,18 @@ import React from "react";
 
 const versions = [
   {
+    id: 0,
+    version: "3.2.0",
+    releaseDate: "June 14, 2026",
+    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.2.0.exe",
+    releaseNotes: [
+      "Projects now load instantly using local cache — no more waiting on every visit.",
+      "PDF export fixed: large session reports no longer fail with a URL error.",
+      "Offline mode improved: start a local timer even when the server is unreachable.",
+      "Multiple bug fixes and stability improvements.",
+    ],
+  },
+  {
     id: 1,
     version: "3.1.1",
     releaseDate: "June 12, 2026",
