@@ -100,7 +100,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (userProfile && userProfile.profile_pic) {
-      setProfilePicSrc(getMediaUrl(userProfile.profile_pic, userProfile.updated_at));
+      setProfilePicSrc(getMediaUrl(userProfile.profile_pic));
     } else {
       setProfilePicSrc(null);
     }

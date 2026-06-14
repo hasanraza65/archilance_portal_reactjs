@@ -5,7 +5,7 @@ const versions = [
     id: 0,
     version: "3.2.0",
     releaseDate: "June 14, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.2.0.exe",
+    url: "https://portal.archilance.net/Archilance%20LLC%20Setup%203.2.0.exe",
     releaseNotes: [
       "Projects now load instantly using local cache — no more waiting on every visit.",
       "PDF export fixed: large session reports no longer fail with a URL error.",

@@ -415,12 +415,12 @@ const WorkDiaryPage = () => {
                             return (
                               <div key={ss.id} className="text-center">
                                 <a
-                                  href={getMediaUrl(screenshotPath, ss.created_at)}
+                                  href={getMediaUrl(screenshotPath)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
                                   <img
-                                    src={getMediaUrl(screenshotPath, ss.created_at)}
+                                    src={getMediaUrl(screenshotPath)}
                                     alt={`Screenshot`}
                                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 hover:border-blue-500"
                                   />

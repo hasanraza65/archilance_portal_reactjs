@@ -42,9 +42,7 @@ const MobileFooter = () => {
         });
 
         if (response.data && response.data.profile_pic) {
-          setProfilePicSrc(
-            getMediaUrl(response.data.profile_pic, response.data.updated_at) || FooterAvatar
-          );
+          setProfilePicSrc(getMediaUrl(response.data.profile_pic) || FooterAvatar);
         }
       } catch (error) {
         console.error("MobileFooter: Error fetching profile picture:", error);

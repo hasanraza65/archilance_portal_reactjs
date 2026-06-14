@@ -114,7 +114,7 @@ const EditProfile = () => {
       });
 
       if (currentProfile.profile_pic) {
-        const fullPicUrl = getMediaUrl(currentProfile.profile_pic, currentProfile.updated_at) || DefaultProfileImage;
+        const fullPicUrl = getMediaUrl(currentProfile.profile_pic) || DefaultProfileImage;
         setImagePreview(fullPicUrl);
       } else {
         setImagePreview(DefaultProfileImage);
@@ -131,7 +131,7 @@ const EditProfile = () => {
     } else {
       setSelectedFileObject(null);
       if (currentProfile && currentProfile.profile_pic) {
-          const fullPicUrl = getMediaUrl(currentProfile.profile_pic, currentProfile.updated_at) || DefaultProfileImage;
+          const fullPicUrl = getMediaUrl(currentProfile.profile_pic) || DefaultProfileImage;
           setImagePreview(fullPicUrl);
       } else {
           setImagePreview(DefaultProfileImage);
@@ -222,8 +222,7 @@ const EditProfile = () => {
       queryClient.invalidateQueries({ queryKey: ["profileData"] });
 
       if (latestUserData.profile_pic) {
-          // Newly uploaded pic — use today's date so it resolves to the new storage URL
-          const newFullPicUrl = getMediaUrl(latestUserData.profile_pic, new Date().toISOString()) || DefaultProfileImage;
+          const newFullPicUrl = getMediaUrl(latestUserData.profile_pic) || DefaultProfileImage;
           setImagePreview(newFullPicUrl);
       } else if (!selectedFileObject) {
           setImagePreview(DefaultProfileImage);
