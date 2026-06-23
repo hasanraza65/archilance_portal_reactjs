@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 import { Toaster, toast } from "react-hot-toast";
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
+const ADDITIONAL_LEAVE_USER_IDS = [177, 109, 171, 22, 173, 50, 172, 147, 118, 35, 180, 114, 69, 182, 23, 26, 21, 128, 175, 139, 28, 58];
 
 const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
   const [startDate, setStartDate] = useState("");
@@ -20,6 +21,7 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
 
   const user = useSelector((state) => state.auth.user);
   const joiningDate = user?.joining_date;
+  const isEligibleForAdditional = ADDITIONAL_LEAVE_USER_IDS.includes(user?.id);
 
   const eligibility = useMemo(() => {
     if (!joiningDate) return { casual: false, annual: false };
@@ -39,6 +41,9 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
     { value: "annual", label: "Annual Leave", isEligible: eligibility.annual },
     { value: "sick", label: "Sick Leave", isEligible: true },
     { value: "other", label: "Other (Specify)", isEligible: true },
+    ...(isEligibleForAdditional
+      ? [{ value: "additional", label: "Additional Absences", isEligible: true }]
+      : []),
   ];
 
   const handleResetForm = () => {
@@ -66,7 +71,7 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
         setOtherLeaveType(otherReasonMatch[1]);
         setReason(otherReasonMatch[2]);
       } else {
-        const standardTypes = ["casual", "annual", "sick"];
+        const standardTypes = ["casual", "annual", "sick", "additional"];
         if (standardTypes.includes(type)) {
           setLeaveType(type);
           setReason(reasonText);

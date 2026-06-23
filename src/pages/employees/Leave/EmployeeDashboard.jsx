@@ -30,6 +30,7 @@ const EmployeeDashboard = () => {
     casual: 0,
     annual: 0,
     sick: 0,
+    additional: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -72,6 +73,7 @@ const EmployeeDashboard = () => {
           casual: 0,
           annual: 0,
           sick: 0,
+          additional: 0,
         }
       );
     } catch (err) {

@@ -17,7 +17,10 @@ import {
   FileText,
   Heart,
   Briefcase,
+  Star,
 } from "lucide-react";
+
+const ADDITIONAL_LEAVE_USER_IDS = [177, 109, 171, 22, 173, 50, 172, 147, 118, 35, 180, 114, 69, 182, 23, 26, 21, 128, 175, 139, 28, 58];
 
 const LeaveHistoryTable = ({
   children,
@@ -59,6 +62,8 @@ const LeaveHistoryTable = ({
 
   const user = useSelector((state) => state.auth.user);
   const joiningDate = user?.joining_date;
+  const userId = user?.id;
+  const isEligibleForAdditional = ADDITIONAL_LEAVE_USER_IDS.includes(userId);
 
   const eligibility = useMemo(() => {
     if (!joiningDate) return { casual: false, annual: false };
@@ -101,12 +106,16 @@ const LeaveHistoryTable = ({
       unlockMessage: eligibility.annual ? null : "Available after 6 months of joining"
     },
     sick: { total: 8, label: "Sick Leaves", icon: Heart, color: "purple", isLocked: false },
+    ...(isEligibleForAdditional ? {
+      additional: { total: 8, label: "Additional Absences", icon: Star, color: "orange", isLocked: false },
+    } : {}),
   };
 
   const leaveTypeColors = {
     casual: "bg-blue-100 text-blue-800",
     annual: "bg-green-100 text-green-800",
     sick: "bg-purple-100 text-purple-800",
+    additional: "bg-orange-100 text-orange-800",
   };
 
   const filteredLeaves = leaves.filter((leave) => {
@@ -247,7 +256,7 @@ const LeaveHistoryTable = ({
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Your Leave Balances
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`grid grid-cols-1 gap-4 ${isEligibleForAdditional ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
               {Object.entries(leaveTypeConfig).map(([key, config]) => {
                 const used = leaveTypesCount[key] || 0;
                 const remaining = config.total - used;

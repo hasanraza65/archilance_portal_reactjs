@@ -105,6 +105,8 @@ const getLeaveTypeColor = (type) => {
       return "bg-teal-100 text-teal-800";
     case "other":
       return "bg-gray-100 text-gray-800 border border-gray-300";
+    case "additional":
+      return "bg-orange-100 text-orange-800";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -246,7 +248,9 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
     { key: "casual", name: "Casual Leave", total: 10 },
     { key: "annual", name: "Annual Leave", total: 10 },
     { key: "sick", name: "Sick Leave", total: 8 },
-    // { key: "other", name: "Other Leave", total: 0 },
+    ...(leaveSummary?.additional !== undefined
+      ? [{ key: "additional", name: "Additional Absences", total: 8 }]
+      : []),
   ];
 
   const getProgressBarColor = (remaining) => {
