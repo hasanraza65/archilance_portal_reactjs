@@ -8,7 +8,7 @@ import {
   updateContactLastMessage
 } from './pages/app/chat/store';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://chat.aentora.com";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://socket.archilance.net";
 let socket;
 
 export const connectSocket = (dispatch, userId) => {

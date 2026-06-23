@@ -50,7 +50,7 @@ const versions = [
     id: 4,
     version: "3.4.0",
     releaseDate: "June 17, 2026",
-    url: "http://portal.archilance.net/Archilance%20LLC%20Setup%203.4.0.exe",
+    url: "https://portal.archilance.net/Archilance%20LLC%20Setup%203.4.0.exe",
     releaseNotes: [
       "Auto-update is here! You no longer need to visit the portal to download new versions.",
       "Whenever a new update is available, you'll see a prompt directly in the app — just download and install it in one click.",
