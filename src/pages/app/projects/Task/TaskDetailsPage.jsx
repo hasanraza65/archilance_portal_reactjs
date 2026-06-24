@@ -184,8 +184,10 @@ const TaskDetailsPage = () => {
 
         const project_id_to_fetch = jobId || taskData.project_id;
         if (project_id_to_fetch) {
+          // light=1 → backend skips the heavy all-tasks + hours computation;
+          // this page only needs the project id + name for the breadcrumb.
           const jobResponse = await fetch(
-            `${API_BASE_URL}${jobApiPath}/${project_id_to_fetch}`,
+            `${API_BASE_URL}${jobApiPath}/${project_id_to_fetch}?light=1`,
             { headers }
           );
           if (jobResponse.ok) {
