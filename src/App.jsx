@@ -217,7 +217,8 @@ function App() {
                     "outsource",
                     "manager",
                     "supervisor",
-                    "executive", // Added executive
+                    "executive",
+                    "internee",
                   ]}
                 >
                   <ProjectPostPage />
@@ -237,7 +238,8 @@ function App() {
                     "manager",
                     "outsource",
                     "supervisor",
-                    "executive", 
+                    "executive",
+                    "internee",
                   ]}
                 >
                   <ProjectDetailsPage />

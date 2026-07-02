@@ -42,7 +42,7 @@ export const menuItems = [
     isHeadr: true,
     title: "menu",
 
-    allowedRoles: ["admin", "employee", "customer", "manager", "outsource", "supervisor","executive"],
+    allowedRoles: ["admin", "employee", "customer", "manager", "outsource", "supervisor", "executive", "internee"],
   },
   {
     title: "Dashboard",
@@ -62,7 +62,7 @@ export const menuItems = [
     icon: "heroicons-outline:document",
     link: "jobs",
     // --- UPDATED ---
-    allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"],
+    allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive", "internee"],
   },
   {
     title: "Chat",

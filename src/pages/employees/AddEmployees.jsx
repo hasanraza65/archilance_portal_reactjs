@@ -26,6 +26,7 @@ const AddEmployee = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [profilePicPreview, setProfilePicPreview] = useState(null);
+  const [allEmployees, setAllEmployees] = useState([]);
 
   const {
     register,
@@ -43,6 +44,7 @@ const AddEmployee = () => {
 
   const passwordValue = watch("password");
   const watchedProfilePic = watch("profile_pic");
+  const watchedEmployeeType = watch("employee_type");
 
   useEffect(() => {
     if (!canManageEmployees()) {
@@ -50,6 +52,22 @@ const AddEmployee = () => {
       navigate("/employees");
     }
   }, [navigate]);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      const token = Cookies.get("token");
+      try {
+        const apiPath = getApiBasePathForRole("/employee-user");
+        const res = await axios.get(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
+          { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+        );
+        const data = res.data;
+        setAllEmployees(Array.isArray(data) ? data : data?.data || []);
+      } catch (_) {}
+    };
+    fetchEmployees();
+  }, []);
 
   useEffect(() => {
     if (watchedProfilePic && watchedProfilePic[0]) {
@@ -85,6 +103,9 @@ const AddEmployee = () => {
       case "Executive":
         userRoleId = "7";
         break;
+      case "Internee":
+        userRoleId = "3";
+        break;
       default:
         userRoleId = "3";
         break;
@@ -97,6 +118,9 @@ const AddEmployee = () => {
     dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("employee_type", formData.employee_type);
     dataToSubmit.append("user_role", userRoleId);
+    if (formData.employee_type === "Internee" && formData.internee_manager_id) {
+      dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
+    }
     dataToSubmit.append("password", formData.password);
     dataToSubmit.append("password_confirmation", formData.password_confirmation);
 
@@ -251,6 +275,7 @@ const AddEmployee = () => {
                     <option value="Executive">Executive</option>
                     <option value="Supervisor">Coordinator</option>
                     <option value="Outsource">Outsource</option>
+                    <option value="Internee">Internee</option>
                   </select>
                   {errors.employee_type && (
                     <p className="text-danger-500 text-xs mt-1">{errors.employee_type.message}</p>
@@ -275,6 +300,29 @@ const AddEmployee = () => {
                   />
                 </div>
               </div>
+
+              {watchedEmployeeType === "Internee" && (
+                <div className="md:col-span-2">
+                  <label htmlFor="internee_manager_id" className="form-label mb-1">
+                    Internee Manager*
+                  </label>
+                  <select
+                    id="internee_manager_id"
+                    className={`form-control py-2 ${
+                      errors.internee_manager_id ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
+                    }`}
+                    {...register("internee_manager_id", { required: "Manager is required for Internee" })}
+                  >
+                    <option value="">Select Manager</option>
+                    {allEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                  {errors.internee_manager_id && (
+                    <p className="text-danger-500 text-xs mt-1">{errors.internee_manager_id.message}</p>
+                  )}
+                </div>
+              )}
 
               <Textinput
                 label="Password*"

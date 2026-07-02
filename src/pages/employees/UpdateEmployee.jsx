@@ -34,9 +34,11 @@ const EditEmployee = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+  const [allEmployees, setAllEmployees] = useState([]);
 
   const watchedProfilePicFile = watch("profile_pic");
   const passwordValue = watch("password");
+  const watchedEmployeeType = watch("employee_type");
   
   const getApiBasePathForRole = (basePath) => {
     const role = getApiPrefix();
@@ -53,6 +55,22 @@ const EditEmployee = () => {
       navigate(-1);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      const token = Cookies.get("token");
+      try {
+        const apiPath = getApiBasePathForRole("/employee-user");
+        const res = await axios.get(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
+          { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+        );
+        const data = res.data;
+        setAllEmployees(Array.isArray(data) ? data : data?.data || []);
+      } catch (_) {}
+    };
+    fetchEmployees();
+  }, []);
 
   useEffect(() => {
     let objectUrl = null;
@@ -107,6 +125,7 @@ const EditEmployee = () => {
             : "",
           employee_type: employee.employee_type || "Employee",
           joining_date: employee.joining_date || null,
+          internee_manager_id: employee.internee_manager_id ? String(employee.internee_manager_id) : "",
           password: "",
           password_confirmation: "",
         });
@@ -161,6 +180,7 @@ const EditEmployee = () => {
       case "Executive":
         userRoleId = "7";
         break;
+      case "Internee":
       case "Employee":
       case "Outsource":
       default:
@@ -175,7 +195,10 @@ const EditEmployee = () => {
     dataToSubmit.append("username", formData.username);
     dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("employee_type", formData.employee_type);
-    dataToSubmit.append("user_role", userRoleId); // Append the correct role ID
+    dataToSubmit.append("user_role", userRoleId);
+    if (formData.employee_type === "Internee" && formData.internee_manager_id) {
+      dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
+    }
     
     if (formData.joining_date) {
       const date = Array.isArray(formData.joining_date) 
@@ -343,6 +366,7 @@ const EditEmployee = () => {
               <option value="Executive">Executive</option>
               <option value="Supervisor">Coordinator</option>
               <option value="Outsource">Outsource</option>
+              <option value="Internee">Internee</option>
             </select>
             {formErrors.employee_type && (
               <p className="text-danger-500 text-xs mt-1">
@@ -381,6 +405,29 @@ const EditEmployee = () => {
             )}
           </div>
         </div>
+
+        {watchedEmployeeType === "Internee" && (
+          <div>
+            <label htmlFor="internee_manager_id" className="form-label mb-1">
+              Internee Manager*
+            </label>
+            <select
+              id="internee_manager_id"
+              className={`form-control py-2 ${
+                formErrors.internee_manager_id ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
+              }`}
+              {...register("internee_manager_id", { required: "Manager is required for Internee" })}
+            >
+              <option value="">Select Manager</option>
+              {allEmployees.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+            {formErrors.internee_manager_id && (
+              <p className="text-danger-500 text-xs mt-1">{formErrors.internee_manager_id.message}</p>
+            )}
+          </div>
+        )}
 
         <div>
           <label

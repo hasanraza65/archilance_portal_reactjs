@@ -322,7 +322,8 @@ const ProjectPostPage = () => {
           (isAuthorizedForTabs ||
             (uiRole !== "employee" &&
               uiRole !== "customer" &&
-              uiRole !== "outsource")) && (
+              uiRole !== "outsource" &&
+              uiRole !== "internee")) && (
             <Button
               icon="heroicons-outline:plus"
               text="Add Job"

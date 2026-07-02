@@ -52,7 +52,8 @@ export const getApiPrefix = () => {
     case "outsource":
     case "employee":
     case "supervisor":
-    case "executive": // Add executive here
+    case "executive":
+    case "internee":
       return "employee";
 
     case "admin":
