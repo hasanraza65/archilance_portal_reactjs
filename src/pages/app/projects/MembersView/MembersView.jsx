@@ -18,13 +18,8 @@ const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
 // --- CONSTANTS AND HELPERS ---
 const STATUS_ORDER = [
-  "On Hold",
   "Backlog",
-  "Awaiting Info",
   "In Progress",
-  "In-house review",
-  "Client Review",
-  "Completed",
 ];
 
 const getApiBasePathForRole = (basePath) => {

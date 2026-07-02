@@ -143,7 +143,8 @@ export const AuthProvider = ({ children }) => {
         type === "manager" ||
         type === "outsource" ||
         type === "supervisor" ||
-        type === "executive"
+        type === "executive" ||
+        type === "internee"
       ) {
         userRole = type;
       }
@@ -197,7 +198,8 @@ export const AuthProvider = ({ children }) => {
       "member",
       "supervisor",
       "executive",
-    ]; // Added executive here too
+      "internee",
+    ];
     if (jobsRoles.includes(userRole)) {
       navigate("/jobs", { replace: true });
     } else {
