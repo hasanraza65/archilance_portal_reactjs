@@ -91,6 +91,34 @@ const formatTime = (timeStr) => {
     hour12: true,
   });
 };
+// Format a "YYYY-MM-DD" date into "Jun 22, 2026"
+const formatSessionDate = (dateStr) => {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+// The start → end time portion shown at the front of the main line.
+const formatSessionTimeRange = (session) =>
+  `${formatTime(session.start_time)} – ${formatTime(session.end_time)}`;
+
+// The date shown at the END of the main line. A single date when the session
+// stays within one day, or a "start – end" range when it crosses into another.
+const formatSessionEndDateLabel = (session) => {
+  const startDate = formatSessionDate(session.start_date);
+  const endDate = formatSessionDate(session.end_date);
+  if (endDate && session.end_date !== session.start_date) {
+    return `${startDate} – ${endDate}`;
+  }
+  return startDate;
+};
+
 const formatScreenshotTime = (isoString) => {
   if (!isoString) return "";
   try {
@@ -1291,11 +1319,15 @@ const AdminEmployeeWorkSession = () => {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-700 dark:text-slate-300">
-                        {formatTime(session.start_time)} –{" "}
-                        {formatTime(session.end_time)}{" "}
+                        {formatSessionTimeRange(session)}{" "}
                         <span className="ml-2 font-normal text-slate-500">
                           ({session.total_time})
                         </span>
+                        {formatSessionEndDateLabel(session) && (
+                          <span className="ml-2 font-normal text-slate-400">
+                            {formatSessionEndDateLabel(session)}
+                          </span>
+                        )}
                       </p>
                       {session.type === "Manual" && (
                         <span className="px-2 py-0.5 bg-sky-100 text-sky-800 rounded-full text-xs">
