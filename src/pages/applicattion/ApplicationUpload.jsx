@@ -58,6 +58,16 @@ const versions = [
       "Multiple issues and bugs from previous versions have been fixed.",
     ],
   },
+  {
+    id: 5,
+    version: "3.4.1",
+    releaseDate: "July 5, 2026",
+    url: "https://portal.archilance.net/Archilance%20LLC%20Setup%203.4.1.exe",
+    releaseNotes: [
+      "Added the new Internee module.",
+      "Multiple issues and bugs from previous versions have been fixed.",
+    ],
+  },
 ];
 
 const ApplicationUpload = () => {

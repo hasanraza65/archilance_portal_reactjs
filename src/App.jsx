@@ -586,7 +586,7 @@ function App() {
               path="application"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"]}
+                  allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive", "internee"]}
                 >
                  <ApplicationUpload />
                 </ProtectedRoute>
