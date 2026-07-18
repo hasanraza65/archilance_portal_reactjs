@@ -13,13 +13,22 @@ import EditableTaskStatus from "../EditableTaskStatus";
 import EditableDueDate from "../EditTaskDate/EditableDueDate";
 import EditableStartDate from "../EditTaskDate/EditableStartDate";
 import EditTask from "../EditTask";
+import { LazyTaskTree, fetchTaskChildren } from "@/components/features/projects/tree/TaskTree";
 
 const VITE_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
 // --- CONSTANTS AND HELPERS ---
+// Render every status the backend can return (tasks_by_status carries all of
+// these). Previously only Backlog/In Progress were rendered, so changing a task
+// to any other status made it vanish — which read as "status change not working".
 const STATUS_ORDER = [
+  "On Hold",
   "Backlog",
+  "Awaiting Info",
   "In Progress",
+  "In-house review",
+  "Client Review",
+  "Completed",
 ];
 
 const getApiBasePathForRole = (basePath) => {
@@ -129,10 +138,43 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
-  // (This component remains mostly unchanged, as filtering is done before passing data to it)
-  // ... All the existing code for MemberTaskTable goes here ...
+// Optimistically moves a task to its new status bucket (and applies field
+// patches) inside a member's tasks_by_status, so an inline status/due change
+// reflects instantly without a full refetch.
+const applyTaskPatch = (members, taskId, patch) =>
+  (members || []).map((member) => {
+    const tbs = member.tasks_by_status || {};
+    let found = null;
+    let foundStatus = null;
+    for (const st of Object.keys(tbs)) {
+      const arr = tbs[st]?.tasks || [];
+      const idx = arr.findIndex((t) => t.id === taskId);
+      if (idx !== -1) {
+        found = arr[idx];
+        foundStatus = st;
+        break;
+      }
+    }
+    if (!found) return member;
+
+    const updated = { ...found, ...patch };
+    const newStatus = patch.task_status || foundStatus;
+
+    const next = {};
+    Object.keys(tbs).forEach((st) => {
+      const arr = (tbs[st]?.tasks || []).filter((t) => t.id !== taskId);
+      next[st] = { ...tbs[st], tasks: arr, count: arr.length };
+    });
+    if (!next[newStatus]) next[newStatus] = { tasks: [], count: 0 };
+    const merged = [updated, ...(next[newStatus].tasks || [])];
+    next[newStatus] = { ...next[newStatus], tasks: merged, count: merged.length };
+
+    return { ...member, tasks_by_status: next };
+  });
+
+const MemberTaskTable = ({ memberTasksByStatus, onUpdate, onTaskUpdated }) => {
   const [expandedSections, setExpandedSections] = useState({});
+  const [expandedTasks, setExpandedTasks] = useState({});
   const navigate = useNavigate();
   const userRole = getApiPrefix();
   const employeeType = getEmployeeType();
@@ -147,10 +189,9 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
     if (firstStatusWithTasks) {
       setExpandedSections({ [firstStatusWithTasks]: true });
     } else {
-      // If no tasks after filtering, collapse everything
       setExpandedSections({});
     }
-  }, [memberTasksByStatus]); // Dependency changed to re-evaluate on filtered data
+  }, [memberTasksByStatus]);
 
   const handleUpdateTask = () => onUpdate();
   const handleOpenEditModal = useCallback((task, e) => {
@@ -197,6 +238,10 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
 
   const toggleSection = (status) =>
     setExpandedSections((prev) => ({ ...prev, [status]: !prev[status] }));
+  const toggleTask = (e, taskId) => {
+    e.stopPropagation();
+    setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
 
   const handleRowClick = (taskData) => {
     if (userRole === "customer") return;
@@ -217,7 +262,6 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
     });
   };
 
-  // If after filtering, no tasks exist for this member, show a message.
   if (Object.keys(memberTasksByStatus).length === 0) {
     return (
       <p className="text-sm text-center text-slate-500 py-4">
@@ -297,106 +341,161 @@ const MemberTaskTable = ({ memberTasksByStatus, onUpdate }) => {
                         employeeType === "Supervisor" ||
                         employeeType === "Executive";
                       const isSubTask = !!task.parent_task;
+                      const isOpenTask = !!expandedTasks[task.id];
                       return (
-                        <tr
-                          key={task.id}
-                          onClick={() => handleRowClick(task)}
-                          className="block md:table-row hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
-                        >
-                          <td
-                            data-label="Job"
-                            className="block md:table-cell px-4 py-3"
+                        <React.Fragment key={task.id}>
+                          <tr
+                            onClick={() => handleRowClick(task)}
+                            className="block md:table-row hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
                           >
-                            <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
-                              {task.project?.project_name || "N/A"}
-                            </span>
-                          </td>
-                          <td
-                            data-label="Project"
-                            className="block md:table-cell px-4 py-3"
-                          >
-                            <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
-                              {isSubTask
-                                ? task.parent_task.task_title
-                                : task.task_title}
-                            </span>
-                          </td>
-                          <td
-                            data-label="Task"
-                            className="block md:table-cell px-4 py-3"
-                          >
-                            <span className="text-slate-700 dark:text-slate-300 text-sm">
-                              {isSubTask ? task.task_title : "N/A"}
-                            </span>
-                          </td>
-                          <td
-                            data-label="Start Date"
-                            className="block md:table-cell px-4 py-3"
-                          >
-                            <EditableStartDate
-                              taskId={task.id}
-                              currentStartDate={task.created_at}
-                              onDateUpdate={handleUpdateTask}
-                              isEditable={isEditable}
-                            />
-                          </td>
-                          <td
-                            data-label="Due Date"
-                            className="block md:table-cell px-4 py-3"
-                          >
-                            <EditableDueDate
-                              taskId={task.id}
-                              currentDueDate={task.due_date}
-                              onDateUpdate={handleUpdateTask}
-                              isEditable={isEditable}
-                            />
-                          </td>
-                          <td
-                            data-label="Status"
-                            className="block md:table-cell px-4 py-3"
-                          >
-                            <EditableTaskStatus
-                              taskId={task.id}
-                              currentStatus={task.task_status}
-                              onStatusUpdate={handleUpdateTask}
-                              isEditable={isEditable}
-                            />
-                          </td>
-                          <td
-                            data-label="Action"
-                            className="block md:table-cell px-4 py-3"
-                          >
-                            {isEditable && (
-                              <div
-                                className="flex items-center justify-end space-x-2"
+                            <td
+                              data-label="Job"
+                              className="block md:table-cell px-4 py-3"
+                            >
+                              <div className="flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={(e) => toggleTask(e, task.id)}
+                                  aria-label={isOpenTask ? "Collapse" : "Expand"}
+                                  title={isOpenTask ? "Collapse" : "Expand"}
+                                  className={`mr-2 shrink-0 inline-flex items-center gap-0.5 h-6 min-w-[1.5rem] px-1 rounded-md border transition-colors ${
+                                    isOpenTask
+                                      ? "border-blue-300 bg-blue-50 text-blue-600 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                      : "border-slate-300 bg-slate-50 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-200 dark:hover:bg-slate-600"
+                                  }`}
+                                >
+                                  <Icon
+                                    icon={
+                                      isOpenTask
+                                        ? "heroicons:chevron-down"
+                                        : "heroicons:chevron-right"
+                                    }
+                                    className="w-4 h-4"
+                                  />
+                                  {typeof task.sub_tasks_count === "number" &&
+                                    task.sub_tasks_count > 0 && (
+                                      <span className="text-[11px] font-bold leading-none pr-0.5">
+                                        {task.sub_tasks_count}
+                                      </span>
+                                    )}
+                                </button>
+                                <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                                  {task.project?.project_name || "N/A"}
+                                </span>
+                              </div>
+                            </td>
+                            <td
+                              data-label="Project"
+                              className="block md:table-cell px-4 py-3"
+                            >
+                              <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
+                                {isSubTask
+                                  ? task.parent_task.task_title
+                                  : task.task_title}
+                              </span>
+                            </td>
+                            <td
+                              data-label="Task"
+                              className="block md:table-cell px-4 py-3"
+                            >
+                              <span className="text-slate-700 dark:text-slate-300 text-sm">
+                                {isSubTask ? task.task_title : "N/A"}
+                              </span>
+                            </td>
+                            <td
+                              data-label="Start Date"
+                              className="block md:table-cell px-4 py-3"
+                            >
+                              <EditableStartDate
+                                taskId={task.id}
+                                currentStartDate={task.created_at}
+                                onDateUpdate={handleUpdateTask}
+                                isEditable={isEditable}
+                              />
+                            </td>
+                            <td
+                              data-label="Due Date"
+                              className="block md:table-cell px-4 py-3"
+                            >
+                              <EditableDueDate
+                                taskId={task.id}
+                                currentDueDate={task.due_date}
+                                onDateUpdate={(id, d) =>
+                                  onTaskUpdated &&
+                                  onTaskUpdated(id, { due_date: d })
+                                }
+                                isEditable={isEditable}
+                              />
+                            </td>
+                            <td
+                              data-label="Status"
+                              className="block md:table-cell px-4 py-3"
+                            >
+                              <EditableTaskStatus
+                                taskId={task.id}
+                                currentStatus={task.task_status}
+                                onStatusUpdate={(id, s) =>
+                                  onTaskUpdated &&
+                                  onTaskUpdated(id, { task_status: s })
+                                }
+                                isEditable={isEditable}
+                              />
+                            </td>
+                            <td
+                              data-label="Action"
+                              className="block md:table-cell px-4 py-3"
+                            >
+                              {isEditable && (
+                                <div
+                                  className="flex items-center justify-end space-x-2"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    title="Edit"
+                                    onClick={(e) => handleOpenEditModal(task, e)}
+                                    className="p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-800/20 text-green-600"
+                                  >
+                                    <Icon
+                                      icon="heroicons:pencil-square"
+                                      className="w-4 h-4"
+                                    />
+                                  </button>
+                                  <button
+                                    title="Delete"
+                                    onClick={(e) =>
+                                      handleDelete(task.id, task.task_title, e)
+                                    }
+                                    className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-800/20 text-red-600"
+                                  >
+                                    <Icon
+                                      icon="heroicons-outline:trash"
+                                      className="w-4 h-4"
+                                    />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                          {isOpenTask && (
+                            <tr className="bg-slate-50 dark:bg-slate-900/40">
+                              <td
+                                colSpan={7}
+                                className="p-0"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <button
-                                  title="Edit"
-                                  onClick={(e) => handleOpenEditModal(task, e)}
-                                  className="p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-800/20 text-green-600"
-                                >
-                                  <Icon
-                                    icon="heroicons:pencil-square"
-                                    className="w-4 h-4"
+                                <div className="pl-6 pr-2 py-3">
+                                  <LazyTaskTree
+                                    loader={() => fetchTaskChildren(task.id)}
+                                    isEditable={isEditable}
+                                    canDelete={isEditable}
+                                    jobId={task.project?.id}
+                                    emptyLabel="No sub-tasks."
                                   />
-                                </button>
-                                <button
-                                  title="Delete"
-                                  onClick={(e) =>
-                                    handleDelete(task.id, task.task_title, e)
-                                  }
-                                  className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-800/20 text-red-600"
-                                >
-                                  <Icon
-                                    icon="heroicons-outline:trash"
-                                    className="w-4 h-4"
-                                  />
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -532,6 +631,10 @@ const MembersView = () => {
       .filter((member) => member.total_tasks > 0); // Hide members with no matching tasks
   }, [membersData, searchQuery, statusFilter]);
 
+  const handleTaskUpdated = useCallback((taskId, patch) => {
+    setMembersData((prev) => applyTaskPatch(prev, taskId, patch));
+  }, []);
+
   const handleToggleMember = (memberId) => {
     setOpenMemberId((prevId) => (prevId === memberId ? null : memberId));
   };
@@ -637,6 +740,7 @@ const MembersView = () => {
                   <MemberTaskTable
                     memberTasksByStatus={member.tasks_by_status}
                     onUpdate={fetchMembersData}
+                    onTaskUpdated={handleTaskUpdated}
                   />
                 </div>
               )}

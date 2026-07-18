@@ -925,6 +925,9 @@ const TaskDetailsPage = () => {
               }
               onEditSubTask={handleOpenEditSubTaskModal}
               onDeleteSubTask={handleDeleteSubTask}
+              onSubTaskDeleted={(id) =>
+                setSubTasks((prev) => prev.filter((t) => t.id !== id))
+              }
               isEditable={canManageSubtasks}
             />
             <TaskAttachments attachments={parentTaskDetails?.attachments} />

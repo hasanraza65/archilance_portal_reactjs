@@ -735,6 +735,9 @@ const ProjectDetailsPage = () => {
             )
           );
         }}
+        onTaskDeleted={(taskId) =>
+          setTasks((prev) => prev.filter((t) => t.id !== taskId))
+        }
       />
 
       {/* CHAT SECTION GRID */}

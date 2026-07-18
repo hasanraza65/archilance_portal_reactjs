@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import EditableTaskStatus from "@/pages/app/projects/EditableTaskStatus";
+import TaskTree from "@/components/features/projects/tree/TaskTree";
 
 const MAX_DISPLAY_ASSIGNEES_IN_LIST = 2;
 
@@ -28,6 +29,7 @@ const ProjectTasks = ({
     id,
     projectDetails,
     onStatusUpdate,
+    onTaskDeleted,
 }) => {
     const navigate = useNavigate();
 
@@ -202,169 +204,20 @@ const ProjectTasks = ({
                             </div>
 
                             {expandedSections[status] && (
-                                <div className="w-full bg-slate-50 dark:bg-slate-900/50 p-2 md:p-0">
-                                    <table className="min-w-full responsive-project-table">
-                                        <thead className="hidden md:table-header-group bg-slate-50 dark:bg-slate-700">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-4/12">
-                                                    Name
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-2/12">
-                                                    Status
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-2/12">
-                                                    Assignees
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-2/12">
-                                                    Due date
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-1/12">
-                                                    Priority
-                                                </th>
-                                                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-2/12">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-transparent md:bg-white md:dark:bg-slate-800 md:divide-y md:divide-slate-200 md:dark:divide-slate-700">
-                                            {tasksForStatus.map((task) => {
-                                                const mappedTaskAssignees = (task.assignees || [])
-                                                    .map((a) => mapApiAssigneeToLocal(a.user || a))
-                                                    .filter(Boolean);
-                                                return (
-                                                    <tr
-                                                        key={task.id}
-                                                        onClick={() =>
-                                                            navigate(`/project/${task.id}`, {
-                                                                state: { jobId: id },
-                                                            })
-                                                        }
-                                                        className="block md:table-row md:hover:bg-slate-50 md:dark:hover:bg-slate-700/50 cursor-pointer transition-colors duration-150"
-                                                    >
-                                                        <td
-                                                            data-label="Name"
-                                                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                                                        >
-                                                            <span className="text-slate-900 dark:text-slate-100 truncate">
-                                                                {task.task_title || "N/A"}
-                                                            </span>
-                                                        </td>
-                                                        <td
-                                                            data-label="Status"
-                                                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                                                        >
-                                                            <EditableTaskStatus
-                                                                taskId={task.id}
-                                                                currentStatus={task.task_status}
-                                                                onStatusUpdate={onStatusUpdate}
-                                                                isEditable={true}
-                                                            />
-                                                        </td>
-                                                        <td
-                                                            data-label="Assignees"
-                                                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                                                        >
-                                                            {mappedTaskAssignees.length > 0 ? (
-                                                                <div className="flex -space-x-2 overflow-hidden items-center justify-end md:justify-start">
-                                                                    {mappedTaskAssignees
-                                                                        .slice(0, MAX_DISPLAY_ASSIGNEES_IN_LIST)
-                                                                        .map((assignee) =>
-                                                                            assignee.profilePic ? (
-                                                                                <img
-                                                                                    key={assignee.id}
-                                                                                    src={assignee.profilePic}
-                                                                                    alt={assignee.name}
-                                                                                    title={assignee.name}
-                                                                                    className="w-8 h-8 rounded-full object-cover ring-1 ring-white dark:ring-slate-700"
-                                                                                />
-                                                                            ) : (
-                                                                                <span
-                                                                                    key={assignee.id}
-                                                                                    title={assignee.name}
-                                                                                    className={`w-8 h-8 ${assignee.color} text-white rounded-full flex items-center justify-center text-sm font-semibold ring-1 ring-white dark:ring-slate-700`}
-                                                                                >
-                                                                                    {assignee.avatar}
-                                                                                </span>
-                                                                            )
-                                                                        )}
-                                                                    {mappedTaskAssignees.length >
-                                                                        MAX_DISPLAY_ASSIGNEES_IN_LIST && (
-                                                                            <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-full ring-1 ring-white dark:ring-slate-700">
-                                                                                +
-                                                                                {mappedTaskAssignees.length -
-                                                                                    MAX_DISPLAY_ASSIGNEES_IN_LIST}
-                                                                            </span>
-                                                                        )}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic">
-                                                                    Unassigned
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td
-                                                            data-label="Due Date"
-                                                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                                                        >
-                                                            <span className="text-slate-700 dark:text-slate-300">
-                                                                {task.due_date
-                                                                    ? new Date(task.due_date).toLocaleDateString()
-                                                                    : "N/A"}
-                                                            </span>
-                                                        </td>
-                                                        <td
-                                                            data-label="Priority"
-                                                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                                                        >
-                                                            <span
-                                                                className={`font-medium ${getPriorityClass(
-                                                                    task.priority
-                                                                )}`}
-                                                            >
-                                                                {task.priority || "N/A"}
-                                                            </span>
-                                                        </td>
-                                                        <td
-                                                            data-label="Actions"
-                                                            className="block md:table-cell px-4 py-2 md:py-4 w-full md:w-auto"
-                                                        >
-                                                            <div
-                                                                className="flex items-center justify-end md:justify-center space-x-1"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <button
-                                                                    onClick={(e) =>
-                                                                        handleOpenEditTaskModal(task, e)
-                                                                    }
-                                                                    className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-600 p-1 rounded hover:bg-blue-100 dark:hover:bg-slate-700"
-                                                                    title="Edit Project"
-                                                                >
-                                                                    <Icon
-                                                                        icon="heroicons:pencil-square"
-                                                                        className="w-5 h-5"
-                                                                    />
-                                                                </button>
-                                                                {isManagerOrAdmin && (
-                                                                    <button
-                                                                        onClick={(e) =>
-                                                                            handleDeleteTask(task.id, e)
-                                                                        }
-                                                                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-600 p-1 rounded hover:bg-red-100 dark:hover:bg-slate-700"
-                                                                        title="Delete Task"
-                                                                    >
-                                                                        <Icon
-                                                                            icon="heroicons-outline:trash"
-                                                                            className="w-5 h-5"
-                                                                        />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                <div className="w-full bg-slate-50 dark:bg-slate-900/50">
+                                    <TaskTree
+                                        nodes={tasksForStatus}
+                                        isEditable={true}
+                                        canDelete={isManagerOrAdmin}
+                                        jobId={id}
+                                        onEditTask={(task) =>
+                                            handleOpenEditTaskModal(task, {
+                                                stopPropagation() {},
+                                            })
+                                        }
+                                        onStatusUpdate={onStatusUpdate}
+                                        onNodeDeleted={onTaskDeleted}
+                                    />
                                 </div>
                             )}
                         </div>

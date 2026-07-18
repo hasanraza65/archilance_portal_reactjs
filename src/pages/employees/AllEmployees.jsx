@@ -194,6 +194,7 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
         lowerCaseEmployeeType === "manager" ||
         lowerCaseEmployeeType === "executive" || // Added executive
         lowerCaseEmployeeType === "outsource" ||
+        lowerCaseEmployeeType === "internee" || // Added internee
         isSupervisor;
 
       // Logic to assign badge color
@@ -208,6 +209,10 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
       } else if (isSupervisor) {
         badgeClass =
           "bg-sky-100 text-sky-800 dark:bg-sky-700 dark:text-sky-200";
+      } else if (lowerCaseEmployeeType === "internee") {
+        // New badge class for Internee
+        badgeClass =
+          "bg-indigo-100 text-indigo-800 dark:bg-indigo-700 dark:text-indigo-200";
       } else {
         // Fallback for Outsource
         badgeClass =
@@ -512,9 +517,10 @@ const Allemployees = () => {
           (isExecutive && empType === "manager") ||
           empType === "supervisor" ||
           empType === "employee" ||
+          empType === "internee" ||
           !emp.employee_type;
       } else if (currentUserType === "supervisor") {
-        keep = empType === "employee" || !emp.employee_type;
+        keep = empType === "employee" || empType === "internee" || !emp.employee_type;
       } else if (currentUserType === "employee") {
         keep = emp.id === currentUserId;
       }
