@@ -23,6 +23,7 @@ const EditEmployee = () => {
     formState: { errors: formErrors },
     watch,
     reset,
+    setValue,
     control,
   } = useForm({
     mode: "onChange",
@@ -35,6 +36,7 @@ const EditEmployee = () => {
   const [fetchError, setFetchError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
   const [allEmployees, setAllEmployees] = useState([]);
+  const [interneeManagerId, setInterneeManagerId] = useState("");
 
   const watchedProfilePicFile = watch("profile_pic");
   const passwordValue = watch("password");
@@ -129,6 +131,7 @@ const EditEmployee = () => {
           password: "",
           password_confirmation: "",
         });
+        setInterneeManagerId(employee.internee_manager_id ? String(employee.internee_manager_id) : "");
         if (employee.profile_pic) {
           const picUrl = getMediaUrl(employee.profile_pic);
           setCurrentProfilePicUrl(picUrl);
@@ -156,6 +159,15 @@ const EditEmployee = () => {
   useEffect(() => {
     fetchEmployeeData();
   }, [fetchEmployeeData]);
+
+  // The manager <select>'s options only exist once allEmployees has loaded.
+  // If that arrives after reset() already ran, the browser can't match the
+  // value to an option, so re-apply it once the options are actually there.
+  useEffect(() => {
+    if (interneeManagerId && allEmployees.length > 0) {
+      setValue("internee_manager_id", interneeManagerId);
+    }
+  }, [allEmployees, interneeManagerId, setValue]);
 
   const onSubmit = async (formData) => {
     setSubmitting(true);
