@@ -16,6 +16,7 @@ import {
 import EditableProjectStatus from "./EditableProjectStatus";
 import EditableProjectStartDate from "./EditProjectDate/EditableProjectStartDate";
 import EditableProjectDueDate from "./EditProjectDate/EditableProjectDueDate";
+import { LazyTaskTree, fetchJobChildren } from "@/components/features/projects/tree/TaskTree";
 import { getApiBasePathForRole, getMediaUrl } from "@/pages/utility/apiHelper";
 
 const getStatusGradient = (status) => {
@@ -69,12 +70,17 @@ const AvatarStack = ({ assignees }) => {
 };
 
 // This is a sub-component that renders the actual table for a given set of projects.
-const StatusTable = ({ projects, columns, userRole }) => {
+const StatusTable = ({ projects, columns, userRole, isEditable }) => {
   const navigate = useNavigate();
-const handleRowNavigation = (projectId) => {
-  if (!projectId) return;
-  navigate(`/jobs/${projectId}`);
-};
+  const [expandedRows, setExpandedRows] = useState({});
+  const handleRowNavigation = (projectId) => {
+    if (!projectId) return;
+    navigate(`/jobs/${projectId}`);
+  };
+  const toggleRow = (e, projectId) => {
+    e.stopPropagation();
+    setExpandedRows((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
+  };
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
     useTable({ columns, data: projects }, useSortBy);
 
@@ -87,6 +93,7 @@ const handleRowNavigation = (projectId) => {
         <thead className="bg-slate-100 dark:bg-slate-700">
           {headerGroups.map((headerGroup) => (
             <tr {...headerGroup.getHeaderGroupProps()}>
+              <th scope="col" className="w-10 px-2 py-3" />
               {headerGroup.headers.map((column) => (
                 <th
                   {...column.getHeaderProps(column.getSortByToggleProps())}
@@ -112,21 +119,75 @@ const handleRowNavigation = (projectId) => {
         >
           {rows.map((row) => {
             prepareRow(row);
+            const projectId = row.original.id;
+            const isOpen = !!expandedRows[projectId];
             return (
-              <tr
-                {...row.getRowProps()}
-                className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors duration-200 cursor-pointer"
-                onClick={() => handleRowNavigation(row.original.id)}
-              >
-                {row.cells.map((cell) => (
+              <React.Fragment key={projectId}>
+                <tr
+                  {...row.getRowProps()}
+                  className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors duration-200 cursor-pointer"
+                  onClick={() => handleRowNavigation(projectId)}
+                >
                   <td
-                    {...cell.getCellProps()}
-                    className="px-6 py-4 whitespace-nowrap"
+                    className="w-14 px-2 py-4 text-center align-middle"
+                    onClick={(e) => toggleRow(e, projectId)}
                   >
-                    {cell.render("Cell")}
+                    <button
+                      type="button"
+                      aria-label={isOpen ? "Collapse" : "Expand"}
+                      aria-expanded={isOpen}
+                      title={isOpen ? "Collapse" : "Expand"}
+                      className={`inline-flex items-center gap-0.5 h-7 min-w-[1.75rem] px-1.5 rounded-md border transition-colors ${
+                        isOpen
+                          ? "border-blue-300 bg-blue-50 text-blue-600 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                          : "border-slate-300 bg-slate-50 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-200 dark:hover:bg-slate-600"
+                      }`}
+                    >
+                      <Icon
+                        icon={
+                          isOpen
+                            ? "heroicons:chevron-down"
+                            : "heroicons:chevron-right"
+                        }
+                        className="w-4 h-4"
+                      />
+                      {typeof row.original.tasks_count === "number" &&
+                        row.original.tasks_count > 0 && (
+                          <span className="text-[11px] font-bold leading-none pr-0.5">
+                            {row.original.tasks_count}
+                          </span>
+                        )}
+                    </button>
                   </td>
-                ))}
-              </tr>
+                  {row.cells.map((cell) => (
+                    <td
+                      {...cell.getCellProps()}
+                      className="px-6 py-4 whitespace-nowrap"
+                    >
+                      {cell.render("Cell")}
+                    </td>
+                  ))}
+                </tr>
+                {isOpen && (
+                  <tr className="bg-slate-50 dark:bg-slate-900/40">
+                    <td
+                      colSpan={row.cells.length + 1}
+                      className="p-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="pl-8 pr-2 py-3">
+                        <LazyTaskTree
+                          loader={() => fetchJobChildren(projectId)}
+                          isEditable={userRole !== "customer"}
+                          canDelete={isEditable}
+                          jobId={projectId}
+                          emptyLabel="No projects in this job yet."
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             );
           })}
         </tbody>
@@ -148,6 +209,11 @@ const ProjectList = ({
     (state) => state.project
   );
   const [expandedSections, setExpandedSections] = useState({});
+  const isEditable =
+    userRole === "admin" ||
+    employeeType === "Manager" ||
+    employeeType === "Supervisor" ||
+    employeeType === "Executive";
 
   useEffect(() => {
     if (projectsByStatus && typeof projectsByStatus === "object") {
@@ -185,12 +251,22 @@ const ProjectList = ({
         Cell: ({ row }) => (
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="flex-1 min-w-0">
-              <h4
-                className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate"
-                title={row.original.project_name}
-              >
-                {row.original.project_name || "N/A"}
-              </h4>
+              <div className="flex items-center gap-2">
+                <h4
+                  className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate"
+                  title={row.original.project_name}
+                >
+                  {row.original.project_name || "N/A"}
+                </h4>
+                {row.original.has_urgent && (
+                  <span
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800"
+                    title="A task inside this job is marked Urgent"
+                  >
+                    <span aria-hidden="true">⚠️</span> Urgent
+                  </span>
+                )}
+              </div>
               {row.original.customer?.name && (
                 <div className="text-slate-500 dark:text-slate-400 text-xs mt-1 truncate">
                   {row.original.customer.name}
@@ -378,6 +454,7 @@ const ProjectList = ({
               projects={projects}
               columns={COLUMNS}
               userRole={userRole}
+              isEditable={isEditable}
             />
           )}
         </div>

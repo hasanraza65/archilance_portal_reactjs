@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 import { toggleUpdateAssigneesModal, updateProjectAssigneesAPI, fetchProjectsAPI } from "./store";
 import { getApiPrefix, getEmployeeType, getMediaUrl } from "@/pages/utility/apiHelper";
 
-const UpdateAssigneesModal = () => {
+const UpdateAssigneesModal = ({ onUpdated }) => {
   const { updateAssigneesModal, projectToUpdateAssignees, isUpdating } = useSelector((state) => state.project);
   const dispatch = useDispatch();
   
@@ -106,7 +106,8 @@ const UpdateAssigneesModal = () => {
       .then(() => {
         toast.success("Assignees updated successfully!");
         // Assignees update hone ke baad project list ko dobara fetch karein
-        dispatch(fetchProjectsAPI()); 
+        dispatch(fetchProjectsAPI());
+        onUpdated?.();
         handleClose();
       })
       .catch((err) => {
@@ -115,9 +116,13 @@ const UpdateAssigneesModal = () => {
   };
   // --- END OF UPDATE ---
 
-  const filteredEmployees = allEmployees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEmployees = allEmployees
+    .filter(employee => employee.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      const aSelected = initialEmployeeIds.has(String(a.id)) ? 0 : 1;
+      const bSelected = initialEmployeeIds.has(String(b.id)) ? 0 : 1;
+      return aSelected - bSelected;
+    });
 
   const currentAssignees = projectToUpdateAssignees?.project_assignees
     ?.map(a => mapApiUserToLocal(a.user))

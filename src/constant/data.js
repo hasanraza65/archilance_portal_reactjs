@@ -79,7 +79,15 @@ export const menuItems = [
     link: "leaves",
     allowedRoles: ["admin", "manager", "supervisor", "executive", "member"],
   },
-  
+
+  // {
+  //   title: "My Grading",
+  //   isHide: false,
+  //   icon: "heroicons-outline:academic-cap",
+  //   link: "my-grading",
+  //   allowedRoles: ["employee", "manager", "supervisor", "executive", "outsource"],
+  // },
+
   {
     title: "Employees",
     isHide: false,
@@ -152,7 +160,7 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:squares-2x2",
     link: "application",
-     allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"],
+     allowedRoles: ["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive", "internee"],
   },
   
 ];

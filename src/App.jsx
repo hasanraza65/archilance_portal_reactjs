@@ -27,6 +27,7 @@ const WorkSession = lazy(() =>
 const AdminEmployeeWorkSession = lazy(() =>
   import("./pages/employees/WorkSession/AdminWorkSession/AdminEmployeeWorkSession")
 );
+const MyGrading = lazy(() => import("./pages/employees/MyGrading"));
 
 const Subscription = lazy(() =>
   import("./pages/customers/Subscription/Subscription")
@@ -396,7 +397,24 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+
+            <Route
+              path="my-grading"
+              element={
+                <ProtectedRoute
+                  allowedRoles={[
+                    "employee",
+                    "manager",
+                    "supervisor",
+                    "executive",
+                    "outsource",
+                  ]}
+                >
+                  <MyGrading />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="employeeleaves"
               element={
@@ -568,7 +586,7 @@ function App() {
               path="application"
               element={
                 <ProtectedRoute
-                  allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"]}
+                  allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive", "internee"]}
                 >
                  <ApplicationUpload />
                 </ProtectedRoute>

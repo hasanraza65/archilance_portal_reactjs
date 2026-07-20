@@ -41,6 +41,9 @@ const formatProjectFromAPI = (project) => ({
   status: project.status || "ongoing",
   project_assignees: project.project_assignees || [],
   customer: project.customer || null,
+  tasks_count:
+    typeof project.tasks_count === "number" ? project.tasks_count : null,
+  has_urgent: (project.urgent_count || 0) > 0,
 });
 
 // Async Thunks

@@ -341,7 +341,8 @@ const ProjectDetailsPage = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  const fetchProjectData = useCallback(async () => {
+  const fetchProjectData = useCallback(async (options = {}) => {
+    const { silent = false } = options;
     if (!id) {
       setError("Project ID is missing from URL.");
       setProjectFound(false);
@@ -361,7 +362,7 @@ const ProjectDetailsPage = () => {
       return;
     }
 
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -445,7 +446,7 @@ const ProjectDetailsPage = () => {
       setError(err.message);
       setProjectFound(false);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id, timeSummaryFilters, navigate]);
 
@@ -735,6 +736,9 @@ const ProjectDetailsPage = () => {
             )
           );
         }}
+        onTaskDeleted={(taskId) =>
+          setTasks((prev) => prev.filter((t) => t.id !== taskId))
+        }
       />
 
       {/* CHAT SECTION GRID */}
@@ -838,7 +842,7 @@ const ProjectDetailsPage = () => {
         />
       )}
 
-      <UpdateAssigneesModal showUpdateButton={false} />
+      <UpdateAssigneesModal onUpdated={() => fetchProjectData({ silent: true })} />
       <EditProject />
     </div>
   );
