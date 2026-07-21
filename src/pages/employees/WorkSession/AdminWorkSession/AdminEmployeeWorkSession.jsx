@@ -377,10 +377,6 @@ const AddManualTimeModal = ({
       toast.error("Please fill all fields.");
       return;
     }
-    if (!proofFile) {
-      toast.error("Please upload a proof file.");
-      return;
-    }
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("task_id", selectedTask);
@@ -390,7 +386,9 @@ const AddManualTimeModal = ({
     formData.append("end_time", endTime);
     formData.append("memo_content", memoContent.trim());
     formData.append("user_id", employeeId);
-    formData.append("proof_pdf", proofFile);
+    if (proofFile) {
+      formData.append("proof_pdf", proofFile);
+    }
     try {
       await axios.post(API_URL, formData, {
         headers: {
@@ -533,7 +531,7 @@ const AddManualTimeModal = ({
 
             {/* Proof File */}
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File</label>
               <input ref={proofFileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setProofFile(e.target.files[0] || null)} />
               {proofFile ? (
                 <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">

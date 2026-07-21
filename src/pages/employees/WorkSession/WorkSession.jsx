@@ -241,10 +241,6 @@
         toast.error("Please fill all required fields.");
         return;
       }
-      if (!proofFile) {
-        toast.error("Please upload a proof file.");
-        return;
-      }
       const startDateTime = new Date(startDate);
       const [startH, startM] = startTime.split(":");
       startDateTime.setHours(startH, startM);
@@ -263,7 +259,9 @@
       formData.append("end_date", formatDateForAPI(endDate));
       formData.append("end_time", endTime);
       formData.append("memo_content", memoContent.trim());
-      formData.append("proof_pdf", proofFile);
+      if (proofFile) {
+        formData.append("proof_pdf", proofFile);
+      }
       try {
         await axios.post(API_URL, formData, {
           headers: {
@@ -406,7 +404,7 @@
 
               {/* Proof File */}
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File</label>
                 <input ref={proofFileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setProofFile(e.target.files[0] || null)} />
                 {proofFile ? (
                   <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
