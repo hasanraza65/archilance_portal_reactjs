@@ -8,10 +8,41 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import { Loader2, AlertCircle, ArrowLeft, BookOpenCheck } from "lucide-react";
 import { getMediaUrl } from "@/pages/utility/apiHelper";
+import Select from "react-select";
 
 // --- START: Helper Functions ---
 
 // Helper to get start/end dates for Today
+const PERIOD_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "current_week", label: "Current Week" },
+  { value: "last_week", label: "Last Week" },
+  { value: "current_month", label: "Current Month" },
+  { value: "last_month", label: "Last Month" },
+  { value: "custom", label: "Custom" },
+];
+
+const periodSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#cbd5e1",
+    borderRadius: "0.375rem",
+    minHeight: "42px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#0f172a" : state.isFocused ? "#f1f5f9" : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+};
+
 const getTodayDateRange = () => {
   const today = new Date();
   return [today, today];
@@ -311,18 +342,14 @@ const WorkDiaryPage = () => {
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Period
               </label>
-              <select
-                value={selectedPeriod}
-                onChange={(e) => handlePeriodChange(e.target.value)}
-                className="form-select w-full"
-              >
-                <option value="today">Today</option>
-                <option value="current_week">Current Week</option>
-                <option value="last_week">Last Week</option>
-                <option value="current_month">Current Month</option>
-                <option value="last_month">Last Month</option>
-                <option value="custom">Custom</option>
-              </select>
+              <Select
+                options={PERIOD_OPTIONS}
+                styles={periodSelectStyles}
+                classNamePrefix="react-select"
+                value={PERIOD_OPTIONS.find((o) => o.value === selectedPeriod) || null}
+                onChange={(opt) => handlePeriodChange(opt ? opt.value : "today")}
+                placeholder="Select period"
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">

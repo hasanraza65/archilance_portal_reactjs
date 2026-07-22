@@ -226,8 +226,10 @@ const flattenTasksForDropdown = (tasks, parentId = null, depth = 0) =>
 
 const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
+  const searchRef = useRef(null);
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 0 });
 
   const handleToggle = () => {
@@ -236,6 +238,7 @@ const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) =>
       const r = triggerRef.current.getBoundingClientRect();
       setPanelPos({ top: r.bottom + 4, left: r.left, width: r.width });
     }
+    setQuery("");
     setOpen((o) => !o);
   };
 
@@ -250,6 +253,10 @@ const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) =>
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) searchRef.current?.focus();
   }, [open]);
 
   return (
@@ -280,9 +287,22 @@ const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) =>
         <div
           ref={panelRef}
           style={{ position: "fixed", top: panelPos.top, left: panelPos.left, width: panelPos.width, zIndex: 9999 }}
-          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-52 py-1"
+          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden flex flex-col"
         >
-          {children((v) => { onChange(v); setOpen(false); })}
+          <div className="p-1.5 border-b border-slate-200 dark:border-slate-600 shrink-0">
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Search..."
+              className="w-full px-2.5 py-1.5 text-sm rounded-md border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            />
+          </div>
+          <div className="overflow-y-auto max-h-52 py-1">
+            {children((v) => { onChange(v); setOpen(false); }, query.trim().toLowerCase())}
+          </div>
         </div>
       )}
     </div>
@@ -446,12 +466,16 @@ const AddManualTimeModal = ({
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Job <span className="text-red-500">*</span></label>
                 <CustomDropdown value={getProjectLabel()} onChange={setSelectedProject} placeholder="Select a job">
-                  {(select) =>
-                    Object.entries(projects).map(([status, pList]) => (
-                      <div key={status}>
-                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
-                        {Array.isArray(pList) &&
-                          pList.map((p) => (
+                  {(select, query) =>
+                    Object.entries(projects).map(([status, pList]) => {
+                      const filteredList = (Array.isArray(pList) ? pList : []).filter((p) =>
+                        !query || p.project_name?.toLowerCase().includes(query)
+                      );
+                      if (filteredList.length === 0) return null;
+                      return (
+                        <div key={status}>
+                          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
+                          {filteredList.map((p) => (
                             <button key={p.id} type="button" onClick={() => select(p.id)}
                               className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                                 String(selectedProject) === String(p.id)
@@ -462,8 +486,9 @@ const AddManualTimeModal = ({
                               {p.project_name}
                             </button>
                           ))}
-                      </div>
-                    ))
+                        </div>
+                      );
+                    })
                   }
                 </CustomDropdown>
               </div>
@@ -475,20 +500,22 @@ const AddManualTimeModal = ({
                   placeholder={isTasksLoading ? "Loading..." : "Select a task"}
                   disabled={!selectedProject || isTasksLoading}
                 >
-                  {(select) =>
-                    flattenTasksForDropdown(tasks).map(({ id, label, depth }) => (
-                      <button key={id} type="button" onClick={() => select(id)}
-                        style={{ paddingLeft: `${12 + depth * 14}px` }}
-                        className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
-                          String(selectedTask) === String(id)
-                            ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
-                            : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                        }`}
-                      >
-                        {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
-                        {label}
-                      </button>
-                    ))
+                  {(select, query) =>
+                    flattenTasksForDropdown(tasks)
+                      .filter(({ label }) => !query || label?.toLowerCase().includes(query))
+                      .map(({ id, label, depth }) => (
+                        <button key={id} type="button" onClick={() => select(id)}
+                          style={{ paddingLeft: `${12 + depth * 14}px` }}
+                          className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
+                            String(selectedTask) === String(id)
+                              ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                          }`}
+                        >
+                          {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
+                          {label}
+                        </button>
+                      ))
                   }
                 </CustomDropdown>
               </div>
@@ -1170,50 +1197,108 @@ const AdminEmployeeWorkSession = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-sm font-medium">Job</label>
-            <select
-              value={selectedProject}
-              onChange={(e) => {
-                setSelectedProject(e.target.value);
+            <CustomDropdown
+              value={
+                selectedProject
+                  ? Object.values(projects).flat().find((p) => String(p.id) === String(selectedProject))?.project_name
+                  : ""
+              }
+              onChange={(v) => {
+                setSelectedProject(v);
                 setTaskFilters([]);
                 setAllTasks([]);
               }}
-              className="form-select w-full"
+              placeholder="All Jobs"
             >
-              <option value="">All Jobs</option>
-              {Object.entries(projects).map(([s, l]) => (
-                <optgroup key={s} label={s}>
-                  {Array.isArray(l) &&
-                    l.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.project_name}
-                      </option>
-                    ))}
-                </optgroup>
-              ))}
-            </select>
+              {(select, query) => (
+                <>
+                  {!query && (
+                    <button type="button" onClick={() => select("")}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                        !selectedProject
+                          ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                      }`}
+                    >
+                      All Jobs
+                    </button>
+                  )}
+                  {Object.entries(projects).map(([s, l]) => {
+                    const filteredList = (Array.isArray(l) ? l : []).filter((p) =>
+                      !query || p.project_name?.toLowerCase().includes(query)
+                    );
+                    if (filteredList.length === 0) return null;
+                    return (
+                      <div key={s}>
+                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{s}</div>
+                        {filteredList.map((p) => (
+                          <button key={p.id} type="button" onClick={() => select(p.id)}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                              String(selectedProject) === String(p.id)
+                                ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                            }`}
+                          >
+                            {p.project_name}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </CustomDropdown>
           </div>
-          {taskFilters.map((f, i) => (
-            <div key={i}>
-              <label className="text-sm font-medium">Level {i + 1} Task</label>
-              <select
-                value={f.selected}
-                onChange={(e) => handleTaskChange(i, e.target.value)}
-                disabled={
-                  tasksLoading ||
-                  !selectedProject ||
-                  (i > 0 && !taskFilters[i - 1]?.selected)
-                }
-                className="form-select w-full disabled:bg-slate-100"
-              >
-                <option value="">All</option>
-                {f.options.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.task_title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
+          {taskFilters.map((f, i) => {
+            const isDisabled =
+              tasksLoading ||
+              !selectedProject ||
+              (i > 0 && !taskFilters[i - 1]?.selected);
+            return (
+              <div key={i}>
+                <label className="text-sm font-medium">Level {i + 1} Task</label>
+                <CustomDropdown
+                  value={
+                    f.selected
+                      ? f.options.find((t) => String(t.id) === String(f.selected))?.task_title
+                      : ""
+                  }
+                  onChange={(v) => handleTaskChange(i, v)}
+                  placeholder="All"
+                  disabled={isDisabled}
+                >
+                  {(select, query) => (
+                    <>
+                      {!query && (
+                        <button type="button" onClick={() => select("")}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            !f.selected
+                              ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                          }`}
+                        >
+                          All
+                        </button>
+                      )}
+                      {f.options
+                        .filter((t) => !query || t.task_title?.toLowerCase().includes(query))
+                        .map((t) => (
+                          <button key={t.id} type="button" onClick={() => select(t.id)}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                              String(f.selected) === String(t.id)
+                                ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                            }`}
+                          >
+                            {t.task_title}
+                          </button>
+                        ))}
+                    </>
+                  )}
+                </CustomDropdown>
+              </div>
+            );
+          })}
           <div className="lg:col-span-2 flex flex-col lg:flex-row gap-2 items-end">
             <div className="w-full relative" ref={presetDropdownRef}>
               <label className="text-sm font-medium">Period</label>

@@ -12,9 +12,38 @@ import { getApiPrefix } from "@/pages/utility/apiHelper";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import Select from "react-select";
 
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css'; // Snow theme
+
+const PRIORITY_OPTIONS = [
+  { value: "Low", label: "Low" },
+  { value: "Normal", label: "Normal" },
+  { value: "High", label: "High" },
+  { value: "Urgent", label: "Urgent" },
+];
+
+const prioritySelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#cbd5e1",
+    borderRadius: "0.375rem",
+    minHeight: "48px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#0f172a" : state.isFocused ? "#f1f5f9" : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+};
 
 // Helper functions (getFileIcon, formatFileSize) - keep them as they are
 const getFileIcon = (fileType) => { /* ... your existing function ... */
@@ -256,13 +285,15 @@ const EditTaskModal = ({ isOpen, onClose, onTaskUpdated, taskData, projectId }) 
             <Controller
               name="priority"
               control={control}
-              render={({ field }) => (
-                <select {...field} className="form-control h-[48px] dark:bg-slate-700 dark:text-slate-300">
-                  <option value="Low">Low</option>
-                  <option value="Normal">Normal</option>
-                  <option value="High">High</option>
-                  <option value="Urgent">Urgent</option>
-                </select>
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  options={PRIORITY_OPTIONS}
+                  styles={prioritySelectStyles}
+                  classNamePrefix="react-select"
+                  value={PRIORITY_OPTIONS.find((o) => o.value === value) || null}
+                  onChange={(opt) => onChange(opt ? opt.value : "")}
+                  placeholder="Select priority"
+                />
               )}
             />
           </FormGroup>

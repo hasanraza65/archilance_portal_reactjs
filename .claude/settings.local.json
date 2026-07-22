@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem -Path . -Force)",
-      "Bash(Select-Object Name, PSIsContainer)"
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(npx esbuild *)",
+      "Bash(timeout 180 npx vite build)",
+      "Bash(npx vite *)"
     ]
   }
 }

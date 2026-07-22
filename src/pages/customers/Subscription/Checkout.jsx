@@ -5,6 +5,34 @@ import { Elements } from "@stripe/react-stripe-js";
 import CheckoutForm from "./StripeCheckoutForm";
 import Cookies from "js-cookie";
 import Swal from "sweetalert2";
+import Select from "react-select";
+
+const COUNTRY_OPTIONS = [
+  { value: "Canada", label: "Canada" },
+  { value: "United States", label: "United States" },
+  { value: "Pakistan", label: "Pakistan" },
+];
+
+const countrySelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#d1d5db",
+    borderRadius: "0.5rem",
+    minHeight: "44px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 12px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#1f2937" : state.isFocused ? "#f3f4f6" : null,
+    color: state.isSelected ? "white" : "#1f2937",
+    ":active": { backgroundColor: "#e5e7eb" },
+  }),
+};
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -634,16 +662,18 @@ const Checkout = () => {
                     <label className={labelClasses}>
                       Country <span className="text-red-500 ml-1">*</span>
                     </label>
-                    <select
+                    <Select
+                      inputId="country"
                       name="country"
-                      value={formData.country}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                    >
-                      <option>Canada</option>
-                      <option>United States</option>
-                      <option>Pakistan</option>
-                    </select>
+                      options={COUNTRY_OPTIONS}
+                      styles={countrySelectStyles}
+                      classNamePrefix="react-select"
+                      value={COUNTRY_OPTIONS.find((o) => o.value === formData.country) || null}
+                      onChange={(opt) =>
+                        handleInputChange({ target: { name: "country", value: opt ? opt.value : "" } })
+                      }
+                      placeholder="Select country"
+                    />
                   </div>
                 </form>
                 <div className="mt-10 flex justify-end">

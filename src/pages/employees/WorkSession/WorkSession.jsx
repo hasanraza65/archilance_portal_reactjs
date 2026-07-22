@@ -31,8 +31,10 @@
 
   const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) => {
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
     const triggerRef = useRef(null);
     const panelRef = useRef(null);
+    const searchRef = useRef(null);
     const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 0 });
 
     const handleToggle = () => {
@@ -41,6 +43,7 @@
         const r = triggerRef.current.getBoundingClientRect();
         setPanelPos({ top: r.bottom + 4, left: r.left, width: r.width });
       }
+      setQuery("");
       setOpen((o) => !o);
     };
 
@@ -55,6 +58,10 @@
       };
       document.addEventListener("mousedown", handler);
       return () => document.removeEventListener("mousedown", handler);
+    }, [open]);
+
+    useEffect(() => {
+      if (open) searchRef.current?.focus();
     }, [open]);
 
     return (
@@ -85,9 +92,22 @@
           <div
             ref={panelRef}
             style={{ position: "fixed", top: panelPos.top, left: panelPos.left, width: panelPos.width, zIndex: 9999 }}
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-52 py-1"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden flex flex-col"
           >
-            {children((v) => { onChange(v); setOpen(false); })}
+            <div className="p-1.5 border-b border-slate-200 dark:border-slate-600 shrink-0">
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Search..."
+                className="w-full px-2.5 py-1.5 text-sm rounded-md border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+            </div>
+            <div className="overflow-y-auto max-h-52 py-1">
+              {children((v) => { onChange(v); setOpen(false); }, query.trim().toLowerCase())}
+            </div>
           </div>
         )}
       </div>
@@ -323,12 +343,16 @@
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Job <span className="text-red-500">*</span></label>
                   <CustomDropdown value={getProjectLabel()} onChange={setSelectedProject} placeholder="Select a job">
-                    {(select) =>
-                      Object.entries(projects).map(([status, projectList]) => (
-                        <div key={status}>
-                          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
-                          {Array.isArray(projectList) &&
-                            projectList.map((p) => (
+                    {(select, query) =>
+                      Object.entries(projects).map(([status, projectList]) => {
+                        const filteredList = (Array.isArray(projectList) ? projectList : []).filter((p) =>
+                          !query || p.project_name?.toLowerCase().includes(query)
+                        );
+                        if (filteredList.length === 0) return null;
+                        return (
+                          <div key={status}>
+                            <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
+                            {filteredList.map((p) => (
                               <button key={p.id} type="button" onClick={() => select(p.id)}
                                 className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                                   String(selectedProject) === String(p.id)
@@ -339,8 +363,9 @@
                                 {p.project_name}
                               </button>
                             ))}
-                        </div>
-                      ))
+                          </div>
+                        );
+                      })
                     }
                   </CustomDropdown>
                 </div>
@@ -353,20 +378,22 @@
                       placeholder={isTasksLoading ? "Loading..." : "Select a Task"}
                       disabled={isTasksLoading}
                     >
-                      {(select) =>
-                        flattenTasksForDropdown(tasks).map(({ id, label, depth }) => (
-                          <button key={id} type="button" onClick={() => select(id)}
-                            style={{ paddingLeft: `${12 + depth * 14}px` }}
-                            className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
-                              String(selectedTask) === String(id)
-                                ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
-                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                            }`}
-                          >
-                            {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
-                            {label}
-                          </button>
-                        ))
+                      {(select, query) =>
+                        flattenTasksForDropdown(tasks)
+                          .filter(({ label }) => !query || label?.toLowerCase().includes(query))
+                          .map(({ id, label, depth }) => (
+                            <button key={id} type="button" onClick={() => select(id)}
+                              style={{ paddingLeft: `${12 + depth * 14}px` }}
+                              className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
+                                String(selectedTask) === String(id)
+                                  ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                              }`}
+                            >
+                              {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
+                              {label}
+                            </button>
+                          ))
                       }
                     </CustomDropdown>
                   </div>
@@ -869,71 +896,114 @@
                 <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Job
                 </label>
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
+                <CustomDropdown
+                  value={
+                    selectedProject
+                      ? Object.values(projects).flat().find((p) => String(p.id) === String(selectedProject))?.project_name
+                      : ""
+                  }
+                  onChange={setSelectedProject}
+                  placeholder={projectsLoading ? "Loading..." : "All Jobs"}
                   disabled={projectsLoading}
-                  className="form-select w-full"
                 >
-                  <option value="">All Jobs</option>
-                  {projectsLoading ? (
-                    <option disabled>Loading...</option>
-                  ) : (
-                    Object.entries(projects).map(([status, projectList]) => (
-                      <optgroup key={status} label={status}>
-                        {Array.isArray(projectList) &&
-                          projectList.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.project_name}
-                            </option>
-                          ))}{" "}
-                      </optgroup>
-                    ))
+                  {(select, query) => (
+                    <>
+                      {!query && (
+                        <button type="button" onClick={() => select("")}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            !selectedProject
+                              ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                          }`}
+                        >
+                          All Jobs
+                        </button>
+                      )}
+                      {Object.entries(projects).map(([status, projectList]) => {
+                        const filteredList = (Array.isArray(projectList) ? projectList : []).filter((p) =>
+                          !query || p.project_name?.toLowerCase().includes(query)
+                        );
+                        if (filteredList.length === 0) return null;
+                        return (
+                          <div key={status}>
+                            <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
+                            {filteredList.map((p) => (
+                              <button key={p.id} type="button" onClick={() => select(p.id)}
+                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                  String(selectedProject) === String(p.id)
+                                    ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                                }`}
+                              >
+                                {p.project_name}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
-                </select>
+                </CustomDropdown>
               </div>
 
               {/* [MODIFIED] We now map over the padded `renderableFilters` array */}
-              {renderableFilters.map((filter, index) => (
-                <div key={index} className="flex flex-col justify-end">
-                  <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-                    {taskLabels[index] || `Sub-Task Level ${index + 1}`}
-                  </label>
-                  <select
-                    value={filter.selected}
-                    onChange={(e) => handleTaskChange(index, e.target.value)}
-                    // [MODIFIED] New disabling logic
-                    disabled={
-                      tasksLoading ||
-                      (index === 0 && !selectedProject) || // First dropdown needs a project
-                      (index > 0 && !taskFilters[index - 1]?.selected) // Subsequent dropdowns need the previous one to be selected
-                    }
-                    className="form-select w-full"
-                  >
-                    <option value="">{`All ${
-                      taskLabels[index] || `Tasks`
-                    }`}</option>
-
-                    {/* [MODIFIED] New placeholder logic */}
-                    {index === 0 && !selectedProject && (
-                      <option disabled>Select a job first</option>
-                    )}
-                    {index > 0 && !taskFilters[index - 1]?.selected && (
-                      <option disabled>Select parent task first</option>
-                    )}
-
-                    {tasksLoading && selectedProject && index === 0 && (
-                      <option disabled>Loading...</option>
-                    )}
-
-                    {filter.options.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.task_title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              {renderableFilters.map((filter, index) => {
+                const isDisabled =
+                  tasksLoading ||
+                  (index === 0 && !selectedProject) || // First dropdown needs a project
+                  (index > 0 && !taskFilters[index - 1]?.selected); // Subsequent dropdowns need the previous one to be selected
+                const levelLabel = taskLabels[index] || `Sub-Task Level ${index + 1}`;
+                let placeholder = `All ${taskLabels[index] || "Tasks"}`;
+                if (index === 0 && !selectedProject) placeholder = "Select a job first";
+                else if (index > 0 && !taskFilters[index - 1]?.selected) placeholder = "Select parent task first";
+                else if (tasksLoading && selectedProject && index === 0) placeholder = "Loading...";
+                return (
+                  <div key={index} className="flex flex-col justify-end">
+                    <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+                      {levelLabel}
+                    </label>
+                    <CustomDropdown
+                      value={
+                        filter.selected
+                          ? filter.options.find((t) => String(t.id) === String(filter.selected))?.task_title
+                          : ""
+                      }
+                      onChange={(v) => handleTaskChange(index, v)}
+                      placeholder={placeholder}
+                      disabled={isDisabled}
+                    >
+                      {(select, query) => (
+                        <>
+                          {!query && (
+                            <button type="button" onClick={() => select("")}
+                              className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                !filter.selected
+                                  ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                              }`}
+                            >
+                              {`All ${taskLabels[index] || "Tasks"}`}
+                            </button>
+                          )}
+                          {filter.options
+                            .filter((t) => !query || t.task_title?.toLowerCase().includes(query))
+                            .map((t) => (
+                              <button key={t.id} type="button" onClick={() => select(t.id)}
+                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                  String(filter.selected) === String(t.id)
+                                    ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                                }`}
+                              >
+                                {t.task_title}
+                              </button>
+                            ))}
+                        </>
+                      )}
+                    </CustomDropdown>
+                  </div>
+                );
+              })}
 
               {/* [MODIFIED] Adjusted column span to accommodate the new always-visible dropdowns */}
               <div className="flex flex-col justify-end lg:col-span-2">

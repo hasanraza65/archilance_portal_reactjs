@@ -4,6 +4,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { useForm, Controller } from "react-hook-form";
+import Select from "react-select";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Textinput from "@/components/ui/Textinput";
@@ -12,6 +13,36 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import { canManageEmployees } from "@/pages/utility/apiHelper";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#cbd5e1",
+    borderRadius: "0.375rem",
+    minHeight: "42px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#0f172a" : state.isFocused ? "#f1f5f9" : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+};
+
+const EMPLOYEE_TYPE_OPTIONS = [
+  { value: "Employee", label: "Employee" },
+  { value: "Manager", label: "Manager" },
+  { value: "Executive", label: "Executive" },
+  { value: "Supervisor", label: "Coordinator" },
+  { value: "Outsource", label: "Outsource" },
+  { value: "Internee", label: "Internee" },
+];
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
@@ -263,20 +294,22 @@ const AddEmployee = () => {
                   <label htmlFor="employee_type" className="form-label mb-1">
                     Employee Type*
                   </label>
-                  <select
-                    id="employee_type"
-                    className={`form-control py-2 ${
-                      errors.employee_type ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
-                    }`}
-                    {...register("employee_type", { required: "Type is required" })}
-                  >
-                    <option value="Employee">Employee</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Executive">Executive</option>
-                    <option value="Supervisor">Coordinator</option>
-                    <option value="Outsource">Outsource</option>
-                    <option value="Internee">Internee</option>
-                  </select>
+                  <Controller
+                    name="employee_type"
+                    control={control}
+                    rules={{ required: "Type is required" }}
+                    render={({ field: { onChange, value } }) => (
+                      <Select
+                        inputId="employee_type"
+                        options={EMPLOYEE_TYPE_OPTIONS}
+                        styles={selectStyles}
+                        classNamePrefix="react-select"
+                        value={EMPLOYEE_TYPE_OPTIONS.find((o) => o.value === value) || null}
+                        onChange={(opt) => onChange(opt ? opt.value : "")}
+                        placeholder="Select type"
+                      />
+                    )}
+                  />
                   {errors.employee_type && (
                     <p className="text-danger-500 text-xs mt-1">{errors.employee_type.message}</p>
                   )}
@@ -306,18 +339,26 @@ const AddEmployee = () => {
                   <label htmlFor="internee_manager_id" className="form-label mb-1">
                     Internee Manager*
                   </label>
-                  <select
-                    id="internee_manager_id"
-                    className={`form-control py-2 ${
-                      errors.internee_manager_id ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
-                    }`}
-                    {...register("internee_manager_id", { required: "Manager is required for Internee" })}
-                  >
-                    <option value="">Select Manager</option>
-                    {allEmployees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>{emp.name}</option>
-                    ))}
-                  </select>
+                  <Controller
+                    name="internee_manager_id"
+                    control={control}
+                    rules={{ required: "Manager is required for Internee" }}
+                    render={({ field: { onChange, value } }) => {
+                      const managerOptions = allEmployees.map((emp) => ({ value: emp.id, label: emp.name }));
+                      return (
+                        <Select
+                          inputId="internee_manager_id"
+                          options={managerOptions}
+                          styles={selectStyles}
+                          classNamePrefix="react-select"
+                          value={managerOptions.find((o) => String(o.value) === String(value)) || null}
+                          onChange={(opt) => onChange(opt ? opt.value : "")}
+                          placeholder="Select Manager"
+                          isClearable
+                        />
+                      );
+                    }}
+                  />
                   {errors.internee_manager_id && (
                     <p className="text-danger-500 text-xs mt-1">{errors.internee_manager_id.message}</p>
                   )}

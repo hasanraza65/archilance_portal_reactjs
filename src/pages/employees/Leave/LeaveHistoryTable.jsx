@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useSelector } from "react-redux";
+import Select from "react-select";
 import {
   Calendar,
   Filter,
@@ -21,6 +22,34 @@ import {
 } from "lucide-react";
 
 const ADDITIONAL_LEAVE_USER_IDS = [177, 109, 171, 22, 173, 50, 172, 147, 118, 35, 180, 114, 69, 182, 23, 26, 21, 128, 175, 139, 28, 58];
+
+const LEAVE_STATUS_OPTIONS = [
+  { value: "All", label: "All Status" },
+  { value: "Approved", label: "Approved" },
+  { value: "Pending", label: "Pending" },
+  { value: "Rejected", label: "Rejected" },
+];
+
+const leaveStatusSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#9ca3af" : "#e5e7eb",
+    borderRadius: "0.75rem",
+    minHeight: "48px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#9ca3af" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 12px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#111827" : state.isFocused ? "#f3f4f6" : null,
+    color: state.isSelected ? "white" : "#111827",
+    ":active": { backgroundColor: "#e5e7eb" },
+  }),
+};
 
 const LeaveHistoryTable = ({
   children,
@@ -323,16 +352,15 @@ const LeaveHistoryTable = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <Filter className="w-5 h-5 text-gray-400" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-3 rounded-xl border border-gray-200"
-                  >
-                    <option value="All">All Status</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
+                  <Select
+                    options={LEAVE_STATUS_OPTIONS}
+                    styles={leaveStatusSelectStyles}
+                    classNamePrefix="react-select"
+                    className="min-w-[160px]"
+                    value={LEAVE_STATUS_OPTIONS.find((o) => o.value === statusFilter) || null}
+                    onChange={(opt) => setStatusFilter(opt ? opt.value : "All")}
+                    placeholder="All Status"
+                  />
                 </div>
               </div>
               <div className="w-full md:w-auto">

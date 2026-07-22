@@ -5,6 +5,7 @@ import "flatpickr/dist/themes/light.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
+import Select from "react-select";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import {
@@ -19,6 +20,34 @@ import Alert from "@/components/ui/Alert";
 import Tooltip from "@/components/ui/Tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { canManageEmployees, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "online", label: "Online" },
+  { value: "offline", label: "Offline" },
+  { value: "extra-time", label: "Extra Time" },
+];
+
+const statusFilterSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#cbd5e1",
+    borderRadius: "0.375rem",
+    minHeight: "40px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#0f172a" : state.isFocused ? "#f1f5f9" : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+};
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
@@ -691,19 +720,16 @@ const Allemployees = () => {
             </div>
             {isAdmin && (
               <div className="w-auto min-w-[150px]">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="form-control h-10 w-full"
-                >
-                  <option value="" disabled>
-                    Filter
-                  </option>
-                  <option value="all">All</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                  <option value="extra-time">Extra Time</option>
-                </select>
+                <Select
+                  inputId="employee-status-filter"
+                  options={STATUS_FILTER_OPTIONS}
+                  styles={statusFilterSelectStyles}
+                  classNamePrefix="react-select"
+                  value={STATUS_FILTER_OPTIONS.find((o) => o.value === statusFilter) || null}
+                  onChange={(opt) => setStatusFilter(opt ? opt.value : "")}
+                  placeholder="Filter"
+                  isClearable
+                />
               </div>
             )}
             {hasManagementPermission && (
