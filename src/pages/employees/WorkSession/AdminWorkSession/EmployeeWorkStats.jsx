@@ -114,6 +114,7 @@ const EmployeeWorkStats = ({
   totalIdleSeconds = 0,
   totalWorkSeconds = 0,
   totalManualSeconds = 0,
+  isAdmin = false,
 }) => {
   const [hoveredSlice, setHoveredSlice] = useState(null);
 
@@ -268,7 +269,8 @@ const EmployeeWorkStats = ({
         </div>
       </div>
 
-      {/* Charts Grid */}
+      {/* Charts Grid — Top Apps & Activity Breakdown: admin only for now */}
+      {isAdmin && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT: Detailed List */}
         <div className="lg:col-span-1 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
@@ -475,6 +477,7 @@ const EmployeeWorkStats = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

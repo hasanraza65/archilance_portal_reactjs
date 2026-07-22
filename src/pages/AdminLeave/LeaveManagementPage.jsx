@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
+import Select from "react-select";
 import { Toaster, toast } from "react-hot-toast";
 import Swal from "sweetalert2";
 import {
@@ -40,6 +41,56 @@ const getBaseApiUrl = () => {
     return `${API_BASE_URL}/api/admin/leave-request`;
   }
   return `${API_BASE_URL}${getApiBasePathForRole("other-leave-request")}`;
+};
+
+const LEAVE_TYPE_OPTIONS = [
+  { value: "casual", label: "Casual" },
+  { value: "annual", label: "Annual" },
+  { value: "sick", label: "Sick" },
+  { value: "medical", label: "Medical" },
+  { value: "emergency", label: "Emergency" },
+  { value: "vacation", label: "Vacation" },
+  { value: "additional", label: "Additional" },
+  { value: "other", label: "Other" },
+];
+
+const selectStyles = {
+  control: (base) => ({
+    ...base,
+    borderColor: "#d1d5db",
+    borderRadius: "0.5rem",
+    minHeight: "48px",
+    "&:hover": { borderColor: "#9ca3af" },
+    boxShadow: "none",
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected
+      ? "#2563eb"
+      : state.isFocused
+      ? "#eff6ff"
+      : null,
+    color: state.isSelected ? "white" : "#111827",
+  }),
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: "#dbeafe",
+    borderRadius: "9999px",
+    paddingLeft: "4px",
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: "#1e40af",
+    fontSize: "13px",
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: "#1e40af",
+    borderRadius: "9999px",
+    ":hover": { backgroundColor: "#bfdbfe", color: "#1e3a8a" },
+  }),
+  placeholder: (base) => ({ ...base, color: "#9ca3af" }),
 };
 
 const calculateDuration = (start, end) => {
@@ -433,6 +484,16 @@ const LeaveManagementPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationInfo, setPaginationInfo] = useState(null);
+  const PER_PAGE = 25;
+
+  // Advanced filters
+  const [selectedEmployees, setSelectedEmployees] = useState([]); // react-select options
+  const [leaveType, setLeaveType] = useState(null); // react-select option
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [employeeOptions, setEmployeeOptions] = useState([]);
 
   // Modals State
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -450,15 +511,35 @@ const LeaveManagementPage = () => {
     setIsLoading(true);
 
     const apiUrl = getBaseApiUrl();
-    
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      per_page: PER_PAGE.toString(),
+    });
+    if (filter !== "All") params.append("status", filter);
+
+    if (selectedEmployees.length > 0) {
+      params.append(
+        "user_id",
+        selectedEmployees.map((e) => e.value).join(",")
+      );
+    }
+    if (leaveType) params.append("leave_type", leaveType.value);
+    if (fromDate) params.append("from", fromDate);
+    if (toDate) params.append("to", toDate);
+
     try {
-      const response = await axios.get(apiUrl, {
+      const response = await axios.get(`${apiUrl}?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
       });
       setLeaveRequests(response.data.data || []);
+      setPaginationInfo({
+        currentPage: response.data.current_page || 1,
+        lastPage: response.data.last_page || 1,
+        total: response.data.total || 0,
+      });
       setStats(
         response.data.counts || {
           total: 0,
@@ -478,11 +559,64 @@ const LeaveManagementPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentPage, filter, selectedEmployees, leaveType, fromDate, toDate]);
 
   useEffect(() => {
     fetchLeaveRequests();
   }, [fetchLeaveRequests]);
+
+  // Load employee list for the "Filter by employee" dropdown
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    axios
+      .get(`${API_BASE_URL}${getApiBasePathForRole("/employee-user")}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      })
+      .then((res) => {
+        const list = Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : [];
+        setEmployeeOptions(
+          list.map((emp) => ({ value: emp.id, label: emp.name }))
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleFilterChange = (status) => {
+    setFilter(status);
+    setCurrentPage(1);
+  };
+
+  const handleEmployeeFilterChange = (options) => {
+    setSelectedEmployees(options || []);
+    setCurrentPage(1);
+  };
+
+  const handleLeaveTypeFilterChange = (option) => {
+    setLeaveType(option);
+    setCurrentPage(1);
+  };
+
+  const handleDateFilterChange = (which, value) => {
+    if (which === "from") setFromDate(value);
+    else setToDate(value);
+    setCurrentPage(1);
+  };
+
+  const handleClearAdvancedFilters = () => {
+    setSelectedEmployees([]);
+    setLeaveType(null);
+    setFromDate("");
+    setToDate("");
+    setCurrentPage(1);
+  };
+
+  const hasActiveAdvancedFilters =
+    selectedEmployees.length > 0 || !!leaveType || !!fromDate || !!toDate;
 
   const handleStatusUpdate = async (id, newStatus) => {
     const token = getAuthToken();
@@ -566,14 +700,13 @@ const LeaveManagementPage = () => {
   };
 
   const filteredRequests = leaveRequests.filter((request) => {
-    const matchesFilter = filter === "All" || request.status === filter;
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
       !searchTerm ||
       (request.user &&
         (request.user.name.toLowerCase().includes(searchLower) ||
           request.user.email.toLowerCase().includes(searchLower)));
-    return matchesFilter && matchesSearch;
+    return matchesSearch;
   });
 
   return (
@@ -702,7 +835,7 @@ const LeaveManagementPage = () => {
               {["All", "Pending", "Approved", "Rejected"].map((status) => (
                 <button
                   key={status}
-                  onClick={() => setFilter(status)}
+                  onClick={() => handleFilterChange(status)}
                   className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
                     filter === status
                       ? "bg-blue-600 text-white"
@@ -713,6 +846,71 @@ const LeaveManagementPage = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  Employee
+                </label>
+                <Select
+                  isMulti
+                  styles={selectStyles}
+                  options={employeeOptions}
+                  value={selectedEmployees}
+                  onChange={handleEmployeeFilterChange}
+                  placeholder="All employees"
+                  className="react-select"
+                  classNamePrefix="select"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  Leave Type
+                </label>
+                <Select
+                  isClearable
+                  styles={selectStyles}
+                  options={LEAVE_TYPE_OPTIONS}
+                  value={leaveType}
+                  onChange={handleLeaveTypeFilterChange}
+                  placeholder="All types"
+                  className="react-select"
+                  classNamePrefix="select"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => handleDateFilterChange("from", e.target.value)}
+                  className="w-full h-12 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => handleDateFilterChange("to", e.target.value)}
+                  className="w-full h-12 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            {hasActiveAdvancedFilters && (
+              <button
+                onClick={handleClearAdvancedFilters}
+                className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                Clear advanced filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -876,6 +1074,34 @@ const LeaveManagementPage = () => {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {!isLoading && paginationInfo?.lastPage > 1 && (
+          <div className="flex justify-center items-center mt-8 gap-4">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={paginationInfo.currentPage === 1}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Prev
+            </button>
+            <span className="text-sm font-medium text-gray-700">
+              Page {paginationInfo.currentPage} of {paginationInfo.lastPage}{" "}
+              <span className="text-gray-400">
+                ({paginationInfo.total} total)
+              </span>
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((p) => Math.min(paginationInfo.lastPage, p + 1))
+              }
+              disabled={paginationInfo.currentPage === paginationInfo.lastPage}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
