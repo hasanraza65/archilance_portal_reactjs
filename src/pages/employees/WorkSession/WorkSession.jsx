@@ -6,6 +6,7 @@
   import "flatpickr/dist/themes/light.css";
   import axios from "axios";
   import { getMediaUrl } from "@/pages/utility/apiHelper";
+  import EmployeeWorkStats from "./AdminWorkSession/EmployeeWorkStats";
 
   // --- START: HELPER FUNCTIONS ---
 
@@ -183,6 +184,25 @@
     const minutes = Math.floor(diff / 60);
     const seconds = Math.floor(diff % 60);
     return `${minutes}m ${seconds}s`;
+  };
+  const getIdleSeconds = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diff = Math.abs(end - start) / 1000;
+    return isNaN(diff) ? 0 : diff;
+  };
+  // --- Helper to parse "2h 29m" or "29m" or "29s" to seconds ---
+  const parseDurationString = (str) => {
+    if (!str) return 0;
+    let totalSeconds = 0;
+    const hMatch = str.match(/(\d+)h/);
+    if (hMatch) totalSeconds += parseInt(hMatch[1]) * 3600;
+    const mMatch = str.match(/(\d+)m/);
+    if (mMatch) totalSeconds += parseInt(mMatch[1]) * 60;
+    const sMatch = str.match(/(\d+)s/);
+    if (sMatch) totalSeconds += parseInt(sMatch[1]);
+    return totalSeconds;
   };
   // --- END: HELPER FUNCTIONS ---
 
@@ -499,6 +519,10 @@
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
     const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
+    const [windowsActivity, setWindowsActivity] = useState([]);
+    const [totalIdleSeconds, setTotalIdleSeconds] = useState(0);
+    const [totalWorkSeconds, setTotalWorkSeconds] = useState(0);
+    const [totalManualSeconds, setTotalManualSeconds] = useState(0);
     const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
     const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
     const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
@@ -633,14 +657,29 @@
         const fetchedSessions = result.data?.reverse() || [];
         setSessions(fetchedSessions);
         setOverallTotalTime(result.overall_total_time || "0h 0m");
-        const totalManualSeconds = fetchedSessions
+        const manualSeconds = fetchedSessions
           .filter((session) => session.type === "Manual")
           .reduce(
             (acc, session) =>
               acc + Math.abs(session.raw_calculation?.net_seconds || 0),
             0
           );
-        setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
+        setManualTotalTime(formatSecondsToHoursMinutes(manualSeconds));
+        setTotalManualSeconds(manualSeconds);
+        setTotalWorkSeconds(parseDurationString(result.overall_total_time));
+        const idleSeconds = fetchedSessions.reduce((acc, session) => {
+          if (!Array.isArray(session.idle_times)) return acc;
+          return (
+            acc +
+            session.idle_times.reduce(
+              (idleAcc, idle) =>
+                idleAcc + getIdleSeconds(idle.start_time, idle.end_time),
+              0
+            )
+          );
+        }, 0);
+        setTotalIdleSeconds(idleSeconds);
+        setWindowsActivity(result.windows_activity || []);
         setPaginationInfo({
           currentPage: result.current_page,
           lastPage: result.last_page,
@@ -649,6 +688,10 @@
         toast.error(err.message);
         setOverallTotalTime("0h 0m");
         setManualTotalTime("0h 0m");
+        setTotalManualSeconds(0);
+        setTotalWorkSeconds(0);
+        setTotalIdleSeconds(0);
+        setWindowsActivity([]);
         setSessions([]);
       } finally {
         setLoading(false);
@@ -856,7 +899,7 @@
           token={token}
           onSuccess={handleSearch}
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
             <div>
               <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
@@ -1039,6 +1082,22 @@
             </div>
           </div>
           {/* --- UI UPDATED END --- */}
+
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 mb-8 font-sans">
+            {loading && isInitialLoad ? (
+              <div className="h-40 flex items-center justify-center text-slate-500">
+                Calculating stats...
+              </div>
+            ) : (
+              <EmployeeWorkStats
+                sessions={sessions}
+                rootActivityList={windowsActivity}
+                totalIdleSeconds={totalIdleSeconds}
+                totalWorkSeconds={totalWorkSeconds}
+                totalManualSeconds={totalManualSeconds}
+              />
+            )}
+          </div>
 
           <div className="border-t border-slate-200 dark:border-slate-700">
             {loading && isInitialLoad ? (

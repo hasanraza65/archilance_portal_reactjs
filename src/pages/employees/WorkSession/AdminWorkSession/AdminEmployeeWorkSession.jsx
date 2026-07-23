@@ -1368,7 +1368,6 @@ const AdminEmployeeWorkSession = () => {
             totalIdleSeconds={totalIdleSeconds} // Values calculated from FULL list
             totalWorkSeconds={totalWorkSeconds}
             totalManualSeconds={totalManualSeconds}
-            isAdmin={user?.role?.toLowerCase() === "admin"}
           />
         )}
 
