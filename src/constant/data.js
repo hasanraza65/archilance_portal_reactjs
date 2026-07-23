@@ -121,6 +121,13 @@ export const menuItems = [
     allowedRoles: ["employee", "manager", "outsource", "supervisor", "executive"], 
   },
   {
+    title: "Notification Settings",
+    isHide: false,
+    icon: "heroicons-outline:bell",
+    link: "notification-settings",
+    allowedRoles: ["admin", "employee", "manager", "supervisor", "executive", "internee", "outsource"],
+  },
+  {
     title: "Subscriptions",
     isHide: false,
     icon: "heroicons-outline:receipt-refund",

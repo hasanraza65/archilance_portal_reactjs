@@ -18,6 +18,7 @@ import AddCustomerTeam from "./pages/customers/CustomerTeam/AddCustomerTeam";
 import EditCustomerTeam from "./pages/customers/CustomerTeam/EditCustomerTeam";
 import ApplicationUpload from "./pages/applicattion/ApplicationUpload";
 import NotificationPage from "./pages/utility/notifications";
+import NotificationSettings from "./pages/utility/NotificationSettings";
 import TrackingDashboard from "./pages/tracking/TrackingPage";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
@@ -599,6 +600,16 @@ function App() {
                   allowedRoles={["admin", "employee", "customer", "member", "outsource", "manager", "supervisor", "executive"]}
                 >
                  <NotificationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="notification-settings"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "manager", "supervisor", "executive", "internee", "outsource"]}
+                >
+                  <NotificationSettings />
                 </ProtectedRoute>
               }
             />
