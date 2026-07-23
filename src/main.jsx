@@ -68,6 +68,16 @@ window.receiveFcmToken = async function (fcmTokenFromFlutter) {
   //   console.error(errorMsg);
   // }
 
+// If a lazy-loaded chunk 404s (e.g. after a new deploy replaces hashed
+// asset filenames while this tab is still open), reload once to fetch
+// the current index.html instead of leaving the user on a blank screen.
+window.addEventListener("vite:preloadError", () => {
+  if (!sessionStorage.getItem("vite_reload_on_preload_error")) {
+    sessionStorage.setItem("vite_reload_on_preload_error", "true");
+    window.location.reload();
+  }
+});
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>

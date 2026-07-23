@@ -93,6 +93,12 @@ function App() {
     };
   }, [loggedInUser, dispatch]);
 
+  // App mounted successfully — clear the reload guard so a future
+  // stale-chunk error can trigger another reload if needed.
+  useEffect(() => {
+    sessionStorage.removeItem("vite_reload_on_preload_error");
+  }, []);
+
   return (
     <main className="App relative">
       <ToastContainer
