@@ -68,6 +68,7 @@ const EditEmployee = () => {
   const [submitError, setSubmitError] = useState(null);
   const [allEmployees, setAllEmployees] = useState([]);
   const [interneeManagerId, setInterneeManagerId] = useState("");
+  const [managerId, setManagerId] = useState("");
 
   const watchedProfilePicFile = watch("profile_pic");
   const passwordValue = watch("password");
@@ -158,11 +159,14 @@ const EditEmployee = () => {
             : "",
           employee_type: employee.employee_type || "Employee",
           joining_date: employee.joining_date || null,
+          probation_period_end_date: employee.probation_period_end_date || null,
           internee_manager_id: employee.internee_manager_id ? String(employee.internee_manager_id) : "",
+          manager_id: employee.manager_id ? String(employee.manager_id) : "",
           password: "",
           password_confirmation: "",
         });
         setInterneeManagerId(employee.internee_manager_id ? String(employee.internee_manager_id) : "");
+        setManagerId(employee.manager_id ? String(employee.manager_id) : "");
         if (employee.profile_pic) {
           const picUrl = getMediaUrl(employee.profile_pic);
           setCurrentProfilePicUrl(picUrl);
@@ -199,6 +203,12 @@ const EditEmployee = () => {
       setValue("internee_manager_id", interneeManagerId);
     }
   }, [allEmployees, interneeManagerId, setValue]);
+
+  useEffect(() => {
+    if (managerId && allEmployees.length > 0) {
+      setValue("manager_id", managerId);
+    }
+  }, [allEmployees, managerId, setValue]);
 
   const onSubmit = async (formData) => {
     setSubmitting(true);
@@ -242,18 +252,38 @@ const EditEmployee = () => {
     if (formData.employee_type === "Internee" && formData.internee_manager_id) {
       dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
     }
-    
+    if (
+      ["Employee", "Manager", "Executive"].includes(formData.employee_type) &&
+      formData.manager_id
+    ) {
+      dataToSubmit.append("manager_id", formData.manager_id);
+    }
+
     if (formData.joining_date) {
-      const date = Array.isArray(formData.joining_date) 
-        ? formData.joining_date[0] 
+      const date = Array.isArray(formData.joining_date)
+        ? formData.joining_date[0]
         : new Date(formData.joining_date);
-      
+
       if (!isNaN(date.getTime())) {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const day = String(date.getDate()).padStart(2, "0");
         const formattedDate = `${year}-${month}-${day}`;
         dataToSubmit.append("joining_date", formattedDate);
+      }
+    }
+
+    if (formData.probation_period_end_date) {
+      const date = Array.isArray(formData.probation_period_end_date)
+        ? formData.probation_period_end_date[0]
+        : new Date(formData.probation_period_end_date);
+
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const formattedDate = `${year}-${month}-${day}`;
+        dataToSubmit.append("probation_period_end_date", formattedDate);
       }
     }
 
@@ -447,6 +477,55 @@ const EditEmployee = () => {
               </p>
             )}
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="probation_period_end_date" className="form-label">
+              Probation Period End Date
+            </label>
+            <Controller
+              name="probation_period_end_date"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Flatpickr
+                  value={value || ""}
+                  className="form-control py-2"
+                  placeholder="Select date"
+                  onChange={onChange}
+                  options={{ altInput: true, altFormat: "M j, Y", dateFormat: "Y-m-d" }}
+                />
+              )}
+            />
+          </div>
+          {["Employee", "Manager", "Executive"].includes(watchedEmployeeType) && (
+            <div>
+              <label htmlFor="manager_id" className="form-label">
+                Manager
+              </label>
+              <Controller
+                name="manager_id"
+                control={control}
+                render={({ field: { onChange, value } }) => {
+                  const managerOptions = allEmployees
+                    .filter((emp) => emp.employee_type === "Manager")
+                    .map((emp) => ({ value: emp.id, label: emp.name }));
+                  return (
+                    <Select
+                      inputId="manager_id"
+                      options={managerOptions}
+                      styles={selectStyles}
+                      classNamePrefix="react-select"
+                      value={managerOptions.find((o) => String(o.value) === String(value)) || null}
+                      onChange={(opt) => onChange(opt ? opt.value : "")}
+                      placeholder="Select Manager"
+                      isClearable
+                    />
+                  );
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {watchedEmployeeType === "Internee" && (

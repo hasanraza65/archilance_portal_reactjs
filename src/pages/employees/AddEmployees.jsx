@@ -152,6 +152,12 @@ const AddEmployee = () => {
     if (formData.employee_type === "Internee" && formData.internee_manager_id) {
       dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
     }
+    if (
+      ["Employee", "Manager", "Executive"].includes(formData.employee_type) &&
+      formData.manager_id
+    ) {
+      dataToSubmit.append("manager_id", formData.manager_id);
+    }
     dataToSubmit.append("password", formData.password);
     dataToSubmit.append("password_confirmation", formData.password_confirmation);
 
@@ -164,6 +170,18 @@ const AddEmployee = () => {
           date.getMonth() + 1
         ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         dataToSubmit.append("joining_date", formattedDate);
+      }
+    }
+
+    if (formData.probation_period_end_date) {
+      const date = Array.isArray(formData.probation_period_end_date)
+        ? formData.probation_period_end_date[0]
+        : new Date(formData.probation_period_end_date);
+      if (!isNaN(date.getTime())) {
+        const formattedDate = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        dataToSubmit.append("probation_period_end_date", formattedDate);
       }
     }
 
@@ -332,6 +350,55 @@ const AddEmployee = () => {
                     )}
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="probation_period_end_date" className="form-label mb-1">
+                    Probation Period End Date
+                  </label>
+                  <Controller
+                    name="probation_period_end_date"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <Flatpickr
+                        value={value || ""}
+                        className="form-control py-2"
+                        placeholder="Select date"
+                        onChange={onChange}
+                        options={{ altInput: true, altFormat: "M j, Y", dateFormat: "Y-m-d" }}
+                      />
+                    )}
+                  />
+                </div>
+                {["Employee", "Manager", "Executive"].includes(watchedEmployeeType) && (
+                  <div>
+                    <label htmlFor="manager_id" className="form-label mb-1">
+                      Manager
+                    </label>
+                    <Controller
+                      name="manager_id"
+                      control={control}
+                      render={({ field: { onChange, value } }) => {
+                        const managerOptions = allEmployees
+                          .filter((emp) => emp.employee_type === "Manager")
+                          .map((emp) => ({ value: emp.id, label: emp.name }));
+                        return (
+                          <Select
+                            inputId="manager_id"
+                            options={managerOptions}
+                            styles={selectStyles}
+                            classNamePrefix="react-select"
+                            value={managerOptions.find((o) => String(o.value) === String(value)) || null}
+                            onChange={(opt) => onChange(opt ? opt.value : "")}
+                            placeholder="Select Manager"
+                            isClearable
+                          />
+                        );
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {watchedEmployeeType === "Internee" && (
