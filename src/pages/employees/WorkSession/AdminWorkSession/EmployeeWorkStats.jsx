@@ -25,75 +25,100 @@ const formatDuration = (totalSeconds) => {
 };
 
 // --- HELPER: Categorize Apps ---
+// Classifies each tracked window/app as "Productive", "Social" (non-productive:
+// entertainment / streaming / gaming) or "Neutral" (unknown — neither rewarded nor
+// penalised). Matching is a case-insensitive substring test against BOTH the app name
+// and the window title, so browser tabs are classified by the SITE in their title
+// (e.g. "... - Matterport - Google Chrome" counts as productive).
+//
+// Tuned for an architecture / design studio: CAD, BIM, rendering, PDF markup, Adobe,
+// site-analysis and the web tools the team actually works in. Non-productive apps are
+// checked FIRST, so streaming/gaming can never be counted as productive even if the
+// page title happens to contain a work word.
+//
+// YouTube is deliberately in NEITHER list: a "Revit tutorial - YouTube" tab is caught
+// as productive by the keywords below, while a generic YouTube video falls through to
+// "Neutral" — we can't tell a tutorial from entertainment, so we neither count it as
+// productive nor punish it.
 const determineCategory = (appName, windowTitle) => {
   if (!appName) return "Neutral";
-  const lowerName = appName.toLowerCase();
-  const lowerTitle = windowTitle ? windowTitle.toLowerCase() : "";
+  const name = appName.toLowerCase();
+  const title = windowTitle ? windowTitle.toLowerCase() : "";
+  const haystack = `${name} ${title}`;
+  const matches = (list) => list.some((k) => haystack.includes(k));
 
-  const socialKeywords = [
-    "facebook",
-    "instagram",
-    "youtube",
-    "whatsapp",
-    "twitter",
-    "tiktok",
-    "netflix",
-    "spotify",
+  // 1) Clearly NON-productive — streaming, social, gaming. Checked first.
+  const nonProductiveKeywords = [
+    // social
+    "facebook", "instagram", "tiktok", "twitter", "x.com", "reddit", "snapchat", "9gag",
+    // streaming / music / OTT
+    "netflix", "prime video", "hulu", "disney+", "hotstar", "hbo", "twitch",
+    "spotify", "soundcloud", "apple music", "gaana", "jiosaavn",
+    // chat not used for work here
     "discord",
-    "reddit",
+    // gaming
+    "steam", "epic games", "valorant", "league of legends", "dota",
+    "counter-strike", "call of duty", "minecraft", "roblox", "fortnite", "pubg",
   ];
-  if (
-    socialKeywords.some((k) => lowerName.includes(k) || lowerTitle.includes(k))
-  )
-    return "Social";
+  if (matches(nonProductiveKeywords)) return "Social";
 
+  // 2) Productive — desktop tools AND the web apps/sites the studio works in.
   const productiveKeywords = [
-    "visual studio",
-    "vscode",
-    "pycharm",
-    "git",
-    "github",
-    "docker",
-    "postman",
-    "excel",
-    "word",
-    "powerpoint",
-    "outlook",
-    "teams",
-    "slack",
-    "zoom",
-    "meet",
-    "archilance",
-    "autocad",
-    "revit",
-    "photoshop",
-    "figma",
-    "canva",
-    "chatgpt",
-    "claude",
-    "ai studio",
+    // Communication & collaboration
+    "slack", "microsoft teams", "teams", "zoom", "google meet", "meet",
+    "webex", "skype", "whatsapp", "google chat",
+    // Email
+    "outlook", "gmail", "thunderbird", "webmail", "roundcube", "zoho mail", "proton mail",
+    // Docs / project management / storage
+    "notion", "trello", "asana", "jira", "clickup", "monday.com",
+    "confluence", "miro", "figjam", "loom", "archilance",
+    "google docs", "google sheets", "google slides", "google drive", "dropbox",
+    // Microsoft Office
+    "excel", "word", "powerpoint", "onenote", "visio", "sharepoint",
+    "onedrive", "microsoft office", "office 365", "microsoft 365",
+    // Architecture / CAD / BIM
+    "autocad", "revit", "archicad", "sketchup", "sketch up", "3ds max", "3dsmax",
+    "rhino", "rhinoceros", "grasshopper", "vectorworks", "civil 3d",
+    "navisworks", "autodesk", "recap", "infraworks", "formit", "microstation",
+    "allplan", "chief architect", "solidworks", "fusion 360", "inventor",
+    // Rendering / visualisation
+    "lumion", "d5 render", "d5render", "enscape", "twinmotion", "v-ray", "vray",
+    "corona render", "keyshot", "blender", "cinema 4d", "c4d",
+    // PDF / markup / documents
+    "bluebeam", "revu", "pdf", "acrobat", "adobe reader", "foxit", "nitro pro", "sumatra",
+    // Adobe creative
+    "adobe", "photoshop", "illustrator", "indesign", "lightroom",
+    "after effects", "premiere", "adobe xd",
+    // Design / boards
+    "figma", "canva", "invision",
+    // Site analysis / scanning / measurement (mostly web)
+    "matterport", "docusketch", "cubicasa", "magicplan", "regrid",
+    "google earth", "google maps", "mapbox", "arcgis", "qgis",
+    // Work / hiring platforms
+    "upwork", "fiverr", "freelancer",
+    // AI assistants
+    "chatgpt", "openai", "claude", "ai studio", "gemini", "copilot", "perplexity",
+    // Learning (tutorials / courses count as productive)
+    "tutorial", "how to", "training", "webinar", "lecture",
+    "udemy", "coursera", "skillshare", "pluralsight", "khan academy", "linkedin learning",
+    // Dev tools (internal tech team)
+    "visual studio", "vs code", "vscode", "pycharm", "intellij", "android studio",
+    "sublime text", "github", "gitlab", "bitbucket", "gitkraken", "sourcetree",
+    "docker", "postman",
   ];
-  if (
-    productiveKeywords.some(
-      (k) => lowerName.includes(k) || lowerTitle.includes(k)
-    )
-  )
-    return "Productive";
+  if (matches(productiveKeywords)) return "Productive";
 
-  if (
-    lowerName.includes("chrome") ||
-    lowerName.includes("edge") ||
-    lowerName.includes("firefox")
-  ) {
-    if (
-      lowerTitle.includes("admin") ||
-      lowerTitle.includes("crm") ||
-      lowerTitle.includes("archilance") ||
-      lowerTitle.includes("docs")
-    )
-      return "Productive";
+  // 3) A browser with no recognised site → Neutral, unless the title clearly points at
+  //    an internal work tool.
+  const isBrowser = ["chrome", "edge", "firefox", "brave", "opera", "safari"].some(
+    (b) => name.includes(b)
+  );
+  if (isBrowser) {
+    const workHints = ["admin", "crm", "archilance", "docs", "dashboard", "portal"];
+    if (workHints.some((k) => title.includes(k))) return "Productive";
     return "Neutral";
   }
+
   return "Neutral";
 };
 
@@ -202,12 +227,28 @@ const EmployeeWorkStats = ({
       });
     }
 
+    // "Productive" and "Total" come from two INDEPENDENT measurement systems: the
+    // productive number is a sum of app-usage buckets from activity_logs (which
+    // over-counts and still includes idle time), while grandTotal is the trustworthy
+    // worked time (session duration minus idle). Summing the raw buckets can therefore
+    // EXCEED the worked time and push productivity past 100%. So we don't use the raw
+    // bucket seconds directly — we treat them as a PROPORTION (the share of tracked app
+    // time that was spent in productive apps) and apply that share to the worked time.
+    // This is always bounded: productive <= worked, and productivity <= 100%.
+    const productiveRatio =
+      totalActivitySeconds > 0
+        ? categoryStats.Productive / totalActivitySeconds
+        : 0;
+    const productiveSeconds = Math.round(productiveRatio * grandTotal);
+    const productivePercent = Math.round(productiveRatio * 100);
+
     return {
       pieData: finalPieData,
       aggregatedApps: sortedApps.slice(0, 10),
       stats: {
         totalSeconds: grandTotal,
-        productiveSeconds: categoryStats.Productive,
+        productiveSeconds: productiveSeconds,
+        productivePercent: productivePercent,
         idleSeconds: totalIdleSeconds, // <--- Using the Prop Here directly
       },
     };
@@ -247,14 +288,7 @@ const EmployeeWorkStats = ({
             Productivity %
           </p>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-            {dashboardData.stats.totalSeconds > 0
-              ? Math.round(
-                  (dashboardData.stats.productiveSeconds /
-                    dashboardData.stats.totalSeconds) *
-                    100
-                )
-              : 0}
-            %
+            {dashboardData.stats.productivePercent}%
           </h2>
         </div>
 
