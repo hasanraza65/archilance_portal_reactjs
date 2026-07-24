@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
+import Icon from "@/components/ui/Icon";
 import {
   getApiBasePathForRole,
   getUserRole,
@@ -179,6 +180,7 @@ const MyGrading = () => {
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [eligibility, setEligibility] = useState(null);
 
   const isManager = getUserRole() === "manager";
 
@@ -203,6 +205,9 @@ const MyGrading = () => {
         throw new Error(result.message || "Failed to load grading records.");
       }
       setRatings(result.data || []);
+      // Internees only: the backend tells us whether grading is unlocked yet (one month
+      // after their first work session). Absent on older backends -> treated as unlocked.
+      setEligibility(result.eligibility || null);
       setPaginationInfo({
         currentPage: result.current_page,
         lastPage: result.last_page,
@@ -210,6 +215,7 @@ const MyGrading = () => {
     } catch (err) {
       toast.error(err.message || "Something went wrong.");
       setRatings([]);
+      setEligibility(null);
       setPaginationInfo(null);
     } finally {
       setLoading(false);
@@ -244,6 +250,33 @@ const MyGrading = () => {
 
       {loading ? (
         <div className="py-20 text-center text-slate-400">Loading...</div>
+      ) : eligibility &&
+        eligibility.applies &&
+        eligibility.is_eligible === false ? (
+        <div className="py-16 px-6 text-center bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 max-w-xl mx-auto">
+          <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center mb-4">
+            <Icon
+              icon="heroicons-outline:lock-closed"
+              className="text-2xl text-amber-600 dark:text-amber-400"
+            />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
+            Your grading isn&rsquo;t available yet
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+            {eligibility.available_from ? (
+              <>
+                Your ratings unlock on{" "}
+                <span className="font-semibold text-slate-700 dark:text-slate-200">
+                  {formatDate(eligibility.available_from)}
+                </span>{" "}
+                &mdash; one month after your first work session.
+              </>
+            ) : (
+              "Your ratings become visible one month after your first work session. Start tracking your work to begin the countdown."
+            )}
+          </p>
+        </div>
       ) : ratings.length === 0 ? (
         <div className="py-20 text-center text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
           No grading records found.

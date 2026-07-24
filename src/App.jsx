@@ -415,6 +415,7 @@ function App() {
                     "supervisor",
                     "executive",
                     "outsource",
+                    "internee",
                   ]}
                 >
                   <MyGrading />

@@ -80,13 +80,13 @@ export const menuItems = [
     allowedRoles: ["admin", "manager", "supervisor", "executive", "member"],
   },
 
-  // {
-  //   title: "My Grading",
-  //   isHide: false,
-  //   icon: "heroicons-outline:academic-cap",
-  //   link: "my-grading",
-  //   allowedRoles: ["employee", "manager", "supervisor", "executive", "outsource"],
-  // },
+  {
+    title: "My Grading",
+    isHide: false,
+    icon: "heroicons-outline:academic-cap",
+    link: "my-grading",
+    allowedRoles: ["employee", "manager", "supervisor", "executive", "outsource", "internee"],
+  },
 
   {
     title: "Employees",

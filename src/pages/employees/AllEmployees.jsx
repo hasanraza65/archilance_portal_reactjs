@@ -316,30 +316,7 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
             }}
             className="flex items-center space-x-3 rtl:space-x-reverse"
           >
-            <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
-              {profile_pic ? (
-                <img
-                  src={getMediaUrl(profile_pic)}
-                  alt={name || "Profile"}
-                  className="object-cover w-full h-full rounded-full"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    const initials = name
-                      ? name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                      : "?";
-                    e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
-                  }}
-                />
-              ) : (
-                <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
-                  {name ? name.charAt(0).toUpperCase() : "?"}
-                </span>
-              )}
-            </span>
+            <EmployeeAvatar profilePic={profile_pic} name={name} />
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
@@ -506,6 +483,57 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
   return baseColumns;
 };
 
+// Avatar with a React-SAFE image fallback. The previous onError handler assigned
+// img.outerHTML directly, which pulled the React-managed <img> out of the DOM; the
+// next re-render (e.g. changing pages) then crashed with
+// "Failed to execute 'removeChild' on 'Node'". Tracking the failure in state and
+// letting React swap the element keeps the node under React's control.
+const EmployeeAvatar = ({ profilePic, name }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false); // this row slot got reused for a different employee — retry theirs
+  }, [profilePic]);
+
+  const src = profilePic && !failed ? getMediaUrl(profilePic) : null;
+  const initial = name ? name.charAt(0).toUpperCase() : "?";
+
+  return (
+    <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
+      {src ? (
+        <img
+          src={src}
+          alt={name || "Profile"}
+          className="object-cover w-full h-full rounded-full"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
+          {initial}
+        </span>
+      )}
+    </span>
+  );
+};
+
+// Compact page-number window: always show first & last, plus the current page and its
+// neighbours, collapsing the rest into "..." gaps.
+const buildPageList = (current, last) => {
+  const total = Math.max(1, Number(last) || 1);
+  const cur = Math.min(Math.max(1, Number(current) || 1), total);
+  const wanted = new Set([1, total, cur, cur - 1, cur + 1]);
+  const sorted = [...wanted]
+    .filter((n) => n >= 1 && n <= total)
+    .sort((a, b) => a - b);
+  const out = [];
+  let prev = 0;
+  for (const n of sorted) {
+    if (prev && n - prev > 1) out.push("...");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+};
+
 const Allemployees = () => {
   const { user } = useAuth();
   const [employeeData, setEmployeeData] = useState([]);
@@ -520,8 +548,23 @@ const Allemployees = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(25);
+  const [perPage, setPerPage] = useState(10);
   const [pageMeta, setPageMeta] = useState({ currentPage: 1, lastPage: 1, total: 0 });
+  const fetchSeqRef = useRef(0); // guards against out-of-order page/search fetches
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce the search box so the SERVER filters across ALL rows (not just the
+  // current page). Reset to page 1 whenever the term changes.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const handleSearchChange = useCallback((val) => {
+    setSearchTerm(val);
+    setCurrentPage(1);
+  }, []);
   const hasManagementPermission = useMemo(() => canManageEmployees(), []);
 
   const isIndividualEmployee = useMemo(
@@ -543,6 +586,7 @@ const Allemployees = () => {
 
   const fetchEmployees = useCallback(async () => {
     if (!user) return;
+    const reqId = ++fetchSeqRef.current;
     setLoading(true);
     setFetchError(null);
     setDeleteSuccess(null);
@@ -565,6 +609,7 @@ const Allemployees = () => {
               ? employeeTypeFilter.filter((v) => allowedEmployeeTypes.includes(v))
               : allowedEmployeeTypes;
             const base = { page: currentPage, per_page: perPage };
+            if (debouncedSearch) base.search = debouncedSearch;
             // Admin with no explicit type filter selected sees everyone; skip the param.
             const isAdmin = user.role?.toLowerCase() === "admin";
             if (isAdmin && employeeTypeFilter.length === 0) {
@@ -583,6 +628,9 @@ const Allemployees = () => {
           params,
         }
       );
+
+      // Ignore a response that a newer page/search request has already superseded.
+      if (reqId !== fetchSeqRef.current) return;
 
       const responseData = response.data;
       let rawData = [];
@@ -604,6 +652,7 @@ const Allemployees = () => {
 
       setEmployeeData(rawData);
     } catch (err) {
+      if (reqId !== fetchSeqRef.current) return;
       setFetchError(
         err.response?.data?.message ||
           err.message ||
@@ -611,9 +660,9 @@ const Allemployees = () => {
       );
       setEmployeeData([]);
     } finally {
-      setLoading(false);
+      if (reqId === fetchSeqRef.current) setLoading(false);
     }
-  }, [user, isIndividualEmployee, employeeTypeFilter, allowedEmployeeTypes, currentPage, perPage]);
+  }, [user, isIndividualEmployee, employeeTypeFilter, allowedEmployeeTypes, currentPage, perPage, debouncedSearch]);
 
   useEffect(() => {
     fetchEmployees();
@@ -775,6 +824,11 @@ const Allemployees = () => {
   } = tableInstance;
   const { globalFilter } = state;
 
+  const goToPage = (p) => {
+    const target = Math.min(Math.max(1, p), Math.max(1, pageMeta.lastPage));
+    if (target !== currentPage) setCurrentPage(target);
+  };
+
   if (loading && !employeeData.length) {
     return (
       <Card>
@@ -803,8 +857,8 @@ const Allemployees = () => {
           <div className="flex items-center space-x-3 w-full md:w-auto">
             <div className="flex-1">
               <GlobalFilter
-                value={globalFilter}
-                onChange={setGlobalFilter}
+                value={searchTerm}
+                onChange={handleSearchChange}
                 placeholder="Search employees..."
               />
             </div>
@@ -868,7 +922,13 @@ const Allemployees = () => {
             {deleteError}
           </Alert>
         )}
-        <div className="overflow-x-auto -mx-6">
+        <div
+          className={`overflow-x-auto -mx-6 transition-opacity duration-200 ${
+            loading && employeeData.length
+              ? "opacity-60 pointer-events-none"
+              : "opacity-100"
+          }`}
+        >
           <div className="inline-block min-w-full align-middle">
             <div className="overflow-hidden shadow-sm dark:shadow-slate-700 rounded-md">
               <table
@@ -998,19 +1058,31 @@ const Allemployees = () => {
                   <Icon icon="heroicons-outline:chevron-left" />
                 </button>
               </li>
-              <li>
-                <input
-                  type="number"
-                  className="form-control py-2 w-[60px] text-center"
-                  value={currentPage}
-                  onChange={(e) => {
-                    const p = Number(e.target.value);
-                    if (p >= 1 && p <= pageMeta.lastPage) setCurrentPage(p);
-                  }}
-                  min="1"
-                  max={pageMeta.lastPage}
-                />
-              </li>
+              {buildPageList(currentPage, pageMeta.lastPage).map((p, i) =>
+                p === "..." ? (
+                  <li
+                    key={`gap-${i}`}
+                    className="px-1 text-slate-400 select-none"
+                  >
+                    &hellip;
+                  </li>
+                ) : (
+                  <li key={p}>
+                    <button
+                      type="button"
+                      onClick={() => goToPage(p)}
+                      aria-current={p === currentPage ? "page" : undefined}
+                      className={`min-w-[2rem] h-8 px-2 flex items-center justify-center rounded-md text-sm font-medium transition-colors duration-150 ${
+                        p === currentPage
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </li>
+                )
+              )}
               <li>
                 <button
                   className={`pagination-link ${
