@@ -85,7 +85,7 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:academic-cap",
     link: "my-grading",
-    allowedRoles: ["employee", "manager", "supervisor", "executive", "outsource", "internee"],
+    allowedRoles: ["internee"], // sirf internee employee_type walon ko dikhana ha
   },
 
   {
@@ -93,7 +93,7 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:document-text",
     link: "contracts",
-    allowedRoles: ["admin", "executive"],
+    allowedRoles: [], // sidebar sy hidden ha, route/page abhi bhi kaam kry ga
   },
   {
     title: "Employees",
