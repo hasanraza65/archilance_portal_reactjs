@@ -30,6 +30,13 @@ const AdminEmployeeWorkSession = lazy(() =>
 );
 const MyGrading = lazy(() => import("./pages/employees/MyGrading"));
 
+const ContractsPage = lazy(() => import("./pages/contracts/ContractsPage"));
+const TemplateEditor = lazy(() => import("./pages/contracts/TemplateEditor"));
+const SendContract = lazy(() => import("./pages/contracts/SendContract"));
+const PublicContractView = lazy(() =>
+  import("./pages/contracts/PublicContractView")
+);
+
 const Subscription = lazy(() =>
   import("./pages/customers/Subscription/Subscription")
 );
@@ -620,7 +627,51 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Contracts module — Admins & Executives */}
+            <Route
+              path="contracts"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <ContractsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="contracts/send"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <SendContract />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="contracts/templates/new"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <TemplateEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="contracts/templates/:id/edit"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <TemplateEditor />
+                </ProtectedRoute>
+              }
+            />
           </Route>
+
+          {/* Public, no-login contract view + accept (rendered outside every layout) */}
+          <Route
+            path="/contract/view/:token"
+            element={
+              <Suspense fallback={<Loading />}>
+                <PublicContractView />
+              </Suspense>
+            }
+          />
           <Route
             path="/404"
             element={

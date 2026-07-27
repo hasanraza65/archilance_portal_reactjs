@@ -89,6 +89,13 @@ export const menuItems = [
   },
 
   {
+    title: "Contracts",
+    isHide: false,
+    icon: "heroicons-outline:document-text",
+    link: "contracts",
+    allowedRoles: ["admin", "executive"],
+  },
+  {
     title: "Employees",
     isHide: false,
     icon: "heroicons-outline:user",

@@ -11,7 +11,7 @@ import Textinput from "@/components/ui/Textinput";
 import Button from "@/components/ui/Button";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
-import { canManageEmployees } from "@/pages/utility/apiHelper";
+import { canManageEmployees, getUserRole } from "@/pages/utility/apiHelper";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
 
 const selectStyles = {
@@ -58,6 +58,11 @@ const AddEmployee = () => {
   const [loading, setLoading] = useState(false);
   const [profilePicPreview, setProfilePicPreview] = useState(null);
   const [allEmployees, setAllEmployees] = useState([]);
+
+  // The "contract already accepted" toggle is only offered to Admins & Executives.
+  const canSetContractStatus = ["admin", "executive"].includes(
+    (getUserRole() || "").toLowerCase()
+  );
 
   const {
     register,
@@ -160,6 +165,12 @@ const AddEmployee = () => {
     }
     dataToSubmit.append("password", formData.password);
     dataToSubmit.append("password_confirmation", formData.password_confirmation);
+    // 1 = contract already accepted (login allowed immediately); 0 = must accept
+    // the contract before logging in. Only Admins/Executives can set this to 1.
+    dataToSubmit.append(
+      "contract_status",
+      canSetContractStatus && formData.contract_status ? 1 : 0
+    );
 
     if (formData.joining_date) {
       const date = Array.isArray(formData.joining_date)
@@ -351,6 +362,28 @@ const AddEmployee = () => {
                   />
                 </div>
               </div>
+
+              {canSetContractStatus && (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      {...register("contract_status")}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                        Contract already accepted
+                      </span>
+                      <span className="block text-xs text-slate-400 mt-0.5">
+                        Tick this only if the employee has already signed their contract. When
+                        left unticked, they must accept the contract you send before they can log
+                        in.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
