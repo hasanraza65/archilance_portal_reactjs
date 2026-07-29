@@ -288,9 +288,11 @@ const SendContract = () => {
                           <Flatpickr
                             value={dateValues[k] || ""}
                             options={{
-                              altInput: true,
-                              altFormat: "jS F, Y", // shows "20th July, 2026"
                               dateFormat: "Y-m-d",
+                              // Flatpickr has no ordinal token ("S" means seconds, which
+                              // rendered "2900 July"), so format the visible value with the
+                              // same helper the preview uses → "20th July, 2026".
+                              formatDate: (date) => formatPrettyDate(date),
                             }}
                             placeholder="Select a date"
                             className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
