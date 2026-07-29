@@ -93,7 +93,7 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:document-text",
     link: "contracts",
-    allowedRoles: [], // sidebar sy hidden ha, route/page abhi bhi kaam kry ga
+    allowedRoles: ["admin", "executive"],
   },
   {
     title: "Employees",
