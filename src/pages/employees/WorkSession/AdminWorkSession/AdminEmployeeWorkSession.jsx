@@ -7,19 +7,13 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 import axios from "axios";
-import jsPDF from "jspdf";
-// html2canvas-pro (not plain html2canvas / html2pdf.js) — this app's Tailwind v4 theme emits
-// oklch() colors, which the html2canvas engine bundled inside html2pdf.js can't parse and
-// throws on. html2canvas-pro is a maintained fork that understands modern CSS color functions.
-import html2canvas from "html2canvas-pro";
 // Ensure correct import path
 import EmployeeWorkStats from "./EmployeeWorkStats";
-import WorkSessionPrintableReport from "./WorkSessionPrintableReport";
+import { generateWorkSessionPdf } from "./workSessionPdfExport";
 import {
   formatDuration,
   computeDashboardStats,
   formatDateForAPI,
-  formatTime,
   formatSessionDate,
   formatSessionTimeRange,
   formatSessionEndDateLabel,
@@ -127,34 +121,6 @@ const calculateIdleDuration = (startTime, endTime) => {
 
   if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
   return `${minutes}m ${seconds}s`;
-};
-
-// Slices a tall rendered canvas into page-sized chunks and adds each as an image page —
-// jsPDF doesn't paginate a single image automatically, so this walks the source canvas
-// top to bottom, cutting off one page-height's worth of pixels at a time.
-const addCanvasToPdf = (doc, canvas) => {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const ratio = pageWidth / canvas.width;
-  const pageHeightPx = Math.floor(pageHeight / ratio);
-
-  let renderedPx = 0;
-  let isFirstPage = true;
-  while (renderedPx < canvas.height) {
-    const sliceHeightPx = Math.min(pageHeightPx, canvas.height - renderedPx);
-    const sliceCanvas = document.createElement("canvas");
-    sliceCanvas.width = canvas.width;
-    sliceCanvas.height = sliceHeightPx;
-    sliceCanvas
-      .getContext("2d")
-      .drawImage(canvas, 0, renderedPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
-
-    if (!isFirstPage) doc.addPage();
-    doc.addImage(sliceCanvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, sliceHeightPx * ratio);
-
-    renderedPx += sliceHeightPx;
-    isFirstPage = false;
-  }
 };
 
 // --- Manual Time Modal Helpers ---
@@ -587,8 +553,6 @@ const AdminEmployeeWorkSession = () => {
   const [deletedScreenshotsLoading, setDeletedScreenshotsLoading] = useState(false);
   const [selectedDeletedSessionId, setSelectedDeletedSessionId] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [exportPayload, setExportPayload] = useState(null);
-  const printRef = useRef(null);
 
   // STATS STATES
   const [statsLoading, setStatsLoading] = useState(false);
@@ -1011,13 +975,20 @@ const AdminEmployeeWorkSession = () => {
 
   // Exports a PDF for the currently selected filters (Job + Period/Custom Range).
   // Re-fetches with a high per_page so the export always covers the FULL date range,
-  // not just the current paginated page shown on screen. Builds an off-screen HTML
-  // report (WorkSessionPrintableReport, mirroring the on-screen session cards +
-  // screenshots) and rasterizes it via html2canvas-pro so screenshots come through as images
-  // instead of a plain data table.
+  // not just the current paginated page shown on screen. The PDF itself is built natively
+  // with jsPDF (see workSessionPdfExport.js) rather than rasterizing the page — that avoids
+  // both the oklch()-parsing crash and the giant-canvas slowness/limits a wide date range
+  // used to hit.
+  //
+  // Runs as a background task rather than a blocking modal: a 1-2 month export can take a
+  // while (hundreds of screenshots, loaded a few at a time), and it keeps running to
+  // completion regardless — nothing here depends on the component staying mounted or the
+  // user staying on this page. So instead of blocking the whole screen and guessing a
+  // timeout, we just toast when it starts and toast + auto-download when it's actually done.
   const handleExportPdf = async () => {
     if (!employeeId || !token) return;
     setIsExporting(true);
+    toast.info("Preparing your PDF export in the background — you can keep working. We'll notify you when it's ready.");
     try {
       const finalTaskId =
         taskFilters
@@ -1080,72 +1051,42 @@ const AdminEmployeeWorkSession = () => {
           ? `${startLabel} - ${endLabel}`
           : startLabel || endLabel || "All Time";
 
-      setExportPayload({
-        employeeDetails,
-        storageUrl: STORAGE_URL,
-        jobName,
-        periodLabel,
-        generatedOn: new Date().toLocaleString(),
-        dashboard,
-        manualSeconds: manualSec,
-        sessions: fullSessions,
-        userRole: user?.role,
-        fileName: `WorkSession_${(employeeDetails?.name || "employee").replace(/\s+/g, "_")}_${periodLabel.replace(/[,\s]+/g, "_")}.pdf`,
-      });
+      const fileName = `WorkSession_${(employeeDetails?.name || "employee").replace(/\s+/g, "_")}_${periodLabel.replace(/[,\s]+/g, "_")}.pdf`;
+
+      // No artificial timeout here — the work is already internally bounded (each
+      // screenshot has its own load timeout + one retry, and the total count is capped),
+      // so it always finishes on its own. Racing it against a short timeout used to report
+      // "failed" while the export kept running anyway and downloaded moments later, which
+      // was just confusing. A generous last-resort backstop still guards against a truly
+      // pathological hang without getting in the way of normal multi-minute exports.
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("PDF export is taking unusually long. Please try again.")), 20 * 60 * 1000)
+      );
+
+      await Promise.race([
+        generateWorkSessionPdf({
+          employeeDetails,
+          storageUrl: STORAGE_URL,
+          jobName,
+          periodLabel,
+          generatedOn: new Date().toLocaleString(),
+          dashboard,
+          manualSeconds: manualSec,
+          sessions: fullSessions,
+          userRole: user?.role,
+          fileName,
+        }),
+        timeoutPromise,
+      ]);
+
+      toast.success("Your PDF export is ready and has been downloaded.");
     } catch (err) {
+      console.error("PDF export failed:", err);
       toast.error(err.message || "Failed to export PDF");
+    } finally {
       setIsExporting(false);
     }
   };
-
-  // Once the off-screen report has mounted with the fetched data, rasterize it.
-  // Wrapped defensively: a synchronous throw inside the canvas/PDF chain, or a hang while
-  // waiting on a slow/CORS-blocked screenshot, must never leave isExporting stuck true —
-  // that would freeze the whole page behind the full-screen loading overlay forever.
-  useEffect(() => {
-    if (!exportPayload || !printRef.current) return;
-    const node = printRef.current;
-    let settled = false;
-
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      setIsExporting(false);
-      setExportPayload(null);
-    };
-
-    const timeoutId = setTimeout(() => {
-      toast.error("PDF export timed out. Try a smaller date range and try again.");
-      finish();
-    }, 60000);
-
-    Promise.resolve()
-      .then(() =>
-        html2canvas(node, {
-          scale: 2,
-          useCORS: true,
-          // allowTaint must stay false: a tainted canvas throws on toDataURL/getImageData,
-          // which would break PDF generation outright. useCORS + a cache-busted <img> src
-          // (see WorkSessionPrintableReport) is what actually gets a real, readable image.
-          allowTaint: false,
-          // Bounds how long any single stalled/CORS-blocked screenshot can hold up the export.
-          imageTimeout: 8000,
-        })
-      )
-      .then((canvas) => {
-        const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
-        addCanvasToPdf(doc, canvas);
-        doc.save(exportPayload.fileName);
-      })
-      .catch((err) => {
-        console.error("PDF export failed:", err);
-        toast.error("Failed to export PDF");
-      })
-      .finally(finish);
-
-    return () => clearTimeout(timeoutId);
-  }, [exportPayload]);
 
   if (!isAuthenticated || !user)
     return (
@@ -1165,40 +1106,6 @@ const AdminEmployeeWorkSession = () => {
         onSuccess={fetchWorkSessions}
         apiPrefix={endpointPrefix}
       />
-
-      {/* Off-screen report used only to be rasterized into the exported PDF */}
-      {exportPayload && (
-        <div style={{ position: "fixed", top: 0, left: "-10000px", zIndex: -1 }}>
-          <div ref={printRef}>
-            <WorkSessionPrintableReport {...exportPayload} />
-          </div>
-        </div>
-      )}
-
-      {/* Full-screen loading overlay while the PDF is being generated */}
-      {isExporting && (
-        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl px-8 py-6 flex flex-col items-center gap-3">
-            <svg className="animate-spin h-8 w-8 text-slate-700 dark:text-slate-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-            </svg>
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              Generating PDF...
-            </p>
-            <p className="text-xs text-slate-400">This may take a moment for sessions with many screenshots.</p>
-            <button
-              onClick={() => {
-                setIsExporting(false);
-                setExportPayload(null);
-              }}
-              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 underline mt-1"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 1. Header (User Info) */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
