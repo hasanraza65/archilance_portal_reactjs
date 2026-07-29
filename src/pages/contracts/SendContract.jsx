@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Select from "react-select";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/light.css";
 import { toast } from "react-toastify";
 
 import Icon from "@/components/ui/Icon";
@@ -14,6 +16,8 @@ import {
   quillFormats,
   renderTemplate,
   extractPlaceholders,
+  isDateKey,
+  formatPrettyDate,
 } from "./contractUtils";
 import {
   fetchContractVariables,
@@ -44,6 +48,7 @@ const SendContract = () => {
   const [templateBody, setTemplateBody] = useState("");
   const [title, setTitle] = useState("");
   const [values, setValues] = useState({});
+  const [dateValues, setDateValues] = useState({}); // Date objects backing the date pickers
   const [body, setBody] = useState("");
   const [manualEdit, setManualEdit] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -62,6 +67,9 @@ const SendContract = () => {
 
         setCatalog(varsRes.data?.catalog || []);
         setValues(varsRes.data?.defaults || {});
+        // contract_date defaults to today (its string default is today formatted),
+        // so back the picker with today's Date.
+        setDateValues({ contract_date: new Date() });
 
         const empData = Array.isArray(empRes.data?.data)
           ? empRes.data.data
@@ -276,14 +284,35 @@ const SendContract = () => {
                         <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">
                           {labelByKey[k] || k}
                         </label>
-                        <input
-                          type="text"
-                          value={values[k] ?? ""}
-                          onChange={(e) =>
-                            setValues((v) => ({ ...v, [k]: e.target.value }))
-                          }
-                          className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                        />
+                        {isDateKey(k) ? (
+                          <Flatpickr
+                            value={dateValues[k] || ""}
+                            options={{
+                              altInput: true,
+                              altFormat: "jS F, Y", // shows "20th July, 2026"
+                              dateFormat: "Y-m-d",
+                            }}
+                            placeholder="Select a date"
+                            className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                            onChange={(selected) => {
+                              const d = selected && selected[0];
+                              setDateValues((p) => ({ ...p, [k]: d || "" }));
+                              setValues((v) => ({
+                                ...v,
+                                [k]: d ? formatPrettyDate(d) : "",
+                              }));
+                            }}
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={values[k] ?? ""}
+                            onChange={(e) =>
+                              setValues((v) => ({ ...v, [k]: e.target.value }))
+                            }
+                            className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                          />
+                        )}
                       </div>
                     ))}
                   </div>

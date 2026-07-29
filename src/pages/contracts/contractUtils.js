@@ -65,6 +65,27 @@ export const quillFormats = [
   "blockquote", "code-block", "link", "image",
 ];
 
+// A variable is a calendar date when its key ends in `_date` (contract_date, start_date).
+export const isDateKey = (k) => /(^|_)date$/.test(String(k || ""));
+
+const ordinal = (n) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
+// Formats a Date (or parseable value) as "20th July, 2026" — the format used on
+// the contract preview and the public contract view.
+export const formatPrettyDate = (d) => {
+  const date = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(date.getTime())) return "";
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  return `${ordinal(date.getDate())} ${months[date.getMonth()]}, ${date.getFullYear()}`;
+};
+
 export const formatDate = (dateStr) => {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
