@@ -18,6 +18,7 @@ import AddCustomerTeam from "./pages/customers/CustomerTeam/AddCustomerTeam";
 import EditCustomerTeam from "./pages/customers/CustomerTeam/EditCustomerTeam";
 import ApplicationUpload from "./pages/applicattion/ApplicationUpload";
 import NotificationPage from "./pages/utility/notifications";
+import NotificationSettings from "./pages/utility/NotificationSettings";
 import TrackingDashboard from "./pages/tracking/TrackingPage";
 
 const ChatPage = lazy(() => import("./pages/app/chat"));
@@ -28,6 +29,13 @@ const AdminEmployeeWorkSession = lazy(() =>
   import("./pages/employees/WorkSession/AdminWorkSession/AdminEmployeeWorkSession")
 );
 const MyGrading = lazy(() => import("./pages/employees/MyGrading"));
+
+const ContractsPage = lazy(() => import("./pages/contracts/ContractsPage"));
+const TemplateEditor = lazy(() => import("./pages/contracts/TemplateEditor"));
+const SendContract = lazy(() => import("./pages/contracts/SendContract"));
+const PublicContractView = lazy(() =>
+  import("./pages/contracts/PublicContractView")
+);
 
 const Subscription = lazy(() =>
   import("./pages/customers/Subscription/Subscription")
@@ -91,6 +99,12 @@ function App() {
       disconnectSocket();
     };
   }, [loggedInUser, dispatch]);
+
+  // App mounted successfully — clear the reload guard so a future
+  // stale-chunk error can trigger another reload if needed.
+  useEffect(() => {
+    sessionStorage.removeItem("vite_reload_on_preload_error");
+  }, []);
 
   return (
     <main className="App relative">
@@ -408,6 +422,7 @@ function App() {
                     "supervisor",
                     "executive",
                     "outsource",
+                    "internee",
                   ]}
                 >
                   <MyGrading />
@@ -602,7 +617,61 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="notification-settings"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "manager", "supervisor", "executive", "internee", "outsource"]}
+                >
+                  <NotificationSettings />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Contracts module — Admins & Executives */}
+            <Route
+              path="contracts"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <ContractsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="contracts/send"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <SendContract />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="contracts/templates/new"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <TemplateEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="contracts/templates/:id/edit"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "executive"]}>
+                  <TemplateEditor />
+                </ProtectedRoute>
+              }
+            />
           </Route>
+
+          {/* Public, no-login contract view + accept (rendered outside every layout) */}
+          <Route
+            path="/contract/view/:token"
+            element={
+              <Suspense fallback={<Loading />}>
+                <PublicContractView />
+              </Suspense>
+            }
+          />
           <Route
             path="/404"
             element={

@@ -7,8 +7,26 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 import axios from "axios";
+import jsPDF from "jspdf";
+// html2canvas-pro (not plain html2canvas / html2pdf.js) — this app's Tailwind v4 theme emits
+// oklch() colors, which the html2canvas engine bundled inside html2pdf.js can't parse and
+// throws on. html2canvas-pro is a maintained fork that understands modern CSS color functions.
+import html2canvas from "html2canvas-pro";
 // Ensure correct import path
 import EmployeeWorkStats from "./EmployeeWorkStats";
+import WorkSessionPrintableReport from "./WorkSessionPrintableReport";
+import {
+  formatDuration,
+  computeDashboardStats,
+  formatDateForAPI,
+  formatTime,
+  formatSessionDate,
+  formatSessionTimeRange,
+  formatSessionEndDateLabel,
+  formatScreenshotTime,
+  getIdleSeconds,
+  parseDurationString,
+} from "./workStatsHelpers";
 
 // --- HELPER FUNCTIONS ---
 const getTodayDateRange = () => {
@@ -81,65 +99,6 @@ const TrashIcon = () => (
     />
   </svg>
 );
-const formatTime = (timeStr) => {
-  if (!timeStr) return "";
-  const [h, m] = timeStr.split(":");
-  const d = new Date(0, 0, 0, h, m);
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
-// Format a "YYYY-MM-DD" date into "Jun 22, 2026"
-const formatSessionDate = (dateStr) => {
-  if (!dateStr) return "";
-  const [y, m, d] = dateStr.split("-").map(Number);
-  if (!y || !m || !d) return "";
-  const date = new Date(y, m - 1, d);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
-// The start → end time portion shown at the front of the main line.
-const formatSessionTimeRange = (session) =>
-  `${formatTime(session.start_time)} – ${formatTime(session.end_time)}`;
-
-// The date shown at the END of the main line. A single date when the session
-// stays within one day, or a "start – end" range when it crosses into another.
-const formatSessionEndDateLabel = (session) => {
-  const startDate = formatSessionDate(session.start_date);
-  const endDate = formatSessionDate(session.end_date);
-  if (endDate && session.end_date !== session.start_date) {
-    return `${startDate} – ${endDate}`;
-  }
-  return startDate;
-};
-
-const formatScreenshotTime = (isoString) => {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  } catch (error) {
-    return "Invalid Time";
-  }
-};
-const formatDateForAPI = (date) => {
-  if (!date || !(date instanceof Date) || isNaN(date)) return "";
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
 // --- FIX: Robust Idle Time Calculation ---
 const calculateIdleDuration = (startTime, endTime) => {
   if (!startTime || !endTime) return "N/A";
@@ -170,50 +129,33 @@ const calculateIdleDuration = (startTime, endTime) => {
   return `${minutes}m ${seconds}s`;
 };
 
-// --- Helper to get raw seconds for Idle Time ---
-const getIdleSeconds = (startTime, endTime) => {
-  if (!startTime || !endTime) return 0;
-  
-  const parseToDate = (timeStr) => {
-    let d = new Date(timeStr);
-    if (!isNaN(d.getTime())) return d;
-    d = new Date(`1970-01-01 ${timeStr}`);
-    if (!isNaN(d.getTime())) return d;
-    d = new Date(`1970-01-01T${timeStr}`);
-    if (!isNaN(d.getTime())) return d;
-    return null;
-  };
+// Slices a tall rendered canvas into page-sized chunks and adds each as an image page —
+// jsPDF doesn't paginate a single image automatically, so this walks the source canvas
+// top to bottom, cutting off one page-height's worth of pixels at a time.
+const addCanvasToPdf = (doc, canvas) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const ratio = pageWidth / canvas.width;
+  const pageHeightPx = Math.floor(pageHeight / ratio);
 
-  const start = parseToDate(startTime);
-  const end = parseToDate(endTime);
+  let renderedPx = 0;
+  let isFirstPage = true;
+  while (renderedPx < canvas.height) {
+    const sliceHeightPx = Math.min(pageHeightPx, canvas.height - renderedPx);
+    const sliceCanvas = document.createElement("canvas");
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = sliceHeightPx;
+    sliceCanvas
+      .getContext("2d")
+      .drawImage(canvas, 0, renderedPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
 
-  if (!start || !end) return 0;
+    if (!isFirstPage) doc.addPage();
+    doc.addImage(sliceCanvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, sliceHeightPx * ratio);
 
-  let diff = (end.getTime() - start.getTime()) / 1000;
-  if (diff < 0) diff += 86400; // Handle midnight crossover
-  return diff;
+    renderedPx += sliceHeightPx;
+    isFirstPage = false;
+  }
 };
-
-// --- Helper to parse "2h 29m" or "29m" or "29s" to seconds ---
-const parseDurationString = (str) => {
-  if (!str) return 0;
-  let totalSeconds = 0;
-  
-  // Match hours
-  const hMatch = str.match(/(\d+)h/);
-  if (hMatch) totalSeconds += parseInt(hMatch[1]) * 3600;
-  
-  // Match minutes
-  const mMatch = str.match(/(\d+)m/);
-  if (mMatch) totalSeconds += parseInt(mMatch[1]) * 60;
-  
-  // Match seconds (if backend sends seconds like 30s)
-  const sMatch = str.match(/(\d+)s/);
-  if (sMatch) totalSeconds += parseInt(sMatch[1]);
-  
-  return totalSeconds;
-};
-
 
 // --- Manual Time Modal Helpers ---
 const flattenTasksForDropdown = (tasks, parentId = null, depth = 0) =>
@@ -226,8 +168,10 @@ const flattenTasksForDropdown = (tasks, parentId = null, depth = 0) =>
 
 const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
+  const searchRef = useRef(null);
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 0 });
 
   const handleToggle = () => {
@@ -236,6 +180,7 @@ const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) =>
       const r = triggerRef.current.getBoundingClientRect();
       setPanelPos({ top: r.bottom + 4, left: r.left, width: r.width });
     }
+    setQuery("");
     setOpen((o) => !o);
   };
 
@@ -250,6 +195,10 @@ const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) =>
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) searchRef.current?.focus();
   }, [open]);
 
   return (
@@ -280,9 +229,22 @@ const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) =>
         <div
           ref={panelRef}
           style={{ position: "fixed", top: panelPos.top, left: panelPos.left, width: panelPos.width, zIndex: 9999 }}
-          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-52 py-1"
+          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden flex flex-col"
         >
-          {children((v) => { onChange(v); setOpen(false); })}
+          <div className="p-1.5 border-b border-slate-200 dark:border-slate-600 shrink-0">
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Search..."
+              className="w-full px-2.5 py-1.5 text-sm rounded-md border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            />
+          </div>
+          <div className="overflow-y-auto max-h-52 py-1">
+            {children((v) => { onChange(v); setOpen(false); }, query.trim().toLowerCase())}
+          </div>
         </div>
       )}
     </div>
@@ -377,10 +339,6 @@ const AddManualTimeModal = ({
       toast.error("Please fill all fields.");
       return;
     }
-    if (!proofFile) {
-      toast.error("Please upload a proof file.");
-      return;
-    }
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("task_id", selectedTask);
@@ -390,7 +348,9 @@ const AddManualTimeModal = ({
     formData.append("end_time", endTime);
     formData.append("memo_content", memoContent.trim());
     formData.append("user_id", employeeId);
-    formData.append("proof_pdf", proofFile);
+    if (proofFile) {
+      formData.append("proof_pdf", proofFile);
+    }
     try {
       await axios.post(API_URL, formData, {
         headers: {
@@ -448,12 +408,16 @@ const AddManualTimeModal = ({
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Job <span className="text-red-500">*</span></label>
                 <CustomDropdown value={getProjectLabel()} onChange={setSelectedProject} placeholder="Select a job">
-                  {(select) =>
-                    Object.entries(projects).map(([status, pList]) => (
-                      <div key={status}>
-                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
-                        {Array.isArray(pList) &&
-                          pList.map((p) => (
+                  {(select, query) =>
+                    Object.entries(projects).map(([status, pList]) => {
+                      const filteredList = (Array.isArray(pList) ? pList : []).filter((p) =>
+                        !query || p.project_name?.toLowerCase().includes(query)
+                      );
+                      if (filteredList.length === 0) return null;
+                      return (
+                        <div key={status}>
+                          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
+                          {filteredList.map((p) => (
                             <button key={p.id} type="button" onClick={() => select(p.id)}
                               className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                                 String(selectedProject) === String(p.id)
@@ -464,8 +428,9 @@ const AddManualTimeModal = ({
                               {p.project_name}
                             </button>
                           ))}
-                      </div>
-                    ))
+                        </div>
+                      );
+                    })
                   }
                 </CustomDropdown>
               </div>
@@ -477,20 +442,22 @@ const AddManualTimeModal = ({
                   placeholder={isTasksLoading ? "Loading..." : "Select a task"}
                   disabled={!selectedProject || isTasksLoading}
                 >
-                  {(select) =>
-                    flattenTasksForDropdown(tasks).map(({ id, label, depth }) => (
-                      <button key={id} type="button" onClick={() => select(id)}
-                        style={{ paddingLeft: `${12 + depth * 14}px` }}
-                        className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
-                          String(selectedTask) === String(id)
-                            ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
-                            : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                        }`}
-                      >
-                        {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
-                        {label}
-                      </button>
-                    ))
+                  {(select, query) =>
+                    flattenTasksForDropdown(tasks)
+                      .filter(({ label }) => !query || label?.toLowerCase().includes(query))
+                      .map(({ id, label, depth }) => (
+                        <button key={id} type="button" onClick={() => select(id)}
+                          style={{ paddingLeft: `${12 + depth * 14}px` }}
+                          className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
+                            String(selectedTask) === String(id)
+                              ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                          }`}
+                        >
+                          {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
+                          {label}
+                        </button>
+                      ))
                   }
                 </CustomDropdown>
               </div>
@@ -533,7 +500,7 @@ const AddManualTimeModal = ({
 
             {/* Proof File */}
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File</label>
               <input ref={proofFileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setProofFile(e.target.files[0] || null)} />
               {proofFile ? (
                 <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
@@ -619,6 +586,9 @@ const AdminEmployeeWorkSession = () => {
   const [deletedScreenshots, setDeletedScreenshots] = useState([]);
   const [deletedScreenshotsLoading, setDeletedScreenshotsLoading] = useState(false);
   const [selectedDeletedSessionId, setSelectedDeletedSessionId] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportPayload, setExportPayload] = useState(null);
+  const printRef = useRef(null);
 
   // STATS STATES
   const [statsLoading, setStatsLoading] = useState(false);
@@ -1039,6 +1009,144 @@ const AdminEmployeeWorkSession = () => {
     return `${s}s`;
   };
 
+  // Exports a PDF for the currently selected filters (Job + Period/Custom Range).
+  // Re-fetches with a high per_page so the export always covers the FULL date range,
+  // not just the current paginated page shown on screen. Builds an off-screen HTML
+  // report (WorkSessionPrintableReport, mirroring the on-screen session cards +
+  // screenshots) and rasterizes it via html2canvas-pro so screenshots come through as images
+  // instead of a plain data table.
+  const handleExportPdf = async () => {
+    if (!employeeId || !token) return;
+    setIsExporting(true);
+    try {
+      const finalTaskId =
+        taskFilters
+          .map((f) => f.selected)
+          .filter(Boolean)
+          .pop() || "";
+
+      const params = new URLSearchParams({
+        page: "1",
+        employee_id: employeeId,
+        per_page: "10000",
+      });
+      if (selectedProject) params.append("project_id", selectedProject);
+      if (finalTaskId) params.append("task_id", finalTaskId);
+      if (dateRange[0]) params.append("start_date", formatDateForAPI(dateRange[0]));
+      if (dateRange[1]) params.append("end_date", formatDateForAPI(dateRange[1]));
+
+      const res = await fetch(
+        `${API_BASE_URL}${workSessionPath}?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.status === 401) {
+        logout();
+        setIsExporting(false);
+        return;
+      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Failed to fetch sessions for export");
+
+      const fullSessions = Array.isArray(result.data) ? result.data.slice().reverse() : [];
+      const fullActivity = result.windows_activity || [];
+
+      let idleSec = 0;
+      let manualSec = 0;
+      const workSec = result.overall_total_time
+        ? parseDurationString(result.overall_total_time)
+        : 0;
+
+      fullSessions.forEach((session) => {
+        if (session.type === "Manual" && session.total_time) {
+          manualSec += parseDurationString(session.total_time);
+        }
+        if (Array.isArray(session.idle_times)) {
+          session.idle_times.forEach((idle) => {
+            idleSec += getIdleSeconds(idle.start_time, idle.end_time);
+          });
+        }
+      });
+
+      const dashboard = computeDashboardStats(fullActivity, idleSec, workSec);
+
+      const jobName = selectedProject
+        ? Object.values(projects).flat().find((p) => String(p.id) === String(selectedProject))
+            ?.project_name
+        : "All Jobs";
+      const startLabel = dateRange[0] ? formatSessionDate(formatDateForAPI(dateRange[0])) : "";
+      const endLabel = dateRange[1] ? formatSessionDate(formatDateForAPI(dateRange[1])) : "";
+      const periodLabel =
+        startLabel && endLabel && startLabel !== endLabel
+          ? `${startLabel} - ${endLabel}`
+          : startLabel || endLabel || "All Time";
+
+      setExportPayload({
+        employeeDetails,
+        storageUrl: STORAGE_URL,
+        jobName,
+        periodLabel,
+        generatedOn: new Date().toLocaleString(),
+        dashboard,
+        manualSeconds: manualSec,
+        sessions: fullSessions,
+        userRole: user?.role,
+        fileName: `WorkSession_${(employeeDetails?.name || "employee").replace(/\s+/g, "_")}_${periodLabel.replace(/[,\s]+/g, "_")}.pdf`,
+      });
+    } catch (err) {
+      toast.error(err.message || "Failed to export PDF");
+      setIsExporting(false);
+    }
+  };
+
+  // Once the off-screen report has mounted with the fetched data, rasterize it.
+  // Wrapped defensively: a synchronous throw inside the canvas/PDF chain, or a hang while
+  // waiting on a slow/CORS-blocked screenshot, must never leave isExporting stuck true —
+  // that would freeze the whole page behind the full-screen loading overlay forever.
+  useEffect(() => {
+    if (!exportPayload || !printRef.current) return;
+    const node = printRef.current;
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      setIsExporting(false);
+      setExportPayload(null);
+    };
+
+    const timeoutId = setTimeout(() => {
+      toast.error("PDF export timed out. Try a smaller date range and try again.");
+      finish();
+    }, 60000);
+
+    Promise.resolve()
+      .then(() =>
+        html2canvas(node, {
+          scale: 2,
+          useCORS: true,
+          // allowTaint must stay false: a tainted canvas throws on toDataURL/getImageData,
+          // which would break PDF generation outright. useCORS + a cache-busted <img> src
+          // (see WorkSessionPrintableReport) is what actually gets a real, readable image.
+          allowTaint: false,
+          // Bounds how long any single stalled/CORS-blocked screenshot can hold up the export.
+          imageTimeout: 8000,
+        })
+      )
+      .then((canvas) => {
+        const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+        addCanvasToPdf(doc, canvas);
+        doc.save(exportPayload.fileName);
+      })
+      .catch((err) => {
+        console.error("PDF export failed:", err);
+        toast.error("Failed to export PDF");
+      })
+      .finally(finish);
+
+    return () => clearTimeout(timeoutId);
+  }, [exportPayload]);
+
   if (!isAuthenticated || !user)
     return (
       <div className="p-8 text-center">
@@ -1057,6 +1165,40 @@ const AdminEmployeeWorkSession = () => {
         onSuccess={fetchWorkSessions}
         apiPrefix={endpointPrefix}
       />
+
+      {/* Off-screen report used only to be rasterized into the exported PDF */}
+      {exportPayload && (
+        <div style={{ position: "fixed", top: 0, left: "-10000px", zIndex: -1 }}>
+          <div ref={printRef}>
+            <WorkSessionPrintableReport {...exportPayload} />
+          </div>
+        </div>
+      )}
+
+      {/* Full-screen loading overlay while the PDF is being generated */}
+      {isExporting && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl px-8 py-6 flex flex-col items-center gap-3">
+            <svg className="animate-spin h-8 w-8 text-slate-700 dark:text-slate-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              Generating PDF...
+            </p>
+            <p className="text-xs text-slate-400">This may take a moment for sessions with many screenshots.</p>
+            <button
+              onClick={() => {
+                setIsExporting(false);
+                setExportPayload(null);
+              }}
+              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 underline mt-1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 1. Header (User Info) */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
@@ -1161,6 +1303,19 @@ const AdminEmployeeWorkSession = () => {
           >
             Add Manual Time
           </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={isExporting}
+            className="btn btn-sm btn-outline-dark whitespace-nowrap disabled:opacity-60 flex items-center gap-2"
+          >
+            {isExporting && (
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+            )}
+            {isExporting ? "Exporting..." : "Export as PDF"}
+          </button>
           <Link to="/employees" className="btn btn-sm btn-outline-dark whitespace-nowrap">
             ← Back
           </Link>
@@ -1172,50 +1327,108 @@ const AdminEmployeeWorkSession = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-sm font-medium">Job</label>
-            <select
-              value={selectedProject}
-              onChange={(e) => {
-                setSelectedProject(e.target.value);
+            <CustomDropdown
+              value={
+                selectedProject
+                  ? Object.values(projects).flat().find((p) => String(p.id) === String(selectedProject))?.project_name
+                  : ""
+              }
+              onChange={(v) => {
+                setSelectedProject(v);
                 setTaskFilters([]);
                 setAllTasks([]);
               }}
-              className="form-select w-full"
+              placeholder="All Jobs"
             >
-              <option value="">All Jobs</option>
-              {Object.entries(projects).map(([s, l]) => (
-                <optgroup key={s} label={s}>
-                  {Array.isArray(l) &&
-                    l.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.project_name}
-                      </option>
-                    ))}
-                </optgroup>
-              ))}
-            </select>
+              {(select, query) => (
+                <>
+                  {!query && (
+                    <button type="button" onClick={() => select("")}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                        !selectedProject
+                          ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                      }`}
+                    >
+                      All Jobs
+                    </button>
+                  )}
+                  {Object.entries(projects).map(([s, l]) => {
+                    const filteredList = (Array.isArray(l) ? l : []).filter((p) =>
+                      !query || p.project_name?.toLowerCase().includes(query)
+                    );
+                    if (filteredList.length === 0) return null;
+                    return (
+                      <div key={s}>
+                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{s}</div>
+                        {filteredList.map((p) => (
+                          <button key={p.id} type="button" onClick={() => select(p.id)}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                              String(selectedProject) === String(p.id)
+                                ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                            }`}
+                          >
+                            {p.project_name}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </CustomDropdown>
           </div>
-          {taskFilters.map((f, i) => (
-            <div key={i}>
-              <label className="text-sm font-medium">Level {i + 1} Task</label>
-              <select
-                value={f.selected}
-                onChange={(e) => handleTaskChange(i, e.target.value)}
-                disabled={
-                  tasksLoading ||
-                  !selectedProject ||
-                  (i > 0 && !taskFilters[i - 1]?.selected)
-                }
-                className="form-select w-full disabled:bg-slate-100"
-              >
-                <option value="">All</option>
-                {f.options.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.task_title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
+          {taskFilters.map((f, i) => {
+            const isDisabled =
+              tasksLoading ||
+              !selectedProject ||
+              (i > 0 && !taskFilters[i - 1]?.selected);
+            return (
+              <div key={i}>
+                <label className="text-sm font-medium">Level {i + 1} Task</label>
+                <CustomDropdown
+                  value={
+                    f.selected
+                      ? f.options.find((t) => String(t.id) === String(f.selected))?.task_title
+                      : ""
+                  }
+                  onChange={(v) => handleTaskChange(i, v)}
+                  placeholder="All"
+                  disabled={isDisabled}
+                >
+                  {(select, query) => (
+                    <>
+                      {!query && (
+                        <button type="button" onClick={() => select("")}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            !f.selected
+                              ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                          }`}
+                        >
+                          All
+                        </button>
+                      )}
+                      {f.options
+                        .filter((t) => !query || t.task_title?.toLowerCase().includes(query))
+                        .map((t) => (
+                          <button key={t.id} type="button" onClick={() => select(t.id)}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                              String(f.selected) === String(t.id)
+                                ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                            }`}
+                          >
+                            {t.task_title}
+                          </button>
+                        ))}
+                    </>
+                  )}
+                </CustomDropdown>
+              </div>
+            );
+          })}
           <div className="lg:col-span-2 flex flex-col lg:flex-row gap-2 items-end">
             <div className="w-full relative" ref={presetDropdownRef}>
               <label className="text-sm font-medium">Period</label>

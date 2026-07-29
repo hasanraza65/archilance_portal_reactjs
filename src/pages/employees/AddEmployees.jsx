@@ -4,14 +4,45 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { useForm, Controller } from "react-hook-form";
+import Select from "react-select";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Textinput from "@/components/ui/Textinput";
 import Button from "@/components/ui/Button";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
-import { canManageEmployees } from "@/pages/utility/apiHelper";
+import { canManageEmployees, getUserRole } from "@/pages/utility/apiHelper";
 import { getApiPrefix } from "@/pages/utility/apiHelper";
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#cbd5e1",
+    borderRadius: "0.375rem",
+    minHeight: "42px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#0f172a" : state.isFocused ? "#f1f5f9" : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+};
+
+const EMPLOYEE_TYPE_OPTIONS = [
+  { value: "Employee", label: "Employee" },
+  { value: "Manager", label: "Manager" },
+  { value: "Executive", label: "Executive" },
+  { value: "Supervisor", label: "Coordinator" },
+  { value: "Outsource", label: "Outsource" },
+  { value: "Internee", label: "Internee" },
+];
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
@@ -27,6 +58,11 @@ const AddEmployee = () => {
   const [loading, setLoading] = useState(false);
   const [profilePicPreview, setProfilePicPreview] = useState(null);
   const [allEmployees, setAllEmployees] = useState([]);
+
+  // The "contract already accepted" toggle is only offered to Admins & Executives.
+  const canSetContractStatus = ["admin", "executive"].includes(
+    (getUserRole() || "").toLowerCase()
+  );
 
   const {
     register,
@@ -121,8 +157,20 @@ const AddEmployee = () => {
     if (formData.employee_type === "Internee" && formData.internee_manager_id) {
       dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
     }
+    if (
+      ["Employee", "Manager", "Executive"].includes(formData.employee_type) &&
+      formData.manager_id
+    ) {
+      dataToSubmit.append("manager_id", formData.manager_id);
+    }
     dataToSubmit.append("password", formData.password);
     dataToSubmit.append("password_confirmation", formData.password_confirmation);
+    // 1 = contract already accepted (login allowed immediately); 0 = must accept
+    // the contract before logging in. Only Admins/Executives can set this to 1.
+    dataToSubmit.append(
+      "contract_status",
+      canSetContractStatus && formData.contract_status ? 1 : 0
+    );
 
     if (formData.joining_date) {
       const date = Array.isArray(formData.joining_date)
@@ -133,6 +181,18 @@ const AddEmployee = () => {
           date.getMonth() + 1
         ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         dataToSubmit.append("joining_date", formattedDate);
+      }
+    }
+
+    if (formData.probation_period_end_date) {
+      const date = Array.isArray(formData.probation_period_end_date)
+        ? formData.probation_period_end_date[0]
+        : new Date(formData.probation_period_end_date);
+      if (!isNaN(date.getTime())) {
+        const formattedDate = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        dataToSubmit.append("probation_period_end_date", formattedDate);
       }
     }
 
@@ -263,20 +323,22 @@ const AddEmployee = () => {
                   <label htmlFor="employee_type" className="form-label mb-1">
                     Employee Type*
                   </label>
-                  <select
-                    id="employee_type"
-                    className={`form-control py-2 ${
-                      errors.employee_type ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
-                    }`}
-                    {...register("employee_type", { required: "Type is required" })}
-                  >
-                    <option value="Employee">Employee</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Executive">Executive</option>
-                    <option value="Supervisor">Coordinator</option>
-                    <option value="Outsource">Outsource</option>
-                    <option value="Internee">Internee</option>
-                  </select>
+                  <Controller
+                    name="employee_type"
+                    control={control}
+                    rules={{ required: "Type is required" }}
+                    render={({ field: { onChange, value } }) => (
+                      <Select
+                        inputId="employee_type"
+                        options={EMPLOYEE_TYPE_OPTIONS}
+                        styles={selectStyles}
+                        classNamePrefix="react-select"
+                        value={EMPLOYEE_TYPE_OPTIONS.find((o) => o.value === value) || null}
+                        onChange={(opt) => onChange(opt ? opt.value : "")}
+                        placeholder="Select type"
+                      />
+                    )}
+                  />
                   {errors.employee_type && (
                     <p className="text-danger-500 text-xs mt-1">{errors.employee_type.message}</p>
                   )}
@@ -301,23 +363,102 @@ const AddEmployee = () => {
                 </div>
               </div>
 
+              {canSetContractStatus && (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      {...register("contract_status")}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                        Contract already accepted
+                      </span>
+                      <span className="block text-xs text-slate-400 mt-0.5">
+                        Tick this only if the employee has already signed their contract. When
+                        left unticked, they must accept the contract you send before they can log
+                        in.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="probation_period_end_date" className="form-label mb-1">
+                    Probation Period End Date
+                  </label>
+                  <Controller
+                    name="probation_period_end_date"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <Flatpickr
+                        value={value || ""}
+                        className="form-control py-2"
+                        placeholder="Select date"
+                        onChange={onChange}
+                        options={{ altInput: true, altFormat: "M j, Y", dateFormat: "Y-m-d" }}
+                      />
+                    )}
+                  />
+                </div>
+                {["Employee", "Manager", "Executive"].includes(watchedEmployeeType) && (
+                  <div>
+                    <label htmlFor="manager_id" className="form-label mb-1">
+                      Manager
+                    </label>
+                    <Controller
+                      name="manager_id"
+                      control={control}
+                      render={({ field: { onChange, value } }) => {
+                        const managerOptions = allEmployees
+                          .filter((emp) => emp.employee_type === "Manager")
+                          .map((emp) => ({ value: emp.id, label: emp.name }));
+                        return (
+                          <Select
+                            inputId="manager_id"
+                            options={managerOptions}
+                            styles={selectStyles}
+                            classNamePrefix="react-select"
+                            value={managerOptions.find((o) => String(o.value) === String(value)) || null}
+                            onChange={(opt) => onChange(opt ? opt.value : "")}
+                            placeholder="Select Manager"
+                            isClearable
+                          />
+                        );
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
               {watchedEmployeeType === "Internee" && (
                 <div className="md:col-span-2">
                   <label htmlFor="internee_manager_id" className="form-label mb-1">
                     Internee Manager*
                   </label>
-                  <select
-                    id="internee_manager_id"
-                    className={`form-control py-2 ${
-                      errors.internee_manager_id ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
-                    }`}
-                    {...register("internee_manager_id", { required: "Manager is required for Internee" })}
-                  >
-                    <option value="">Select Manager</option>
-                    {allEmployees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>{emp.name}</option>
-                    ))}
-                  </select>
+                  <Controller
+                    name="internee_manager_id"
+                    control={control}
+                    rules={{ required: "Manager is required for Internee" }}
+                    render={({ field: { onChange, value } }) => {
+                      const managerOptions = allEmployees.map((emp) => ({ value: emp.id, label: emp.name }));
+                      return (
+                        <Select
+                          inputId="internee_manager_id"
+                          options={managerOptions}
+                          styles={selectStyles}
+                          classNamePrefix="react-select"
+                          value={managerOptions.find((o) => String(o.value) === String(value)) || null}
+                          onChange={(opt) => onChange(opt ? opt.value : "")}
+                          placeholder="Select Manager"
+                          isClearable
+                        />
+                      );
+                    }}
+                  />
                   {errors.internee_manager_id && (
                     <p className="text-danger-500 text-xs mt-1">{errors.internee_manager_id.message}</p>
                   )}

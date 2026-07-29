@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { useForm, Controller } from "react-hook-form";
+import Select from "react-select";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
@@ -12,6 +13,36 @@ import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import { canManageEmployees, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
 import { toast } from "react-toastify";
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#cbd5e1",
+    borderRadius: "0.375rem",
+    minHeight: "42px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#0f172a" : state.isFocused ? "#f1f5f9" : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+};
+
+const EMPLOYEE_TYPE_OPTIONS = [
+  { value: "Employee", label: "Employee" },
+  { value: "Manager", label: "Manager" },
+  { value: "Executive", label: "Executive" },
+  { value: "Supervisor", label: "Coordinator" },
+  { value: "Outsource", label: "Outsource" },
+  { value: "Internee", label: "Internee" },
+];
 
 const EditEmployee = () => {
   const { employeeId } = useParams();
@@ -37,6 +68,7 @@ const EditEmployee = () => {
   const [submitError, setSubmitError] = useState(null);
   const [allEmployees, setAllEmployees] = useState([]);
   const [interneeManagerId, setInterneeManagerId] = useState("");
+  const [managerId, setManagerId] = useState("");
 
   const watchedProfilePicFile = watch("profile_pic");
   const passwordValue = watch("password");
@@ -127,11 +159,14 @@ const EditEmployee = () => {
             : "",
           employee_type: employee.employee_type || "Employee",
           joining_date: employee.joining_date || null,
+          probation_period_end_date: employee.probation_period_end_date || null,
           internee_manager_id: employee.internee_manager_id ? String(employee.internee_manager_id) : "",
+          manager_id: employee.manager_id ? String(employee.manager_id) : "",
           password: "",
           password_confirmation: "",
         });
         setInterneeManagerId(employee.internee_manager_id ? String(employee.internee_manager_id) : "");
+        setManagerId(employee.manager_id ? String(employee.manager_id) : "");
         if (employee.profile_pic) {
           const picUrl = getMediaUrl(employee.profile_pic);
           setCurrentProfilePicUrl(picUrl);
@@ -168,6 +203,12 @@ const EditEmployee = () => {
       setValue("internee_manager_id", interneeManagerId);
     }
   }, [allEmployees, interneeManagerId, setValue]);
+
+  useEffect(() => {
+    if (managerId && allEmployees.length > 0) {
+      setValue("manager_id", managerId);
+    }
+  }, [allEmployees, managerId, setValue]);
 
   const onSubmit = async (formData) => {
     setSubmitting(true);
@@ -211,18 +252,38 @@ const EditEmployee = () => {
     if (formData.employee_type === "Internee" && formData.internee_manager_id) {
       dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
     }
-    
+    if (
+      ["Employee", "Manager", "Executive"].includes(formData.employee_type) &&
+      formData.manager_id
+    ) {
+      dataToSubmit.append("manager_id", formData.manager_id);
+    }
+
     if (formData.joining_date) {
-      const date = Array.isArray(formData.joining_date) 
-        ? formData.joining_date[0] 
+      const date = Array.isArray(formData.joining_date)
+        ? formData.joining_date[0]
         : new Date(formData.joining_date);
-      
+
       if (!isNaN(date.getTime())) {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const day = String(date.getDate()).padStart(2, "0");
         const formattedDate = `${year}-${month}-${day}`;
         dataToSubmit.append("joining_date", formattedDate);
+      }
+    }
+
+    if (formData.probation_period_end_date) {
+      const date = Array.isArray(formData.probation_period_end_date)
+        ? formData.probation_period_end_date[0]
+        : new Date(formData.probation_period_end_date);
+
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const formattedDate = `${year}-${month}-${day}`;
+        dataToSubmit.append("probation_period_end_date", formattedDate);
       }
     }
 
@@ -364,22 +425,22 @@ const EditEmployee = () => {
             <label htmlFor="employee_type" className="form-label">
               Employee Type*
             </label>
-            <select
-              id="employee_type"
-              className={`form-control py-2 ${
-                formErrors.employee_type ? "border-danger-500" : ""
-              }`}
-              {...register("employee_type", {
-                required: "Employee type is required",
-              })}
-            >
-              <option value="Employee">Employee</option>
-              <option value="Manager">Manager</option>
-              <option value="Executive">Executive</option>
-              <option value="Supervisor">Coordinator</option>
-              <option value="Outsource">Outsource</option>
-              <option value="Internee">Internee</option>
-            </select>
+            <Controller
+              name="employee_type"
+              control={control}
+              rules={{ required: "Employee type is required" }}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  inputId="employee_type"
+                  options={EMPLOYEE_TYPE_OPTIONS}
+                  styles={selectStyles}
+                  classNamePrefix="react-select"
+                  value={EMPLOYEE_TYPE_OPTIONS.find((o) => o.value === value) || null}
+                  onChange={(opt) => onChange(opt ? opt.value : "")}
+                  placeholder="Select type"
+                />
+              )}
+            />
             {formErrors.employee_type && (
               <p className="text-danger-500 text-xs mt-1">
                 {formErrors.employee_type.message}
@@ -418,23 +479,80 @@ const EditEmployee = () => {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="probation_period_end_date" className="form-label">
+              Probation Period End Date
+            </label>
+            <Controller
+              name="probation_period_end_date"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Flatpickr
+                  value={value || ""}
+                  className="form-control py-2"
+                  placeholder="Select date"
+                  onChange={onChange}
+                  options={{ altInput: true, altFormat: "M j, Y", dateFormat: "Y-m-d" }}
+                />
+              )}
+            />
+          </div>
+          {["Employee", "Manager", "Executive"].includes(watchedEmployeeType) && (
+            <div>
+              <label htmlFor="manager_id" className="form-label">
+                Manager
+              </label>
+              <Controller
+                name="manager_id"
+                control={control}
+                render={({ field: { onChange, value } }) => {
+                  const managerOptions = allEmployees
+                    .filter((emp) => emp.employee_type === "Manager")
+                    .map((emp) => ({ value: emp.id, label: emp.name }));
+                  return (
+                    <Select
+                      inputId="manager_id"
+                      options={managerOptions}
+                      styles={selectStyles}
+                      classNamePrefix="react-select"
+                      value={managerOptions.find((o) => String(o.value) === String(value)) || null}
+                      onChange={(opt) => onChange(opt ? opt.value : "")}
+                      placeholder="Select Manager"
+                      isClearable
+                    />
+                  );
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         {watchedEmployeeType === "Internee" && (
           <div>
             <label htmlFor="internee_manager_id" className="form-label mb-1">
               Internee Manager*
             </label>
-            <select
-              id="internee_manager_id"
-              className={`form-control py-2 ${
-                formErrors.internee_manager_id ? "border-danger-500" : "border-slate-300 dark:border-slate-600"
-              }`}
-              {...register("internee_manager_id", { required: "Manager is required for Internee" })}
-            >
-              <option value="">Select Manager</option>
-              {allEmployees.map((emp) => (
-                <option key={emp.id} value={emp.id}>{emp.name}</option>
-              ))}
-            </select>
+            <Controller
+              name="internee_manager_id"
+              control={control}
+              rules={{ required: "Manager is required for Internee" }}
+              render={({ field: { onChange, value } }) => {
+                const managerOptions = allEmployees.map((emp) => ({ value: emp.id, label: emp.name }));
+                return (
+                  <Select
+                    inputId="internee_manager_id"
+                    options={managerOptions}
+                    styles={selectStyles}
+                    classNamePrefix="react-select"
+                    value={managerOptions.find((o) => String(o.value) === String(value)) || null}
+                    onChange={(opt) => onChange(opt ? opt.value : "")}
+                    placeholder="Select Manager"
+                    isClearable
+                  />
+                );
+              }}
+            />
             {formErrors.internee_manager_id && (
               <p className="text-danger-500 text-xs mt-1">{formErrors.internee_manager_id.message}</p>
             )}

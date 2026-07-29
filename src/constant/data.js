@@ -80,14 +80,21 @@ export const menuItems = [
     allowedRoles: ["admin", "manager", "supervisor", "executive", "member"],
   },
 
-  // {
-  //   title: "My Grading",
-  //   isHide: false,
-  //   icon: "heroicons-outline:academic-cap",
-  //   link: "my-grading",
-  //   allowedRoles: ["employee", "manager", "supervisor", "executive", "outsource"],
-  // },
+  {
+    title: "My Grading",
+    isHide: false,
+    icon: "heroicons-outline:academic-cap",
+    link: "my-grading",
+    allowedRoles: ["internee"], // sirf internee employee_type walon ko dikhana ha
+  },
 
+  {
+    title: "Contracts",
+    isHide: false,
+    icon: "heroicons-outline:document-text",
+    link: "contracts",
+    allowedRoles: ["admin", "executive"],
+  },
   {
     title: "Employees",
     isHide: false,
@@ -119,6 +126,13 @@ export const menuItems = [
     link: "employeeleaves",
     // --- UPDATED ---
     allowedRoles: ["employee", "manager", "outsource", "supervisor", "executive"], 
+  },
+  {
+    title: "Notification Settings",
+    isHide: false,
+    icon: "heroicons-outline:bell",
+    link: "notification-settings",
+    allowedRoles: ["admin", "employee", "manager", "supervisor", "executive", "internee", "outsource"],
   },
   {
     title: "Subscriptions",

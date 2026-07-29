@@ -6,6 +6,7 @@
   import "flatpickr/dist/themes/light.css";
   import axios from "axios";
   import { getMediaUrl } from "@/pages/utility/apiHelper";
+  import EmployeeWorkStats from "./AdminWorkSession/EmployeeWorkStats";
 
   // --- START: HELPER FUNCTIONS ---
 
@@ -31,8 +32,10 @@
 
   const CustomDropdown = ({ value, onChange, placeholder, disabled, children }) => {
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
     const triggerRef = useRef(null);
     const panelRef = useRef(null);
+    const searchRef = useRef(null);
     const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 0 });
 
     const handleToggle = () => {
@@ -41,6 +44,7 @@
         const r = triggerRef.current.getBoundingClientRect();
         setPanelPos({ top: r.bottom + 4, left: r.left, width: r.width });
       }
+      setQuery("");
       setOpen((o) => !o);
     };
 
@@ -55,6 +59,10 @@
       };
       document.addEventListener("mousedown", handler);
       return () => document.removeEventListener("mousedown", handler);
+    }, [open]);
+
+    useEffect(() => {
+      if (open) searchRef.current?.focus();
     }, [open]);
 
     return (
@@ -85,9 +93,22 @@
           <div
             ref={panelRef}
             style={{ position: "fixed", top: panelPos.top, left: panelPos.left, width: panelPos.width, zIndex: 9999 }}
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-52 py-1"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden flex flex-col"
           >
-            {children((v) => { onChange(v); setOpen(false); })}
+            <div className="p-1.5 border-b border-slate-200 dark:border-slate-600 shrink-0">
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Search..."
+                className="w-full px-2.5 py-1.5 text-sm rounded-md border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+            </div>
+            <div className="overflow-y-auto max-h-52 py-1">
+              {children((v) => { onChange(v); setOpen(false); }, query.trim().toLowerCase())}
+            </div>
           </div>
         )}
       </div>
@@ -163,6 +184,25 @@
     const minutes = Math.floor(diff / 60);
     const seconds = Math.floor(diff % 60);
     return `${minutes}m ${seconds}s`;
+  };
+  const getIdleSeconds = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diff = Math.abs(end - start) / 1000;
+    return isNaN(diff) ? 0 : diff;
+  };
+  // --- Helper to parse "2h 29m" or "29m" or "29s" to seconds ---
+  const parseDurationString = (str) => {
+    if (!str) return 0;
+    let totalSeconds = 0;
+    const hMatch = str.match(/(\d+)h/);
+    if (hMatch) totalSeconds += parseInt(hMatch[1]) * 3600;
+    const mMatch = str.match(/(\d+)m/);
+    if (mMatch) totalSeconds += parseInt(mMatch[1]) * 60;
+    const sMatch = str.match(/(\d+)s/);
+    if (sMatch) totalSeconds += parseInt(sMatch[1]);
+    return totalSeconds;
   };
   // --- END: HELPER FUNCTIONS ---
 
@@ -241,10 +281,6 @@
         toast.error("Please fill all required fields.");
         return;
       }
-      if (!proofFile) {
-        toast.error("Please upload a proof file.");
-        return;
-      }
       const startDateTime = new Date(startDate);
       const [startH, startM] = startTime.split(":");
       startDateTime.setHours(startH, startM);
@@ -263,7 +299,9 @@
       formData.append("end_date", formatDateForAPI(endDate));
       formData.append("end_time", endTime);
       formData.append("memo_content", memoContent.trim());
-      formData.append("proof_pdf", proofFile);
+      if (proofFile) {
+        formData.append("proof_pdf", proofFile);
+      }
       try {
         await axios.post(API_URL, formData, {
           headers: {
@@ -325,12 +363,16 @@
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Job <span className="text-red-500">*</span></label>
                   <CustomDropdown value={getProjectLabel()} onChange={setSelectedProject} placeholder="Select a job">
-                    {(select) =>
-                      Object.entries(projects).map(([status, projectList]) => (
-                        <div key={status}>
-                          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
-                          {Array.isArray(projectList) &&
-                            projectList.map((p) => (
+                    {(select, query) =>
+                      Object.entries(projects).map(([status, projectList]) => {
+                        const filteredList = (Array.isArray(projectList) ? projectList : []).filter((p) =>
+                          !query || p.project_name?.toLowerCase().includes(query)
+                        );
+                        if (filteredList.length === 0) return null;
+                        return (
+                          <div key={status}>
+                            <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
+                            {filteredList.map((p) => (
                               <button key={p.id} type="button" onClick={() => select(p.id)}
                                 className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                                   String(selectedProject) === String(p.id)
@@ -341,8 +383,9 @@
                                 {p.project_name}
                               </button>
                             ))}
-                        </div>
-                      ))
+                          </div>
+                        );
+                      })
                     }
                   </CustomDropdown>
                 </div>
@@ -355,20 +398,22 @@
                       placeholder={isTasksLoading ? "Loading..." : "Select a Task"}
                       disabled={isTasksLoading}
                     >
-                      {(select) =>
-                        flattenTasksForDropdown(tasks).map(({ id, label, depth }) => (
-                          <button key={id} type="button" onClick={() => select(id)}
-                            style={{ paddingLeft: `${12 + depth * 14}px` }}
-                            className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
-                              String(selectedTask) === String(id)
-                                ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
-                                : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
-                            }`}
-                          >
-                            {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
-                            {label}
-                          </button>
-                        ))
+                      {(select, query) =>
+                        flattenTasksForDropdown(tasks)
+                          .filter(({ label }) => !query || label?.toLowerCase().includes(query))
+                          .map(({ id, label, depth }) => (
+                            <button key={id} type="button" onClick={() => select(id)}
+                              style={{ paddingLeft: `${12 + depth * 14}px` }}
+                              className={`w-full text-left py-2 pr-4 text-sm transition-colors ${
+                                String(selectedTask) === String(id)
+                                  ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                              }`}
+                            >
+                              {depth > 0 && <span className="text-slate-400 mr-1">{"↳ ".repeat(depth)}</span>}
+                              {label}
+                            </button>
+                          ))
                       }
                     </CustomDropdown>
                   </div>
@@ -406,7 +451,7 @@
 
               {/* Proof File */}
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Proof File</label>
                 <input ref={proofFileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setProofFile(e.target.files[0] || null)} />
                 {proofFile ? (
                   <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
@@ -474,6 +519,10 @@
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [overallTotalTime, setOverallTotalTime] = useState("0h 0m");
     const [manualTotalTime, setManualTotalTime] = useState("0h 0m");
+    const [windowsActivity, setWindowsActivity] = useState([]);
+    const [totalIdleSeconds, setTotalIdleSeconds] = useState(0);
+    const [totalWorkSeconds, setTotalWorkSeconds] = useState(0);
+    const [totalManualSeconds, setTotalManualSeconds] = useState(0);
     const [isIdleTimeModalOpen, setIsIdleTimeModalOpen] = useState(false);
     const [selectedSessionIdleTimes, setSelectedSessionIdleTimes] = useState([]);
     const [isManualTimeModalOpen, setIsManualTimeModalOpen] = useState(false);
@@ -608,14 +657,29 @@
         const fetchedSessions = result.data?.reverse() || [];
         setSessions(fetchedSessions);
         setOverallTotalTime(result.overall_total_time || "0h 0m");
-        const totalManualSeconds = fetchedSessions
+        const manualSeconds = fetchedSessions
           .filter((session) => session.type === "Manual")
           .reduce(
             (acc, session) =>
               acc + Math.abs(session.raw_calculation?.net_seconds || 0),
             0
           );
-        setManualTotalTime(formatSecondsToHoursMinutes(totalManualSeconds));
+        setManualTotalTime(formatSecondsToHoursMinutes(manualSeconds));
+        setTotalManualSeconds(manualSeconds);
+        setTotalWorkSeconds(parseDurationString(result.overall_total_time));
+        const idleSeconds = fetchedSessions.reduce((acc, session) => {
+          if (!Array.isArray(session.idle_times)) return acc;
+          return (
+            acc +
+            session.idle_times.reduce(
+              (idleAcc, idle) =>
+                idleAcc + getIdleSeconds(idle.start_time, idle.end_time),
+              0
+            )
+          );
+        }, 0);
+        setTotalIdleSeconds(idleSeconds);
+        setWindowsActivity(result.windows_activity || []);
         setPaginationInfo({
           currentPage: result.current_page,
           lastPage: result.last_page,
@@ -624,6 +688,10 @@
         toast.error(err.message);
         setOverallTotalTime("0h 0m");
         setManualTotalTime("0h 0m");
+        setTotalManualSeconds(0);
+        setTotalWorkSeconds(0);
+        setTotalIdleSeconds(0);
+        setWindowsActivity([]);
         setSessions([]);
       } finally {
         setLoading(false);
@@ -831,7 +899,7 @@
           token={token}
           onSuccess={handleSearch}
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
             <div>
               <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
@@ -871,71 +939,114 @@
                 <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Job
                 </label>
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
+                <CustomDropdown
+                  value={
+                    selectedProject
+                      ? Object.values(projects).flat().find((p) => String(p.id) === String(selectedProject))?.project_name
+                      : ""
+                  }
+                  onChange={setSelectedProject}
+                  placeholder={projectsLoading ? "Loading..." : "All Jobs"}
                   disabled={projectsLoading}
-                  className="form-select w-full"
                 >
-                  <option value="">All Jobs</option>
-                  {projectsLoading ? (
-                    <option disabled>Loading...</option>
-                  ) : (
-                    Object.entries(projects).map(([status, projectList]) => (
-                      <optgroup key={status} label={status}>
-                        {Array.isArray(projectList) &&
-                          projectList.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.project_name}
-                            </option>
-                          ))}{" "}
-                      </optgroup>
-                    ))
+                  {(select, query) => (
+                    <>
+                      {!query && (
+                        <button type="button" onClick={() => select("")}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            !selectedProject
+                              ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                          }`}
+                        >
+                          All Jobs
+                        </button>
+                      )}
+                      {Object.entries(projects).map(([status, projectList]) => {
+                        const filteredList = (Array.isArray(projectList) ? projectList : []).filter((p) =>
+                          !query || p.project_name?.toLowerCase().includes(query)
+                        );
+                        if (filteredList.length === 0) return null;
+                        return (
+                          <div key={status}>
+                            <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50">{status}</div>
+                            {filteredList.map((p) => (
+                              <button key={p.id} type="button" onClick={() => select(p.id)}
+                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                  String(selectedProject) === String(p.id)
+                                    ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                                }`}
+                              >
+                                {p.project_name}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
-                </select>
+                </CustomDropdown>
               </div>
 
               {/* [MODIFIED] We now map over the padded `renderableFilters` array */}
-              {renderableFilters.map((filter, index) => (
-                <div key={index} className="flex flex-col justify-end">
-                  <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-                    {taskLabels[index] || `Sub-Task Level ${index + 1}`}
-                  </label>
-                  <select
-                    value={filter.selected}
-                    onChange={(e) => handleTaskChange(index, e.target.value)}
-                    // [MODIFIED] New disabling logic
-                    disabled={
-                      tasksLoading ||
-                      (index === 0 && !selectedProject) || // First dropdown needs a project
-                      (index > 0 && !taskFilters[index - 1]?.selected) // Subsequent dropdowns need the previous one to be selected
-                    }
-                    className="form-select w-full"
-                  >
-                    <option value="">{`All ${
-                      taskLabels[index] || `Tasks`
-                    }`}</option>
-
-                    {/* [MODIFIED] New placeholder logic */}
-                    {index === 0 && !selectedProject && (
-                      <option disabled>Select a job first</option>
-                    )}
-                    {index > 0 && !taskFilters[index - 1]?.selected && (
-                      <option disabled>Select parent task first</option>
-                    )}
-
-                    {tasksLoading && selectedProject && index === 0 && (
-                      <option disabled>Loading...</option>
-                    )}
-
-                    {filter.options.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.task_title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              {renderableFilters.map((filter, index) => {
+                const isDisabled =
+                  tasksLoading ||
+                  (index === 0 && !selectedProject) || // First dropdown needs a project
+                  (index > 0 && !taskFilters[index - 1]?.selected); // Subsequent dropdowns need the previous one to be selected
+                const levelLabel = taskLabels[index] || `Sub-Task Level ${index + 1}`;
+                let placeholder = `All ${taskLabels[index] || "Tasks"}`;
+                if (index === 0 && !selectedProject) placeholder = "Select a job first";
+                else if (index > 0 && !taskFilters[index - 1]?.selected) placeholder = "Select parent task first";
+                else if (tasksLoading && selectedProject && index === 0) placeholder = "Loading...";
+                return (
+                  <div key={index} className="flex flex-col justify-end">
+                    <label className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+                      {levelLabel}
+                    </label>
+                    <CustomDropdown
+                      value={
+                        filter.selected
+                          ? filter.options.find((t) => String(t.id) === String(filter.selected))?.task_title
+                          : ""
+                      }
+                      onChange={(v) => handleTaskChange(index, v)}
+                      placeholder={placeholder}
+                      disabled={isDisabled}
+                    >
+                      {(select, query) => (
+                        <>
+                          {!query && (
+                            <button type="button" onClick={() => select("")}
+                              className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                !filter.selected
+                                  ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                              }`}
+                            >
+                              {`All ${taskLabels[index] || "Tasks"}`}
+                            </button>
+                          )}
+                          {filter.options
+                            .filter((t) => !query || t.task_title?.toLowerCase().includes(query))
+                            .map((t) => (
+                              <button key={t.id} type="button" onClick={() => select(t.id)}
+                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                  String(filter.selected) === String(t.id)
+                                    ? "bg-slate-100 dark:bg-slate-700 font-medium text-slate-900 dark:text-white"
+                                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                                }`}
+                              >
+                                {t.task_title}
+                              </button>
+                            ))}
+                        </>
+                      )}
+                    </CustomDropdown>
+                  </div>
+                );
+              })}
 
               {/* [MODIFIED] Adjusted column span to accommodate the new always-visible dropdowns */}
               <div className="flex flex-col justify-end lg:col-span-2">
@@ -971,6 +1082,22 @@
             </div>
           </div>
           {/* --- UI UPDATED END --- */}
+
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 mb-8 font-sans">
+            {loading && isInitialLoad ? (
+              <div className="h-40 flex items-center justify-center text-slate-500">
+                Calculating stats...
+              </div>
+            ) : (
+              <EmployeeWorkStats
+                sessions={sessions}
+                rootActivityList={windowsActivity}
+                totalIdleSeconds={totalIdleSeconds}
+                totalWorkSeconds={totalWorkSeconds}
+                totalManualSeconds={totalManualSeconds}
+              />
+            )}
+          </div>
 
           <div className="border-t border-slate-200 dark:border-slate-700">
             {loading && isInitialLoad ? (

@@ -232,7 +232,6 @@ const EditTaskModal = () => {
                 styles={styles}
                 className="react-select"
                 classNamePrefix="select"
-                isSearchable={false}
                 isMulti
                 defaultValue={assigneeOptions[0]}
                 components={{

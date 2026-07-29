@@ -1,101 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-
-// --- COLORS PALETTE ---
-const APP_COLORS = [
-  "#3b82f6", // Blue
-  "#10b981", // Emerald
-  "#f59e0b", // Amber
-  "#ef4444", // Red
-  "#8b5cf6", // Violet
-  "#ec4899", // Pink
-  "#06b6d4", // Cyan
-  "#6366f1", // Indigo
-  "#84cc16", // Lime
-  "#d946ef", // Fuchsia
-];
-
-// --- HELPER: Seconds to Readable String ---
-const formatDuration = (totalSeconds) => {
-  if (!totalSeconds || totalSeconds <= 0) return "0s";
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-};
-
-// --- HELPER: Categorize Apps ---
-const determineCategory = (appName, windowTitle) => {
-  if (!appName) return "Neutral";
-  const lowerName = appName.toLowerCase();
-  const lowerTitle = windowTitle ? windowTitle.toLowerCase() : "";
-
-  const socialKeywords = [
-    "facebook",
-    "instagram",
-    "youtube",
-    "whatsapp",
-    "twitter",
-    "tiktok",
-    "netflix",
-    "spotify",
-    "discord",
-    "reddit",
-  ];
-  if (
-    socialKeywords.some((k) => lowerName.includes(k) || lowerTitle.includes(k))
-  )
-    return "Social";
-
-  const productiveKeywords = [
-    "visual studio",
-    "vscode",
-    "pycharm",
-    "git",
-    "github",
-    "docker",
-    "postman",
-    "excel",
-    "word",
-    "powerpoint",
-    "outlook",
-    "teams",
-    "slack",
-    "zoom",
-    "meet",
-    "archilance",
-    "autocad",
-    "revit",
-    "photoshop",
-    "figma",
-    "canva",
-    "chatgpt",
-    "claude",
-    "ai studio",
-  ];
-  if (
-    productiveKeywords.some(
-      (k) => lowerName.includes(k) || lowerTitle.includes(k)
-    )
-  )
-    return "Productive";
-
-  if (
-    lowerName.includes("chrome") ||
-    lowerName.includes("edge") ||
-    lowerName.includes("firefox")
-  ) {
-    if (
-      lowerTitle.includes("admin") ||
-      lowerTitle.includes("crm") ||
-      lowerTitle.includes("archilance") ||
-      lowerTitle.includes("docs")
-    )
-      return "Productive";
-    return "Neutral";
-  }
-  return "Neutral";
-};
+import { APP_COLORS, formatDuration, computeDashboardStats } from "./workStatsHelpers";
 
 // --- HELPER: Calculate Tooltip Position ---
 const calculateTooltipPos = (data) => {
@@ -120,98 +25,10 @@ const EmployeeWorkStats = ({
   const onPieEnter = (data) => setHoveredSlice(data);
   const onPieLeave = () => setHoveredSlice(null);
 
-  const dashboardData = useMemo(() => {
-    let appMap = {};
-    let categoryStats = { Productive: 0, Social: 0, Neutral: 0, Idle: 0 };
-    let totalActivitySeconds = 0;
-
-    // 1. Process Windows Activity (For Productive/App Time)
-    if (Array.isArray(rootActivityList)) {
-      rootActivityList.forEach((activity) => {
-        if (activity?.app_name && activity?.duration_seconds) {
-          const dur = parseFloat(activity.duration_seconds);
-          if (!isNaN(dur) && dur > 0) {
-            const cleanAppName = activity.app_name.trim();
-            const category = determineCategory(
-              cleanAppName,
-              activity.window_title
-            );
-
-            if (!appMap[cleanAppName]) {
-              appMap[cleanAppName] = {
-                duration: 0,
-                category: category,
-                count: 0,
-              };
-            }
-            appMap[cleanAppName].duration += dur;
-            appMap[cleanAppName].count += 1;
-
-            if (categoryStats[category] !== undefined)
-              categoryStats[category] += dur;
-            totalActivitySeconds += dur;
-          }
-        }
-      });
-    }
-
-    // NOTE: We are NOT recalculating idle time here anymore.
-    // We rely on the 'totalIdleSeconds' prop passed from the parent.
-    const grandTotal = totalWorkSeconds > 0 ? totalWorkSeconds : (totalActivitySeconds + totalIdleSeconds);
-
-    // 3. Sort Apps by Duration
-    const sortedApps = Object.entries(appMap)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.duration - a.duration);
-
-    // 4. Create Pie Data
-    const topAppsCount = 5;
-    const topApps = sortedApps.slice(0, topAppsCount);
-    const otherApps = sortedApps.slice(topAppsCount);
-    const otherDuration = otherApps.reduce(
-      (acc, curr) => acc + curr.duration,
-      0
-    );
-
-    const finalPieData = topApps.map((app, index) => ({
-      name: app.name,
-      value: app.duration,
-      total: grandTotal,
-      category: app.category,
-      color: APP_COLORS[index % APP_COLORS.length],
-    }));
-
-    if (otherDuration > 0) {
-      finalPieData.push({
-        name: "Others",
-        value: otherDuration,
-        total: grandTotal,
-        category: "Multiple",
-        color: "#94a3b8",
-      });
-    }
-
-    // Add Idle Time Slice if exists
-    if (totalIdleSeconds > 0) {
-      finalPieData.push({
-        name: "Idle Time",
-        value: totalIdleSeconds,
-        total: grandTotal,
-        category: "Idle",
-        color: "#fbbf24", // Amber/Yellow
-      });
-    }
-
-    return {
-      pieData: finalPieData,
-      aggregatedApps: sortedApps.slice(0, 10),
-      stats: {
-        totalSeconds: grandTotal,
-        productiveSeconds: categoryStats.Productive,
-        idleSeconds: totalIdleSeconds, // <--- Using the Prop Here directly
-      },
-    };
-  }, [sessions, rootActivityList, totalIdleSeconds, totalWorkSeconds]);
+  const dashboardData = useMemo(
+    () => computeDashboardStats(rootActivityList, totalIdleSeconds, totalWorkSeconds),
+    [rootActivityList, totalIdleSeconds, totalWorkSeconds]
+  );
 
   return (
     <div className="font-sans">
@@ -247,14 +64,7 @@ const EmployeeWorkStats = ({
             Productivity %
           </p>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-            {dashboardData.stats.totalSeconds > 0
-              ? Math.round(
-                  (dashboardData.stats.productiveSeconds /
-                    dashboardData.stats.totalSeconds) *
-                    100
-                )
-              : 0}
-            %
+            {dashboardData.stats.productivePercent}%
           </h2>
         </div>
 
@@ -268,7 +78,7 @@ const EmployeeWorkStats = ({
         </div>
       </div>
 
-      {/* Charts Grid */}
+      {/* Charts Grid — Top Apps & Activity Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT: Detailed List */}
         <div className="lg:col-span-1 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">

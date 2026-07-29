@@ -5,13 +5,13 @@ import "flatpickr/dist/themes/light.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
+import Select from "react-select";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import {
   useTable,
   useSortBy,
   useGlobalFilter,
-  usePagination,
 } from "react-table";
 import GlobalFilter from "../table/react-table/GlobalFilter";
 import ConfirmDeleteModal from "@/components/ui/ConfirmDeleteModal";
@@ -19,6 +19,87 @@ import Alert from "@/components/ui/Alert";
 import Tooltip from "@/components/ui/Tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { canManageEmployees, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "online", label: "Online" },
+  { value: "offline", label: "Offline" },
+  { value: "extra-time", label: "Extra Time" },
+];
+
+const EMPLOYEE_TYPE_OPTIONS = [
+  { value: "Manager", label: "Manager" },
+  { value: "Executive", label: "Executive" },
+  { value: "Supervisor", label: "Coordinator" },
+  { value: "Employee", label: "Employee" },
+  { value: "Internee", label: "Internee" },
+  { value: "Outsource", label: "Outsource" },
+  { value: "none", label: "Unassigned" },
+];
+
+// Mirrors the role-based visibility rules used when filtering the fetched list,
+// so the type dropdown never offers a type a given role isn't allowed to see.
+const getAllowedEmployeeTypeValues = (user) => {
+  const role = user?.role?.toLowerCase();
+  const type = user?.employee_type?.toLowerCase();
+
+  if (role === "admin") {
+    return EMPLOYEE_TYPE_OPTIONS.map((o) => o.value);
+  }
+  if (type === "manager" || type === "executive") {
+    const values = ["Supervisor", "Employee", "Internee", "none"];
+    if (type === "executive") values.unshift("Manager");
+    return values;
+  }
+  if (type === "supervisor") {
+    return ["Employee", "Internee", "none"];
+  }
+  if (type === "employee") {
+    return ["Employee"];
+  }
+  return EMPLOYEE_TYPE_OPTIONS.map((o) => o.value);
+};
+
+const statusFilterSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#94a3b8" : "#cbd5e1",
+    borderRadius: "0.375rem",
+    minHeight: "40px",
+    boxShadow: "none",
+    "&:hover": { borderColor: "#94a3b8" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  clearIndicator: (base) => ({ ...base, color: "#94a3b8", ":hover": { color: "#64748b" } }),
+  dropdownIndicator: (base) => ({ ...base, color: "#94a3b8", ":hover": { color: "#64748b" } }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    backgroundColor: state.isSelected ? "#0f172a" : state.isFocused ? "#f1f5f9" : null,
+    color: state.isSelected ? "white" : "#0f172a",
+    ":active": { backgroundColor: "#e2e8f0" },
+  }),
+  // Global CSS only whitens multi-value chip text for the "select" classNamePrefix,
+  // not "react-select" (used here), which left chips dark-on-dark. Set explicitly.
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: "#0f172a",
+    borderRadius: "4px",
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: "#ffffff",
+    fontSize: "12px",
+    padding: "4px 6px",
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: "#cbd5e1",
+    ":hover": { backgroundColor: "transparent", color: "#ffffff" },
+  }),
+};
 
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
@@ -235,30 +316,7 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
             }}
             className="flex items-center space-x-3 rtl:space-x-reverse"
           >
-            <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
-              {profile_pic ? (
-                <img
-                  src={getMediaUrl(profile_pic)}
-                  alt={name || "Profile"}
-                  className="object-cover w-full h-full rounded-full"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    const initials = name
-                      ? name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                      : "?";
-                    e.target.outerHTML = `<span class="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">${initials}</span>`;
-                  }}
-                />
-              ) : (
-                <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
-                  {name ? name.charAt(0).toUpperCase() : "?"}
-                </span>
-              )}
-            </span>
+            <EmployeeAvatar profilePic={profile_pic} name={name} />
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-300 capitalize group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-150">
@@ -425,6 +483,57 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
   return baseColumns;
 };
 
+// Avatar with a React-SAFE image fallback. The previous onError handler assigned
+// img.outerHTML directly, which pulled the React-managed <img> out of the DOM; the
+// next re-render (e.g. changing pages) then crashed with
+// "Failed to execute 'removeChild' on 'Node'". Tracking the failure in state and
+// letting React swap the element keeps the node under React's control.
+const EmployeeAvatar = ({ profilePic, name }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false); // this row slot got reused for a different employee — retry theirs
+  }, [profilePic]);
+
+  const src = profilePic && !failed ? getMediaUrl(profilePic) : null;
+  const initial = name ? name.charAt(0).toUpperCase() : "?";
+
+  return (
+    <span className="w-7 h-7 rounded-full flex-none bg-slate-600">
+      {src ? (
+        <img
+          src={src}
+          alt={name || "Profile"}
+          className="object-cover w-full h-full rounded-full"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="flex items-center justify-center w-full h-full text-xs text-white bg-slate-500 rounded-full">
+          {initial}
+        </span>
+      )}
+    </span>
+  );
+};
+
+// Compact page-number window: always show first & last, plus the current page and its
+// neighbours, collapsing the rest into "..." gaps.
+const buildPageList = (current, last) => {
+  const total = Math.max(1, Number(last) || 1);
+  const cur = Math.min(Math.max(1, Number(current) || 1), total);
+  const wanted = new Set([1, total, cur, cur - 1, cur + 1]);
+  const sorted = [...wanted]
+    .filter((n) => n >= 1 && n <= total)
+    .sort((a, b) => a - b);
+  const out = [];
+  let prev = 0;
+  for (const n of sorted) {
+    if (prev && n - prev > 1) out.push("...");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+};
+
 const Allemployees = () => {
   const { user } = useAuth();
   const [employeeData, setEmployeeData] = useState([]);
@@ -437,9 +546,47 @@ const Allemployees = () => {
   const [deleteError, setDeleteError] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
+  const [employeeTypeFilter, setEmployeeTypeFilter] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [pageMeta, setPageMeta] = useState({ currentPage: 1, lastPage: 1, total: 0 });
+  const fetchSeqRef = useRef(0); // guards against out-of-order page/search fetches
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce the search box so the SERVER filters across ALL rows (not just the
+  // current page). Reset to page 1 whenever the term changes.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const handleSearchChange = useCallback((val) => {
+    setSearchTerm(val);
+    setCurrentPage(1);
+  }, []);
   const hasManagementPermission = useMemo(() => canManageEmployees(), []);
 
+  const isIndividualEmployee = useMemo(
+    () =>
+      user?.role?.toLowerCase() !== "admin" &&
+      user?.employee_type?.toLowerCase() === "employee",
+    [user]
+  );
+
+  const allowedEmployeeTypes = useMemo(
+    () => getAllowedEmployeeTypeValues(user),
+    [user]
+  );
+
+  const employeeTypeOptions = useMemo(
+    () => EMPLOYEE_TYPE_OPTIONS.filter((o) => allowedEmployeeTypes.includes(o.value)),
+    [allowedEmployeeTypes]
+  );
+
   const fetchEmployees = useCallback(async () => {
+    if (!user) return;
+    const reqId = ++fetchSeqRef.current;
     setLoading(true);
     setFetchError(null);
     setDeleteSuccess(null);
@@ -452,6 +599,25 @@ const Allemployees = () => {
     }
     try {
       const apiPath = getApiBasePathForRole("/employee-user");
+
+      // A single employee only ever sees their own record, so there's nothing
+      // to paginate or filter by type for that role.
+      const params = isIndividualEmployee
+        ? { page: 1, per_page: 500, employee_type: "Employee" }
+        : (() => {
+            const selectedTypes = employeeTypeFilter.length
+              ? employeeTypeFilter.filter((v) => allowedEmployeeTypes.includes(v))
+              : allowedEmployeeTypes;
+            const base = { page: currentPage, per_page: perPage };
+            if (debouncedSearch) base.search = debouncedSearch;
+            // Admin with no explicit type filter selected sees everyone; skip the param.
+            const isAdmin = user.role?.toLowerCase() === "admin";
+            if (isAdmin && employeeTypeFilter.length === 0) {
+              return base;
+            }
+            return { ...base, employee_type: selectedTypes.join(",") };
+          })();
+
       const response = await axios.get(
         `${import.meta.env.VITE_BACKEND_BASE_URL}${apiPath}`,
         {
@@ -459,23 +625,34 @@ const Allemployees = () => {
             Authorization: `Bearer ${token}`,
             Accept: "application/json",
           },
+          params,
         }
       );
 
+      // Ignore a response that a newer page/search request has already superseded.
+      if (reqId !== fetchSeqRef.current) return;
+
+      const responseData = response.data;
       let rawData = [];
-      if (response.data && Array.isArray(response.data.data)) {
-        rawData = response.data.data;
-      } else if (response.data && Array.isArray(response.data)) {
-        rawData = response.data;
+      if (responseData && Array.isArray(responseData.data)) {
+        rawData = responseData.data;
+        setPageMeta({
+          currentPage: responseData.current_page ?? params.page,
+          lastPage: responseData.last_page ?? 1,
+          total: responseData.total ?? rawData.length,
+        });
+      } else if (Array.isArray(responseData)) {
+        rawData = responseData;
+        setPageMeta({ currentPage: 1, lastPage: 1, total: rawData.length });
       } else {
         setFetchError("Received unexpected data format from server.");
         setEmployeeData([]);
         return;
       }
 
-
       setEmployeeData(rawData);
     } catch (err) {
+      if (reqId !== fetchSeqRef.current) return;
       setFetchError(
         err.response?.data?.message ||
           err.message ||
@@ -483,9 +660,9 @@ const Allemployees = () => {
       );
       setEmployeeData([]);
     } finally {
-      setLoading(false);
+      if (reqId === fetchSeqRef.current) setLoading(false);
     }
-  }, []);
+  }, [user, isIndividualEmployee, employeeTypeFilter, allowedEmployeeTypes, currentPage, perPage, debouncedSearch]);
 
   useEffect(() => {
     fetchEmployees();
@@ -506,6 +683,8 @@ const Allemployees = () => {
 
     const isExecutive = currentUserType === "executive";
 
+    // The server already scopes results by role/type (see fetchEmployees); this
+    // stays as a defense-in-depth guard against unexpected backend data.
     roleFilteredData = employeeData.filter((emp) => {
       const empType = emp.employee_type?.toLowerCase().trim();
       let keep = false;
@@ -593,13 +772,11 @@ const Allemployees = () => {
           },
         }
       );
-      setEmployeeData((prevData) =>
-        prevData.filter((emp) => emp.id !== employeeToDelete.id)
-      );
       setDeleteSuccess(
         `Employee "${employeeToDelete.name}" deleted successfully!`
       );
       handleCloseDeleteModal();
+      await fetchEmployees();
       setTimeout(() => setDeleteSuccess(null), 4000);
     } catch (err) {
       setDeleteError(
@@ -610,7 +787,7 @@ const Allemployees = () => {
     } finally {
       setDeleteLoading(false);
     }
-  }, [employeeToDelete, handleCloseDeleteModal]);
+  }, [employeeToDelete, handleCloseDeleteModal, fetchEmployees]);
 
   const isAdmin = useMemo(() => {
     return user?.role?.toLowerCase() === "admin";
@@ -631,30 +808,26 @@ const Allemployees = () => {
   const data = useMemo(() => filteredData, [filteredData]);
 
   const tableInstance = useTable(
-    { columns, data, initialState: { pageIndex: 0, pageSize: 10 } },
+    { columns, data },
     useGlobalFilter,
-    useSortBy,
-    usePagination
+    useSortBy
   );
 
   const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
-    page,
-    nextPage,
-    previousPage,
-    canNextPage,
-    canPreviousPage,
-    pageOptions,
+    rows,
     state,
-    gotoPage,
-    pageCount,
-    setPageSize,
     setGlobalFilter,
     prepareRow,
   } = tableInstance;
-  const { globalFilter, pageIndex, pageSize } = state;
+  const { globalFilter } = state;
+
+  const goToPage = (p) => {
+    const target = Math.min(Math.max(1, p), Math.max(1, pageMeta.lastPage));
+    if (target !== currentPage) setCurrentPage(target);
+  };
 
   if (loading && !employeeData.length) {
     return (
@@ -684,26 +857,42 @@ const Allemployees = () => {
           <div className="flex items-center space-x-3 w-full md:w-auto">
             <div className="flex-1">
               <GlobalFilter
-                value={globalFilter}
-                onChange={setGlobalFilter}
+                value={searchTerm}
+                onChange={handleSearchChange}
                 placeholder="Search employees..."
               />
             </div>
+            {!isIndividualEmployee && employeeTypeOptions.length > 0 && (
+              <div className="w-auto min-w-[220px]">
+                <Select
+                  inputId="employee-type-filter"
+                  isMulti
+                  options={employeeTypeOptions}
+                  styles={statusFilterSelectStyles}
+                  classNamePrefix="react-select"
+                  value={employeeTypeOptions.filter((o) =>
+                    employeeTypeFilter.includes(o.value)
+                  )}
+                  onChange={(selected) => {
+                    setEmployeeTypeFilter(selected ? selected.map((s) => s.value) : []);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Filter by type"
+                />
+              </div>
+            )}
             {isAdmin && (
               <div className="w-auto min-w-[150px]">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="form-control h-10 w-full"
-                >
-                  <option value="" disabled>
-                    Filter
-                  </option>
-                  <option value="all">All</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                  <option value="extra-time">Extra Time</option>
-                </select>
+                <Select
+                  inputId="employee-status-filter"
+                  options={STATUS_FILTER_OPTIONS}
+                  styles={statusFilterSelectStyles}
+                  classNamePrefix="react-select"
+                  value={STATUS_FILTER_OPTIONS.find((o) => o.value === statusFilter) || null}
+                  onChange={(opt) => setStatusFilter(opt ? opt.value : "")}
+                  placeholder="Filter"
+                  isClearable
+                />
               </div>
             )}
             {hasManagementPermission && (
@@ -733,7 +922,13 @@ const Allemployees = () => {
             {deleteError}
           </Alert>
         )}
-        <div className="overflow-x-auto -mx-6">
+        <div
+          className={`overflow-x-auto -mx-6 transition-opacity duration-200 ${
+            loading && employeeData.length
+              ? "opacity-60 pointer-events-none"
+              : "opacity-100"
+          }`}
+        >
           <div className="inline-block min-w-full align-middle">
             <div className="overflow-hidden shadow-sm dark:shadow-slate-700 rounded-md">
               <table
@@ -771,8 +966,8 @@ const Allemployees = () => {
                   {...getTableBodyProps()}
                   className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700"
                 >
-                  {page.length > 0 ? (
-                    page.map((row) => {
+                  {rows.length > 0 ? (
+                    rows.map((row) => {
                       prepareRow(row);
                       const { key: rowKey, ...restOfRowProps } =
                         row.getRowProps();
@@ -811,13 +1006,16 @@ const Allemployees = () => {
             </div>
           </div>
         </div>
-        {page.length > 0 && (
+        {!isIndividualEmployee && rows.length > 0 && (
           <div className="md:flex md:space-y-0 space-y-5 justify-between mt-6 items-center">
             <div className="flex items-center space-x-3 rtl:space-x-reverse">
               <select
                 className="form-select py-2"
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
                 style={{ width: "100px" }}
               >
                 {[10, 25, 50, 100].map((size) => (
@@ -829,11 +1027,11 @@ const Allemployees = () => {
               <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                 Page{" "}
                 <span className="font-bold text-slate-900 dark:text-white">
-                  {pageIndex + 1} of {pageOptions.length}
+                  {pageMeta.currentPage} of {pageMeta.lastPage}
                 </span>
                 <span className="hidden sm:inline">
                   {" "}
-                  ({data.length} total records)
+                  ({pageMeta.total} total records)
                 </span>
               </span>
             </div>
@@ -841,10 +1039,10 @@ const Allemployees = () => {
               <li>
                 <button
                   className={`pagination-link ${
-                    !canPreviousPage && "opacity-50 cursor-not-allowed"
+                    currentPage <= 1 && "opacity-50 cursor-not-allowed"
                   }`}
-                  onClick={() => gotoPage(0)}
-                  disabled={!canPreviousPage}
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage <= 1}
                 >
                   <Icon icon="heroicons:chevron-double-left-20-solid" />
                 </button>
@@ -852,34 +1050,46 @@ const Allemployees = () => {
               <li>
                 <button
                   className={`pagination-link ${
-                    !canPreviousPage && "opacity-50 cursor-not-allowed"
+                    currentPage <= 1 && "opacity-50 cursor-not-allowed"
                   }`}
-                  onClick={() => previousPage()}
-                  disabled={!canPreviousPage}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
                 >
                   <Icon icon="heroicons-outline:chevron-left" />
                 </button>
               </li>
-              <li>
-                <input
-                  type="number"
-                  className="form-control py-2 w-[60px] text-center"
-                  value={pageIndex + 1}
-                  onChange={(e) => {
-                    const p = e.target.value ? Number(e.target.value) - 1 : 0;
-                    if (p < pageOptions.length && p >= 0) gotoPage(p);
-                  }}
-                  min="1"
-                  max={pageOptions.length}
-                />
-              </li>
+              {buildPageList(currentPage, pageMeta.lastPage).map((p, i) =>
+                p === "..." ? (
+                  <li
+                    key={`gap-${i}`}
+                    className="px-1 text-slate-400 select-none"
+                  >
+                    &hellip;
+                  </li>
+                ) : (
+                  <li key={p}>
+                    <button
+                      type="button"
+                      onClick={() => goToPage(p)}
+                      aria-current={p === currentPage ? "page" : undefined}
+                      className={`min-w-[2rem] h-8 px-2 flex items-center justify-center rounded-md text-sm font-medium transition-colors duration-150 ${
+                        p === currentPage
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </li>
+                )
+              )}
               <li>
                 <button
                   className={`pagination-link ${
-                    !canNextPage && "opacity-50 cursor-not-allowed"
+                    currentPage >= pageMeta.lastPage && "opacity-50 cursor-not-allowed"
                   }`}
-                  onClick={() => nextPage()}
-                  disabled={!canNextPage}
+                  onClick={() => setCurrentPage((p) => Math.min(pageMeta.lastPage, p + 1))}
+                  disabled={currentPage >= pageMeta.lastPage}
                 >
                   <Icon icon="heroicons-outline:chevron-right" />
                 </button>
@@ -887,10 +1097,10 @@ const Allemployees = () => {
               <li>
                 <button
                   className={`pagination-link ${
-                    !canNextPage && "opacity-50 cursor-not-allowed"
+                    currentPage >= pageMeta.lastPage && "opacity-50 cursor-not-allowed"
                   }`}
-                  onClick={() => gotoPage(pageCount - 1)}
-                  disabled={!canNextPage}
+                  onClick={() => setCurrentPage(pageMeta.lastPage)}
+                  disabled={currentPage >= pageMeta.lastPage}
                 >
                   <Icon icon="heroicons:chevron-double-right-20-solid" />
                 </button>

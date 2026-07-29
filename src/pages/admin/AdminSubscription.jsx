@@ -1,6 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, User, CreditCard, AlertCircle, CheckCircle, XCircle, RefreshCw, TrendingUp, Users } from 'lucide-react';
 import { getMediaUrl } from "@/pages/utility/apiHelper";
+import Select from "react-select";
+
+const SUBSCRIPTION_STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "active", label: "Active" },
+  { value: "canceled", label: "Canceled" },
+  { value: "pending", label: "Pending" },
+];
+
+const subscriptionStatusSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#3b82f6" : "#e5e7eb",
+    borderWidth: "2px",
+    borderRadius: "0.75rem",
+    minHeight: "48px",
+    boxShadow: "none",
+    paddingLeft: "2rem",
+    "&:hover": { borderColor: "#3b82f6" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "2px 8px" }),
+  input: (base) => ({ ...base, margin: "0px", padding: "0px" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  option: (provided, state) => ({
+    ...provided,
+    fontSize: "14px",
+    fontWeight: 500,
+    backgroundColor: state.isSelected ? "#111827" : state.isFocused ? "#f3f4f6" : null,
+    color: state.isSelected ? "white" : "#111827",
+    ":active": { backgroundColor: "#e5e7eb" },
+  }),
+};
 
 const UserAvatar = ({ user }) => {
   const [hasError, setHasError] = useState(false);
@@ -284,17 +316,16 @@ const AdminSubscription = () => {
             </div>
 
             <div className="relative">
-              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-12 pr-8 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 font-medium min-w-[160px]"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="canceled">Canceled</option>
-                <option value="pending">Pending</option>
-              </select>
+              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
+              <Select
+                options={SUBSCRIPTION_STATUS_OPTIONS}
+                styles={subscriptionStatusSelectStyles}
+                classNamePrefix="react-select"
+                className="min-w-[160px]"
+                value={SUBSCRIPTION_STATUS_OPTIONS.find((o) => o.value === statusFilter) || null}
+                onChange={(opt) => setStatusFilter(opt ? opt.value : "all")}
+                placeholder="All Status"
+              />
             </div>
           </div>
         </div>
