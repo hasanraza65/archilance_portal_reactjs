@@ -7,8 +7,26 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import Card from "@/components/ui/Card";
 import axios from "axios";
+import jsPDF from "jspdf";
+// html2canvas-pro (not plain html2canvas / html2pdf.js) — this app's Tailwind v4 theme emits
+// oklch() colors, which the html2canvas engine bundled inside html2pdf.js can't parse and
+// throws on. html2canvas-pro is a maintained fork that understands modern CSS color functions.
+import html2canvas from "html2canvas-pro";
 // Ensure correct import path
 import EmployeeWorkStats from "./EmployeeWorkStats";
+import WorkSessionPrintableReport from "./WorkSessionPrintableReport";
+import {
+  formatDuration,
+  computeDashboardStats,
+  formatDateForAPI,
+  formatTime,
+  formatSessionDate,
+  formatSessionTimeRange,
+  formatSessionEndDateLabel,
+  formatScreenshotTime,
+  getIdleSeconds,
+  parseDurationString,
+} from "./workStatsHelpers";
 
 // --- HELPER FUNCTIONS ---
 const getTodayDateRange = () => {
@@ -81,65 +99,6 @@ const TrashIcon = () => (
     />
   </svg>
 );
-const formatTime = (timeStr) => {
-  if (!timeStr) return "";
-  const [h, m] = timeStr.split(":");
-  const d = new Date(0, 0, 0, h, m);
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
-// Format a "YYYY-MM-DD" date into "Jun 22, 2026"
-const formatSessionDate = (dateStr) => {
-  if (!dateStr) return "";
-  const [y, m, d] = dateStr.split("-").map(Number);
-  if (!y || !m || !d) return "";
-  const date = new Date(y, m - 1, d);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
-// The start → end time portion shown at the front of the main line.
-const formatSessionTimeRange = (session) =>
-  `${formatTime(session.start_time)} – ${formatTime(session.end_time)}`;
-
-// The date shown at the END of the main line. A single date when the session
-// stays within one day, or a "start – end" range when it crosses into another.
-const formatSessionEndDateLabel = (session) => {
-  const startDate = formatSessionDate(session.start_date);
-  const endDate = formatSessionDate(session.end_date);
-  if (endDate && session.end_date !== session.start_date) {
-    return `${startDate} – ${endDate}`;
-  }
-  return startDate;
-};
-
-const formatScreenshotTime = (isoString) => {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  } catch (error) {
-    return "Invalid Time";
-  }
-};
-const formatDateForAPI = (date) => {
-  if (!date || !(date instanceof Date) || isNaN(date)) return "";
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
 // --- FIX: Robust Idle Time Calculation ---
 const calculateIdleDuration = (startTime, endTime) => {
   if (!startTime || !endTime) return "N/A";
@@ -170,50 +129,33 @@ const calculateIdleDuration = (startTime, endTime) => {
   return `${minutes}m ${seconds}s`;
 };
 
-// --- Helper to get raw seconds for Idle Time ---
-const getIdleSeconds = (startTime, endTime) => {
-  if (!startTime || !endTime) return 0;
-  
-  const parseToDate = (timeStr) => {
-    let d = new Date(timeStr);
-    if (!isNaN(d.getTime())) return d;
-    d = new Date(`1970-01-01 ${timeStr}`);
-    if (!isNaN(d.getTime())) return d;
-    d = new Date(`1970-01-01T${timeStr}`);
-    if (!isNaN(d.getTime())) return d;
-    return null;
-  };
+// Slices a tall rendered canvas into page-sized chunks and adds each as an image page —
+// jsPDF doesn't paginate a single image automatically, so this walks the source canvas
+// top to bottom, cutting off one page-height's worth of pixels at a time.
+const addCanvasToPdf = (doc, canvas) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const ratio = pageWidth / canvas.width;
+  const pageHeightPx = Math.floor(pageHeight / ratio);
 
-  const start = parseToDate(startTime);
-  const end = parseToDate(endTime);
+  let renderedPx = 0;
+  let isFirstPage = true;
+  while (renderedPx < canvas.height) {
+    const sliceHeightPx = Math.min(pageHeightPx, canvas.height - renderedPx);
+    const sliceCanvas = document.createElement("canvas");
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = sliceHeightPx;
+    sliceCanvas
+      .getContext("2d")
+      .drawImage(canvas, 0, renderedPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
 
-  if (!start || !end) return 0;
+    if (!isFirstPage) doc.addPage();
+    doc.addImage(sliceCanvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, sliceHeightPx * ratio);
 
-  let diff = (end.getTime() - start.getTime()) / 1000;
-  if (diff < 0) diff += 86400; // Handle midnight crossover
-  return diff;
+    renderedPx += sliceHeightPx;
+    isFirstPage = false;
+  }
 };
-
-// --- Helper to parse "2h 29m" or "29m" or "29s" to seconds ---
-const parseDurationString = (str) => {
-  if (!str) return 0;
-  let totalSeconds = 0;
-  
-  // Match hours
-  const hMatch = str.match(/(\d+)h/);
-  if (hMatch) totalSeconds += parseInt(hMatch[1]) * 3600;
-  
-  // Match minutes
-  const mMatch = str.match(/(\d+)m/);
-  if (mMatch) totalSeconds += parseInt(mMatch[1]) * 60;
-  
-  // Match seconds (if backend sends seconds like 30s)
-  const sMatch = str.match(/(\d+)s/);
-  if (sMatch) totalSeconds += parseInt(sMatch[1]);
-  
-  return totalSeconds;
-};
-
 
 // --- Manual Time Modal Helpers ---
 const flattenTasksForDropdown = (tasks, parentId = null, depth = 0) =>
@@ -644,6 +586,9 @@ const AdminEmployeeWorkSession = () => {
   const [deletedScreenshots, setDeletedScreenshots] = useState([]);
   const [deletedScreenshotsLoading, setDeletedScreenshotsLoading] = useState(false);
   const [selectedDeletedSessionId, setSelectedDeletedSessionId] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportPayload, setExportPayload] = useState(null);
+  const printRef = useRef(null);
 
   // STATS STATES
   const [statsLoading, setStatsLoading] = useState(false);
@@ -1064,6 +1009,144 @@ const AdminEmployeeWorkSession = () => {
     return `${s}s`;
   };
 
+  // Exports a PDF for the currently selected filters (Job + Period/Custom Range).
+  // Re-fetches with a high per_page so the export always covers the FULL date range,
+  // not just the current paginated page shown on screen. Builds an off-screen HTML
+  // report (WorkSessionPrintableReport, mirroring the on-screen session cards +
+  // screenshots) and rasterizes it via html2canvas-pro so screenshots come through as images
+  // instead of a plain data table.
+  const handleExportPdf = async () => {
+    if (!employeeId || !token) return;
+    setIsExporting(true);
+    try {
+      const finalTaskId =
+        taskFilters
+          .map((f) => f.selected)
+          .filter(Boolean)
+          .pop() || "";
+
+      const params = new URLSearchParams({
+        page: "1",
+        employee_id: employeeId,
+        per_page: "10000",
+      });
+      if (selectedProject) params.append("project_id", selectedProject);
+      if (finalTaskId) params.append("task_id", finalTaskId);
+      if (dateRange[0]) params.append("start_date", formatDateForAPI(dateRange[0]));
+      if (dateRange[1]) params.append("end_date", formatDateForAPI(dateRange[1]));
+
+      const res = await fetch(
+        `${API_BASE_URL}${workSessionPath}?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.status === 401) {
+        logout();
+        setIsExporting(false);
+        return;
+      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Failed to fetch sessions for export");
+
+      const fullSessions = Array.isArray(result.data) ? result.data.slice().reverse() : [];
+      const fullActivity = result.windows_activity || [];
+
+      let idleSec = 0;
+      let manualSec = 0;
+      const workSec = result.overall_total_time
+        ? parseDurationString(result.overall_total_time)
+        : 0;
+
+      fullSessions.forEach((session) => {
+        if (session.type === "Manual" && session.total_time) {
+          manualSec += parseDurationString(session.total_time);
+        }
+        if (Array.isArray(session.idle_times)) {
+          session.idle_times.forEach((idle) => {
+            idleSec += getIdleSeconds(idle.start_time, idle.end_time);
+          });
+        }
+      });
+
+      const dashboard = computeDashboardStats(fullActivity, idleSec, workSec);
+
+      const jobName = selectedProject
+        ? Object.values(projects).flat().find((p) => String(p.id) === String(selectedProject))
+            ?.project_name
+        : "All Jobs";
+      const startLabel = dateRange[0] ? formatSessionDate(formatDateForAPI(dateRange[0])) : "";
+      const endLabel = dateRange[1] ? formatSessionDate(formatDateForAPI(dateRange[1])) : "";
+      const periodLabel =
+        startLabel && endLabel && startLabel !== endLabel
+          ? `${startLabel} - ${endLabel}`
+          : startLabel || endLabel || "All Time";
+
+      setExportPayload({
+        employeeDetails,
+        storageUrl: STORAGE_URL,
+        jobName,
+        periodLabel,
+        generatedOn: new Date().toLocaleString(),
+        dashboard,
+        manualSeconds: manualSec,
+        sessions: fullSessions,
+        userRole: user?.role,
+        fileName: `WorkSession_${(employeeDetails?.name || "employee").replace(/\s+/g, "_")}_${periodLabel.replace(/[,\s]+/g, "_")}.pdf`,
+      });
+    } catch (err) {
+      toast.error(err.message || "Failed to export PDF");
+      setIsExporting(false);
+    }
+  };
+
+  // Once the off-screen report has mounted with the fetched data, rasterize it.
+  // Wrapped defensively: a synchronous throw inside the canvas/PDF chain, or a hang while
+  // waiting on a slow/CORS-blocked screenshot, must never leave isExporting stuck true —
+  // that would freeze the whole page behind the full-screen loading overlay forever.
+  useEffect(() => {
+    if (!exportPayload || !printRef.current) return;
+    const node = printRef.current;
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      setIsExporting(false);
+      setExportPayload(null);
+    };
+
+    const timeoutId = setTimeout(() => {
+      toast.error("PDF export timed out. Try a smaller date range and try again.");
+      finish();
+    }, 60000);
+
+    Promise.resolve()
+      .then(() =>
+        html2canvas(node, {
+          scale: 2,
+          useCORS: true,
+          // allowTaint must stay false: a tainted canvas throws on toDataURL/getImageData,
+          // which would break PDF generation outright. useCORS + a cache-busted <img> src
+          // (see WorkSessionPrintableReport) is what actually gets a real, readable image.
+          allowTaint: false,
+          // Bounds how long any single stalled/CORS-blocked screenshot can hold up the export.
+          imageTimeout: 8000,
+        })
+      )
+      .then((canvas) => {
+        const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+        addCanvasToPdf(doc, canvas);
+        doc.save(exportPayload.fileName);
+      })
+      .catch((err) => {
+        console.error("PDF export failed:", err);
+        toast.error("Failed to export PDF");
+      })
+      .finally(finish);
+
+    return () => clearTimeout(timeoutId);
+  }, [exportPayload]);
+
   if (!isAuthenticated || !user)
     return (
       <div className="p-8 text-center">
@@ -1082,6 +1165,40 @@ const AdminEmployeeWorkSession = () => {
         onSuccess={fetchWorkSessions}
         apiPrefix={endpointPrefix}
       />
+
+      {/* Off-screen report used only to be rasterized into the exported PDF */}
+      {exportPayload && (
+        <div style={{ position: "fixed", top: 0, left: "-10000px", zIndex: -1 }}>
+          <div ref={printRef}>
+            <WorkSessionPrintableReport {...exportPayload} />
+          </div>
+        </div>
+      )}
+
+      {/* Full-screen loading overlay while the PDF is being generated */}
+      {isExporting && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl px-8 py-6 flex flex-col items-center gap-3">
+            <svg className="animate-spin h-8 w-8 text-slate-700 dark:text-slate-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              Generating PDF...
+            </p>
+            <p className="text-xs text-slate-400">This may take a moment for sessions with many screenshots.</p>
+            <button
+              onClick={() => {
+                setIsExporting(false);
+                setExportPayload(null);
+              }}
+              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 underline mt-1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 1. Header (User Info) */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
@@ -1185,6 +1302,19 @@ const AdminEmployeeWorkSession = () => {
             className="btn btn-sm btn-dark whitespace-nowrap"
           >
             Add Manual Time
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={isExporting}
+            className="btn btn-sm btn-outline-dark whitespace-nowrap disabled:opacity-60 flex items-center gap-2"
+          >
+            {isExporting && (
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+            )}
+            {isExporting ? "Exporting..." : "Export as PDF"}
           </button>
           <Link to="/employees" className="btn btn-sm btn-outline-dark whitespace-nowrap">
             ← Back
