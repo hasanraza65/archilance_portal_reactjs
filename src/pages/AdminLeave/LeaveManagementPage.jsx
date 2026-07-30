@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Select from "react-select";
@@ -32,6 +32,19 @@ const formatDate = (dateStr) => {
     year: "numeric",
     month: "short",
     day: "numeric",
+  });
+};
+
+const formatDateTime = (value) => {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 };
 
@@ -248,6 +261,92 @@ const CreateLeaveModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
 
+};
+
+// --- COMPONENT: Who reviewed the request, and when ---
+// The API only sends `approver` / `reviewed_at` to admins and executives, so
+// for everyone else these fields are simply absent and nothing renders. There
+// is deliberately no role check here — the server is the one deciding.
+const ReviewAudit = ({ request }) => {
+  const isApproved = request.status === "Approved";
+  const isRejected = request.status === "Rejected";
+  if (!isApproved && !isRejected) return null;
+
+  const reviewer = request.approver;
+  const reviewedAt = formatDateTime(request.reviewed_at);
+  if (!reviewer && !reviewedAt) return null;
+
+  const tone = isApproved
+    ? {
+        wrap: "bg-emerald-50 border-emerald-200",
+        text: "text-emerald-800",
+        muted: "text-emerald-700",
+        ring: "ring-emerald-200",
+        Icon: CheckCircle,
+        verb: "Approved",
+      }
+    : {
+        wrap: "bg-red-50 border-red-200",
+        text: "text-red-800",
+        muted: "text-red-700",
+        ring: "ring-red-200",
+        Icon: XCircle,
+        verb: "Rejected",
+      };
+  const { Icon: ToneIcon } = tone;
+
+  const initials = (reviewer?.name || "")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 rounded-lg border ${tone.wrap}`}
+    >
+      <span className={`flex items-center gap-1.5 font-semibold text-sm ${tone.text}`}>
+        <ToneIcon className="w-4 h-4 shrink-0" />
+        {tone.verb}
+      </span>
+
+      {reviewer && (
+        <span className={`flex items-center gap-1.5 text-sm ${tone.muted}`}>
+          <span className="text-gray-400">by</span>
+          <span
+            className={`w-6 h-6 rounded-full overflow-hidden bg-white ring-1 ${tone.ring} flex items-center justify-center shrink-0`}
+          >
+            {reviewer.profile_pic ? (
+              <img
+                src={getMediaUrl(reviewer.profile_pic)}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-[10px] font-bold text-gray-600">
+                {initials || "?"}
+              </span>
+            )}
+          </span>
+          <span className="font-semibold">{reviewer.name}</span>
+          {reviewer.employee_type && (
+            <span className="text-xs text-gray-500 capitalize">
+              ({reviewer.employee_type.toLowerCase()})
+            </span>
+          )}
+        </span>
+      )}
+
+      {reviewedAt && (
+        <span className={`flex items-center gap-1.5 text-sm ${tone.muted}`}>
+          <span className="text-gray-400">on</span>
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-medium">{reviewedAt}</span>
+        </span>
+      )}
+    </div>
+  );
 };
 
 // --- COMPONENT: Employee Detail Modal (Existing) ---
@@ -480,7 +579,8 @@ const LeaveManagementPage = () => {
     rejected: 0,
   });
   const [filter, setFilter] = useState("All");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");   // what's typed in the box
+  const [searchQuery, setSearchQuery] = useState(""); // debounced, sent to the API
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -501,6 +601,10 @@ const LeaveManagementPage = () => {
 
   // const ADMIN_LEAVE_API_URL = `${API_BASE_URL}/api/admin/leave-request`; // REMOVED
 
+  // Guards against out-of-order responses: typing quickly fires several
+  // requests and a slow earlier one must not overwrite a newer result.
+  const fetchSeqRef = useRef(0);
+
   const fetchLeaveRequests = useCallback(async () => {
     const token = getAuthToken();
     if (!token) {
@@ -509,6 +613,7 @@ const LeaveManagementPage = () => {
       return;
     }
     setIsLoading(true);
+    const seq = ++fetchSeqRef.current;
 
     const apiUrl = getBaseApiUrl();
     const params = new URLSearchParams({
@@ -526,6 +631,8 @@ const LeaveManagementPage = () => {
     if (leaveType) params.append("leave_type", leaveType.value);
     if (fromDate) params.append("from", fromDate);
     if (toDate) params.append("to", toDate);
+    // Server-side search — matches across every page, not just the loaded one.
+    if (searchQuery) params.append("search", searchQuery);
 
     try {
       const response = await axios.get(`${apiUrl}?${params.toString()}`, {
@@ -534,6 +641,7 @@ const LeaveManagementPage = () => {
           Accept: "application/json",
         },
       });
+      if (seq !== fetchSeqRef.current) return; // a newer request already landed
       setLeaveRequests(response.data.data || []);
       setPaginationInfo({
         currentPage: response.data.current_page || 1,
@@ -550,6 +658,7 @@ const LeaveManagementPage = () => {
       );
       setError(null);
     } catch (err) {
+      if (seq !== fetchSeqRef.current) return;
       console.error("Error fetching leave requests:", err);
       // Fallback message
       setError("Could not fetch leave requests.");
@@ -557,13 +666,24 @@ const LeaveManagementPage = () => {
           toast.error("Failed to load data.");
       }
     } finally {
-      setIsLoading(false);
+      if (seq === fetchSeqRef.current) setIsLoading(false);
     }
-  }, [currentPage, filter, selectedEmployees, leaveType, fromDate, toDate]);
+  }, [currentPage, filter, selectedEmployees, leaveType, fromDate, toDate, searchQuery]);
 
   useEffect(() => {
     fetchLeaveRequests();
   }, [fetchLeaveRequests]);
+
+  // Debounce typing, then send it to the server and jump back to page 1 —
+  // otherwise a search made while on page 3 would land on an empty page.
+  useEffect(() => {
+    const next = searchTerm.trim();
+    const timer = setTimeout(() => {
+      setSearchQuery(next);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Load employee list for the "Filter by employee" dropdown
   useEffect(() => {
@@ -699,15 +819,9 @@ const LeaveManagementPage = () => {
     }
   };
 
-  const filteredRequests = leaveRequests.filter((request) => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch =
-      !searchTerm ||
-      (request.user &&
-        (request.user.name.toLowerCase().includes(searchLower) ||
-          request.user.email.toLowerCase().includes(searchLower)));
-    return matchesSearch;
-  });
+  // Searching is done by the API now, so the rows we get back are already the
+  // matches — filtering again here would only ever re-filter the current page.
+  const filteredRequests = leaveRequests;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -825,11 +939,21 @@ const LeaveManagementPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search employee..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Search by name, email, username or phone..."
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex gap-2 flex-wrap justify-center">
               {["All", "Pending", "Approved", "Rejected"].map((status) => (
@@ -1015,6 +1139,7 @@ const LeaveManagementPage = () => {
                             <span className="font-medium">Reason:</span>{" "}
                             {request.reason}
                           </p>
+                          <ReviewAudit request={request} />
                         </div>
                       </div>
                       <div className="w-full lg:w-auto flex flex-col items-stretch lg:items-end gap-3 border-t lg:border-t-0 pt-4 lg:pt-0">
@@ -1071,6 +1196,17 @@ const LeaveManagementPage = () => {
               <h3 className="text-xl font-medium text-gray-900 mb-2">
                 No Requests Found
               </h3>
+              {searchQuery && (
+                <p className="text-gray-500">
+                  Nothing matched &ldquo;{searchQuery}&rdquo;.{" "}
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    Clear search
+                  </button>
+                </p>
+              )}
             </div>
           )}
         </div>
