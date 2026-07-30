@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "@/components/ui/Icon";
 import SwitchDark from "./Tools/SwitchDark";
+import HeaderVersionSwitch from "@/version2/HeaderVersionSwitch";
 import HorizentalMenu from "./Tools/HorizentalMenu";
 import useWidth from "@/hooks/useWidth";
 import useSidebar from "@/hooks/useSidebar";
@@ -62,7 +63,7 @@ const Header = ({ className = "custom-class", mobileMenu, setMobileMenu }) => {
       >
         <div className="flex justify-between items-center h-full">
           {menuType === "vertical" && (
-            <div className="flex items-center md:space-x-4 space-x-2 rtl:space-x-reverse">
+            <div className="flex items-center md:space-x-4 space-x-2 rtl:space-x-reverse min-w-0">
               {collapsed && width >= breakpoints.xl && (
                 <button
                   className="text-xl text-slate-900 dark:text-white"
@@ -102,7 +103,8 @@ const Header = ({ className = "custom-class", mobileMenu, setMobileMenu }) => {
           {menuType === "horizontal" && width >= breakpoints.xl ? (
             <HorizentalMenu />
           ) : null}
-          <div className="nav-tools flex items-center lg:space-x-6 space-x-3 rtl:space-x-reverse">
+          <div className="nav-tools flex items-center lg:space-x-6 space-x-3 rtl:space-x-reverse flex-none">
+            <HeaderVersionSwitch />
             <SwitchDark />
             <MonoChrome />
             {width >= breakpoints.md && <Notification />}

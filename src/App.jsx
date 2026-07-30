@@ -9,6 +9,8 @@ import { BreadcrumbProvider } from "./components/ui/BreadcrumbsContext";
 import Layout from "./layout/Layout";
 import AuthLayout from "./layout/AuthLayout";
 import Loading from "./components/Loading";
+// New-UI opt-in experience. Everything it needs lives under src/version2/.
+import VersionExperience from "./version2/VersionExperience";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminSubscription from "./pages/admin/AdminSubscription";
 import CustomerTeam from "./pages/customers/CustomerTeam/CustomerTeam";
@@ -108,6 +110,8 @@ function App() {
 
   return (
     <main className="App relative">
+      <VersionExperience />
+
       <ToastContainer
         position="top-right"
         autoClose={3000}

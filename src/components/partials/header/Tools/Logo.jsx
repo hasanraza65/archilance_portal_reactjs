@@ -13,10 +13,10 @@ const Logo = () => {
   const { width, breakpoints } = useWidth();
 
   return (
-    <div>
+    <div className="min-w-0">
       <Link to="/dashboard">
         {/* Change: Wrapped logo and text in a flex container for alignment */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 min-w-0">
           {width >= breakpoints.xl ? (
             // Change: Added size class to the logo
             <img src={isDark ? LogoWhite : MainLogo} alt="logo" className="h-10 w-auto" />
