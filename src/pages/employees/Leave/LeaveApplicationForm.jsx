@@ -7,7 +7,17 @@ import Swal from "sweetalert2";
 import { Toaster, toast } from "react-hot-toast";
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
-const ADDITIONAL_LEAVE_USER_IDS = [177, 109, 171, 22, 173, 50, 172, 147, 118, 35, 180, 114, 69, 182, 23, 26, 21, 128, 175, 139, 28, 58];
+// Must stay in sync with ADDITIONAL_LEAVE_USER_IDS in the backend's
+// employee/LeaveRequestController — the backend rejects `additional` from
+// anyone not on ITS list, so offering the option here to someone the server
+// doesn't allow makes the request fail validation.
+// NOTE: user 177 was intentionally removed — they no longer get additional leaves.
+const ADDITIONAL_LEAVE_USER_IDS = [109, 171, 22, 173, 50, 172, 147, 118, 35, 180, 114, 69, 182, 23, 26, 21, 128, 175, 139, 28, 58, 162];
+
+// Without this, a Laravel validation failure is answered with a 302 redirect to
+// an HTML page instead of a 422. axios follows it, resolves with a 200, and the
+// form reports success while nothing was saved. See the create/update calls.
+const JSON_HEADERS = { Accept: "application/json", "Content-Type": "application/json" };
 
 const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
   const [startDate, setStartDate] = useState("");
@@ -163,19 +173,18 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
     };
 
     try {
-      let response;
       // 4. Determine Endpoint (Create vs Edit)
       if (isEditMode) {
-         response = await axios.put(
-            `${API_BASE_URL}/api/employee/leave-request/${initialData.id}`, 
-            payload, 
-            { headers: { Authorization: `Bearer ${token}` } }
+         await axios.put(
+            `${API_BASE_URL}/api/employee/leave-request/${initialData.id}`,
+            payload,
+            { headers: { Authorization: `Bearer ${token}`, ...JSON_HEADERS } }
          );
       } else {
-         response = await axios.post(
-            `${API_BASE_URL}/api/employee/leave-request`, 
-            payload, 
-            { headers: { Authorization: `Bearer ${token}` } }
+         await axios.post(
+            `${API_BASE_URL}/api/employee/leave-request`,
+            payload,
+            { headers: { Authorization: `Bearer ${token}`, ...JSON_HEADERS } }
          );
       }
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
 import Select from "react-select";
 import {
@@ -21,7 +21,9 @@ import {
   Star,
 } from "lucide-react";
 
-const ADDITIONAL_LEAVE_USER_IDS = [177, 109, 171, 22, 173, 50, 172, 147, 118, 35, 180, 114, 69, 182, 23, 26, 21, 128, 175, 139, 28, 58];
+// Mirrors ADDITIONAL_LEAVE_USER_IDS in the backend's employee/LeaveRequestController.
+// NOTE: user 177 was intentionally removed — they no longer get additional leaves.
+const ADDITIONAL_LEAVE_USER_IDS = [109, 171, 22, 173, 50, 172, 147, 118, 35, 180, 114, 69, 182, 23, 26, 21, 128, 175, 139, 28, 58, 162];
 
 const LEAVE_STATUS_OPTIONS = [
   { value: "All", label: "All Status" },
@@ -67,6 +69,15 @@ const LeaveHistoryTable = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const formRef = useRef(null);
+
+  // The form renders ABOVE the table, so clicking Edit on a row further down
+  // opened it off-screen and looked like nothing happened. Bring it into view.
+  useEffect(() => {
+    if (editingLeaveId && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [editingLeaveId]);
 
   const statusConfig = {
     Approved: {
@@ -386,6 +397,7 @@ const LeaveHistoryTable = ({
         </div>
 
         <div
+          ref={formRef}
           className={`transition-all duration-700 ease-in-out overflow-hidden ${isFormVisible
               ? "max-h-[2000px] opacity-100 mb-8"
               : "max-h-0 opacity-0"
@@ -505,23 +517,31 @@ const LeaveHistoryTable = ({
                                 {leave.status}
                               </div>
                               <div className="flex items-center">
-                                {(leave.status === "Pending" || leave.status === "Approved") && (
-                                  <>
-                                    <button
-                                      onClick={() => onEdit(leave)}
-                                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors ml-2"
-                                      aria-label="Edit Leave Request"
-                                    >
-                                      <Edit className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => onDelete(leave.id)}
-                                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
-                                      aria-label="Delete Leave Request"
-                                    >
-                                      <Trash2 className="w-5 h-5" />
-                                    </button>
-                                  </>
+                                {(leave.status === "Pending" ||
+                                  leave.status === "Approved") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onEdit(leave)}
+                                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors ml-2"
+                                    aria-label="Edit Leave Request"
+                                    title="Edit this request"
+                                  >
+                                    <Edit className="w-5 h-5" />
+                                  </button>
+                                )}
+                                {/* Only Pending requests can be cancelled — the backend
+                                    returns 403 for anything already approved or rejected,
+                                    so showing the button there just guarantees an error. */}
+                                {leave.status === "Pending" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onDelete(leave.id)}
+                                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
+                                    aria-label="Delete Leave Request"
+                                    title="Cancel this request"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
                                 )}
                               </div>
                             </div>
