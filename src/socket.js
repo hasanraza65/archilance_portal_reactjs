@@ -8,12 +8,24 @@ import {
   updateContactLastMessage
 } from './pages/app/chat/store';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://socket.archilance.net";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://socketjs.vercel.app";
 let socket;
 
+/**
+ * WebSocket only - do NOT let this fall back to HTTP long-polling.
+ *
+ * The relay runs on Vercel, which is serverless. Long-polling needs several
+ * separate HTTP requests (GET handshake, POST to send, GET to receive) to all
+ * reach the SAME server process; Vercel gives no such affinity, so the POST
+ * fails with "xhr post error" and the socket never connects. A raw WebSocket is
+ * one persistent connection, so it works fine.
+ *
+ * socket.io-client defaults to ["polling", "websocket"] - polling FIRST - which
+ * is exactly the combination that fails here. Hence the explicit list.
+ */
 export const connectSocket = (dispatch, userId) => {
   if (userId && !socket?.connected) {
-    socket = io(SOCKET_URL);
+    socket = io(SOCKET_URL, { transports: ["websocket"] });
 
     socket.on('connect', () => {
       console.log(`%c[GLOBAL_SOCKET] CONNECTED! User ID: ${userId}. Socket ID: ${socket.id}`, 'color: green; font-weight: bold;');
