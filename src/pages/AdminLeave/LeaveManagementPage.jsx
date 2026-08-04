@@ -270,7 +270,36 @@ const CreateLeaveModal = ({ isOpen, onClose, onSuccess }) => {
 const ReviewAudit = ({ request }) => {
   const isApproved = request.status === "Approved";
   const isRejected = request.status === "Rejected";
-  if (!isApproved && !isRejected) return null;
+
+  // Pending: show who it's waiting on. The server only attaches `user.manager`
+  // for admins/executives, so — like the reviewer fields below — the absence of
+  // the key is the role gate and nothing renders for anyone else.
+  if (!isApproved && !isRejected) {
+    if (request.status !== "Pending") return null;
+    if (!request.user || !("manager" in request.user)) return null;
+    const mgr = request.user.manager;
+    return (
+      <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+          <Clock className="w-3.5 h-3.5" />
+          Awaiting
+        </span>
+        {mgr ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700">
+            {mgr.profile_pic ? (
+              <img src={getMediaUrl(mgr.profile_pic)} alt="" className="w-4 h-4 rounded-full object-cover" />
+            ) : (
+              <User className="w-3.5 h-3.5" />
+            )}
+            <span className="font-semibold">{mgr.name}</span>
+            <span className="text-amber-600/80">(reporting manager)</span>
+          </span>
+        ) : (
+          <span className="text-xs text-amber-700">no manager assigned — yours to action</span>
+        )}
+      </div>
+    );
+  }
 
   const reviewer = request.approver;
   const reviewedAt = formatDateTime(request.reviewed_at);
