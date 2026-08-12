@@ -64,6 +64,9 @@ const LEAVE_TYPE_OPTIONS = [
   { value: "emergency", label: "Emergency" },
   { value: "vacation", label: "Vacation" },
   { value: "additional", label: "Additional" },
+  // Added by the Leave Policy of 1 Aug 2026.
+  { value: "marriage", label: "Marriage" },
+  { value: "unpaid", label: "Unpaid" },
   { value: "other", label: "Other" },
 ];
 
@@ -381,6 +384,7 @@ const ReviewAudit = ({ request }) => {
 // --- COMPONENT: Employee Detail Modal (Existing) ---
 const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   const [leaveSummary, setLeaveSummary] = useState(null);
+  const [policy, setPolicy] = useState(null);
   const [cycle, setCycle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -409,6 +413,7 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
         }
       );
       setLeaveSummary(response.data.leave_summary);
+      setPolicy(response.data.policy || null);
       setCycle(response.data.cycle);
     } catch (err) {
       toast.error("Failed to load employee leave details.");
@@ -423,14 +428,27 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
 
   if (!isOpen || !request || !employee) return null;
 
-  const leaveTypes = [
-    { key: "casual", name: "Casual Leave", total: 10 },
-    { key: "annual", name: "Annual Leave", total: 10 },
-    { key: "sick", name: "Sick Leave", total: 8 },
-    ...(leaveSummary?.additional !== undefined
-      ? [{ key: "additional", name: "Additional Absences", total: 8 }]
-      : []),
-  ];
+  // Entitlements come from the backend's `policy` block when present. Casual is
+  // 10 for everyone; Additional is a separate 8-day pool for BIM Team members
+  // only (present in `entitlements` only for them) under the 1 Aug 2026 policy.
+  // The hardcoded list below is only a fallback for a pre-policy backend.
+  const leaveTypes = policy?.entitlements
+    ? ["casual", "additional", "annual", "sick", "marriage", "unpaid"]
+        .filter((key) => policy.entitlements[key] && policy.entitlements[key].total !== null)
+        .map((key) => ({
+          key,
+          name: `${policy.entitlements[key].label} Leave`,
+          total: policy.entitlements[key].total,
+          used: Number(policy.entitlements[key].used || 0),
+        }))
+    : [
+        { key: "casual", name: "Casual Leave", total: 10 },
+        { key: "annual", name: "Annual Leave", total: 10 },
+        { key: "sick", name: "Sick Leave", total: 8 },
+        ...(leaveSummary?.additional !== undefined
+          ? [{ key: "additional", name: "Additional Absences", total: 8 }]
+          : []),
+      ];
 
   const getProgressBarColor = (remaining) => {
     if (remaining >= 5) return "bg-emerald-500";
@@ -512,7 +530,9 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
             ) : leaveSummary ? (
               <div className="space-y-4">
                 {leaveTypes.map((type) => {
-                  const consumed = leaveSummary[type.key] ?? 0;
+                  // Policy-driven rows carry their own usage (Annual is counted
+                  // in calendar days, which the legacy summary does not do).
+                  const consumed = type.used ?? leaveSummary[type.key] ?? 0;
                   const total = type.total;
                   const hasQuota = total > 0;
                   const remaining = hasQuota ? total - consumed : 0;

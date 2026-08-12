@@ -58,6 +58,7 @@ const LeaveHistoryTable = ({
   leaves = [],
   counts = { total: 0, approved: 0, rejected: 0, pending: 0 },
   leaveTypesCount = { casual: 0, annual: 0, sick: 0 },
+  policy = null,
   isLoading,
   error,
   onRefresh,
@@ -128,34 +129,77 @@ const LeaveHistoryTable = ({
     };
   }, [joiningDate]);
 
-  const leaveTypeConfig = {
-    casual: {
-      total: eligibility.casual ? 10 : 0,
-      label: "Casual Leaves",
-      icon: Briefcase,
-      color: eligibility.casual ? "blue" : "slate",
-      isLocked: !eligibility.casual,
-      unlockMessage: eligibility.casual ? null : "Available after 1 month of joining"
-    },
-    annual: {
-      total: eligibility.annual ? 10 : 0,
-      label: "Annual Leaves",
-      icon: FileText,
-      color: eligibility.annual ? "green" : "slate",
-      isLocked: !eligibility.annual,
-      unlockMessage: eligibility.annual ? null : "Available after 6 months of joining"
-    },
-    sick: { total: 8, label: "Sick Leaves", icon: Heart, color: "purple", isLocked: false },
-    ...(isEligibleForAdditional ? {
-      additional: { total: 8, label: "Additional Absences", icon: Star, color: "orange", isLocked: false },
-    } : {}),
+  // Leave Policy (1 Aug 2026): entitlements come from the backend, because
+  // Casual is now team-dependent (10, or 18 for the BIM Team) and Marriage is a
+  // once-per-employment allowance. The hardcoded block below is the fallback for
+  // a backend that predates the policy.
+  const POLICY_CARD_META = {
+    casual:     { label: "Casual Leaves",     icon: Briefcase, color: "blue" },
+    // BIM Team only, its own 8-day pool — same icon/colour the pre-policy
+    // "Additional Absences" card always used, so it stays visually familiar.
+    additional: { label: "Additional Leaves", icon: Star,      color: "orange" },
+    annual:     { label: "Annual Leaves",     icon: FileText,  color: "green" },
+    sick:       { label: "Sick Leaves",       icon: Heart,     color: "purple" },
+    marriage:   { label: "Marriage Leave",    icon: Star,      color: "pink" },
+    unpaid:     { label: "Unpaid Leave",      icon: FileText,  color: "slate" },
   };
+
+  const leaveTypeConfig = useMemo(() => {
+    if (policy?.entitlements) {
+      return Object.fromEntries(
+        ["casual", "additional", "annual", "sick", "marriage", "unpaid"]
+          .filter((key) => policy.entitlements[key])
+          .map((key) => {
+            const e = policy.entitlements[key];
+            const meta = POLICY_CARD_META[key];
+            const locked = e.available === false;
+            return [key, {
+              // Uncapped types (Unpaid) report null — the card shows usage only.
+              total: e.total,
+              used: Number(e.used || 0),
+              label: meta.label,
+              icon: meta.icon,
+              color: locked ? "slate" : meta.color,
+              isLocked: locked,
+              unlockMessage: e.note || null,
+              unit: e.unit,
+              scope: e.scope,
+            }];
+          })
+      );
+    }
+
+    return {
+      casual: {
+        total: eligibility.casual ? 10 : 0,
+        label: "Casual Leaves",
+        icon: Briefcase,
+        color: eligibility.casual ? "blue" : "slate",
+        isLocked: !eligibility.casual,
+        unlockMessage: eligibility.casual ? null : "Available after 1 month of joining"
+      },
+      annual: {
+        total: eligibility.annual ? 10 : 0,
+        label: "Annual Leaves",
+        icon: FileText,
+        color: eligibility.annual ? "green" : "slate",
+        isLocked: !eligibility.annual,
+        unlockMessage: eligibility.annual ? null : "Available after 6 months of joining"
+      },
+      sick: { total: 8, label: "Sick Leaves", icon: Heart, color: "purple", isLocked: false },
+      ...(isEligibleForAdditional ? {
+        additional: { total: 8, label: "Additional Absences", icon: Star, color: "orange", isLocked: false },
+      } : {}),
+    };
+  }, [policy, eligibility, isEligibleForAdditional]);
 
   const leaveTypeColors = {
     casual: "bg-blue-100 text-blue-800",
     annual: "bg-green-100 text-green-800",
     sick: "bg-purple-100 text-purple-800",
     additional: "bg-orange-100 text-orange-800",
+    marriage: "bg-pink-100 text-pink-800",
+    unpaid: "bg-slate-100 text-slate-800",
   };
 
   const filteredLeaves = leaves.filter((leave) => {
@@ -296,11 +340,20 @@ const LeaveHistoryTable = ({
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Your Leave Balances
             </h2>
-            <div className={`grid grid-cols-1 gap-4 ${isEligibleForAdditional ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
+            <div className={`grid grid-cols-1 gap-4 ${
+              Object.keys(leaveTypeConfig).length >= 5
+                ? "md:grid-cols-3 xl:grid-cols-5"
+                : Object.keys(leaveTypeConfig).length === 4
+                ? "md:grid-cols-4"
+                : "md:grid-cols-3"
+            }`}>
               {Object.entries(leaveTypeConfig).map(([key, config]) => {
-                const used = leaveTypesCount[key] || 0;
-                const remaining = config.total - used;
-                const percentage = (used / config.total) * 100;
+                // Policy-driven cards carry their own usage (Annual is counted
+                // in calendar days, so the legacy weekday tally would be wrong).
+                const used = config.used ?? leaveTypesCount[key] ?? 0;
+                const uncapped = config.total === null || config.total === undefined;
+                const remaining = uncapped ? null : Math.max(0, config.total - used);
+                const percentage = uncapped || !config.total ? 0 : Math.min(100, (used / config.total) * 100);
                 const Icon = config.icon;
 
                 return (
@@ -320,7 +373,7 @@ const LeaveHistoryTable = ({
                       <p className={`font-bold text-lg ${config.isLocked ? "text-slate-400" : "text-gray-900"}`}>
                         {used}
                         <span className="text-sm font-medium text-gray-500">
-                          /{config.total}
+                          {uncapped ? " used" : `/${config.total}`}
                         </span>
                       </p>
                     </div>
@@ -339,7 +392,10 @@ const LeaveHistoryTable = ({
                          <span />
                       )}
                       <p className="text-xs text-right text-gray-500">
-                        {remaining} days remaining
+                        {uncapped
+                          ? "No limit"
+                          : `${remaining} ${config.unit === "calendar_days" ? "calendar days" : "days"} remaining`}
+                        {config.scope === "employment" ? " · once per employment" : ""}
                       </p>
                     </div>
                   </div>

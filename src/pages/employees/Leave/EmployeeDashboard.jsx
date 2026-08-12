@@ -32,6 +32,7 @@ const EmployeeDashboard = () => {
     sick: 0,
     additional: 0,
   });
+  const [policy, setPolicy] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -76,6 +77,10 @@ const EmployeeDashboard = () => {
           additional: 0,
         }
       );
+      // Leave Policy (1 Aug 2026): entitlements, balances, probation state and
+      // the rule constants. Null when the backend predates the policy, in which
+      // case the UI falls back to its previous hardcoded numbers.
+      setPolicy(response.data.policy || null);
     } catch (err) {
       console.error("Error fetching leave data:", err);
       if (!silent) setError("Failed to fetch leave data. Please try again later.");
@@ -197,6 +202,7 @@ const EmployeeDashboard = () => {
         leaves={leaves}
         counts={counts}
         leaveTypesCount={leaveTypesCount}
+        policy={policy}
         isLoading={isLoading}
         error={error}
         onRefresh={() => fetchLeaveData(false)} // Explicitly show loader on manual refresh
@@ -210,6 +216,7 @@ const EmployeeDashboard = () => {
           onSuccess={() => fetchLeaveData(true)}
           initialData={editingLeave}
           onClose={handleCloseForm}
+          policy={policy}
         />
       </LeaveHistoryTable>
     </div>

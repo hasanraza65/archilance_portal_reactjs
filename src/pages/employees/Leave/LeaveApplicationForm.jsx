@@ -19,7 +19,7 @@ const ADDITIONAL_LEAVE_USER_IDS = [109, 171, 22, 173, 50, 172, 147, 118, 35, 180
 // form reports success while nothing was saved. See the create/update calls.
 const JSON_HEADERS = { Accept: "application/json", "Content-Type": "application/json" };
 
-const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
+const LeaveApplicationForm = ({ initialData, onClose, onSuccess, policy = null }) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
@@ -46,15 +46,46 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
     };
   }, [joiningDate]);
 
-  const leaveTypes = [
-    { value: "casual", label: "Casual Leave", isEligible: eligibility.casual },
-    { value: "annual", label: "Annual Leave", isEligible: eligibility.annual },
-    { value: "sick", label: "Sick Leave", isEligible: true },
-    { value: "other", label: "Other (Specify)", isEligible: true },
-    ...(isEligibleForAdditional
-      ? [{ value: "additional", label: "Additional Absences", isEligible: true }]
-      : []),
-  ];
+  // Leave Policy (1 Aug 2026): the selectable types and their eligibility come
+  // from the backend so entitlement changes need no frontend release. The old
+  // service-month rules below are the fallback for a pre-policy backend.
+  const leaveTypes = useMemo(() => {
+    if (policy?.entitlements) {
+      // "additional" (BIM Team public-holiday compensation, its own 8-day
+      // pool — separate from casual) is only present in entitlements for BIM
+      // Team members, so the .filter() below naturally omits it otherwise.
+      const ordered = ["casual", "additional", "annual", "sick", "marriage", "unpaid"];
+      return [
+        ...ordered
+          .filter((key) => policy.entitlements[key])
+          .map((key) => {
+            const e = policy.entitlements[key];
+            return {
+              value: key,
+              label: `${e.label} Leave`,
+              isEligible: e.available !== false,
+              note: e.note || null,
+            };
+          }),
+        { value: "other", label: "Other (Specify)", isEligible: true },
+      ];
+    }
+
+    return [
+      { value: "casual", label: "Casual Leave", isEligible: eligibility.casual },
+      { value: "annual", label: "Annual Leave", isEligible: eligibility.annual },
+      { value: "sick", label: "Sick Leave", isEligible: true },
+      { value: "other", label: "Other (Specify)", isEligible: true },
+      ...(isEligibleForAdditional
+        ? [{ value: "additional", label: "Additional Absences", isEligible: true }]
+        : []),
+    ];
+  }, [policy, eligibility, isEligibleForAdditional]);
+
+  /** Annual, Marriage and Unpaid consume weekends; Casual and Sick do not. */
+  const unitForType = (type) =>
+    policy?.entitlements?.[type]?.unit
+      || (["annual", "marriage", "unpaid"].includes(type) ? "calendar_days" : "working_days");
 
   const handleResetForm = () => {
     setStartDate("");
@@ -81,7 +112,7 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
         setOtherLeaveType(otherReasonMatch[1]);
         setReason(otherReasonMatch[2]);
       } else {
-        const standardTypes = ["casual", "annual", "sick", "additional"];
+        const standardTypes = ["casual", "annual", "sick", "additional", "marriage", "unpaid"];
         if (standardTypes.includes(type)) {
           setLeaveType(type);
           setReason(reasonText);
@@ -97,14 +128,20 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
     }
   }, [initialData, isEditMode]);
 
-  // --- LOGIC: Calculate Duration (Excludes Sat/Sun) ---
-  const calculateDuration = (start, end) => {
+  // --- LOGIC: Calculate Duration ---
+  // Counted the way the selected type is counted: Annual, Marriage and Unpaid
+  // consume weekends (per the policy), Casual and Sick count working days only.
+  const calculateDuration = (start, end, unit = "working_days") => {
     if (!start || !end) return 0;
-    
+
     const startDateObj = new Date(start);
     const endDateObj = new Date(end);
-    
+
     if (endDateObj < startDateObj) return 0;
+
+    if (unit === "calendar_days") {
+      return Math.round((endDateObj - startDateObj) / 86400000) + 1;
+    }
 
     let count = 0;
     let currentDate = new Date(startDateObj);
@@ -143,14 +180,17 @@ const LeaveApplicationForm = ({ initialData, onClose, onSuccess }) => {
       return;
     }
     
-    // 2. Duration Check (Casual Limit)
+    // 2. Duration Check (Casual Limit) — "Other" is filed as Casual.
+    // The backend enforces this and every other policy rule too; this is just a
+    // faster, friendlier message before the round trip.
     if (leaveType === 'casual' || leaveType === 'other') {
-      const duration = calculateDuration(startDate, endDate);
-      if (duration > 2) {
+      const maxConsecutive = policy?.rules?.casual_max_consecutive ?? 2;
+      const duration = calculateDuration(startDate, endDate, "working_days");
+      if (duration > maxConsecutive) {
         Swal.fire({
             icon: 'error',
             title: 'Policy Violation',
-            text: `Casual leave cannot be for more than 2 working days. You selected ${duration} working days. Please select Annual Leave instead.`,
+            text: `Casual leave cannot be for more than ${maxConsecutive} working days. You selected ${duration} working days. Please select Annual Leave instead.`,
         });
         return;
       }
