@@ -3,7 +3,6 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import Select from "react-select";
 import { Toaster, toast } from "react-hot-toast";
-import Swal from "sweetalert2";
 import {
   Calendar,
   Clock,
@@ -618,6 +617,63 @@ const EmployeeLeaveDetailModal = ({ request, isOpen, onClose }) => {
   );
 };
 
+// --- COMPONENT: Delete Confirmation Modal ---
+const DeleteConfirmModal = ({ isOpen, onCancel, onConfirm, isDeleting }) => {
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-transparent bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300">
+        <div className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Delete leave request?
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                This action cannot be undone. The request will be permanently removed.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="flex-1 px-5 py-3 bg-white text-gray-800 border border-gray-300 rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-sm disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex-1 px-5 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isDeleting ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            {isDeleting ? "Deleting..." : "Yes, delete it"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Page Component ---
 const LeaveManagementPage = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
@@ -647,6 +703,8 @@ const LeaveManagementPage = () => {
   // Modals State
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false); // New Create Modal State
+  const [deleteRequestId, setDeleteRequestId] = useState(null); // id awaiting delete confirmation
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // const ADMIN_LEAVE_API_URL = `${API_BASE_URL}/api/admin/leave-request`; // REMOVED
 
@@ -809,34 +867,32 @@ const LeaveManagementPage = () => {
     }
   };
 
-  const handleDeleteRequest = async (id) => {
+  // Opens the confirmation modal; the actual delete happens in confirmDeleteRequest.
+  const handleDeleteRequest = (id) => {
+    setDeleteRequestId(id);
+  };
+
+  const confirmDeleteRequest = async () => {
+    if (!deleteRequestId) return;
     const token = getAuthToken();
-    Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        const toastId = toast.loading("Deleting request...");
-        try {
-          const apiUrl = getBaseApiUrl();
-          await axios.delete(`${apiUrl}/${id}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          });
-          toast.success("Request deleted.", { id: toastId });
-          await fetchLeaveRequests();
-        } catch (err) {
-          toast.error("Failed to delete.", { id: toastId });
-        }
-      }
-    });
+    const toastId = toast.loading("Deleting request...");
+    setIsDeleting(true);
+    try {
+      const apiUrl = getBaseApiUrl();
+      await axios.delete(`${apiUrl}/${deleteRequestId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      toast.success("Request deleted.", { id: toastId });
+      setDeleteRequestId(null);
+      await fetchLeaveRequests();
+    } catch (err) {
+      toast.error("Failed to delete.", { id: toastId });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleViewDetailsClick = (request) => {
@@ -891,6 +947,14 @@ const LeaveManagementPage = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={fetchLeaveRequests}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={!!deleteRequestId}
+        onCancel={() => setDeleteRequestId(null)}
+        onConfirm={confirmDeleteRequest}
+        isDeleting={isDeleting}
       />
 
       <div className="bg-white shadow-lg border-b border-gray-200">
