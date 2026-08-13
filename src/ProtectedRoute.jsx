@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { canManageEmployees } from '@/pages/utility/apiHelper';
 
-const ProtectedRoute = ({ children, allowedRoles, requireManagerAccess = false }) => {
+const ProtectedRoute = ({ children, allowedRoles, requireManagerAccess = false, extraCheck }) => {
   const user = useSelector((state) => state.auth.user);
 
   if (!user) {
@@ -25,6 +25,13 @@ const ProtectedRoute = ({ children, allowedRoles, requireManagerAccess = false }
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/404" replace />;
+  }
+
+  // A finer-grained check a static role list can't express (e.g. team-based
+  // gating) — the route declares its own predicate rather than teaching
+  // this component about every possible rule.
+  if (extraCheck && !extraCheck(user)) {
     return <Navigate to="/404" replace />;
   }
 

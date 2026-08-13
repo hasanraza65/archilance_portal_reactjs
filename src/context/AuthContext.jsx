@@ -159,6 +159,7 @@ export const AuthProvider = ({ children }) => {
       profile_pic: userData.profile_pic,
       is_default_pass: userData.is_default_pass,
       employee_type: userData.employee_type,
+      employee_team: userData.employee_team ?? null,
     };
 
     const cookieOptions = {

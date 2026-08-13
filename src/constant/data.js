@@ -1,3 +1,4 @@
+import { canViewPolicies, canUseMyLeaves } from "@/pages/utility/policyAccess";
 import User1 from "@/assets/images/all-img/user.png";
 import User2 from "@/assets/images/all-img/user2.png";
 import User3 from "@/assets/images/all-img/user3.png";
@@ -79,6 +80,17 @@ export const menuItems = [
     link: "leaves",
     allowedRoles: ["admin", "manager", "supervisor", "executive", "member"],
   },
+  {
+    title: "Policies",
+    isHide: false,
+    icon: "heroicons-outline:book-open",
+    link: "policies",
+    // Internees are excluded here too — the team-based exclusion
+    // (Outsource Department / Business Team) can't be a fixed role list,
+    // so it's handled by `hiddenFor` below (see canViewPolicies).
+    allowedRoles: ["admin", "employee", "manager", "outsource", "supervisor", "executive"],
+    hiddenFor: (user) => !canViewPolicies(user),
+  },
 
   {
     title: "My Grading",
@@ -124,8 +136,11 @@ export const menuItems = [
     isHide: false,
     icon: "heroicons-outline:calendar-days",
     link: "employeeleaves",
-    // --- UPDATED ---
-    allowedRoles: ["employee", "manager", "outsource", "supervisor", "executive"], 
+    // "outsource" role removed — they, and anyone on the Outsource
+    // Department team regardless of role, arrange leave with their
+    // manager directly rather than through the portal (see `hiddenFor`).
+    allowedRoles: ["employee", "manager", "supervisor", "executive"],
+    hiddenFor: (user) => !canUseMyLeaves(user),
   },
   {
     title: "Notification Settings",

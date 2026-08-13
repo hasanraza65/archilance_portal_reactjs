@@ -40,8 +40,19 @@ const Navmenu = ({ menus, closeMobileMenu = () => {} }) => {
         const allowed = item.allowedRoles.map(role => role.toLowerCase());
 
         // Sirf yeh check karein ke kya user ka role is list mein hai
-        return allowed.includes(currentUserRole);
+        if (!allowed.includes(currentUserRole)) {
+          return false;
+        }
         // --- END OF NEW LOGIC ---
+
+        // Optional extra visibility rule beyond role (e.g. team-based —
+        // a role list alone can't express "hide for Outsource Department").
+        // Absent on every existing item, so nothing else changes behavior.
+        if (typeof item.hiddenFor === "function" && item.hiddenFor(user)) {
+          return false;
+        }
+
+        return true;
       })
       .map((item) => {
         // Child items ko bhi isi logic se filter karein

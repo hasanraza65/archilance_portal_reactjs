@@ -39,6 +39,7 @@ const CLASSIC_TO_V2 = [
   [/^\/work-session\/?$/i, () => `/work-diary`],
   [/^\/employeeleaves\/?$/i, () => `/my-leaves`],
   [/^\/leaves\/?$/i, () => `/leaves`],
+  [/^\/policies\/?$/i, () => `/policies`],
   [/^\/my-grading\/?$/i, () => `/my-grading`],
 
   // Misc
@@ -77,6 +78,7 @@ const V2_TO_CLASSIC = [
   [/^\/work-diary\/?$/i, () => `/work-session`],
   [/^\/my-leaves\/?$/i, () => `/employeeleaves`],
   [/^\/leaves\/?$/i, () => `/leaves`],
+  [/^\/policies\/?$/i, () => `/policies`],
   [/^\/my-grading\/?$/i, () => `/my-grading`],
   // No classic counterpart -> nearest sensible home.
   [/^\/internee-grading\/?$/i, () => `/employees`],

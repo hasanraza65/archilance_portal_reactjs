@@ -8,6 +8,9 @@ import Swal from "sweetalert2";
 import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "@/store/api/auth/authSlice";
 import axiosInstance from "@/store/api/app/axiosInstance";
+import Card from "@/components/ui/Card";
+import Icon from "@/components/ui/Icon";
+import { canUseMyLeaves, canViewPolicies } from "@/pages/utility/policyAccess";
 
 // --- Helper Functions & Constants ---
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
@@ -194,6 +197,29 @@ const EmployeeDashboard = () => {
     }
   };
 
+  // "outsource" role never reaches this page (see /employeeleaves roles in
+  // App.jsx) — this catches the one case a role check can't: an
+  // Employee/Manager/etc. whose employee_team is Outsource Department.
+  if (!canUseMyLeaves(user)) {
+    return (
+      <div className="container mx-auto">
+        <Card>
+          <div className="text-center py-12">
+            <div className="w-24 h-24 bg-gray-100 dark:bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Icon icon="heroicons-outline:no-symbol" className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+              Leave requests aren't handled through the portal for your team
+            </h3>
+            <p className="text-gray-500 dark:text-slate-400">
+              Please arrange leave directly with your manager.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto">
       <Toaster position="top-center" reverseOrder={false} />
@@ -211,6 +237,7 @@ const EmployeeDashboard = () => {
         isFormVisible={isFormVisible}
         onToggleForm={handleToggleForm}
         editingLeaveId={editingLeave?.id}
+        showPoliciesLink={canViewPolicies(user)}
       >
         <LeaveApplicationForm
           onSuccess={() => fetchLeaveData(true)}

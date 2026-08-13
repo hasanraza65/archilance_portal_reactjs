@@ -69,6 +69,13 @@ const VersionExperience = () => {
     // Arrived via a deliberate switch BACK to classic - respect that and tidy
     // the marker out of the address bar.
     if (isHandoff()) { clearHandoffParam(); return; }
+    // In local dev, classic and v2 are two separate servers on different
+    // ports (5173 / 5180) — auto-honouring a saved "v2" preference here would
+    // bounce every single visit to localhost:5173 straight over to v2,
+    // making it impossible to work on classic locally. Only auto-redirect in
+    // production, where both apps share one origin; the manual switcher
+    // button and first-run chooser still work in dev either way.
+    if (import.meta.env.DEV) return;
     if (getVersionChoice() === "v2") goToV2();
   }, [ready, goToV2]);
 

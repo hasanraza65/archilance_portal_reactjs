@@ -44,6 +44,16 @@ const EMPLOYEE_TYPE_OPTIONS = [
   { value: "Internee", label: "Internee" },
 ];
 
+// Teams are fixed labels agreed with management; the backend stores a free
+// string, so adding one later is a one-line change here. Used for grouping/
+// reporting and to drive which Leave Policy addendum an employee sees.
+const EMPLOYEE_TEAM_OPTIONS = [
+  { value: "BIM Team", label: "BIM Team" },
+  { value: "3D Team", label: "3D Team" },
+  { value: "Outsource Department", label: "Outsource Department" },
+  { value: "Business Team", label: "Business Team" },
+];
+
 const getApiBasePathForRole = (basePath) => {
   const role = getApiPrefix();
   const cleanBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
@@ -61,6 +71,11 @@ const AddEmployee = () => {
 
   // The "contract already accepted" toggle is only offered to Admins & Executives.
   const canSetContractStatus = ["admin", "executive"].includes(
+    (getUserRole() || "").toLowerCase()
+  );
+  // Deliberately narrower than who can open this form (supervisors can, but
+  // were not included when this field was specced). Widen here if that changes.
+  const canSetEmployeeTeam = ["admin", "executive", "manager"].includes(
     (getUserRole() || "").toLowerCase()
   );
 
@@ -154,6 +169,9 @@ const AddEmployee = () => {
     dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("employee_type", formData.employee_type);
     dataToSubmit.append("user_role", userRoleId);
+    if (canSetEmployeeTeam && formData.employee_team) {
+      dataToSubmit.append("employee_team", formData.employee_team);
+    }
     if (formData.employee_type === "Internee" && formData.internee_manager_id) {
       dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
     }
@@ -362,6 +380,33 @@ const AddEmployee = () => {
                   />
                 </div>
               </div>
+
+              {canSetEmployeeTeam && (
+                <div>
+                  <label htmlFor="employee_team" className="form-label mb-1">
+                    Team
+                  </label>
+                  <Controller
+                    name="employee_team"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <Select
+                        inputId="employee_team"
+                        options={EMPLOYEE_TEAM_OPTIONS}
+                        styles={selectStyles}
+                        classNamePrefix="react-select"
+                        value={EMPLOYEE_TEAM_OPTIONS.find((o) => o.value === value) || null}
+                        onChange={(opt) => onChange(opt ? opt.value : "")}
+                        placeholder="No team"
+                        isClearable
+                      />
+                    )}
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Optional — used for grouping, reporting, and which Leave Policy addendum applies.
+                  </p>
+                </div>
+              )}
 
               {canSetContractStatus && (
                 <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4">

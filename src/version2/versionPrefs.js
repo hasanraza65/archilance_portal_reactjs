@@ -115,7 +115,14 @@ export function readRole() {
 export function buildUrl(base, path) {
   const clean = `/${String(path || "").replace(/^\/+/, "")}`;
   const prefix = base === "/" ? "" : base.replace(/\/$/, "");
-  return `${window.location.origin}${prefix}${clean === "/" ? "/" : clean}`;
+  // Production serves both apps from one origin (a proxy routes "/" to
+  // classic and "/v2/" to the new app), so a same-origin relative URL is
+  // correct there. In local dev they're two separate Vite servers with no
+  // such proxy — classic on 5173, this app's peer (v2) on 5180 — so
+  // switching has to target the other dev server's port explicitly, or it
+  // just 404s against whichever app you were already on.
+  const origin = import.meta.env.DEV ? "http://localhost:5180" : window.location.origin;
+  return `${origin}${prefix}${clean === "/" ? "/" : clean}`;
 }
 
 /** Marker telling the receiving app "this is a deliberate version switch". */

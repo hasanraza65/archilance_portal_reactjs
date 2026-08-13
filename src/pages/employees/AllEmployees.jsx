@@ -263,7 +263,7 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
     Header: "Name",
     accessor: "name",
     Cell: ({ row }) => {
-      const { name, profile_pic, id, employee_type, email, phone } = row.original;
+      const { name, profile_pic, id, employee_type, employee_team, email, phone } = row.original;
       const lowerCaseEmployeeType = employee_type?.toLowerCase();
 
       // --- UPDATED CODE ---
@@ -301,18 +301,28 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
       }
       // --- END OF UPDATE ---
 
+      // Team badge — admin-only, deliberately distinct hues from the
+      // employee_type badge above so the two rows of badges read apart.
+      const TEAM_BADGE_CLASS = {
+        "BIM Team": "bg-cyan-100 text-cyan-800 dark:bg-cyan-700 dark:text-cyan-200",
+        "3D Team": "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-700 dark:text-fuchsia-200",
+        "Outsource Department": "bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-200",
+        "Business Team": "bg-lime-100 text-lime-800 dark:bg-lime-700 dark:text-lime-200",
+      };
+      const teamBadgeClass = TEAM_BADGE_CLASS[employee_team] || "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200";
+
       return (
-        <div className="flex items-center space-x-3 rtl:space-x-reverse group" title={`View work sessions for ${name}`}>
+        <div className="flex items-center space-x-3 rtl:space-x-reverse group" title={`View details for ${name}`}>
           {/* Use a real anchor so browser shows "Open link in new tab" in context menu.
               Left-click still navigates via router (preventDefault + navigate) */}
           <a
-            href={`/employees/work-sessions/${id}`}
+            href={`/employees/view/${id}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => {
               // keep SPA navigation on left click
               e.preventDefault();
-              navigate(`/employees/work-sessions/${id}`);
+              navigate(`/employees/view/${id}`);
             }}
             className="flex items-center space-x-3 rtl:space-x-reverse"
           >
@@ -328,6 +338,11 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
                     className={`px-2 py-0.5 text-[10px] leading-tight font-semibold rounded-full capitalize ${badgeClass}`}
                   >
                     {displayType}
+                  </span>
+                )}
+                {isAdmin && employee_team && (
+                  <span className={`px-2 py-0.5 text-[10px] leading-tight font-semibold rounded-full ${teamBadgeClass}`}>
+                    {employee_team}
                   </span>
                 )}
               </div>
@@ -442,6 +457,13 @@ const EMPLOYEE_API_COLUMNS_CONFIG = (
 
       return (
         <div className="flex space-x-1 items-center rtl:space-x-reverse">
+          <button
+            onClick={() => navigate(`/employees/work-sessions/${row.original.id}`)}
+            className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700 rounded-md transition-all duration-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
+            title="View Work Sessions"
+          >
+            <Icon icon="heroicons-outline:calendar-days" className="w-4 h-4" />
+          </button>
           <button
             onClick={handleView}
             className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700 rounded-md transition-all duration-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600"

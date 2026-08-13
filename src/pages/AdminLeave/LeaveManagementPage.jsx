@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Select from "react-select";
@@ -18,8 +19,10 @@ import {
   Download,
   Plus, // Added for Create Button
   X,
+  BookOpen,
 } from "lucide-react";
-import { getApiPrefix, getApiBasePathForRole, getMediaUrl } from "../utility/apiHelper";
+import { getApiPrefix, getApiBasePathForRole, getMediaUrl, getUserRole, getEmployeeTeam } from "../utility/apiHelper";
+import { canViewPolicies } from "../utility/policyAccess";
 
 // --- Helper Functions ---
 const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
@@ -676,6 +679,14 @@ const DeleteConfirmModal = ({ isOpen, onCancel, onConfirm, isDeleting }) => {
 
 // --- Main Page Component ---
 const LeaveManagementPage = () => {
+  const navigate = useNavigate();
+  // "member" can also open this page, but /policies is gated to actual
+  // Archilance staff roles — a "member" has no employee_team and nothing
+  // to see there, so the button is hidden for them.
+  const userRole = (getUserRole() || "").toLowerCase();
+  const showManagePolicies =
+    ["admin", "manager", "supervisor", "executive"].includes(userRole) &&
+    canViewPolicies({ role: userRole, employee_team: getEmployeeTeam() });
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -969,6 +980,15 @@ const LeaveManagementPage = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              {showManagePolicies && (
+                <button
+                  onClick={() => navigate("/policies")}
+                  className="px-4 py-3 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  Manage Policies
+                </button>
+              )}
               <button
                 onClick={fetchLeaveRequests}
                 disabled={isLoading}

@@ -28,6 +28,20 @@ export const getEmployeeType = () => {
   }
 };
 
+export const getEmployeeTeam = () => {
+  const userCookie = Cookies.get("user");
+  if (!userCookie) {
+    return null;
+  }
+  try {
+    const user = JSON.parse(userCookie);
+    return user?.employee_team ?? null;
+  } catch (e) {
+    console.error("Error parsing user cookie for employee_team:", e);
+    return null;
+  }
+};
+
 // --- UPDATED CODE ---
 export const canManageEmployees = () => {
   const role = getActualUserRole();

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 import Select from "react-select";
 import {
   Calendar,
@@ -19,6 +20,7 @@ import {
   Heart,
   Briefcase,
   Star,
+  BookOpen,
 } from "lucide-react";
 
 // Mirrors ADDITIONAL_LEAVE_USER_IDS in the backend's employee/LeaveRequestController.
@@ -67,6 +69,7 @@ const LeaveHistoryTable = ({
   isFormVisible,
   onToggleForm,
   editingLeaveId,
+  showPoliciesLink = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -275,16 +278,27 @@ const LeaveHistoryTable = ({
                 </p>
               </div>
             </div>
-            <button
-              onClick={onRefresh}
-              disabled={isLoading}
-              className="p-2 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw
-                className={`w-5 h-5 text-gray-600 ${isLoading ? "animate-spin" : ""
-                  }`}
-              />
-            </button>
+            <div className="flex items-center gap-1">
+              {showPoliciesLink && (
+                <Link
+                  to="/policies"
+                  className="p-2 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-1 text-sm font-medium text-gray-700"
+                  title="Leave Policies"
+                >
+                  <BookOpen className="w-5 h-5" />
+                </Link>
+              )}
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className="p-2 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw
+                  className={`w-5 h-5 text-gray-600 ${isLoading ? "animate-spin" : ""
+                    }`}
+                />
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

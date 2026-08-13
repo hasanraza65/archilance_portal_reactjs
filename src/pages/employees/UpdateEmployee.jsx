@@ -11,7 +11,7 @@ import Icon from "@/components/ui/Icon";
 import Textinput from "@/components/ui/Textinput";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
-import { canManageEmployees, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
+import { canManageEmployees, getApiPrefix, getMediaUrl, getUserRole } from "@/pages/utility/apiHelper";
 import { toast } from "react-toastify";
 
 const selectStyles = {
@@ -44,9 +44,24 @@ const EMPLOYEE_TYPE_OPTIONS = [
   { value: "Internee", label: "Internee" },
 ];
 
+// Teams are fixed labels agreed with management; the backend stores a free
+// string, so adding one later is a one-line change here. Used for grouping/
+// reporting and to drive which Leave Policy addendum an employee sees.
+const EMPLOYEE_TEAM_OPTIONS = [
+  { value: "BIM Team", label: "BIM Team" },
+  { value: "3D Team", label: "3D Team" },
+  { value: "Outsource Department", label: "Outsource Department" },
+  { value: "Business Team", label: "Business Team" },
+];
+
 const EditEmployee = () => {
   const { employeeId } = useParams();
   const navigate = useNavigate();
+  // Deliberately narrower than who can open this form (supervisors can, but
+  // were not included when this field was specced). Widen here if that changes.
+  const canSetEmployeeTeam = ["admin", "executive", "manager"].includes(
+    (getUserRole() || "").toLowerCase()
+  );
 
   const {
     register,
@@ -158,6 +173,7 @@ const EditEmployee = () => {
             ? String(employee.phone).replace(/[\r\n]+/g, "")
             : "",
           employee_type: employee.employee_type || "Employee",
+          employee_team: employee.employee_team || "",
           joining_date: employee.joining_date || null,
           probation_period_end_date: employee.probation_period_end_date || null,
           internee_manager_id: employee.internee_manager_id ? String(employee.internee_manager_id) : "",
@@ -249,6 +265,9 @@ const EditEmployee = () => {
     dataToSubmit.append("phone", formData.phone || "");
     dataToSubmit.append("employee_type", formData.employee_type);
     dataToSubmit.append("user_role", userRoleId);
+    if (canSetEmployeeTeam) {
+      dataToSubmit.append("employee_team", formData.employee_team || "");
+    }
     if (formData.employee_type === "Internee" && formData.internee_manager_id) {
       dataToSubmit.append("internee_manager_id", formData.internee_manager_id);
     }
@@ -478,6 +497,35 @@ const EditEmployee = () => {
             )}
           </div>
         </div>
+
+        {canSetEmployeeTeam && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="employee_team" className="form-label">
+                Team
+              </label>
+              <Controller
+                name="employee_team"
+                control={control}
+                render={({ field: { onChange, value } }) => (
+                  <Select
+                    inputId="employee_team"
+                    options={EMPLOYEE_TEAM_OPTIONS}
+                    styles={selectStyles}
+                    classNamePrefix="react-select"
+                    value={EMPLOYEE_TEAM_OPTIONS.find((o) => o.value === value) || null}
+                    onChange={(opt) => onChange(opt ? opt.value : "")}
+                    placeholder="No team"
+                    isClearable
+                  />
+                )}
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Optional — used for grouping, reporting, and which Leave Policy addendum applies.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>

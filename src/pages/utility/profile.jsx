@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
 import Loading from "@/components/Loading";
 
 // Naye axios instance ko import karein
@@ -112,8 +113,19 @@ const Profile = () => {
                 </div>
               </div>
               <div className="flex-1">
-                <div className="text-2xl font-medium text-slate-900 dark:text-slate-200 mb-[3px]">
-                  {userProfile?.name || "User Name"}
+                <div className="flex items-center gap-2 mb-[3px]">
+                  <div className="text-2xl font-medium text-slate-900 dark:text-slate-200">
+                    {userProfile?.name || "User Name"}
+                  </div>
+                  {/* Which team's leave policy applies to this employee — set
+                      by an admin/manager on their employee record (Employees
+                      → Edit → Team). */}
+                  {userProfile?.employee_team && (
+                    <Badge
+                      className="bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300"
+                      label={userProfile.employee_team}
+                    />
+                  )}
                 </div>
                 <div className="text-sm font-light text-slate-600 dark:text-slate-400">
                   {userProfile?.username || "Username"}

@@ -12,6 +12,7 @@ import Loading from "./components/Loading";
 // New-UI opt-in experience. Everything it needs lives under src/version2/.
 import VersionExperience from "./version2/VersionExperience";
 import ProtectedRoute from "./ProtectedRoute";
+import { canViewPolicies } from "./pages/utility/policyAccess";
 import AdminSubscription from "./pages/admin/AdminSubscription";
 import CustomerTeam from "./pages/customers/CustomerTeam/CustomerTeam";
 import MyTeamAccess from "./pages/member/MyTeamAccess";
@@ -57,6 +58,9 @@ const EmployeeDashboard = lazy(() =>
 );
 const LeaveManagementPage = lazy(() =>
   import("./pages/AdminLeave/LeaveManagementPage")
+);
+const LeavePoliciesPage = lazy(() =>
+  import("./pages/LeavePolicies/LeavePoliciesPage")
 );
 const PaymentStatusPage = lazy(() =>
   import("./pages/customers/Subscription/PaymentMethod")
@@ -332,7 +336,22 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+
+            <Route
+              path="policies"
+              element={
+                // Internee excluded by allowedRoles; the team-based
+                // exclusion (Outsource Department / Business Team) can't
+                // be a static role list, so it's the route's own predicate.
+                <ProtectedRoute
+                  allowedRoles={["admin", "employee", "manager", "outsource", "supervisor", "executive"]}
+                  extraCheck={canViewPolicies}
+                >
+                  <LeavePoliciesPage />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="employees"
               element={
@@ -437,13 +456,17 @@ function App() {
             <Route
               path="employeeleaves"
               element={
+                // "outsource" role removed — they, and anyone on the
+                // Outsource Department team regardless of role, arrange
+                // leave with their manager directly (see canUseMyLeaves;
+                // the team-based half of that is enforced inside
+                // EmployeeDashboard itself, since it can't be a role list).
                 <ProtectedRoute
                   allowedRoles={[
                     "employee",
                     "manager",
-                    "outsource",
                     "supervisor",
-                    "executive", // Added executive
+                    "executive",
                   ]}
                 >
                   <EmployeeDashboard />
@@ -691,4 +714,3 @@ function App() {
   );
 }
 
-export default App;

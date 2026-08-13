@@ -6,7 +6,7 @@ import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
-import { canManageEmployees, getApiPrefix, getMediaUrl } from "@/pages/utility/apiHelper";
+import { canManageEmployees, getApiPrefix, getMediaUrl, getUserRole } from "@/pages/utility/apiHelper";
 
 const DetailItem = ({ label, value }) => {
   let displayValue = value;
@@ -166,12 +166,16 @@ const ShowEmployee = () => {
     );
   }
 
+  // Team is only shown to admin — same restriction as the Employees list badge.
+  const isAdmin = (getUserRole() || "").toLowerCase() === "admin";
+
   const employeeDetailsFields = [
     { label: "Full Name", value: employee.name },
     { label: "Email Address", value: employee.email },
     { label: "Username", value: employee.username },
     { label: "Phone Number", value: employee.phone },
     { label: "Role ID", value: employee.user_role },
+    ...(isAdmin ? [{ label: "Team", value: employee.employee_team }] : []),
   ];
 
   return (
